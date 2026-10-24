@@ -15,6 +15,9 @@
  *                             on those lines)
  *   NV_LOG=1                  log Link's position, floor and camera every 20 frames
  *
+ * Always on: hold L and press D-pad down to note the spot Link stands on (scene, position,
+ * facing, camera) in nv_spots.txt in the SoH folder, for marking places to change by hand.
+ *
  * Called from Play_Update (z_play.c) before the actors update.
  */
 #include "global.h"
@@ -159,10 +162,29 @@ static void NvDev_ParsePath(void) {
     }
 }
 
+static void NvDev_MarkSpot(PlayState* play, Player* player) {
+    FILE* f = fopen("nv_spots.txt", "a");
+    const char* file = (play->loadedScene != NULL) ? play->loadedScene->sceneFile.fileName : NULL;
+
+    if (f == NULL) {
+        return;
+    }
+    fprintf(f, "%s pos=%d,%d,%d yaw=%d cam=%d\n", (file != NULL) ? file : "?", (int)player->actor.world.pos.x,
+            (int)player->actor.world.pos.y, (int)player->actor.world.pos.z, (u16)player->actor.shape.rot.y,
+            (int)GET_ACTIVE_CAM(play)->camDataIdx);
+    fclose(f);
+    Sfx_PlaySfxCentered(NA_SE_SY_DECIDE);
+}
+
 void NvDev_Update(PlayState* play) {
     Player* player = GET_PLAYER(play);
     Input* input = &play->state.input[0];
     const char* pos;
+
+    if ((player != NULL) && CHECK_BTN_ALL(input->cur.button, BTN_L) &&
+        CHECK_BTN_ALL(input->press.button, BTN_DDOWN)) {
+        NvDev_MarkSpot(play, player);
+    }
 
     if ((player == NULL) || (play->gameplayFrames < 2)) {
         return;

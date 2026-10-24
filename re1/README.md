@@ -76,8 +76,18 @@ the gallery columns, their bases and the banister post.
 4. Characters and animation, checked side by side against RE1's own.
 5. Content, room by room, each with a short checklist for play-testing.
 
-Doors: never walk-in exits. A door is RE1's door rectangle with an "A to open" spot, checked
-for Link facing it, with arrivals placed clear of it.
+Doors: never walk-in exits. RE1's own rule (Bio.exe 0x456880): pressing the action button opens
+a door when the point 600 units in front of the player is inside the door's rectangle (all of the
+mansion's doors are flagged for this). `soh/src/code/z_nv_door.c` does the same with A, with the
+reach raised from 13 to 18 OoT units for Link's wider body (OoT keeps him further from walls than
+RE1 keeps Jill; Jill's exact radius is still to be read from Bio.exe). Link arrives at RE1's own
+arrival point, facing into the room. Between rooms, RE1's door scene plays over black
+(`z_nv_doorscene.c`, data from `tools/soh_doors.py`); a door without one cuts with a fade.
+`tools/soh_doorcheck.py` checks every door headless: walking into it must not change rooms, and
+A from where a player would stand must reach the target at its arrival point.
+
+Marking spots by hand: hold L and press D-pad down, and SoH appends the room, Link's position,
+facing and camera to `nv_spots.txt` in its folder.
 
 Later: RE1's FMVs (Cinepak AVIs, from the player's English PC copy), and the mansion's way in
 through a Lost Woods wrong turn instead of a replaced OoT door.
