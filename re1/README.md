@@ -11,6 +11,16 @@ player supplies their own copies: OoT's ROM for SoH as usual, and their own RE1 
 which the tools here convert locally into a mod archive (`.o2r`) for SoH's `mods` folder.
 Only our code, tools and notes are committed.
 
+## Making the mod (players)
+
+With Python 3 and Pillow (`pip install pillow`):
+
+    python re1/tools/make_mod.py <RE1 data folder> re1.o2r
+
+where the data folder is the one holding Stage1..Stage7 ("USA" in the GOG release). Put
+`re1.o2r` in Ship of Harkinian's `mods` folder. Until the mansion has its way in (the Lost
+Woods), a file `nv_boot.txt` holding `re1_106` in the SoH folder starts the game in the foyer.
+
 ## Pipeline
 
 `tools/rdt2scene.py` is the N64 demo's room converter (copied, with its RE1 readers:
