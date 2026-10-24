@@ -12190,6 +12190,7 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
 static Vec3f sDogSpawnOffset = { 0.0f, 0.0f, -30.0f };
 
 s32 Player_UpdateNoclip(Player* this, PlayState* play);
+s32 NvClimb_UpdatePlayer(Player* player, PlayState* play); // Nightmareverse: RE1 stairs (z_nv_climb.c)
 
 void Player_Update(Actor* thisx, PlayState* play) {
     static Vec3f sDogSpawnPos;
@@ -12197,6 +12198,10 @@ void Player_Update(Actor* thisx, PlayState* play) {
     s32 dogParams;
     s32 pad;
     Input input;
+
+    if (NvClimb_UpdatePlayer(this, play)) {
+        return;
+    }
 
     if (Player_UpdateNoclip(this, play)) {
         if (gSaveContext.dogParams < 0) {

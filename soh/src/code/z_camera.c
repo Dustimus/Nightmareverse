@@ -1,5 +1,7 @@
 #include <libultraship/libultra.h>
 #include "global.h"
+
+s32 NvCamera_Select(PlayState* play, s32 floorCam); // Nightmareverse: RE1 camera zones (z_nv_camera.c)
 #include "vt.h"
 
 #include <string.h>
@@ -7588,6 +7590,8 @@ Vec3s Camera_Update(Camera* camera) {
                 (!(camera->unk_14C & 0x200) || (player->currentBoots == PLAYER_BOOTS_IRON)) &&
                 (!(camera->unk_14C & (s16)0x8000)) && (playerGroundY != BGCHECK_Y_MIN)) {
                 camDataIdx = Camera_GetDataIdxForPoly(camera, &bgId, playerFloorPoly);
+                // Nightmareverse: RE1 rooms switch cameras by RE1's own zones (z_nv_camera.c)
+                camDataIdx = NvCamera_Select(camera->play, camDataIdx);
                 if (camDataIdx != -1) {
                     camera->nextBGCheckId = bgId;
                     if (bgId == BGCHECK_SCENE) {

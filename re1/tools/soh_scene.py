@@ -26,6 +26,7 @@ from xml.sax.saxutils import quoteattr
 from PIL import Image
 
 import rdt
+import re1_floor
 import re1_masks
 import rdt2scene as r2s
 
@@ -204,7 +205,59 @@ def door_blob(doors):
     return bytes(data)
 
 
-def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, doors=(), bias_tables=None):
+def room_aots(raw):
+    """Aot_set (SCD 0x0D, 18 bytes) zones of the room's two scripts: [(type, x, z, w, d, d0, sat)].
+    sat: 0x40 tests the player's own position instead of the point 600 ahead of her, 0x80 only on
+    the action button (update_player_position / check_action_object)."""
+    offs = struct.unpack_from("<19I", raw, 0x94 - 76)
+    out = []
+    for o in (offs[6], offs[7]):
+        if not o:
+            continue
+        length = struct.unpack_from("<H", raw, o)[0]
+        code = raw[o + 2:o + 2 + length]
+        i = 0
+        while i < len(code):
+            n = rdt.scd_inst_len(code, i)
+            if n <= 0:
+                break
+            if code[i] == 0x0D and i + 18 <= len(code):
+                _op, _id, x, z, w, d, t, sat, d0, _d1, _d2 = struct.unpack_from("<BB4H2B3h", code, i)
+                out.append((t, x, z, w, d, d0, sat))
+            i += n
+    return out
+
+
+def camera_zone_records(raw, ncam):
+    """RE1's switch-zone table (RDT+0x48) as its raw 20-byte records, grouped by camFrom (each
+    group's first record is its header, the rest the quads tested while that camera is on). The
+    table ends with a record of camTo = camFrom = -1."""
+    zp = struct.unpack_from("<I", raw, 0x48)[0]
+    out = []
+    for p in range(zp, len(raw) - 19, 20):
+        cam_from = struct.unpack_from("<h", raw, p + 2)[0]
+        if not 0 <= cam_from < ncam:
+            break
+        out.append(raw[p:p + 20])
+    return out
+
+
+def camera_own_zones(raw):
+    """[(camera, quad)]: each camera's own record in RE1's switch-zone table (the first record of
+    its group), quad as [(x, z)] * 4."""
+    ncam = struct.unpack_from("<B", raw, 1)[0]
+    out, seen = [], set()
+    for rec in camera_zone_records(raw, ncam):
+        cam_to, cam_from = struct.unpack_from("<2h", rec, 0)
+        c = struct.unpack_from("<8H", rec, 4)
+        if cam_from not in seen:
+            seen.add(cam_from)
+            out.append((cam_from, [(c[0], c[1]), (c[2], c[3]), (c[4], c[5]), (c[6], c[7])]))
+    return out
+
+
+def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, doors=(), bias_tables=None,
+               arrivals=(), aots=()):
     """One RE1 room as an SoH scene. spawns: [(x, z, yaw_binang)] in RE1 units. Returns the
     scene's resource path (what the scene table's file name resolves to)."""
     cell_exit = cell_exit or {}
@@ -214,16 +267,32 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     os.makedirs(d, exist_ok=True)
     ncam = len(room.cameras)
 
-    # collision, as rdt2scene.write_scene builds it: one surface type per (camera, exit) on the
-    # floor, plus one for walls
-    keys = sorted({(cam, cell_exit.get(k, 0)) for k, cam in grid.items()})
-    surf_index = {key: i for i, key in enumerate(keys)}
+    # floor and walls from RE1's rules (re1_floor.py); each floor cell's surface carries the
+    # camera whose own switch-zone record holds it (only the starting camera comes from it:
+    # z_nv_camera.c switches by RE1's zones)
+    floor = re1_floor.Floor(room.raw, int(room_id[1:], 16),
+                            list(arrivals) + [(sx, sz, 0) for sx, sz, _ in spawns], aots)
+    own = camera_own_zones(room.raw)
+
+    def cam_at(x, z):
+        for cam, quad in own:
+            if r2s.inside_quad(quad, x, z):
+                return cam
+        return 0
+
+    cams = sorted({cam_at((k[0] + 0.5) * re1_floor.CELL, (k[1] + 0.5) * re1_floor.CELL) for k in floor.cells} | {0})
+    surf_of_cam = {c: i for i, c in enumerate(cams)}
+    keys = [(c, 0) for c in cams]
     wall_surface = len(keys)
-    surf_grid = {k: surf_index[(cam, cell_exit.get(k, 0))] for k, cam in grid.items()}
-    floor = r2s.Floor(room_id)
-    surf_grid = grow_into_walls(room, extend_floor(room, surf_grid, floor), floor)
-    col = r2s.build_collision(room, surf_grid, wall_surface, floor)
-    edge_walls(col, surf_grid, wall_surface, floor)
+    verts, polys = floor.mesh(
+        lambda k: surf_of_cam[cam_at((k[0] + 0.5) * re1_floor.CELL, (k[1] + 0.5) * re1_floor.CELL)],
+        wall_surface, r2s.to_oot)
+
+    class _Col:
+        pass
+
+    col = _Col()
+    col.verts, col.polys = verts, polys
     xs, ys, zs = ([v[i] for v in col.verts] for i in range(3))
 
     C = ['<CollisionHeader Version="0" MinBoundsX="%d" MinBoundsY="%d" MinBoundsZ="%d" '
@@ -260,7 +329,7 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     S.append('    <SetStartPositionList>')
     for sx, sz, syaw in spawns:
         p = r2s.to_oot((sx, floor.height(sx, sz), sz))
-        cam = grid.get((int(sx // r2s.CELL), int(sz // r2s.CELL)), 0)
+        cam = cam_at(sx, sz)
         # ACTOR_PLAYER, PLAYER_PARAMS(PLAYER_START_MODE_IDLE, cam): start on the camera owning the cell
         S.append("        " + _el("StartPositionEntry", Id=0, PosX=round(p[0]), PosY=round(p[1]), PosZ=round(p[2]),
                                   RotX=0, RotY=syaw, RotZ=0, Params=(PLAYER_START_MODE_IDLE << 8) | (cam & 0xFF)))
@@ -294,6 +363,19 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
         R.append("            " + _el("BgImage", Unknown_00=130, Id=c, ImagePath="%s/%s" % (base, bgname),
                                       Unknown_0C=0, TLUT=0, Width=320, Height=240, Fmt=0, Siz=2, Mode0=0,
                                       TLUTCount=0))
+    # RE1's camera switch zones, as they are: "<name>_camzones" (z_nv_camera.c)
+    zrecs = camera_zone_records(room.raw, ncam)
+    blob = b"RCZN" + struct.pack("<I", len(zrecs)) + b"".join(zrecs)
+    open(os.path.join(d, name + "_camzones"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+
+    # stairs: "<name>_climbs" (z_nv_climb.c), RE1's Aot_set zones of type 5 and 6 with the move
+    # player_door_open_sequence makes (shallower in rooms 0x05 and 0x0E)
+    along, up = re1_floor.CLIMB_SHALLOW if int(room_id[1:], 16) in (0x05, 0x0E) else re1_floor.CLIMB
+    climbs = [a for a in aots if a[0] in (5, 6)]
+    blob = b"RCLB" + struct.pack("<I", len(climbs)) + b"".join(
+        struct.pack("<3Bx4H2h", t, sat, d0 & 0xFF, x, z, w, dd, along, up) for t, x, z, w, dd, d0, sat in climbs)
+    open(os.path.join(d, name + "_climbs"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+
     # doors: "<name>_doors" (z_nv_door.c finds it by the scene's name)
     blob = door_blob(doors)
     open(os.path.join(d, name + "_doors"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)

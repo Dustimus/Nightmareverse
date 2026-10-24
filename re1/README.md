@@ -32,23 +32,46 @@ Woods), a file `nv_boot.txt` holding `re1_106` in the SoH folder starts the game
 
 ## Pipeline
 
-`tools/rdt2scene.py` is the N64 demo's room converter (copied, with its RE1 readers:
-`rdt.py`, `emd.py`, `dor.py`, `evt.py`). It reads a room's RDT (cameras, camera zones,
-collision, doors, scripts) and works out a walkable floor, OoT collision, cameras and spawns.
+`tools/rdt2scene.py` drives the conversion (it started as the N64 demo's converter, with its
+RE1 readers `rdt.py`, `emd.py`, `dor.py`, `evt.py`; the parts that decide how a room plays are
+being replaced one by one with RE1's own rules, read from the PC decompilation). It reads a
+room's RDT (cameras, camera zones, collision, doors, scripts).
 With `--soh <folder>`, `tools/soh_scene.py` also writes each room as SoH resources and packs
 them into `<folder>.o2r`:
 
 - `scenes/shared/<name>_scene/<name>_scene`: the scene, in SoH's XML scene format (root
   `<Room>`; the readers are `soh/soh/resource/importer/SceneFactory.cpp` and
   `scenecommand/*Factory.cpp`)
-- `.../<name>_room_0`: the room, with an image room shape: one background per RE1 camera,
-  picked by the camera the floor under Link belongs to
+- `.../<name>_room_0`: the room, with an image room shape: one background per RE1 camera
 - `.../<name>_col`: collision, XML `<CollisionHeader>` (cameras are `CAM_SET_PREREND_FIXED`)
 - `.../<name>_bg<n>`: camera n's background, a binary Background resource holding RE1's own
   pixels as raw 320x240 RGBA5551 (lossless: RE1's backgrounds are 15-bit, and SoH draws a
   Background directly unless it starts with a JPEG header)
 - `.../<name>_bg<n>_mask`: camera n's mask pieces (rectangle, depth, shape), drawn by
   `soh/src/code/z_nv_mask.c` as invisible depth-only rectangles right after the background
+
+- `.../<name>_camzones`, `_doors`, `_climbs`: RE1's camera switch zones, doors and stairs
+  (below)
+
+How the room plays, from RE1's own rules (ecruells/resident-evil-pc-decomp, read for the
+rules; none of its code is copied):
+
+- Collision (`tools/re1_floor.py`): RE1's collision records (RDT+0x4C). Shapes 1 (box) and 3
+  (ellipse) keep the player out; shape 4 is a soft zone; shape 5 boxes stop enemies only (the
+  player's spawn raises the status bit that skips them, and nothing clears it), which is how
+  the player stands in stairwells. Floor is wherever the player can get to from the room's
+  arrival points; RE1 has no floor heights, so each part the shapes keep apart takes the height
+  of the doors arriving in it, carried across the room's stairs.
+- Cameras (`soh/src/code/z_nv_camera.c`): RE1's switch zones (RDT+0x48), grouped by camera;
+  the first record of a group is its header, the others are quads that cut to their camera
+  while that camera is on. The table ends at a record with camera -1. A room opens on the
+  camera its door names (Door_set byte 13).
+- Stairs (`soh/src/code/z_nv_climb.c`): Aot_set zones of type 5 (along x) and 6 (along z)
+  over a solid box. A with the zone in front of Link and him facing along it carries him 4350
+  units along the axis and 2885 up or down (player_door_open_sequence); 2114 / 1402 in rooms
+  0x05 and 0x0E. Checked in 207: up to the corridor and back down to the stairwell.
+- Start positions: RE1's arrival points as they are; start position 0 is the room's first
+  arrival (the first room's is `--spawn`).
 
 `tools/soh_tables.py <folder>` then registers the rooms with the engine: it writes
 `soh/include/tables/nv_re1_scene_table.h` and `nv_re1_entrance_table.h`, which OoT's scene and

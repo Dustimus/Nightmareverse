@@ -39,7 +39,10 @@ typedef struct NvDoor {
 } NvDoor;
 
 s32 NvDoorScene_Exists(s32 anim);
+void NvCamera_SetArrival(s32 cam);
 void NvDoorScene_Queue(s32 anim, s32 b10, s32 b11, s32 b13, s32 b15);
+s32 NvClimb_Active(void);
+s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD);
 
 #define NV_DOOR_ACTION 0x80   // opens with the action button
 #define NV_DOOR_AT_PLAYER 0x40 // tested at the player's position, not in front of him
@@ -116,14 +119,14 @@ void NvDoor_Update(PlayState* play) {
     if ((player == NULL) || !CHECK_BTN_ALL(input->press.button, BTN_A) ||
         (play->transitionTrigger != TRANS_TRIGGER_OFF) || (play->transitionMode != TRANS_MODE_OFF) ||
         Player_InBlockingCsMode(play, player) || (play->msgCtx.msgMode != MSGMODE_NONE) ||
-        !(player->actor.bgCheckFlags & 1) || (player->actor.parent != NULL)) {
-        return;
-    }
-    data = NvDoor_Data(play, &count);
-    if (data == NULL) {
+        !(player->actor.bgCheckFlags & 1) || (player->actor.parent != NULL) || NvClimb_Active()) {
         return;
     }
     reach = player->ageProperties->wallCheckRadius + NV_DOOR_REACH_PAST_BODY;
+    data = NvDoor_Data(play, &count);
+    if (data == NULL) {
+        count = 0;
+    }
     sx = Math_SinS(player->actor.shape.rot.y);
     sz = Math_CosS(player->actor.shape.rot.y);
     for (i = 0; i < count; i++) {
@@ -168,6 +171,7 @@ void NvDoor_Update(PlayState* play) {
         // the press is the door's, not Link's
         input->press.button &= ~BTN_A;
         input->cur.button &= ~BTN_A;
+        NvCamera_SetArrival(door.b13 & 0x3F); // RE1: the next room opens on this camera
         play->nextEntranceIndex = entrance;
         play->transitionTrigger = TRANS_TRIGGER_START;
         if (NvDoorScene_Exists(door.anim)) {
@@ -179,5 +183,10 @@ void NvDoor_Update(PlayState* play) {
             gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
         }
         return;
+    }
+    // no door: the room's stairs (z_nv_climb.c), with the same points
+    if (NvClimb_TryStart(play, player, NV_DOOR_REACH_RE1, reach)) {
+        input->press.button &= ~BTN_A;
+        input->cur.button &= ~BTN_A;
     }
 }
