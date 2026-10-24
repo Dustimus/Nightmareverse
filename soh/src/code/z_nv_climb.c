@@ -81,9 +81,10 @@ static s32 NvClimb_In(const NvClimb* c, f32 x, f32 z) {
 
 /**
  * On an A press with no door in reach: start a climb if a stairs zone is in front of Link (the
- * same points z_nv_door.c tests, from nearD to farD OoT units ahead). Returns true if he climbs.
+ * same points z_nv_door.c tests, from nearD to farD OoT units ahead). Returns true if he climbs
+ * (with start false, whether he would: the A button's label).
  */
-s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD) {
+s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD, s32 start) {
     u8* data;
     u32 count;
     u32 i;
@@ -136,6 +137,9 @@ s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD) {
         dir = low ? 1 : -1;
         if (((c.type == 5) ? rfx : rfz) * dir <= 0.0f) {
             continue;
+        }
+        if (!start) {
+            return true;
         }
         if (c.type == 5) {
             tx += dir * c.along;

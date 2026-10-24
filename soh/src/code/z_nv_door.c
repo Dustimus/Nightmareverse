@@ -41,7 +41,7 @@ typedef struct NvDoor {
 s32 NvDoorScene_Exists(s32 anim);
 void NvDoorScene_Queue(s32 anim, s32 b10, s32 b11, s32 b13, s32 b15);
 s32 NvClimb_Active(void);
-s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD);
+s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD, s32 start);
 
 #define NV_DOOR_ACTION 0x80   // opens with the action button
 #define NV_DOOR_AT_PLAYER 0x40 // tested at the player's position, not in front of him
@@ -105,34 +105,35 @@ static u8* NvDoor_Data(PlayState* play, u32* count) {
     return data + 8;
 }
 
-void NvDoor_Update(PlayState* play) {
-    Player* player = GET_PLAYER(play);
-    Input* input = &play->state.input[0];
+// Whether Link may use a door or stairs now (standing, in control, nothing else going on)
+static s32 NvDoor_CanAct(PlayState* play, Player* player) {
+    return (player != NULL) && (play->transitionTrigger == TRANS_TRIGGER_OFF) &&
+           (play->transitionMode == TRANS_MODE_OFF) && !Player_InBlockingCsMode(play, player) &&
+           (play->msgCtx.msgMode == MSGMODE_NONE) && (player->actor.bgCheckFlags & 1) &&
+           (player->actor.parent == NULL) && !NvClimb_Active();
+}
+
+static f32 NvDoor_Reach(Player* player) {
+    return player->ageProperties->wallCheckRadius + NV_DOOR_REACH_PAST_BODY;
+}
+
+// The door A would open now (RE1's test), or -1
+static s32 NvDoor_Find(PlayState* play, Player* player, NvDoor* out) {
     u8* data;
     u32 count;
     u32 i;
-    f32 sx;
-    f32 sz;
-    f32 reach;
+    f32 sx = Math_SinS(player->actor.shape.rot.y);
+    f32 sz = Math_CosS(player->actor.shape.rot.y);
+    f32 reach = NvDoor_Reach(player);
 
-    if ((player == NULL) || !CHECK_BTN_ALL(input->press.button, BTN_A) ||
-        (play->transitionTrigger != TRANS_TRIGGER_OFF) || (play->transitionMode != TRANS_MODE_OFF) ||
-        Player_InBlockingCsMode(play, player) || (play->msgCtx.msgMode != MSGMODE_NONE) ||
-        !(player->actor.bgCheckFlags & 1) || (player->actor.parent != NULL) || NvClimb_Active()) {
-        return;
-    }
-    reach = player->ageProperties->wallCheckRadius + NV_DOOR_REACH_PAST_BODY;
     data = NvDoor_Data(play, &count);
     if (data == NULL) {
-        count = 0;
+        return -1;
     }
-    sx = Math_SinS(player->actor.shape.rot.y);
-    sz = Math_CosS(player->actor.shape.rot.y);
     for (i = 0; i < count; i++) {
         NvDoor door;
         f32 px;
         f32 pz;
-        s16 entrance;
 
         memcpy(&door, data + i * sizeof(NvDoor), sizeof(NvDoor));
         if (!(door.flags & NV_DOOR_ACTION)) {
@@ -160,31 +161,69 @@ void NvDoor_Update(PlayState* play) {
                 continue;
             }
         }
-        door.target[sizeof(door.target) - 1] = '\0';
-        entrance = NvDoor_Entrance(door.target, door.spawn);
-        printf("NVDOOR %d -> %s spawn %d entrance 0x%X\n", (int)i, door.target, (int)door.spawn, (int)entrance);
-        fflush(stdout);
-        if (entrance < 0) {
-            return;
-        }
-        // the press is the door's, not Link's
-        input->press.button &= ~BTN_A;
-        input->cur.button &= ~BTN_A;
-        play->nextEntranceIndex = entrance;
-        play->transitionTrigger = TRANS_TRIGGER_START;
-        if (NvDoorScene_Exists(door.anim)) {
-            NvDoorScene_Queue(door.anim, door.b10, door.b11, door.b13, door.b15);
-            play->transitionType = TRANS_TYPE_INSTANT;
-            gSaveContext.nextTransitionType = TRANS_TYPE_INSTANT;
-        } else {
-            play->transitionType = TRANS_TYPE_FADE_BLACK;
-            gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
+        *out = door;
+        return i;
+    }
+    return -1;
+}
+
+/**
+ * The A button's label for RE1's doors and stairs (z_player.c, Player_UpdateInterface):
+ * DO_ACTION_OPEN or DO_ACTION_CLIMB when A would use one, else -1.
+ */
+s32 NvDoor_DoAction(PlayState* play, Player* player) {
+    NvDoor door;
+
+    if (!NvDoor_CanAct(play, player)) {
+        return -1;
+    }
+    if (NvDoor_Find(play, player, &door) >= 0) {
+        return DO_ACTION_OPEN;
+    }
+    if (NvClimb_TryStart(play, player, NV_DOOR_REACH_RE1, NvDoor_Reach(player), false)) {
+        return DO_ACTION_CLIMB;
+    }
+    return -1;
+}
+
+void NvDoor_Update(PlayState* play) {
+    Player* player = GET_PLAYER(play);
+    Input* input = &play->state.input[0];
+    NvDoor door;
+    s32 i;
+    s16 entrance;
+
+    if (!CHECK_BTN_ALL(input->press.button, BTN_A) || !NvDoor_CanAct(play, player)) {
+        return;
+    }
+    i = NvDoor_Find(play, player, &door);
+    if (i < 0) {
+        // no door: the room's stairs (z_nv_climb.c), with the same points
+        if (NvClimb_TryStart(play, player, NV_DOOR_REACH_RE1, NvDoor_Reach(player), true)) {
+            input->press.button &= ~BTN_A;
+            input->cur.button &= ~BTN_A;
         }
         return;
     }
-    // no door: the room's stairs (z_nv_climb.c), with the same points
-    if (NvClimb_TryStart(play, player, NV_DOOR_REACH_RE1, reach)) {
-        input->press.button &= ~BTN_A;
-        input->cur.button &= ~BTN_A;
+    door.target[sizeof(door.target) - 1] = '\0';
+    entrance = NvDoor_Entrance(door.target, door.spawn);
+    printf("NVDOOR %d -> %s spawn %d entrance 0x%X\n", (int)i, door.target, (int)door.spawn, (int)entrance);
+    fflush(stdout);
+    if (entrance < 0) {
+        return;
     }
+    // the press is the door's, not Link's
+    input->press.button &= ~BTN_A;
+    input->cur.button &= ~BTN_A;
+    play->nextEntranceIndex = entrance;
+    play->transitionTrigger = TRANS_TRIGGER_START;
+    if (NvDoorScene_Exists(door.anim)) {
+        NvDoorScene_Queue(door.anim, door.b10, door.b11, door.b13, door.b15);
+        play->transitionType = TRANS_TYPE_INSTANT;
+        gSaveContext.nextTransitionType = TRANS_TYPE_INSTANT;
+    } else {
+        play->transitionType = TRANS_TYPE_FADE_BLACK;
+        gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
+    }
+    return;
 }

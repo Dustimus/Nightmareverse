@@ -10966,6 +10966,8 @@ void func_80847298(Player* this) {
     this->unk_6AE_rotFlags = 0;
 }
 
+s32 NvDoor_DoAction(PlayState* play, Player* player); // Nightmareverse: RE1 doors' A label (z_nv_door.c)
+
 static f32 D_80854784[] = { 120.0f, 240.0f, 360.0f };
 
 /**
@@ -11087,6 +11089,14 @@ void Player_UpdateInterface(PlayState* play, Player* this) {
                 // the cooldown timer is counting down
                 doAction = DO_ACTION_NONE;
                 this->putAwayCooldownTimer--;
+            }
+        }
+
+        if (doAction == DO_ACTION_NONE) { // Nightmareverse: RE1's doors and stairs (z_nv_door.c)
+            s32 nvDoAction = NvDoor_DoAction(play, this);
+
+            if (nvDoAction >= 0) {
+                doAction = nvDoAction;
             }
         }
 
