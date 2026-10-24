@@ -25,8 +25,11 @@ them into `<folder>.o2r`:
 - `.../<name>_room_0`: the room, with an image room shape: one background per RE1 camera,
   picked by the camera the floor under Link belongs to
 - `.../<name>_col`: collision, XML `<CollisionHeader>` (cameras are `CAM_SET_PREREND_FIXED`)
-- `.../<name>_bg<n>`: camera n's background, a binary Background resource (a JPEG; SoH decodes
-  it with stb_image)
+- `.../<name>_bg<n>`: camera n's background, a binary Background resource holding RE1's own
+  pixels as raw 320x240 RGBA5551 (lossless: RE1's backgrounds are 15-bit, and SoH draws a
+  Background directly unless it starts with a JPEG header)
+- `.../<name>_bg<n>_mask`: camera n's mask pieces (rectangle, depth, shape), drawn by
+  `soh/src/code/z_nv_mask.c` as invisible depth-only rectangles right after the background
 
 The engine side registers each room in `soh/include/tables/scene_table.h` and
 `entrance_table.h` (after OoT's own).

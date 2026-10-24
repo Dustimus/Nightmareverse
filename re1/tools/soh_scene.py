@@ -66,6 +66,23 @@ def background_jpeg(stage, room_id, cam_index, quality=95):
     return buf.getvalue()
 
 
+def background_raw(stage, room_id, cam_index):
+    """Camera background as raw RGBA5551, big-endian, 320x240: RE1's own 15-bit pixels, bit for
+    bit (lossless). SoH draws a Background's data directly as RGBA16 unless it starts with a
+    JPEG header (z_room.c swapAndConvertJPEG), so no decoding happens at all."""
+    with open(os.path.join(stage, "RC%s%d.pak" % (room_id, cam_index)), "rb") as f:
+        tim = rdt.emd.parse_tim(rdt.pak_depack(f.read()), 0)
+    assert tim.bpp == 16 and tim.width == 320 and tim.height == 240, (room_id, cam_index, tim.bpp)
+    out = bytearray(320 * 240 * 2)
+    for i in range(320 * 240):
+        c = tim.pixels[2 * i] | (tim.pixels[2 * i + 1] << 8)  # PSX BGR555 (little-endian)
+        r, g, b = c & 31, (c >> 5) & 31, (c >> 10) & 31
+        v = (r << 11) | (g << 6) | (b << 1) | 1  # opaque everywhere (backgrounds have no holes)
+        out[2 * i] = v >> 8
+        out[2 * i + 1] = v & 0xFF
+    return bytes(out)
+
+
 def mask_pieces(room, ci, bg):
     """Camera ci's foreground mask pieces, as rdt2scene.mask_c shapes them: [(x, y, w, h,
     depth_oot, alpha rows)], where alpha is 255 for the piece's solid texels and 0 for holes.
@@ -209,13 +226,10 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None):
          '    <SetMesh Data="0" MeshHeaderType="1">',
          '        <Polygon PolyType="1" Format="2" BgImageCount="%d" MeshOpa="" MeshXlu="">' % ncam]
     for c in range(ncam):
-        # padded to a full 320x240 RGBA16 frame, as OoT's own backgrounds are: SoH decodes in
-        # place (z_room.c swapAndConvertJPEG / ResourceMgr_LoadJPEG write 153,600 bytes over the
-        # data), so a compact JPEG overflowed the heap and corrupted whatever followed
-        jpg = background_jpeg(stage, room_id, c)
-        jpg += b"\0" * max(0, BG_DECODED_SIZE - len(jpg))
+        # RE1's pixels as they are (lossless; background_jpeg is the old lossy path)
+        px = background_raw(stage, room_id, c)
         bgname = "%s_bg%d" % (name, c)
-        open(os.path.join(d, bgname), "wb").write(_otr_header(SOH_BACKGROUND) + struct.pack("<I", len(jpg)) + jpg)
+        open(os.path.join(d, bgname), "wb").write(_otr_header(SOH_BACKGROUND) + struct.pack("<I", len(px)) + px)
         # its mask: <bg>_mask (ReMask_Draw finds it by the background's path)
         bg = rdt.load_background(os.path.join(stage, "RC%s%d.pak" % (room_id, c)))
         blob = mask_blob(mask_pieces(room, c, bg))
