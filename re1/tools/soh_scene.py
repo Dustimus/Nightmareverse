@@ -26,6 +26,7 @@ from xml.sax.saxutils import quoteattr
 from PIL import Image
 
 import rdt
+import re1_masks
 import rdt2scene as r2s
 
 SOH_BACKGROUND = 0x4F424749  # "OBGI", SohResourceType.h
@@ -86,67 +87,14 @@ def background_raw(stage, room_id, cam_index):
     return bytes(out)
 
 
-def mask_pieces(room, ci, bg):
-    """Camera ci's foreground mask pieces, as rdt2scene.mask_c shapes them: [(x, y, w, h,
-    depth_oot, alpha rows)], where alpha is 255 for the piece's solid texels and 0 for holes.
-    Only the shape matters here: SoH draws them invisibly, writing depth only (ReMask_Draw)."""
-    masks, tim = rdt.load_masks(room, ci)
-    if not masks or tim is None or tim.bpp != 8:
-        return []
-    bw_, _bh, bgpx = bg
-
-    def matches(c, x, y):
-        o = (y * bw_ + x) * 4
-        rgb = ((c & 31) << 3, ((c >> 5) & 31) << 3, ((c >> 10) & 31) << 3)
-        return sum(abs(bgpx[o + i] - rgb[i]) for i in range(3)) <= 60
-
-    out = []
-    for m in masks:
-        if m.depth == 0:
-            continue
-        w, h = m.size
-        texels = [(m.dst[0] + xx, m.dst[1] + yy, tim.pixels[(m.src[1] + yy) * tim.width + m.src[0] + xx])
-                  for yy in range(h) for xx in range(w)
-                  if m.dst[0] + xx < 320 and m.dst[1] + yy < 240 and m.src[0] + xx < tim.width and m.src[1] + yy < tim.height]
-        opaque = [(x, y, v) for x, y, v in texels if v]
-        bad = sum(1 for x, y, v in opaque if not matches(tim.cluts[0][v], x, y))
-        dirty = bad > 0.05 * max(1, len(opaque))
-        grid = [[0] * w for _ in range(h)]
-        for x, y, v in opaque:
-            if not (dirty and not matches(tim.cluts[0][v], x, y)):
-                grid[y - m.dst[1]][x - m.dst[0]] = 255
-        for _ in range(3):  # fill holes mostly surrounded by solid texels (PSX black is transparent)
-            fill = []
-            for yy in range(h):
-                for xx in range(w):
-                    x, y = m.dst[0] + xx, m.dst[1] + yy
-                    if grid[yy][xx] or x >= 320 or y >= 240:
-                        continue
-                    o = (y * bw_ + x) * 4
-                    dark = bgpx[o] + bgpx[o + 1] + bgpx[o + 2] <= 48
-                    nb = sum(1 for i, j in ((xx - 1, yy), (xx + 1, yy), (xx, yy - 1), (xx, yy + 1))
-                             if 0 <= i < w and 0 <= j < h and grid[j][i])
-                    if nb >= (2 if dark else 3):
-                        fill.append((xx, yy))
-            for xx, yy in fill:
-                grid[yy][xx] = 255
-        # clip to the screen
-        x0, y0 = m.dst
-        w = min(w, 320 - x0)
-        h = min(h, 240 - y0)
-        if w <= 0 or h <= 0 or not any(any(r[:w]) for r in grid[:h]):
-            continue
-        out.append((x0, y0, w, h, m.depth * 16 * r2s.SCALE, [r[:w] for r in grid[:h]]))
-    return out
-
-
 def mask_blob(pieces):
-    """The mask resource's data: "RMSK", u32 count; per piece s16 x, y, u16 w, h, stride (w
-    rounded up to 8), 2 unused, f32 camera-space depth (OoT units); then stride * h I8 texels."""
+    """The mask resource's data (re1_masks.camera_masks pieces): "RMSK", u32 count; per piece
+    s16 x, y, u16 w, h, stride (w rounded up to 8), u16 group (what room scripts switch), f32
+    depth (RE1's ordering key * 16: view-space depth, in OoT units); then stride * h I8 texels."""
     data = bytearray(MASK_MAGIC + struct.pack("<I", len(pieces)))
-    for x, y, w, h, depth, rows in pieces:
+    for x, y, w, h, key, group, rows in pieces:
         stride = (w + 7) & ~7
-        data += struct.pack("<hhHHHHf", x, y, w, h, stride, 0, depth)
+        data += struct.pack("<hhHHHHf", x, y, w, h, stride, group, key * 16 * r2s.SCALE)
         for r in rows:
             data += bytes(r) + b"\0" * (stride - w)
     return bytes(data)
@@ -256,7 +204,7 @@ def door_blob(doors):
     return bytes(data)
 
 
-def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, doors=()):
+def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, doors=(), bias_tables=None):
     """One RE1 room as an SoH scene. spawns: [(x, z, yaw_binang)] in RE1 units. Returns the
     scene's resource path (what the scene table's file name resolves to)."""
     cell_exit = cell_exit or {}
@@ -340,8 +288,8 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
         bgname = "%s_bg%d" % (name, c)
         open(os.path.join(d, bgname), "wb").write(_otr_header(SOH_BACKGROUND) + struct.pack("<I", len(px)) + px)
         # its mask: <bg>_mask (ReMask_Draw finds it by the background's path)
-        bg = rdt.load_background(rdt.find_file(stage, "RC%s%d.pak" % (room_id, c)))
-        blob = mask_blob(mask_pieces(room, c, bg))
+        bias = re1_masks.fade_bias(bias_tables, int(room_id[0]), int(room_id[1:], 16), c)
+        blob = mask_blob(re1_masks.camera_masks(room.raw, c, bias))
         open(os.path.join(d, bgname + "_mask"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
         R.append("            " + _el("BgImage", Unknown_00=130, Id=c, ImagePath="%s/%s" % (base, bgname),
                                       Unknown_0C=0, TLUT=0, Width=320, Height=240, Fmt=0, Siz=2, Mode0=0,

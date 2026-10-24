@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Make the RE1 mod for Ship of Harkinian from your own RE1 PC files, in one go.
 
-    python re1/tools/make_mod.py <RE1 data folder> <output .o2r>
+    python re1/tools/make_mod.py <RE1 data folder> <output .o2r> [<RE1 executable>]
 
 The RE1 data folder is the one holding Stage1..Stage7 (and Item_m1): "USA" in the GOG release,
-"JPN" in the Japanese PC one. Put the .o2r in SoH's "mods" folder. Needs Python 3 and Pillow
+"JPN" in the Japanese PC one. Put the .o2r in SoH's "mods" folder. The executable (optional, the
+game's own .exe) supplies RE1's per-camera mask depth corrections. Needs Python 3 and Pillow
 (pip install pillow).
 
 Converts pass 1 (the mansion's first visit: every room of stages 1 and 2 with data; the other
@@ -38,9 +39,10 @@ def rooms(re1):
 
 
 def main():
-    if len(sys.argv) != 3:
+    if len(sys.argv) not in (3, 4):
         sys.exit(__doc__)
     re1, target = sys.argv[1], sys.argv[2]
+    exe = sys.argv[3] if len(sys.argv) == 4 else None
     ids = rooms(re1)
     if FIRST_ROOM not in ids and not os.path.exists(rdt2scene.stage_dir(re1, FIRST_ROOM)):
         sys.exit("no RE1 rooms found in %s (point it at the folder holding Stage1..Stage7)" % re1)
@@ -50,6 +52,8 @@ def main():
         soh = os.path.join(work, "re1")
         args = [sys.executable, os.path.join(HERE, "rdt2scene.py"), "--stage", re1, "--player", PLAYER,
                 "--spawn", FIRST_SPAWN, "--out", os.path.join(work, "n64"), "--soh", soh]
+        if exe:
+            args += ["--exe", exe]
         for r in ids:
             args += ["--room", "%s:re1_%s" % (r, r.lower())]
         print("converting %d rooms (a few minutes)..." % len(ids))

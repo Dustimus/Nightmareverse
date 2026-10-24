@@ -1032,6 +1032,8 @@ def _pack_soh(folder, re1, anims):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", required=True, help="RE1 JPN directory (or one of its STAGEn directories)")
+    ap.add_argument("--exe", default=None, help="RE1's PC executable (Bio.exe / the GOG one): its per-camera "
+                    "mask depth corrections (re1_masks.py); without it those 29 cameras sort uncorrected")
     ap.add_argument("--soh", default=None, help="also write each room as Ship of Harkinian resources into this folder "
                     "(soh_scene.py), and pack them into <folder>.o2r")
     ap.add_argument("--room", action="append", required=True,
@@ -1059,6 +1061,10 @@ def main():
                     "placements become En_ReBlock (blocks to push, steps to climb)")
     ap.add_argument("--preview", default=None, help="camera-region map of the first room")
     a = ap.parse_args()
+    import re1_masks
+    bias_tables = re1_masks.load_bias_tables(a.exe)
+    if a.soh and not bias_tables:
+        print("no executable (--exe): masks without RE1's per-camera depth corrections")
 
     rooms = []
     for item in a.room:
@@ -1482,7 +1488,7 @@ def main():
             soh_doors = [(door, by_id[arrivals[(rid, di)][0]][0] + "_scene", arrivals[(rid, di)][1])
                          for di, door in enumerate(room.doors) if (rid, di) in arrivals]
             print("  soh: %s" % soh_scene.write_room(room, grid, stage_dir(a.stage, rid), rid, name, a.soh,
-                                                     soh_spawns[rid], doors=soh_doors))
+                                                     soh_spawns[rid], doors=soh_doors, bias_tables=bias_tables))
         camset = os.path.join(a.out, name, "camset.json")
         for cs in (story.load_camera_sets(a.story) if a.story else []):
             if cs["room"].upper() == rid:
