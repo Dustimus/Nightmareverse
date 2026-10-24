@@ -27,20 +27,40 @@ FLOOR_NY = int(0.7 * 32767)
 
 
 def camera_spots(col_path):
-    """{camera: (x, y, z)}: the centroid of the camera's largest floor triangle."""
+    """{camera: (x, y, z)}: the point of the camera's floor farthest from any wall (sampled
+    inside its floor triangles), so Link's body is not pushed off a thin strip of floor."""
     s = open(col_path).read()
     verts = [tuple(map(int, m)) for m in re.findall(r'<Vertex X="(-?\d+)" Y="(-?\d+)" Z="(-?\d+)"', s)]
     types = [int(m) for m in re.findall(r'<PolygonType Data1="(-?\d+)"', s)]
-    best = {}
+    floors = []
+    walls = []
     for t, a, b, c, ny in re.findall(r'<Polygon Type="(\d+)" VertexA="(\d+)" VertexB="(\d+)" VertexC="(\d+)" '
                                      r'NormalX="-?\d+" NormalY="(-?\d+)"', s):
-        if int(ny) < FLOOR_NY:
-            continue
-        cam = types[int(t)] & 0xFF
-        pa, pb, pc = verts[int(a)], verts[int(b)], verts[int(c)]
-        area = abs((pb[0] - pa[0]) * (pc[2] - pa[2]) - (pc[0] - pa[0]) * (pb[2] - pa[2]))
-        if area > best.get(cam, (0,))[0]:
-            best[cam] = (area, tuple((pa[i] + pb[i] + pc[i]) // 3 for i in range(3)))
+        tri = (verts[int(a)], verts[int(b)], verts[int(c)])
+        if int(ny) >= FLOOR_NY:
+            floors.append((types[int(t)] & 0xFF, tri))
+        elif abs(int(ny)) < FLOOR_NY:
+            walls += [(tri[i], tri[(i + 1) % 3]) for i in range(3) if tri[i][:1] + tri[i][2:] != tri[(i + 1) % 3][:1] + tri[(i + 1) % 3][2:]]
+
+    def wall_dist(x, z):
+        best = 1e9
+        for p, q in walls:
+            dx, dz = q[0] - p[0], q[2] - p[2]
+            ll = dx * dx + dz * dz
+            u = 0.0 if ll == 0 else max(0.0, min(1.0, ((x - p[0]) * dx + (z - p[2]) * dz) / ll))
+            best = min(best, ((x - p[0] - u * dx) ** 2 + (z - p[2] - u * dz) ** 2) ** 0.5)
+        return best
+
+    steps = 4
+    best = {}
+    for cam, (pa, pb, pc) in floors:
+        for i in range(1, steps):
+            for j in range(1, steps - i):
+                k = steps - i - j
+                pt = tuple((pa[n] * i + pb[n] * j + pc[n] * k) // steps for n in range(3))
+                d = wall_dist(pt[0], pt[2])
+                if d > best.get(cam, (-1,))[0]:
+                    best[cam] = (d, pt)
     return {cam: spot for cam, (_, spot) in sorted(best.items())}
 
 

@@ -49,6 +49,11 @@ Pass 1 (stages 1-2, the 44 rooms with data; the other room numbers are 4-byte pl
 screenshots it and flags spots with no floor or the wrong camera; it writes a contact sheet per
 room (local only: the screenshots show RE1's backgrounds).
 
+First full run (2026-10-24): all 44 rooms load, every camera with floor was captured, Link
+found floor at every spot. One camera still comes up wrong: room 20A camera 3 owns only two
+cells of floor about Link's width (likely a camera-assignment leftover in the converter; to
+check against RE1's own camera zones).
+
 ## Dev boot
 
 `NV_BOOT_ENTRANCE=<entrance index>` (e.g. `0x670`, the foyer; `soh_tables.py` prints each room's) makes SoH skip the title and
