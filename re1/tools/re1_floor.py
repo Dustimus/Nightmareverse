@@ -31,8 +31,8 @@ import struct
 CELL = 100  # RE1 units (~2.2 OoT units)
 # RE1 needs only the player kept in; OoT throws things (bombs, arrows, the hookshot), so each
 # floor has a ceiling this far above it, with the walls up to it. RE1 has no ceiling height of
-# its own; this is above Link's head and the camera views' doorways.
-WALL_HEIGHT = 4000
+# its own; this height matched the rooms in play.
+WALL_HEIGHT = 3000
 CLIMB = (4350, 2885)
 # Where the player stops: RE1 pushes Jill out to her radius (372, the SCA record's +10) plus 18
 # past a shape's face (collision_push_rect); Link stops at his own wall radius (18 OoT units,
