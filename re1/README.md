@@ -90,9 +90,12 @@ the gallery columns, their bases and the banister post.
 
 Doors: never walk-in exits. RE1's own rule (Bio.exe 0x456880): pressing the action button opens
 a door when the point 600 units in front of the player is inside the door's rectangle (all of the
-mansion's doors are flagged for this). `soh/src/code/z_nv_door.c` does the same with A, with the
-reach raised from 13 to 18 OoT units for Link's wider body (OoT keeps him further from walls than
-RE1 keeps Jill; Jill's exact radius is still to be read from Bio.exe). Link arrives at RE1's own
+mansion's doors are flagged for this). `soh/src/code/z_nv_door.c` does the same with A: the door
+opens if any point from RE1's reach (13 OoT units) to Link's (his wall radius, 18 adult / 14
+child, plus 4: RE1's reach past Jill's body, her radius taken as ~450 units until it's read from
+Bio.exe) in front of him is inside the rectangle. Link stops his radius short of a wall where
+Jill stops hers, and some rectangles start at the wall's surface; others lie on open floor and
+are smaller than Link's reach. Link arrives at RE1's own
 arrival point, facing into the room. Between rooms, RE1's door scene plays over black
 (`z_nv_doorscene.c`, data from `tools/soh_doors.py`); a door without one cuts with a fade.
 `tools/soh_doorcheck.py` checks every door headless: walking into it must not change rooms, and
