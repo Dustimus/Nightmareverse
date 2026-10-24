@@ -397,6 +397,12 @@ void NvDoorScene_Update(PlayState* play) {
     }
 }
 
+/** Whether a door scene covers the room this frame (z_nv_mask.c skips the room's masks: their
+ * depth would cut the door scene drawn over them). */
+s32 NvDoorScene_Covering(void) {
+    return sNvDs.active || sNvDs.pending;
+}
+
 /** Called from Play_DrawOverlayElements (z_play.c): over the room, black and the door. */
 void NvDoorScene_Draw(PlayState* play) {
     static u16 sPerspNorm;

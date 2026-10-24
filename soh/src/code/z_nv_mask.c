@@ -41,6 +41,8 @@ typedef struct NvMaskPiece {
  * background was drawn. The scene "<name>_scene" keeps camera n's mask, if it has one, at
  * scenes/shared/<name>_scene/<name>_bg<n>_mask (re1/tools/soh_scene.py).
  */
+s32 NvDoorScene_Covering(void);
+
 void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
     char path[256];
     const char* file;
@@ -51,6 +53,9 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
     f32 linkDepth;
     Gfx* gfx = *gfxP;
 
+    if (NvDoorScene_Covering()) {
+        return;
+    }
     if ((play->loadedScene == NULL) || (play->loadedScene->sceneFile.fileName == NULL)) {
         return;
     }
