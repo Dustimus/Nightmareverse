@@ -275,7 +275,7 @@ def build_collision(room, grid, wall_surface, floor):
             if (int(px // CELL), int(pz // CELL)) not in grid:
                 continue
             a0, b0 = to_oot((ax, floor.depth, az)), to_oot((bx, floor.depth, bz))
-            a1, b1 = to_oot((ax, -WALL_HEIGHT, az)), to_oot((bx, -WALL_HEIGHT, bz))
+            a1, b1 = to_oot((ax, floor.top, az)), to_oot((bx, floor.top, bz))
             col.quad(wall_surface, a0, b0, b1, a1)
             # make the wall face away from the obstacle's center
             mid = to_oot(((ax + bx) / 2, floor.depth, (az + bz) / 2))
@@ -376,24 +376,6 @@ ROOM_CMDS = """SceneCmd %s[] = {
 # Rooms whose floors aren't flat. RE1 stores no heights for them (it plays its own climb
 # animations), so these are measured against the backgrounds. RE1 units, positive = down.
 ROOM_FLOORS = {
-    # 2F main hall: the foyer stairs arrive on a landing under the window, about half a
-    # storey (1800) below the balconies; two flights rise along the back wall to the side
-    # balconies. RE1 keeps the flights as collision boxes, so they're opened up as ramps.
-    "203": {
-        "open": [(10170, 23274, 13752, 27774), (20178, 23130, 23814, 28062)],
-        "regions": [  # (x0, z0, x1, z1, height at x0, height at x1): linear along x
-            (13752, 23130, 20178, 28000, 1800, 1800),
-            (10170, 23130, 13752, 28000, 0, 1800),
-            (20178, 23130, 23814, 28000, 1800, 0),
-        ],
-    },
-    # piano bar: the shelf Jill pushes off the music notes (Om_set 1) stands in front of the bar
-    # counter, overlapping it by 100; Link is about twice her width, so along the counter's
-    # front he'd catch its corner and lose the shelf. The counter's front is moved back one
-    # cell (intentional: he can stand ~9 units into the counter's picture there).
-    "10F": {
-        "trim": [((16002, 11538, 21258, 13482), (16002, 11938, 21258, 13482))],
-    },
 }
 
 
@@ -407,20 +389,31 @@ def apply_trims(room, room_id):
                                                          z2=z2 ^ 0x8000)
 
 
+# Each room's floor level (RE1 units, positive = down), from RE1's own door data: the height
+# Jill arrives at through a door that gives one (most give 0). The main hall's upper floor (203)
+# is 2885 up, the corridor by the save room's stairs (207) 2885 down, 20E 1402 up; checked
+# against the backgrounds (Link's feet on the painted floor). Filled in by main().
+ROOM_LEVELS = {}
+if __name__ == "__main__":  # soh_scene imports this module: let it see this run's ROOM_LEVELS
+    sys.modules["rdt2scene"] = sys.modules[__name__]
+
+
 class Floor:
     """Floor height (RE1 units, positive = down) and opened-up collision boxes of a room."""
 
     def __init__(self, room_id):
         cfg = ROOM_FLOORS.get(room_id, {})
+        self.base = ROOM_LEVELS.get(room_id.upper(), 0)
         self.open = cfg.get("open", [])
         self.regions = cfg.get("regions", [])
-        self.depth = max([max(r[4], r[5]) for r in self.regions] + [0])
+        self.depth = max([max(r[4], r[5]) for r in self.regions] + [self.base])
+        self.top = min([min(r[4], r[5]) for r in self.regions] + [self.base]) - WALL_HEIGHT
 
     def height(self, x, z):
         for x0, z0, x1, z1, h0, h1 in self.regions:
             if x0 <= x <= x1 and z0 <= z <= z1:
                 return h0 + (h1 - h0) * (x - x0) / (x1 - x0)
-        return 0
+        return self.base
 
     def is_open(self, c):
         b = _bounds(c)
@@ -1073,6 +1066,14 @@ def main():
         rooms.append((room_id.upper(), name, load_rdt(stage_dir(a.stage, room_id), room_id, a.player)))
         apply_trims(rooms[-1][2], room_id.upper())
     by_id = {rid: (name, room) for rid, name, room in rooms}
+
+    # floor levels: the non-zero heights RE1's doors arrive at (ROOM_LEVELS)
+    for rid, name, room in rooms:
+        for door in room.doors:
+            y = door.next_pos[1] - 0x10000 if door.next_pos[1] >= 0x8000 else door.next_pos[1]
+            if y:
+                target = "%d%02X" % (door.next_stage or int(rid[0]), door.next_room)
+                ROOM_LEVELS[target] = y
 
     # spawns: 0 = test/default spawn, then one per door arriving from another listed room
     spawns = {rid: [] for rid, _, _ in rooms}
