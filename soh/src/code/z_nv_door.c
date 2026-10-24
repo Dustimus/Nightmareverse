@@ -42,11 +42,12 @@ void NvDoorScene_Queue(s32 anim, s32 type, s32 handle);
 
 #define NV_DOOR_ACTION 0x80   // opens with the action button
 #define NV_DOOR_AT_PLAYER 0x40 // tested at the player's position, not in front of him
-// RE1's 600 units in front of the player (13 OoT units), plus 5 for Link's wider body: OoT
-// keeps him further from walls and furniture than RE1 keeps Jill (the foyer's door to 111
-// sits in a gap beside a column that Jill fits into and Link does not; from where Link stops,
-// 13 units misses the door by about one). Jill's exact radius is still to be read from Bio.exe.
-#define NV_DOOR_REACH 18.0f
+// How far in front of Link the door point is. RE1's 600 units in front of Jill reach about 150
+// past her body (13 OoT units against a radius taken as ~450 units, ~10 OoT: RE2's player
+// radius, Jill's own still to be read from Bio.exe). Measured from Link's body instead (his wall
+// radius: 18 adult, 14 child), as RE1's door rectangles start at the wall's surface and Link
+// stops his radius short of it.
+#define NV_DOOR_REACH_PAST_BODY 4.0f
 
 // The entrance for a scene file's start position (soh_tables.py: four per start position, the
 // first is setup 0), or -1
@@ -105,6 +106,7 @@ void NvDoor_Update(PlayState* play) {
     u32 i;
     f32 fx;
     f32 fz;
+    f32 reach;
 
     if ((player == NULL) || !CHECK_BTN_ALL(input->press.button, BTN_A) ||
         (play->transitionTrigger != TRANS_TRIGGER_OFF) || (play->transitionMode != TRANS_MODE_OFF) ||
@@ -116,8 +118,9 @@ void NvDoor_Update(PlayState* play) {
     if (data == NULL) {
         return;
     }
-    fx = player->actor.world.pos.x + Math_SinS(player->actor.shape.rot.y) * NV_DOOR_REACH;
-    fz = player->actor.world.pos.z + Math_CosS(player->actor.shape.rot.y) * NV_DOOR_REACH;
+    reach = player->ageProperties->wallCheckRadius + NV_DOOR_REACH_PAST_BODY;
+    fx = player->actor.world.pos.x + Math_SinS(player->actor.shape.rot.y) * reach;
+    fz = player->actor.world.pos.z + Math_CosS(player->actor.shape.rot.y) * reach;
     for (i = 0; i < count; i++) {
         NvDoor door;
         f32 px;

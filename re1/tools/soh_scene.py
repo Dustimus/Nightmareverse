@@ -152,6 +152,47 @@ def mask_blob(pieces):
     return bytes(data)
 
 
+def edge_walls(col, grid, wall_surface, floor):
+    """Walls along every outer edge of the walkable floor (cell edges with no floor beyond),
+    merged into straight runs. RE1's own collision shapes don't close the floor everywhere (the
+    foot of the foyer's stairs, some door alcoves: RE1 keeps Jill in by its camera zones), and
+    Link would walk off the edge into nothing. Facing into the floor."""
+    C = r2s.CELL
+    runs = []  # (axis, line, start, end, inward sign)
+    for (gx, gz) in grid:
+        for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            if (gx + dx, gz + dz) in grid:
+                continue
+            if dx:  # an edge along z at x = gx + 1 (east) or gx (west)
+                runs.append(("x", gx + (dx > 0), gz, gz + 1, -dx))
+            else:
+                runs.append(("z", gz + (dz > 0), gx, gx + 1, -dz))
+    runs.sort()
+    merged = []
+    for r in runs:
+        if merged and merged[-1][0] == r[0] and merged[-1][1] == r[1] and merged[-1][4] == r[4] and \
+                merged[-1][3] == r[2]:
+            merged[-1] = (r[0], r[1], merged[-1][2], r[3], r[4])
+        else:
+            merged.append(r)
+    for axis, line, a, b, inward in merged:
+        if axis == "x":
+            p0, p1 = (line * C, a * C), (line * C, b * C)
+        else:
+            p0, p1 = (a * C, line * C), (b * C, line * C)
+        lo = r2s.to_oot((p0[0], floor.depth, p0[1]))
+        hi = r2s.to_oot((p1[0], floor.depth, p1[1]))
+        top0 = r2s.to_oot((p0[0], -r2s.WALL_HEIGHT, p0[1]))
+        top1 = r2s.to_oot((p1[0], -r2s.WALL_HEIGHT, p1[1]))
+        col.quad(wall_surface, lo, hi, top1, top0)
+        # face into the floor: the inward direction in RE1 units, then OoT's (x, -y, -z)
+        want = (inward, 0) if axis == "x" else (0, -inward)
+        for k in (-2, -1):
+            surf, idx, n, d = col.polys[k]
+            if n[0] * want[0] + n[2] * want[1] < 0:
+                col.polys[k] = (surf, (idx[0], idx[2], idx[1]), [-x for x in n], -d)
+
+
 def door_blob(doors):
     """Doors, for soh/src/code/z_nv_door.c: "RDOR", u32 count; per door f32 x0, z0, x1, z1 (the
     trigger rectangle, OoT units), u8 flags (Door_set byte 0x19), u8 anim (RE1's door scene),
@@ -187,6 +228,7 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     surf_grid = {k: surf_index[(cam, cell_exit.get(k, 0))] for k, cam in grid.items()}
     floor = r2s.Floor(room_id)
     col = r2s.build_collision(room, surf_grid, wall_surface, floor)
+    edge_walls(col, surf_grid, wall_surface, floor)
     xs, ys, zs = ([v[i] for v in col.verts] for i in range(3))
 
     C = ['<CollisionHeader Version="0" MinBoundsX="%d" MinBoundsY="%d" MinBoundsZ="%d" '

@@ -86,7 +86,7 @@ def closest_floor(p, tris):
     return min((_closest_on_tri(p, t) for t in tris), key=lambda q: (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2)
 
 
-LINK_RADIUS = 13  # OoT units kept between Link's centre and the floor's edge when placing him
+LINK_RADIUS = 18  # adult Link's wall radius: kept between his centre and the floor's edge or a wall
 
 
 def _inside(p, tri):
@@ -104,11 +104,28 @@ def _seg_dist(p, a, b):
     return ((a[0] + u * dx - p[0]) ** 2 + (a[1] + u * dz - p[1]) ** 2) ** 0.5
 
 
-def door_stand(rect, tris):
+def wall_segs(col_path):
+    """The walls' footprints, as ((x, z), (x, z)) segments (each wall quad's horizontal edges)."""
+    s = open(col_path).read()
+    verts = [tuple(map(int, m)) for m in re.findall(r'<Vertex X="(-?\d+)" Y="(-?\d+)" Z="(-?\d+)"', s)]
+    out = set()
+    for a, b, c, ny in re.findall(r'<Polygon Type="\d+" VertexA="(\d+)" VertexB="(\d+)" VertexC="(\d+)" '
+                                  r'NormalX="-?\d+" NormalY="(-?\d+)"', s):
+        if abs(int(ny)) >= soh_check.FLOOR_NY:
+            continue
+        t = [verts[int(i)] for i in (a, b, c)]
+        for i in range(3):
+            p, q = t[i], t[(i + 1) % 3]
+            if p[1] == q[1] and (p[0], p[2]) != (q[0], q[2]):
+                out.add(tuple(sorted(((p[0], p[2]), (q[0], q[2])))))
+    return list(out)
+
+
+def door_stand(rect, tris, walls=()):
     """Where a player stands to open the door, and the point he faces (the door's middle): of
     the floor within 50 units of the door, the spot nearest the door's rectangle that is at
-    least Link's radius from the floor's edge (so OoT neither pushes him off nor lets him fall
-    through it)."""
+    least Link's radius from the floor's edge and the walls (so OoT neither pushes him off nor
+    lets him fall through it)."""
     x0, z0, x1, z1 = rect
     c = ((x0 + x1) / 2, (z0 + z1) / 2)
     edges = {}
@@ -116,20 +133,26 @@ def door_stand(rect, tris):
         for i in range(3):
             e = tuple(sorted((t[i], t[(i + 1) % 3])))
             edges[e] = edges.get(e, 0) + 1
-    boundary = [e for e, n in edges.items() if n == 1]
+    boundary = [e for e, n in edges.items() if n == 1] + walls
     near_tris = [t for t in tris if any(abs(p[0] - c[0]) < 120 and abs(p[1] - c[1]) < 120 for p in t)] or tris
-    best = None
+    cand = []
     for gx in range(int(x0) - 50, int(x1) + 51, 2):
         for gz in range(int(z0) - 50, int(z1) + 51, 2):
             p = (gx, gz)
-            if not any(_inside(p, t) for t in near_tris):
-                continue
-            if any(_seg_dist(p, a, b) < LINK_RADIUS for a, b in boundary):
-                continue
-            dr = ((max(x0 - gx, 0, gx - x1)) ** 2 + (max(z0 - gz, 0, gz - z1)) ** 2) ** 0.5
-            key = (dr, (gx - c[0]) ** 2 + (gz - c[1]) ** 2)
-            if best is None or key < best[0]:
-                best = (key, p)
+            if any(_inside(p, t) for t in near_tris):
+                edge = min((_seg_dist(p, a, b) for a, b in boundary), default=1e9)
+                dr = ((max(x0 - gx, 0, gx - x1)) ** 2 + (max(z0 - gz, 0, gz - z1)) ** 2) ** 0.5
+                cand.append((dr, (gx - c[0]) ** 2 + (gz - c[1]) ** 2, edge, p))
+    best = None
+    # the clearance relaxes where the way to the door is narrower than Link (the foyer's stairs,
+    # between the banisters), as long as the spot stays within his reach of the door
+    for clearance in (LINK_RADIUS, 9, 5):
+        ok = [k for k in cand if k[2] >= clearance]
+        if ok:
+            k = min(ok)
+            best = ((k[0], k[1]), k[3])
+            if k[0] <= 12:
+                break
     if best is None:
         return closest_floor(c, tris), c
     p = best[1]
@@ -167,14 +190,16 @@ def main():
             if a.room and name not in a.room:
                 continue
             ds = doors(a.scenes, name)
-            tris = floor_tris(os.path.join(a.scenes, "scenes", "shared", name + "_scene", name + "_col"))
+            col_path = os.path.join(a.scenes, "scenes", "shared", name + "_scene", name + "_col")
+            tris = floor_tris(col_path)
+            walls = wall_segs(col_path)
             steps = []
             for i, d in enumerate(ds):
                 x0, z0, x1, z1 = d["rect"]
                 # as a player would: stand at the door, push into it for a while (aiming past
                 # its middle, so the walk never ends with him turning on the spot), then back at
                 # the door (pushing can slide him along the wall), face it and press A
-                (qx, qz), (cx, cz) = door_stand(d["rect"], tris)
+                (qx, qz), (cx, cz) = door_stand(d["rect"], tris, walls)
                 tx, tz = cx + (cx - qx) * 3, cz + (cz - qz) * 3
                 steps += ["entr:0x%X" % entrance[name], "wait:10", "pos:%d,%d" % (qx, qz), "wait:10",
                           "%d,%d" % (tx, tz), "wait:10", "pos:%d,%d" % (qx, qz), "wait:10",
