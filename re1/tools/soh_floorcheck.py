@@ -96,7 +96,7 @@ def main():
     ap.add_argument("--scenes", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--room", action="append", default=[])
-    ap.add_argument("--step", type=int, default=80)
+    ap.add_argument("--step", type=int, default=25)
     ap.add_argument("--display", default=":74")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
