@@ -50,7 +50,7 @@ void NvDoorScene_Queue(s32 anim, s32 type, s32 handle);
 
 // The entrance for a scene file's start position (soh_tables.py: four per start position, the
 // first is setup 0), or -1
-static s16 NvDoor_Entrance(const char* sceneFile, s32 spawn) {
+s16 NvDoor_Entrance(const char* sceneFile, s32 spawn) {
     s32 scene;
     s32 i;
 

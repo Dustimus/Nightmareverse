@@ -58,6 +58,8 @@ check against RE1's own camera zones).
 
 `NV_BOOT_ENTRANCE=<entrance index>` (e.g. `0x670`, the foyer; `soh_tables.py` prints each room's) makes SoH skip the title and
 file select and load straight into that entrance on a debug save (`ovl_title/z_title.c`).
+Easier on Windows: a file `nv_boot.txt` in the SoH folder holding a room name (`re1_106`: its
+start position 0) or an entrance index does the same.
 
 Scripted play for headless checks (`soh/src/code/z_nv_dev.c`, inert without the variables):
 `NV_POS="x,z[,yaw]"` places Link, `NV_WALK="x,z;x,z;wait:N"` steers him through waypoints with

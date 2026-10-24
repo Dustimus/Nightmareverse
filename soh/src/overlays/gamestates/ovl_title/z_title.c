@@ -14,6 +14,7 @@
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "time.h"
@@ -127,16 +128,43 @@ void Sram_InitDebugSave(void);
 
 // Nightmareverse (dev): NV_BOOT_ENTRANCE=<entrance index> skips the title and file select and
 // loads straight into that entrance on a debug save (headless room checks, quick testing)
-static s32 Title_NvDevBoot(TitleContext* this) {
-    const char* entr = getenv("NV_BOOT_ENTRANCE");
+s16 NvDoor_Entrance(const char* sceneFile, s32 spawn);
 
-    if (entr == NULL || entr[0] == '\0') {
+// Nightmareverse dev boot: straight into a room, from NV_BOOT_ENTRANCE (an entrance index) or,
+// easier on Windows, a file nv_boot.txt in the SoH folder holding a room ("re1_106", its start
+// position 0) or an entrance index ("0x670")
+static s32 Title_NvDevBoot(TitleContext* this) {
+    static char sLine[64];
+    const char* entr = getenv("NV_BOOT_ENTRANCE");
+    s32 entrance;
+
+    if ((entr == NULL) || (entr[0] == '\0')) {
+        FILE* f = fopen("nv_boot.txt", "r");
+
+        if (f == NULL) {
+            return false;
+        }
+        if (fscanf(f, "%63s", sLine) != 1) {
+            sLine[0] = '\0';
+        }
+        fclose(f);
+        entr = sLine;
+    }
+    if ((entr[0] >= '0') && (entr[0] <= '9')) {
+        entrance = (s32)strtol(entr, NULL, 0);
+    } else {
+        char scene[80];
+
+        snprintf(scene, sizeof(scene), "%s_scene", entr);
+        entrance = NvDoor_Entrance(scene, 0);
+    }
+    if (entrance < 0) {
         return false;
     }
     Sram_InitDebugSave();
     gSaveContext.fileNum = 0xFF;
     gSaveContext.gameMode = GAMEMODE_NORMAL;
-    gSaveContext.entranceIndex = (s32)strtol(entr, NULL, 0);
+    gSaveContext.entranceIndex = entrance;
     gSaveContext.dayTime = 0x8000;
     gSaveContext.respawnFlag = 0;
     gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
