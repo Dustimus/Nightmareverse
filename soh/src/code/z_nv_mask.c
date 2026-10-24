@@ -3,14 +3,13 @@
  * hide characters behind furniture), drawn exactly.
  *
  * RE1 keeps, per camera, a list of mask pieces: a screen rectangle, its shape and an ordering
- * key (view-space depth / 16). It doesn't test them per pixel: the PS1's ordering table sorts
- * each piece against each character as a whole (DrawRoomSpr, RE1's PC code 0x00475b80), so a
- * piece nearer than the character covers all of the character under it, and a farther one
- * none of it. Here each piece nearer than Link is drawn right after the background as an
- * invisible screen-space rectangle that writes only depth, at the nearest depth (libultraship's
- * prim depth), so Link fails the depth test under it and the background shows through,
- * untouched; farther pieces aren't drawn. (Other characters will want the same comparison
- * against their own depth.)
+ * key (view-space depth / 16). The PS1's ordering table sorts each piece against each body
+ * part of a character, every part entering at its own view depth (t[2] >> 4 per part,
+ * FUN_00483250; DrawRoomSpr 0x00475b80), so a pillar can hide a head and not the legs. Here
+ * each piece is drawn right after the background as an invisible screen-space rectangle that
+ * writes only depth, at its own depth (libultraship's prim depth); the depth buffer then
+ * tests Link against it per pixel, a little finer than RE1's per part, and the background
+ * shows through where he's behind.
  *
  * Data: re1/tools/soh_scene.py writes "<background>_mask" next to each camera background
  * (re1/tools/re1_masks.py): "RMSK", u32 count; per piece s16 x, y, u16 w, h, stride, group,
@@ -41,6 +40,25 @@ typedef struct NvMaskPiece {
  * background was drawn. The scene "<name>_scene" keeps camera n's mask, if it has one, at
  * scenes/shared/<name>_scene/<name>_bg<n>_mask (re1/tools/soh_scene.py).
  */
+// Window depth (0 near, 1 far) of a camera-space distance under the view's perspective
+// projection, as 15-bit prim depth (libultraship: prim_depth / 0x7FFF becomes the depth)
+static u16 NvMask_PrimDepth(f32 dist, f32 zNear, f32 zFar) {
+    f32 ndc;
+    f32 win;
+
+    if (dist < zNear) {
+        dist = zNear;
+    }
+    ndc = ((zFar + zNear) * dist - 2.0f * zFar * zNear) / ((zFar - zNear) * dist);
+    win = (ndc + 1.0f) * 0.5f;
+    if (win < 0.0f) {
+        win = 0.0f;
+    } else if (win > 1.0f) {
+        win = 1.0f;
+    }
+    return (u16)(win * 0x7FFF);
+}
+
 s32 NvDoorScene_Covering(void);
 
 void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
@@ -50,7 +68,6 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
     u8* data;
     u32 count;
     u32 i;
-    f32 linkDepth;
     Gfx* gfx = *gfxP;
 
     if (NvDoorScene_Covering()) {
@@ -74,23 +91,6 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
     }
     memcpy(&count, data + 4, sizeof(count));
     data += 8;
-    {
-        // Link's view-space depth: how RE1 sorts a character against the pieces
-        Player* player = GET_PLAYER(play);
-        f32 fx = play->view.lookAt.x - play->view.eye.x;
-        f32 fy = play->view.lookAt.y - play->view.eye.y;
-        f32 fz = play->view.lookAt.z - play->view.eye.z;
-        f32 len = sqrtf(SQ(fx) + SQ(fy) + SQ(fz));
-
-        if ((player == NULL) || (len < 1.0f)) {
-            return;
-        }
-        linkDepth = ((player->actor.world.pos.x - play->view.eye.x) * fx +
-                     (player->actor.world.pos.y - play->view.eye.y) * fy +
-                     (player->actor.world.pos.z - play->view.eye.z) * fz) /
-                    len;
-    }
-
     gDPPipeSync(gfx++);
     // invisible: the blender keeps the framebuffer's color (CLR_MEM), so only depth is written;
     // CVG_X_ALPHA + the alpha threshold drop the pieces' holes
@@ -112,11 +112,13 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
         memcpy(&piece, data, sizeof(piece));
         texels = data + sizeof(piece);
         data = texels + piece.stride * piece.h;
-        if ((piece.w == 0) || (piece.h == 0) || (piece.stride == 0) || (piece.depth >= linkDepth)) {
-            continue; // behind Link: RE1 draws him over all of it
+        if ((piece.w == 0) || (piece.h == 0) || (piece.stride == 0)) {
+            continue;
         }
         gDPPipeSync(gfx++);
-        gDPSetPrimDepth(gfx++, 0, 0); // in front of Link: covers all of him under it
+        // at its own depth: each part of Link is tested against it (RE1 sorts each body part at
+        // its own view depth, t[2] >> 4 per part; the depth buffer does it per pixel)
+        gDPSetPrimDepth(gfx++, NvMask_PrimDepth(piece.depth, play->view.zNear, play->view.zFar), 0);
         rowsPerLoad = NV_MASK_TMEM / piece.stride;
         if (rowsPerLoad < 1) {
             rowsPerLoad = 1;
