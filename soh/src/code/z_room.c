@@ -10,6 +10,8 @@
 
 #include <libultraship/bridge/gfxbridge.h>
 #include <libultraship/bridge/resourcebridge.h>
+
+void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex);
 #include "soh/OTRGlobals.h"
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/consolevariablebridge.h>
@@ -488,6 +490,7 @@ void func_80096B6C(PlayState* play, Room* room, u32 flags) {
             }
 
             gSPLoadUcode(POLY_OPA_DISP++, SysUcode_GetUCode());
+            NvMask_Draw(play, &POLY_OPA_DISP, bgImage->id); // Nightmareverse: RE1's masks
         }
     }
 

@@ -14,6 +14,7 @@
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include <string.h>
+#include <stdlib.h>
 
 #include "time.h"
 
@@ -122,6 +123,29 @@ void Title_Draw(TitleContext* this) {
     CLOSE_DISPS(this->state.gfxCtx);
 }
 
+void Sram_InitDebugSave(void);
+
+// Nightmareverse (dev): NV_BOOT_ENTRANCE=<entrance index> skips the title and file select and
+// loads straight into that entrance on a debug save (headless room checks, quick testing)
+static s32 Title_NvDevBoot(TitleContext* this) {
+    const char* entr = getenv("NV_BOOT_ENTRANCE");
+
+    if (entr == NULL || entr[0] == '\0') {
+        return false;
+    }
+    Sram_InitDebugSave();
+    gSaveContext.fileNum = 0xFF;
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.entranceIndex = (s32)strtol(entr, NULL, 0);
+    gSaveContext.dayTime = 0x8000;
+    gSaveContext.respawnFlag = 0;
+    gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
+    gSaveContext.showTitleCard = false;
+    this->state.running = false;
+    SET_NEXT_GAMESTATE(&this->state, Play_Init, PlayState);
+    return true;
+}
+
 void Title_Main(GameState* thisx) {
     TitleContext* this = (TitleContext*)thisx;
 
@@ -170,4 +194,5 @@ void Title_Init(GameState* thisx) {
     this->visibleDuration = 0x3C;
 
     GameInteractor_ExecuteOnZTitleInit(this);
+    Title_NvDevBoot(this); // (after SoH's own title hooks, so it wins)
 }

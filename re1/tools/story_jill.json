@@ -1,0 +1,1770 @@
+{
+  "comment": "Jill's scenario. Lines are [speaker, voice clip]; the words come from the game's own English voice clips at build time (see story.py). Zones are RE1 units.",
+  "cast": [
+    {"room": "203", "model": "0x22", "at": [23782, 14862, 1568], "requires": ["chemical"], "forbids": ["barry_203"], "note": "Barry in the 2nd floor hall (RE1 203 script 6: Em_set 0x22 at 23782,14862, 2885 up, which rdt2scene reads as parked, hence \"at\", once flags 1:0A, 1:07 and 7:0D, the chemical taken in 118, are set; then it runs event 0); he walks off after the scene"},
+    {"room": "20A", "model": "0x22", "pick": 0, "forbids": ["barry_20a"], "note": "Barry in the insect room (RE1 20A: Em_set 0x22 at 5496,3240 while 4:22 is clear; script 6 then runs event 4 at once); he walks out after it"},
+    {
+      "room": "20D",
+      "model": "0x27",
+      "pick": 0,
+      "note": "Richard, poisoned by Yawn (RE1 20D Em_set 0x27 at 8300,3600; its three variants are his states, picked by script 6: 1:61 / 1:64). En_ReNpc plays his death once RE_STORY_RICHARD_DEAD is set, and lies dead from then on"
+    },
+    {
+      "room": "212",
+      "model": "0x22",
+      "pick": 0,
+      "forbids": ["barry_212"],
+      "note": "Barry on the balcony by Forest's body; he goes off to find out what killed Forest"
+    },
+    {
+      "room": "109",
+      "model": "0x22",
+      "at": [4000, 8400, 0],
+      "requires": ["trap_sprung"],
+      "until": "jill_sandwich",
+      "note": "Barry, who got Jill out of the shotgun room's trap (RE1 109 event 0 places him; his Em_set waits at the origin)"
+    },
+    {
+      "room": "106",
+      "model": "0x22",
+      "pick": 0,
+      "until": "foyer_opening",
+      "note": "Barry with Wesker for the opening; then he goes with Jill",
+      "forbids": [
+        "dining_visited"
+      ]
+    },
+    {
+      "room": "106",
+      "model": "0x22",
+      "pick": 2,
+      "requires": [
+        "zombie_dead"
+      ],
+      "forbids": [
+        "barry_left"
+      ],
+      "note": "Barry back in the hall with Jill after the dining room's zombie (RE1: placed at the dining door with flag 1:03, event 5)"
+    },
+    {
+      "room": "106",
+      "model": "0x24",
+      "pick": 0,
+      "note": "Wesker for the opening; he waits in the hall until Jill comes back from the dining room's zombie (then he's gone: Barry's 'Wesker!')",
+      "forbids": [
+        "zombie_dead"
+      ]
+    },
+    {
+      "room": "105",
+      "model": "0x22",
+      "pick": 1,
+      "note": "Barry by the fireplace (the blood); gone once he's left to search on his own",
+      "forbids": [
+        "barry_left"
+      ]
+    },
+    {
+      "room": "104",
+      "model": "0x25",
+      "pick": 0,
+      "note": "Kenneth's body"
+    }
+  ],
+  "events": [
+    {"id": "gas_205", "room": "205", "switch": 14, "zone": [0, 0, 40000, 40000], "lines": [["Jill", "V104_05", {"cam": 2}], ["", "TEXT:205:04", {"cam": 1}]], "note": "the armor room's gas (RE1 205 events 1 and 5, run when the switch is pressed with a vent uncovered: camera 1, camera 2 on the vent for the gas, Jill's 'It's awful!' (voice 5 = V104_05, the balcony's clip reused), then message 4 'Poison gas is escaping...!'). En_ReOrder sets switch 14 on each wrong press (the damage and the poison are its own); with no flag of its own the event clears 14 after playing, so it plays every time"},
+    {"id": "yawn_collapse", "room": "20E", "zone": [5460, 1700, 6760, 4800], "requires": ["yawn_bitten"], "forbids": ["yawn_rescued"], "sets": ["yawn_rescued"], "exit": "ENTR_RE_SAVEROOM100_0", "lines": [["Jill", "VA07_00", {}]], "note": "Yawn's poison (RE1 20E script 6: with 0:47, the poison, and 1:56, Yawn met, set and 1:43 clear, it parks Barry and turns aot 5, 5460,1700 1300x3100, the way out of the library, into event 1 / 8: 'Am I poisoned? Give me the serum.', voice 14 = VA07_00, VA06_00 being Chris's; event 8 brings Barry in on camera 0). Here: Jill's line, then the fade to the save room, where she wakes up cured (yawn_rescued clears the poison). A blue herb taken before avoids it, as the cure clears RE1's flag. Barry's part on screen (event 8) isn't built"},
+    {"id": "yawn_wake", "room": "100", "flag": 20, "zone": [0, 0, 40000, 40000], "requires": ["yawn_rescued"], "lines": [["Jill", "V107_00", {"cam": 1}]], "note": "Jill wakes up in the save room after Barry's rescue (RE1 100 events 0 / 3, script 6 while 1:21 / 1:22 are clear: she lies there (her animations 48, 50, 49), then 'Barry! Barry?', V107_00 (stage 1's voice 64), on camera 1; he's gone). Link doesn't lie down: Jill's animations on Link are a later goal"},
+    {"id": "barry_203", "room": "203", "flag": 20, "zone": [0, 0, 40000, 40000], "requires": ["chemical"], "forbids": ["barry_203"], "sets": ["barry_203"], "lines": [["Jill", "V106_00", {"walk": {"Jill": {"path": [[29000, 19000]]}}, "anim": {"Barry": 36}}], ["Barry", "V106_01", {"anim": {"Barry": 33}}], ["Jill", "V106_02", {"anim": {"Barry": 34}, "walk": {"Jill": {"path": [[31812, 20413], [25334, 18190]]}, "Barry": {"anim": 2, "path": [[30700, 19000], [26194, 17345]]}}}]], "note": "RE1 203 events 0 and 1, run by script 6 on entering once Jill has the chemical (118's Item_set, flag 7:0D) and flags 1:0A / 1:07 are set (set by other rooms' code, not decoded: here, the chemical alone). Voices 34-36 = V106_00-02 (stage 2's table); V106_01 and _02 have both of them in each clip, split in the local fixes file by sense (Barry asks for clues, Jill has none, Barry sends them after a back door; then Barry hands her a weapon, 'really powerful, especially against living things', Jill asks about him, 'I have this'). The weapon is the acid rounds (Item_set 8, item 0x11 x6, flag 14, parked for the scene to hand over): here they appear at Jill's last spot as a pickup once the scene has played. Jill walks to 29000,19000, then 31812,20413 and 25334,18190; Barry's gestures from 33-36 (RE1 also uses 32, 37, 51); RE1's event 2 then walks him by 30700,19000 to 26194,17345 (here he walks off with the scene's end, below). The same scene is in the foyer's script (106 events 27/28, voices 130-132), for a later state; not built"},
+    {"id": "barry_20a", "room": "20A", "flag": 20, "zone": [0, 0, 40000, 40000], "forbids": ["barry_20a"], "sets": ["barry_20a"], "lines": [["Barry", "V108_00", {"cam": 1, "anim": {"Barry": 33}}], ["Jill", "V108_01", {"walk": {"Jill": {"path": [[3667, 4868]]}}}], ["Barry", "V108_02", {"anim": {"Barry": 34}, "walk": {"Jill": {"path": [[4379, 3992], [5050, 3540]]}}}], ["Barry", "V108_03", {"anim": {"Barry": 36}}], ["Jill", "V108_04", {"anim": {"Barry": 34}}], ["Barry", "V108_05", {"anim": {"Barry": 33}}], ["Jill", "V108_06", {"anim": {"Barry": 36}}], ["Barry", "V108_07", {"cam": 0, "anim": {"Barry": 33}, "walk": {"Barry": {"anim": 2, "path": [[5006, 5544], [2937, 5403]]}}}]], "note": "RE1 20A event 4, run by script 6 on entering (Barry's Em_set and the event both wait on flag 4:22). Voices 25-32 = V108_00-07 (stage 2's voice table in Bio.exe at 0xB19A8; V108_08, 'I think I'll stay and look around more', isn't in it). Speakers by pitch (Barry 130-190 Hz: 00, 02, 03, 05, 07; Jill 230-360: 01, 04, 06). Cameras 1, 0; Jill walks to 3667,4868, then to 4379,3992 and toward Barry (5496,3240: RE1's collision stops her by him; Link stops at 5050,3540); at the end Barry goes (anim 18, here his walk) by 5006,5544 to 2937,5403, the door. Barry's gestures: RE1's 33-36, 39, 40, 47 on his track; ours from the exported 33/34/36. What they look at, a document with a page missing, is one of the room's files (items 0x5F / 0x60, on the shelf), not built (no files yet)"},
+    {
+      "id": "richard_found",
+      "room": "20D",
+      "flag": 20,
+      "zone": [4500, 500, 14700, 6100],
+      "lines": [
+        [
+          "Jill",
+          "VA01_00",
+          {
+            "cam": 3,
+            "anim": {
+              "Richard": 1
+            },
+            "walk": {
+              "Jill": {
+                "path": [
+                  [7480, 2440],
+                  [8300, 3600]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Richard",
+          "VA01_01",
+          {
+            "cam": 5
+          }
+        ],
+        [
+          "Jill",
+          "VA01_02",
+          {}
+        ],
+        [
+          "Richard",
+          "VA01_03",
+          {}
+        ],
+        [
+          "Jill",
+          "VA01_04",
+          {}
+        ],
+        [
+          "Richard",
+          "VA01_05",
+          {}
+        ],
+        [
+          "Richard",
+          "VA01_06",
+          {}
+        ],
+        [
+          "Jill",
+          "VA01_07",
+          {}
+        ],
+        [
+          "Richard",
+          "VA01_08",
+          {
+            "cam": 3
+          }
+        ]
+      ],
+      "sets": ["richard_met"],
+      "note": "RE1 20D event 1 (script 7 runs it on camera 3, i.e. once Jill is in the corridor's east end: the zone is camera 3's switch zones), with Richard's track in event 3 (anim 1). Voices 58-66 = VA01_00-08. Jill walks to 7480,2440 and then (short steps) to 8300,3600, Richard's own spot, and kneels (anim 9); Link takes the same route. Cameras 3, 5, back to 3; then RE1 walks her off toward the door (3000,12500), not done here. Speakers by voice pitch (Jill ~300 Hz, Richard ~150-210: 05 and 06 both his). Once played, the serum's countdown runs (richard_met: ReStory_UpdateCountdown, 420 s)"
+    },
+    {
+      "id": "richard_serum",
+      "room": "20D",
+      "flag": 22,
+      "switch": 21,
+      "zone": [0, 0, 40000, 20000],
+      "requires": ["richard_met"],
+      "forbids": ["richard_dead"],
+      "lines": [
+        [
+          "Jill",
+          "VA01_09",
+          {
+            "cam": 5,
+            "anim": {
+              "Richard": 1
+            },
+            "walk": {
+              "Jill": {
+                "path": [
+                  [7680, 2460]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Richard",
+          "VA01_0A",
+          {}
+        ],
+        [
+          "Jill",
+          "VA01_0B",
+          {}
+        ],
+        [
+          "Richard",
+          "VA01_0C",
+          {
+            "anim": {
+              "Richard": 2
+            }
+          }
+        ]
+      ],
+      "sets": ["richard_dead", "radio"],
+      "note": "RE1 20D event 2 (after event 7's use of the serum on aot 4), Richard's track in event 4 (anim 1, then 2: he dies, ~380 frames in, by VA01_0C at ~428). Voices 67-70 = VA01_09-0C; speakers by pitch (0C, 'Jill, be careful!', is his, ~190 Hz). Jill walks to 7680,2460 and 8780,3584 beside him; the shot ends on camera 4 then 3. He hands over his radio (RE1's flag for it: radio), then dies anyway"
+    },
+    {
+      "id": "richard_too_late",
+      "room": "20D",
+      "flag": 21,
+      "zone": [4500, 500, 14700, 6100],
+      "requires": ["richard_dead"],
+      "forbids": ["radio"],
+      "lines": [
+        [
+          "",
+          "TEXT:20D:0E",
+          {
+            "cam": 5
+          }
+        ]
+      ],
+      "note": "the countdown ran out: 'Richard is dead.' (20D's message 14; 16 is the same words, for checking him later). Its flag is the serum spot's, so the serum is kept"
+    },
+    {
+      "id": "foyer_opening",
+      "room": "106",
+      "flag": 0,
+      "zone": [
+        15200,
+        1600,
+        19200,
+        5600
+      ],
+      "lines": [
+        [
+          "Barry",
+          "V101_00",
+          {
+            "cam": 1,
+            "anim": {
+              "Barry": 53
+            },
+            "walk": {
+              "Barry": {
+                "anim": 2,
+                "path": [
+                  [
+                    17300,
+                    3200
+                  ],
+                  [
+                    13700,
+                    8000
+                  ]
+                ]
+              },
+              "Jill": {
+                "path": [
+                  [
+                    20900,
+                    8500
+                  ]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Jill",
+          "V101_01",
+          {
+            "cam": 6,
+            "anim": {
+              "Barry": 34
+            },
+            "walk": {
+              "Barry": {
+                "anim": 6,
+                "path": [
+                  [
+                    16200,
+                    9000
+                  ],
+                  [
+                    18100,
+                    7600
+                  ]
+                ]
+              },
+              "Jill": {
+                "path": [
+                  [
+                    24500,
+                    12800
+                  ],
+                  [
+                    20800,
+                    10800
+                  ]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Wesker",
+          "V101_02",
+          {
+            "cam": 6,
+            "anim": {
+              "Barry": 36
+            },
+            "walk": {
+              "Barry": {
+                "anim": 6,
+                "path": [
+                  [
+                    18300,
+                    6000
+                  ]
+                ]
+              },
+              "Jill": {
+                "path": [
+                  [
+                    19000,
+                    6300
+                  ]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Wesker",
+          "V101_03",
+          {
+            "cam": 6,
+            "anim": {
+              "Barry": 43
+            },
+            "walk": {
+              "Barry": {
+                "anim": 6,
+                "path": [
+                  [
+                    16740,
+                    5700
+                  ]
+                ]
+              },
+              "Jill": {
+                "path": [
+                  [
+                    15400,
+                    4800
+                  ]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Wesker",
+          "V101_04",
+          {
+            "cam": 1,
+            "anim": {
+              "Barry": 36
+            },
+            "walk": {
+              "Jill": {
+                "path": [
+                  [
+                    14000,
+                    10000
+                  ],
+                  [
+                    12200,
+                    10000
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      ],
+      "staging": "RE1 106 event 0 (tools/re1/evt.py ROOM1061.RDT 0): char 1 = Barry, char 0 = Jill (Link follows her route)",
+      "start": "Jill comes in through the main entrance: spawn 0 at (17200, 3600) facing into the hall"
+    },
+    {
+      "id": "dining_blood",
+      "room": "105",
+      "flag": 1,
+      "zone": [
+        1500,
+        6500,
+        5800,
+        9800
+      ],
+      "lines": [
+        [
+          "Barry",
+          "V102_01",
+          {
+            "cam": 1,
+            "anim": {
+              "Barry": 9
+            }
+          }
+        ],
+        [
+          "Barry",
+          "V102_02",
+          {
+            "cam": 3,
+            "anim": {
+              "Barry": 9
+            }
+          }
+        ],
+        [
+          "Barry",
+          "V102_03",
+          {
+            "cam": 3
+          }
+        ],
+        [
+          "Barry",
+          "V102_04",
+          {
+            "cam": 3,
+            "anim": {
+              "Barry": 45
+            }
+          }
+        ]
+      ],
+      "staging": "RE1 105 events 0/4/7: CAM1 (entry); Barry anim 9, MSG1, CAM3, MSG2, MSG3; Barry anim 45, MSG4. Started where RE1 starts it: aot 0x09 by the fireplace (x 2000, z 7200, 1800 x 1800), widened to reach Barry",
+      "sets": [
+        "blood_seen"
+      ]
+    },
+    {
+      "id": "dining_zombie_runs",
+      "room": "105",
+      "flag": 2,
+      "requires": [
+        "zombie_alt"
+      ],
+      "zone": [
+        16000,
+        10800,
+        17000,
+        14000
+      ],
+      "lines": [
+        [
+          "Jill",
+          "V102_06",
+          {
+            "cam": 2,
+            "walk": {
+              "Jill": {
+                "path": [
+                  [
+                    6388,
+                    13000
+                  ]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Jill",
+          "V102_07",
+          {
+            "cam": 5,
+            "anim": {
+              "Barry": 7
+            },
+            "walk": {
+              "Barry": {
+                "anim": 2,
+                "path": [
+                  [
+                    7000,
+                    12400
+                  ],
+                  [
+                    12400,
+                    13000
+                  ]
+                ]
+              },
+              "Jill": {
+                "path": [
+                  [
+                    19400,
+                    13000
+                  ]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Barry",
+          "V102_08",
+          {
+            "cam": 5,
+            "anim": {
+              "Barry": 7
+            },
+            "walk": {
+              "Jill": {
+                "path": [
+                  [
+                    24900,
+                    12000
+                  ]
+                ]
+              }
+            },
+            "shots": 3
+          }
+        ],
+        [
+          "Barry",
+          "V102_09",
+          {
+            "cam": 1,
+            "anim": {
+              "Barry": 9
+            },
+            "walk": {
+              "Barry": {
+                "anim": 3,
+                "path": [
+                  [
+                    17300,
+                    12900
+                  ]
+                ]
+              },
+              "Jill": {
+                "path": [
+                  [
+                    21700,
+                    13000
+                  ],
+                  [
+                    18400,
+                    12300
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      ],
+      "staging": "RE1 105 event 14, the semi-secret route: Jill finds the zombie at the corridor door herself after Barry's 'Lost courage already?' and the blood scene, never having been in the corridor (Barry's rescue placement needs flag 1:ad set and 1:ac, set on entering the corridor, clear). Voices 0x24-0x27 = V102_06-09. RE1's commands: Jill walks toward the corridor door (6388, 14000; here 13000, short of its exit) and recoils (39), runs off (2) to 19400, 13000 while Barry comes over (12400, 13000), Barry aims (7), Jill backs off to 24900, 12000, Barry fires 3x (8), then both walk toward the body. Started where RE1 starts it, aot 0x0E (x 16000, z 10800, 1000 x 3200: the south aisle, so as in RE1 the north aisle passes it by, and the corridor then puts the story on the normal route); the zombie stays behind the corridor door (the dormant follower) until the scene starts. Barry walks with anim 2 (RE1: 6, which we play as short steps: too slow across the room). Barry's walks go by 7000, 12400 (RE1's first post-shot point) to clear the table's corner",
+      "speakers": "by voice pitch: 06 and 07 Jill, 08 Barry, 09 Barry then Jill (split in the local fixes file)",
+      "forbids": [
+        "corridor_visited",
+        "zombie_dead"
+      ]
+    },
+    {
+      "id": "dining_zombie_barry",
+      "room": "105",
+      "flag": 3,
+      "requires": "zombie_follows",
+      "zone": [
+        5300,
+        11400,
+        7300,
+        13400
+      ],
+      "lines": [
+        [
+          "Jill",
+          "V102_0a",
+          {
+            "cam": 3,
+            "walk": {
+              "Jill": {
+                "path": [
+                  [
+                    5500,
+                    9000
+                  ]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Barry",
+          "V102_0b",
+          {
+            "cam": 3,
+            "anim": {
+              "Barry": 7
+            },
+            "walk": {
+              "Barry": {
+                "anim": 2,
+                "path": [
+                  [
+                    5000,
+                    7700
+                  ]
+                ]
+              }
+            },
+            "shots": 3
+          }
+        ],
+        [
+          "Barry",
+          "V102_0c",
+          {
+            "cam": 3,
+            "anim": {
+              "Barry": 40
+            }
+          }
+        ],
+        [
+          "Jill",
+          "V102_0d",
+          {
+            "cam": 3,
+            "anim": {
+              "Barry": 37
+            }
+          }
+        ],
+        [
+          "Jill",
+          "V102_0e",
+          {
+            "cam": 3,
+            "anim": {
+              "Barry": 34
+            }
+          }
+        ]
+      ],
+      "staging": "RE1 105 event 15, the normal route: Jill retreats from the corridor with the zombie behind her. Voices 0x28-0x2C = V102_0a-0e; Barry steps out, aims (7), fires 3x (8, damage 12/12/10), lowers the gun (40). RE1 starts it from room code (no aot points at it) and its first command walks Jill over to Barry, so it plays on arrival: the zone is the arrival point from the corridor",
+      "speakers": "by voice pitch: 0a Jill, 0b Barry / Jill ('Watch out! It's a monster!') / Barry (split in the local fixes file), 0c Barry, 0d and 0e Jill"
+    },
+    {
+      "id": "dining_visited",
+      "room": "105",
+      "zone": [
+        0,
+        0,
+        40000,
+        20000
+      ],
+      "lines": [],
+      "sets": [
+        "dining_visited"
+      ],
+      "staging": "silent: Link has been in the dining room"
+    },
+    {
+      "id": "foyer_went_back",
+      "room": "106",
+      "zone": [
+        3000,
+        15700,
+        5600,
+        18300
+      ],
+      "lines": [],
+      "requires": [
+        "dining_visited"
+      ],
+      "forbids": [
+        "blood_seen",
+        "went_back"
+      ],
+      "sets": [
+        "went_back"
+      ],
+      "staging": "silent: Link came back to the foyer from the dining room before the blood scene (arrival point from the dining room)"
+    },
+    {
+      "id": "corridor_visited",
+      "room": "104",
+      "zone": [
+        0,
+        0,
+        40000,
+        20000
+      ],
+      "lines": [],
+      "sets": [
+        "corridor_visited"
+      ],
+      "staging": "silent: RE1's flag 1:ac (set on every entry to the corridor)"
+    },
+    {
+      "id": "dining_lost_courage",
+      "room": "105",
+      "flag": 4,
+      "zone": [
+        30000,
+        4700,
+        35200,
+        11900
+      ],
+      "requires": [
+        "went_back"
+      ],
+      "forbids": [
+        "blood_seen",
+        "lost_courage"
+      ],
+      "sets": [
+        "lost_courage"
+      ],
+      "blocks_exit": true,
+      "arm_outside": true,
+      "lines": [
+        [
+          "Barry",
+          "V102_05",
+          {
+            "anim": {
+              "Barry": 45
+            }
+          }
+        ]
+      ],
+      "staging": "RE1 105 event 7 (voice 0x23 = V102_05): on the foyer door's own rectangle (aot 0x04 = the door's x 31600, z 6300, 2000 x 4000), armed with flag 1:a3, so the door doesn't open. Barry anims 9, 45 (the line), 36, 39, 33, 41, 46. Here: after Link went back to the foyer before the blood scene (the route the user's sources describe)"
+    },
+    {
+      "id": "dining_investigate",
+      "room": "105",
+      "zone": [
+        30000,
+        4700,
+        35200,
+        11900
+      ],
+      "requires": [
+        "lost_courage"
+      ],
+      "forbids": [
+        "blood_seen"
+      ],
+      "blocks_exit": true,
+      "arm_outside": true,
+      "lines": [
+        [
+          "",
+          "TEXT:105:0e",
+          {}
+        ]
+      ],
+      "staging": "RE1 105 event 8 (message 0x8E): the foyer door's other scene, 'There may be more here worth investigating.' Here: after 'Lost courage', until the blood scene"
+    },
+    {
+      "id": "dining_investigate_2",
+      "room": "105",
+      "zone": [
+        30000,
+        4700,
+        35200,
+        11900
+      ],
+      "requires": [
+        "blood_seen"
+      ],
+      "forbids": [
+        "zombie_dead"
+      ],
+      "blocks_exit": true,
+      "arm_outside": true,
+      "lines": [
+        [
+          "",
+          "TEXT:105:0e",
+          {}
+        ]
+      ],
+      "staging": "RE1 105 event 8 again: after the blood scene the foyer door stays shut until the zombie is dealt with (RE1 arms aot 0x04/0x05 while flag 1:a1 is set and 1:01 clear)"
+    },
+    {
+      "id": "dining_zombie_comes",
+      "room": "105",
+      "zone": [
+        0,
+        0,
+        40000,
+        20000
+      ],
+      "lines": [],
+      "requires": [
+        "blood_seen",
+        "lost_courage"
+      ],
+      "forbids": [
+        "corridor_visited",
+        "zombie_dead"
+      ],
+      "sets": [
+        "zombie_alt"
+      ],
+      "staging": "silent: after the blood scene, with Jill not yet in the corridor, the zombie is at the corridor door (event 14). Going into the corridor first puts the story back on the normal route (event 14 forbids corridor_visited)"
+    },
+    {
+      "id": "hall_return",
+      "room": "106",
+      "zone": [
+        0,
+        0,
+        40000,
+        40000
+      ],
+      "requires": [
+        "zombie_dead"
+      ],
+      "forbids": [
+        "hall_return"
+      ],
+      "sets": [
+        "hall_return"
+      ],
+      "lines": [
+        [
+          "Barry",
+          "V103_00",
+          {
+            "cam": 5,
+            "anim": {
+              "Barry": 34
+            },
+            "walk": {
+              "Barry": {
+                "anim": 2,
+                "path": [
+                  [
+                    7760,
+                    12470
+                  ],
+                  [
+                    17500,
+                    11650
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      ],
+      "staging": "RE1 106 event 5 (voice 0x3A = V103_00), played on entering the hall with flag 1:03 (set by the dining room once the zombie is dealt with): Barry, placed at the dining door (5460, 14767), walks to 7760, 12470 (cam 5), talks (45, 34, ...), then goes to 17500, 11650 to search (event 7 then has him wander the hall; not built: he stands there). RE1 points the hall's three doors at message 0x22 meanwhile (hall_block_*). Speaker by pitch and by the event's character (1 = Barry)"
+    },
+    {
+      "id": "hall_block_east",
+      "room": "106",
+      "zone": [
+        30000,
+        8900,
+        34200,
+        14100
+      ],
+      "requires": [
+        "hall_return"
+      ],
+      "forbids": [
+        "hall_talked"
+      ],
+      "blocks_exit": true,
+      "arm_outside": true,
+      "lines": [
+        [
+          "",
+          "TEXT:106:22",
+          {}
+        ]
+      ],
+      "staging": "RE1 106: while Barry searches, door 0 (to room 107) gives message 0x22 (OP12 retargets it) instead of opening, until event 14 points it back"
+    },
+    {
+      "id": "hall_block_east2",
+      "room": "106",
+      "zone": [
+        30000,
+        17500,
+        34200,
+        20900
+      ],
+      "requires": [
+        "hall_return"
+      ],
+      "forbids": [
+        "hall_talked"
+      ],
+      "blocks_exit": true,
+      "arm_outside": true,
+      "lines": [
+        [
+          "",
+          "TEXT:106:22",
+          {}
+        ]
+      ],
+      "staging": "RE1 106: while Barry searches, door 1 (to room 111) gives message 0x22 (OP12 retargets it) instead of opening, until event 14 points it back"
+    },
+    {
+      "id": "hall_block_dining",
+      "room": "106",
+      "zone": [
+        0,
+        13900,
+        4050,
+        19900
+      ],
+      "requires": [
+        "hall_return"
+      ],
+      "forbids": [
+        "hall_talked"
+      ],
+      "blocks_exit": true,
+      "arm_outside": true,
+      "lines": [
+        [
+          "",
+          "TEXT:106:22",
+          {}
+        ]
+      ],
+      "staging": "RE1 106: while Barry searches, door 2 (the dining room) gives message 0x22 (OP12 retargets it) instead of opening, until event 14 points it back"
+    },
+    {
+      "id": "hall_talk_east",
+      "room": "106",
+      "zone": [
+        21000,
+        4000,
+        30000,
+        17000
+      ],
+      "requires": [
+        "hall_return"
+      ],
+      "forbids": [
+        "hall_talked"
+      ],
+      "sets": [
+        "hall_talked",
+        "lockpick",
+        "barry_left"
+      ],
+      "lines": [
+        [
+          "Barry",
+          "V103_01",
+          {
+            "cam": 2,
+            "anim": {
+              "Barry": 33
+            },
+            "walk": {
+              "Barry": {
+                "anim": 2,
+                "path": [
+                  [
+                    25533,
+                    9000
+                  ],
+                  [
+                    25533,
+                    10382
+                  ]
+                ]
+              },
+              "Jill": {
+                "path": [
+                  [
+                    25533,
+                    8000
+                  ]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Jill",
+          "V103_0A",
+          {
+            "anim": {
+              "Barry": 34
+            }
+          }
+        ],
+        [
+          "Barry",
+          "V103_0C",
+          {
+            "cam": 6,
+            "anim": {
+              "Barry": 33
+            }
+          }
+        ],
+        [
+          "Barry",
+          "V103_0D",
+          {
+            "cam": 5,
+            "walk": {
+              "Barry": {
+                "anim": 2,
+                "path": [
+                  [
+                    3945,
+                    16715
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      ],
+      "staging": "RE1 106 event 12 (cam 2, the east side: Jill placed at 25524, 6371, Barry to 25533, 10382), then (script 7's chain) events 25 (the rest of V103_01, blank text boxes), 13, 26 (V103_0A: Jill takes Barry's lock pick: item 0x31, set up as aot 06 by the 1:03 branch) and 14/18/23 (V103_0C, V103_0D: Barry goes off by the dining room door, 3945, 16715; the hall's doors are doors again). Speakers by pitch (V103_01 split in the local fixes file)",
+      "arm_outside": true
+    },
+    {
+      "id": "hall_talk_west",
+      "room": "106",
+      "zone": [
+        4100,
+        9000,
+        12500,
+        20000
+      ],
+      "requires": [
+        "hall_return"
+      ],
+      "forbids": [
+        "hall_talked"
+      ],
+      "sets": [
+        "hall_talked",
+        "lockpick",
+        "barry_left"
+      ],
+      "lines": [
+        [
+          "Barry",
+          "V103_01",
+          {
+            "cam": 5,
+            "anim": {
+              "Barry": 33
+            },
+            "walk": {
+              "Barry": {
+                "anim": 2,
+                "path": [
+                  [
+                    7000,
+                    13072
+                  ],
+                  [
+                    8232,
+                    13072
+                  ]
+                ]
+              },
+              "Jill": {
+                "path": [
+                  [
+                    8111,
+                    11000
+                  ]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Jill",
+          "V103_0A",
+          {
+            "anim": {
+              "Barry": 34
+            }
+          }
+        ],
+        [
+          "Barry",
+          "V103_0C",
+          {
+            "cam": 6,
+            "anim": {
+              "Barry": 33
+            }
+          }
+        ],
+        [
+          "Barry",
+          "V103_0D",
+          {
+            "cam": 5,
+            "walk": {
+              "Barry": {
+                "anim": 2,
+                "path": [
+                  [
+                    3945,
+                    16715
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      ],
+      "staging": "RE1 106 event 16 (cam 5, the west side: Jill placed at 8111, 9567, Barry to 8232, 13072), then (script 7's chain) events 25 (the rest of V103_01, blank text boxes), 13, 26 (V103_0A: Jill takes Barry's lock pick: item 0x31, set up as aot 06 by the 1:03 branch) and 14/18/23 (V103_0C, V103_0D: Barry goes off by the dining room door, 3945, 16715; the hall's doors are doors again). Speakers by pitch (V103_01 split in the local fixes file)",
+      "arm_outside": true
+    },
+    {
+      "id": "hall_talk_stairs",
+      "room": "106",
+      "zone": [
+        15500,
+        13300,
+        18500,
+        15300
+      ],
+      "requires": [
+        "hall_return"
+      ],
+      "forbids": [
+        "hall_talked"
+      ],
+      "sets": [
+        "hall_talked",
+        "lockpick",
+        "barry_left"
+      ],
+      "lines": [
+        [
+          "Barry",
+          "V103_01",
+          {
+            "cam": 1,
+            "anim": {
+              "Barry": 33
+            },
+            "walk": {
+              "Barry": {
+                "anim": 2,
+                "path": [
+                  [
+                    16934,
+                    12200
+                  ],
+                  [
+                    16553,
+                    9076
+                  ]
+                ]
+              },
+              "Jill": {
+                "path": [
+                  [
+                    16553,
+                    10500
+                  ]
+                ]
+              }
+            }
+          }
+        ],
+        [
+          "Jill",
+          "V103_0A",
+          {
+            "anim": {
+              "Barry": 34
+            }
+          }
+        ],
+        [
+          "Barry",
+          "V103_0C",
+          {
+            "cam": 6,
+            "anim": {
+              "Barry": 33
+            }
+          }
+        ],
+        [
+          "Barry",
+          "V103_0D",
+          {
+            "cam": 5,
+            "walk": {
+              "Barry": {
+                "anim": 2,
+                "path": [
+                  [
+                    3945,
+                    16715
+                  ]
+                ]
+              }
+            }
+          }
+        ]
+      ],
+      "staging": "RE1 106 event 21 (Jill back down the stairs during the search: Barry to 16934, 12200 and 16553, 9076), then (script 7's chain) events 25 (the rest of V103_01, blank text boxes), 13, 26 (V103_0A: Jill takes Barry's lock pick: item 0x31, set up as aot 06 by the 1:03 branch) and 14/18/23 (V103_0C, V103_0D: Barry goes off by the dining room door, 3945, 16715; the hall's doors are doors again). Speakers by pitch (V103_01 split in the local fixes file)"
+    },
+    {
+      "id": "dogs_window_1",
+      "room": "108",
+      "zone": [
+        14500,
+        1560,
+        20220,
+        6960
+      ],
+      "flag": 11,
+      "lines": [],
+      "note": "RE1's aots 4 and 5 (type 9, event 0, while flag 1:40 is set): the first Cerberus comes through the window behind Jill (En_ReDog waits for this switch flag)"
+    },
+    {
+      "id": "dogs_window_2",
+      "room": "108",
+      "zone": [
+        21100,
+        8360,
+        26500,
+        13880
+      ],
+      "flag": 13,
+      "lines": [],
+      "note": "RE1's aots 6 and 7 (while 1:41 is set): the second comes through its window"
+    },
+    {
+      "id": "shotgun_trap",
+      "room": "116",
+      "zone": [0, 0, 16000, 16000],
+      "flag": 21,
+      "switch": 20,
+      "quake": 70,
+      "blocks_exit": true,
+      "sets": ["trap_sprung"],
+      "exit": "ENTR_RE_HALL109_4",
+      "lines": [
+        ["Barry", "V105_00", {}],
+        ["Barry", "V105_01", {}],
+        ["Jill", "V105_02", {}],
+        ["Barry", "V105_03", {}],
+        ["Barry", "V105_04", {}]
+      ],
+      "note": "the shotgun's trap: RE1's script 7 (room 116) runs events 1 and 3 when the shotgun (item 0x03) is taken without the broken one put in its place (flags 7:00/7:01): the room shakes (event 1's damped moves, dust effects 23/24) and the door is shut (aot 0 off, aot 7 on); RE1 then shows Barry outside in room 115 (its event 0: V105_00-03, event 1: V105_04 as he kicks the door in), and the rest plays in room 109. Here Barry's lines come through the door, then the scene moves to 109 (spawn 4: arriving from 115). Swapping in the broken shotgun to avoid the trap comes with that item (2nd floor)"
+    },
+    {
+      "id": "jill_sandwich",
+      "room": "109",
+      "zone": [2000, 6900, 7200, 10200],
+      "flag": 22,
+      "requires": ["trap_sprung"],
+      "lines": [
+        ["Jill", "V105_05", {"cam": 6}],
+        ["Barry", "V105_06", {}],
+        ["Jill", "V105_07", {}],
+        ["Barry", "V105_08", {"cam": 7}],
+        ["Jill", "V105_09", {"cam": 6, "walk": {"Barry": {"anim": 2, "path": [[1600, 8500]]}}}]
+      ],
+      "note": "RE1 109 event 0 (script 6, flags 1:20 and 1:21: right after the trap): V105_05-09 on cameras 0, 6 and 7; RE1 parks Barry's Em_set at the origin and the event places him, so the cast entry gives his spot by the west door"
+    },
+    {"id": "forest_found", "room": "212", "zone": [16000, 16000, 27000, 28000], "flag": 20, "sets": ["barry_212"], "lines": [["Barry", "V104_00", {"cam": 3}], ["Barry", "V104_01", {}], ["Jill", "V104_02", {}], ["Barry", "V104_03", {"cam": 2, "walk": {"Jill": {"path": [[23830, 24900], [23786, 18524]]}, "Barry": {"anim": 2, "path": [[23510, 21710]]}}}], ["Barry", "V104_04", {"cam": 3}], ["Jill", "V104_05", {}], ["Barry", "V104_06", {}], ["Barry", "V104_07", {}], ["Jill", "V104_08", {}], ["Barry", "V104_09", {}], ["Barry", "V104_0A", {"walk": {"Barry": {"anim": 2, "path": [[21400, 26500], [17900, 26400]]}}}]], "note": "the balcony: Forest's body (Em_set 0x26 at 25150,18700) and Barry (Em_set 0x22 at 22680,26170); RE1 212 events 0-37 stage it (voices 0-10 = V104_00-0A, the same as stage 2's table). Speakers by voice pitch (Barry ~150 Hz: 00 'Jill!' (231, shouted), 01, 03, 04 'It's Forest! Oh my god!', 06, 07, 09, 0A; Jill 270-350: 02, 05, 08); before, they were by the lines' sense. Events 16-19: one walks by 23830,24900 and 24400,21000 to Forest (23786,18524), the other by 23510,21710 (camera 2), on Barry's 'take a look at this!' (here Link goes to Forest, straight down from 23830,24900 rather than by 24400,21000, which is right by camera 3, the close shot of the body, and Barry stays back: either of them there filled the shot); event 21's 'It's Forest!' on camera 3. RE1 then has Barry gone (he goes to find out what killed Forest): here he walks out by the door (16800,26400) and the story flag barry_212 keeps him gone. Then the crows come for Jill, and the weapon Barry hands over (Item_set 1, item 0x07 x6, at 23500,19770) is hers"}
+  ],
+  "pickups": [
+    {"room": "20A", "item": "0x5F", "rect": [5800, 2400, 1900, 900], "note": "the researcher's will (Jill's: RE1's Item_set 8 is item 0x5F while flag 1:62 is clear, 0x60, the whole letter, for Chris), parked at 0,0: once 1:07 is set (here, once Barry's scene has played: pickup_switches) script 6 links it to the shelf's aot 1 and makes that event 2. The shelf's switch question keeps the spot; the pickup comes first while it's there (En_ReCheck gives way)"},
+    {"room": "203", "item": "0x11", "count": 6, "rect": [24834, 17690, 1000, 1000], "note": "the acid rounds Barry hands over in his scene (RE1's Item_set 8, parked at 0,0 16x16): at Jill's last spot of event 1 (25334,18190), showing once the scene has played"},
+    {
+      "room": "100",
+      "item": "0x42",
+      "count": 1,
+      "rect": [7400, 3880, 600, 1685],
+      "height": 2230,
+      "note": "the serum on the save room's shelf (Item_set 3, flag 23, parked at 0,0; its model at 8010,5250, 2230 up): RE1 hands it out from the shelf's aot 5 (7400,3880 600x3370, event 9). Both serums are there from the start; split the shelf in two"
+    },
+    {
+      "room": "100",
+      "item": "0x42",
+      "count": 1,
+      "rect": [7400, 5565, 600, 1685],
+      "height": 2230,
+      "note": "the second serum (Item_set 4, flag 24, model at 8010,5600)"
+    },
+    {
+      "room": "113",
+      "item": "0x3D",
+      "count": 1,
+      "rect": [4500, 6300, 2000, 2000],
+      "appears": 10,
+      "note": "the bathtub's small key: RE1 parks Item_set 1 at 20000,20000 (1x1) and, once the tub is drained, turns aot 3 (4500,6300 2000x2000) into its pickup (script 6: aot_on 3 type 9); the key model lies in the tub at 5850,6920"
+    },
+    {
+      "room": "107",
+      "item": "0x4E",
+      "count": 1,
+      "rect": [
+        7950,
+        5500,
+        2700,
+        2300
+      ],
+      "note": "the 1st floor's map, on top of the statue: RE1's Item_set parks item 0x4E at 0,0 and aot 5 (type 9) hands it out with messages 9/10 (events 0/2); reached from the room's steps (Om_set 0x40, En_ReBlock) pushed against the statue, so it sits 1800 up",
+      "height": 1800
+    }
+  ],
+  "objects": [
+    {"room": "11A", "model": 0, "kind": "shown", "nudge": [0, -100], "flag": 23, "note": "the sun crest (all four: RE1 shows each going in from camera 4, the plaque by the door; they're drawn 100 units out from the plaque, which at the background's depth would hide them) in the door's west hollow (Om_set 0 at 7010,-1910; script 6 shows it with flag 0:69). Which crest is which Om_set is read from the door's inscription (message 10: the sun in the west, the moon in the east, stars in the sky, wind toward the ground) and their places, not from the events' flags (to check)"},
+    {"room": "11A", "model": 1, "kind": "shown", "nudge": [0, -100], "flag": 21, "note": "the moon crest in the east hollow (Om_set 1 at 8040,-1910; flag 0:6B)"},
+    {"room": "11A", "model": 2, "kind": "shown", "nudge": [0, -100], "flag": 22, "note": "the star crest in the top hollow (Om_set 2 at 7540,-2390; flag 0:6A)"},
+    {"room": "11A", "model": 3, "kind": "shown", "nudge": [0, -100], "flag": 20, "pitch": 1024, "note": "the wind crest in the bottom hollow (Om_set 3 at 7530,-1900; flag 0:6C): its model lies flat and the Om_set turns it a quarter about x (its 1024, read as a facing for the others)"},
+    {
+      "room": "205",
+      "model": 1,
+      "target": {"at": [5135, 7236], "switch": 11},
+      "note": "the west suit of armor (Om_set 1 at 8795,7886): pushed onto the west air vent (RE1 aot 1, 4785,6936 700x600, flag 4:20) it covers it"
+    },
+    {
+      "room": "205",
+      "model": 2,
+      "target": {"at": [13985, 7236], "switch": 12},
+      "note": "the east suit of armor (Om_set 2 at 14035,6190) onto the east vent (aot 2, 13635,6936, flag 4:21)"
+    },
+    {
+      "room": "205",
+      "model": 0,
+      "kind": "slide",
+      "flag": 13,
+      "slide": [0, -2900],
+      "note": "the showcase's glass (Om_set 0, 2655,7220): open once the switch is pushed with both vents covered (the direction is ours)"
+    },
+    {
+      "room": "202",
+      "model": 0,
+      "drop": {"edge": [17488, 3510], "story": "statue_fallen"},
+      "note": "the statue on the dining room's balcony (Om_set 0 at 23263,3510, there while flag 0:0B is set): RE1 lets Jill push it west along the balcony to the gap at aot 3 (16863,4440 1250x501, event 0), where it falls into the dining room below; the blue jewel is then in its rubble (room 105)"
+    },
+    {
+      "room": "202",
+      "model": 1,
+      "kind": "skip",
+      "note": "small pieces placed by the dining room's emblem flags (1:aa/1:ab): not needed"
+    },
+    {
+      "room": "202",
+      "model": 2,
+      "kind": "skip",
+      "note": "as model 1"
+    },
+    {
+      "room": "202",
+      "model": 3,
+      "kind": "skip",
+      "note": "the dining room's clock seen from the balcony (two places by flag 1:ab): the background shows it"
+    },
+    {
+      "room": "10F",
+      "model": 0,
+      "kind": "slide",
+      "flag": 16,
+      "slide": [
+        -1900,
+        0
+      ],
+      "note": "the panel behind the piano (Om_set 0, 9100,12576, turned 90): RE1 opens it after Jill plays the Moonlight Sonata (event 6); it slides into the wall to its west (the direction is ours: RE1's move is in its event code, not decoded) and is hidden once open, since the background already shows the passage; taking the gold emblem shuts it again (flag 18, RE1 event 2) until an emblem goes back in the slot (event 3)",
+      "shut_flag": 18
+    },
+    {
+      "room": "105",
+      "model": 0,
+      "kind": "skip",
+      "note": "a flat 1800-square decal by the fireplace (Om_set 0, flags 0x0F): with model 1 (900), most likely the blood the blood scene drips; not placed yet"
+    },
+    {
+      "room": "105",
+      "model": 1,
+      "kind": "skip",
+      "note": "see model 0"
+    },
+    {
+      "room": "105",
+      "model": 2,
+      "kind": "slide",
+      "flag": 21,
+      "slide": [
+        -2000,
+        0
+      ],
+      "visible": true,
+      "note": "the grandfather clock: RE1's script places it at 18000,14300, or at 16000 once flag 1:ab is set (the gold emblem in the fireplace); behind it, the shield key (Item_set 6, 0x35, at 17400,14500)",
+      "at": [
+        18000,
+        14300
+      ]
+    },
+    {
+      "room": "105",
+      "model": 3,
+      "kind": "skip",
+      "note": "the statue that falls from the balcony (placed under flag 0:0b): the 2F puzzle, not built"
+    }
+  ],
+  "songs": [
+    {
+      "room": "10F",
+      "zone": [
+        8200,
+        6600,
+        10900,
+        9500
+      ],
+      "flag": 16,
+      "cam": 7,
+      "note": "the piano: RE1's aot 1 (8800,7200 1500x1700, where Jill sits to play, event 6) widened by 600; camera 7 looks at the panel"
+    }
+  ],
+  "pickup_switches": [
+    {"room": "118", "item": "0x26", "sets_story": "chemical", "note": "the chemical (RE1 item 0x26, Item_set at 2260,2469, flag 13 = 7:0D): taking it arms Barry's scene in 203"},
+    {"room": "203", "item": "0x11", "appears_story": "barry_203", "note": "the acid rounds, once Barry has handed them over"},
+    {"room": "20A", "item": "0x5F", "appears_story": "barry_20a", "note": "the researcher's will, once Barry has shown it to Jill (RE1's 1:07, set elsewhere: here his scene)"},
+    {"room": "20F", "item": "0x11", "appears": 20, "note": "the acid rounds in the dark corner (Item_set 4 at 3200,1900, flag 12): RE1's script 6 makes aot 4 'It's too dark to see anything.' until the candle is lit"},
+    {
+      "room": "210",
+      "item": "0x2C",
+      "switch": 20,
+      "note": "the moon crest: taking it brings Yawn out (En_ReYawn's wake flag)"
+    },
+    {
+      "room": "212",
+      "item": "0x07",
+      "appears": 20,
+      "note": "Forest's weapon, which Barry gives Jill (V104_09)"
+    },
+    {
+      "room": "205",
+      "item": "0x2E",
+      "appears": 13,
+      "note": "the sun crest in the showcase (Item_set 9 at aot 4), once it's open"
+    },
+    {
+      "room": "10D",
+      "item": "0x29",
+      "appears": 10,
+      "note": "the wind crest, once the blue jewel is in the tiger's eye"
+    },
+    {
+      "room": "105",
+      "item": "0x21",
+      "appears_story": "statue_fallen",
+      "note": "the blue jewel in the fallen statue's rubble (Item_set 0x17 at 12000,4000, with the rubble Om_set 3, model 0x25): there once the statue on the balcony upstairs (203) has been pushed over"
+    },
+    {
+      "room": "117",
+      "item": "0x2D",
+      "appears": 8,
+      "note": "the star crest (Item_set 9 at aot 8): RE1 hands it out (aot 8 turns into its pickup) once the seven switches are pushed in order"
+    },
+    {
+      "room": "10F",
+      "item": "0x20",
+      "switch": 18,
+      "note": "the gold emblem: RE1's script (room 10F, script 7) runs event 2 when it's taken, which moves the panel back over the way out (SCD 0x17 at 9424,12173, then cameras 3 and 4)"
+    },
+    {
+      "room": "105",
+      "item": "0x1F",
+      "switch": 20,
+      "note": "the wooden emblem taken: the fireplace's slot is empty (RE1's flag 1:aa)"
+    },
+    {
+      "room": "116",
+      "item": "0x03",
+      "switch": 20,
+      "note": "the shotgun taken from its rack: RE1's script 7 (op 0x10 item 0x03) springs the trap (event shotgun_trap)"
+    }
+  ],
+  "uses": [
+    {"room": "20F", "rect": [7300, 6700, 2700, 2000], "item": "0x30", "sets": 20, "keep": true, "cam": 4, "note": "the candle on the table (RE1 aot 2, type 7): script 7 checks for the lighter (op 10, item 0x30), cuts to camera 4 (the lit room's view of the table), swaps in the lit backgrounds, makes aot 1 'The candle is lit.' and aot 4 the item; it doesn't take the lighter"},
+    {
+      "room": "20D",
+      "rect": [7500, 2500, 1800, 1800],
+      "item": "0x42",
+      "requires": 20,
+      "sets": 21,
+      "note": "the serum on Richard (RE1 aot 4: script 6 points it at event 7 while he's alive and Jill has item 0x42, event 8 without: his 'Be careful.', VA01_0D, not built). Offered once his scene has played (switch 20); its flag starts richard_serum"
+    },
+    {
+      "room": "10D",
+      "rect": [3000, 3556, 1600, 1400],
+      "item": "0x21",
+      "sets": 10,
+      "note": "the tiger statue's eye (RE1 aot 2, type 7): the blue jewel turns the statue and the wind crest is there (script 7, events 3/5; Item_set 3, item 0x29). The red jewel's eye gives item 0x05 x6 (Item_set 4): not built yet (no text for 0x05)"
+    },
+    {
+      "room": "11A",
+      "rect": [5500, 26700, 2000, 2000],
+      "item": "0x29",
+      "sets": 20,
+      "cam": 4,
+      "note": "the wind crest into its hollow in the door (RE1 aots 2-6, type 7, at 6500,27200 2000x1000; script 7: item 0x29 used runs event 6, camera 4 for 40 frames on its crest, Om_set)"
+    },
+    {
+      "room": "11A",
+      "rect": [5500, 26700, 2000, 2000],
+      "item": "0x2C",
+      "sets": 21,
+      "cam": 4,
+      "note": "the moon crest into its hollow in the door (RE1 aots 2-6, type 7, at 6500,27200 2000x1000; script 7: item 0x2C used shows its crest, Om_set)"
+    },
+    {
+      "room": "11A",
+      "rect": [5500, 26700, 2000, 2000],
+      "item": "0x2D",
+      "sets": 22,
+      "cam": 4,
+      "note": "the star crest into its hollow in the door (RE1 aots 2-6, type 7, at 6500,27200 2000x1000; script 7: item 0x2D used shows its crest, Om_set)"
+    },
+    {
+      "room": "11A",
+      "rect": [5500, 26700, 2000, 2000],
+      "item": "0x2E",
+      "sets": 23,
+      "cam": 4,
+      "note": "the sun crest into its hollow in the door (RE1 aots 2-6, type 7, at 6500,27200 2000x1000; script 7: item 0x2E used shows its crest, Om_set)"
+    },
+    {
+      "room": "10F",
+      "rect": [
+        8100,
+        18800,
+        1500,
+        1000
+      ],
+      "item": "0x1F",
+      "requires": 18,
+      "clears": 18,
+      "note": "the emblem slot (RE1 aots 6-9, type 7): the wooden emblem in its place (script 7: item 0x1F, then event 3/5) opens the way out again"
+    },
+    {
+      "room": "10F",
+      "rect": [
+        8100,
+        18800,
+        1500,
+        1000
+      ],
+      "item": "0x20",
+      "requires": 18,
+      "clears": 18,
+      "note": "...or the gold emblem put back (script 7: item 0x20), which can then be taken again"
+    },
+    {
+      "room": "105",
+      "rect": [
+        2000,
+        7200,
+        1800,
+        1800
+      ],
+      "item": "0x20",
+      "requires": 20,
+      "clears": 20,
+      "sets": 21,
+      "cam": 5,
+      "note": "the gold emblem into the fireplace's slot (RE1 aots 9-12, type 7, with flag 1:aa): sets 1:ab, the clock moves aside (camera 5 looks at its wall)"
+    }
+  ],
+  "questions": [
+    {"room": "20A", "msg": 5, "ask": 3, "switch": 21, "then": 5, "note": "the shelf (RE1 aot 1, 'It's well arranged.'; with 1:08 set script 6 makes it event 2: 'It seems someone has searched here already... It appears to be a switch. Will you push it?'): Yes lights the insect display (camera_sets: RE1's 0:12 cleared, cameras 3-5)"},
+    {
+      "room": "20B",
+      "msg": 1,
+      "ask": 0,
+      "switch": 10,
+      "then": 1,
+      "note": "the 2nd floor's map on the wall by the stove (RE1 aot 1, message 1; until it's taken aot 2's event 2 asks with message 0). The pause map shows every floor already, so taking it only marks it taken"
+    },
+    {
+      "room": "205",
+      "rect": [9235, 6736, 1000, 1000],
+      "ask": 0,
+      "cam": 3,
+      "switch": 10,
+      "note": "the switch (RE1 aot 3, event 0: message 0); with both vents covered the showcase opens (message 1, 'A weird hole opens'), else poison gas (message 4)"
+    },
+    {
+      "room": "117",
+      "msg": 6,
+      "ask": [6, 12],
+      "switch": 1,
+      "then": 6,
+      "note": "the newborn baby: RE1's event 7 shows the picture (message 6), then message 12 asks to push the switch below; switch 1 of the order (En_ReOrder)"
+    },
+    {
+      "room": "117",
+      "msg": 8,
+      "ask": [8, 12],
+      "switch": 2,
+      "then": 8,
+      "note": "the infant: RE1's event 9 shows the picture (message 8), then message 12 asks to push the switch below; switch 2 of the order (En_ReOrder)"
+    },
+    {
+      "room": "117",
+      "msg": 9,
+      "ask": [9, 12],
+      "switch": 3,
+      "then": 9,
+      "note": "the lively boy: RE1's event 10 shows the picture (message 9), then message 12 asks to push the switch below; switch 3 of the order (En_ReOrder)"
+    },
+    {
+      "room": "117",
+      "msg": 7,
+      "ask": [7, 12],
+      "switch": 4,
+      "then": 7,
+      "note": "the young man: RE1's event 8 shows the picture (message 7), then message 12 asks to push the switch below; switch 4 of the order (En_ReOrder)"
+    },
+    {
+      "room": "117",
+      "msg": 5,
+      "ask": [5, 12],
+      "switch": 5,
+      "then": 5,
+      "note": "the tired middle-aged man: RE1's event 6 shows the picture (message 5), then message 12 asks to push the switch below; switch 5 of the order (En_ReOrder)"
+    },
+    {
+      "room": "117",
+      "msg": 10,
+      "ask": [10, 12],
+      "switch": 6,
+      "then": 10,
+      "note": "the bold-looking old man: RE1's event 11 shows the picture (message 10), then message 12 asks to push the switch below; switch 6 of the order (En_ReOrder)"
+    },
+    {
+      "room": "117",
+      "rect": [1300, 3300, 1100, 1600],
+      "ask": [11, 12],
+      "switch": 7,
+      "note": "the people mourning for the dead, last of the seven (death ends the life): RE1's aot 8 runs event 12 (message 11, then 12); the star crest then lies on this spot, so the question goes once pushed"
+    },
+    {
+      "room": "113",
+      "msg": 1,
+      "ask": 0,
+      "switch": 10,
+      "then": 1,
+      "note": "the bathtub (aot 5, message 1 'nothing useful'): until it's drained RE1's script asks message 0 (unplug it?); Yes drains it and the key appears"
+    }
+  ],
+  "orders": [
+    {
+      "room": "205",
+      "first": 10,
+      "count": 3,
+      "done": 13,
+      "fail": 14,
+      "gate": true,
+      "note": "the armor room: the switch (10) checks the vents (11, 12): RE1's script 7, flags 4:1C/4:20/4:21, events 1 (gas) and 2/5"
+    },
+    {
+      "room": "11A",
+      "first": 20,
+      "count": 4,
+      "done": 24,
+      "any": true,
+      "note": "the four crests in their hollows, in any order (RE1's script 7: flags 0:69-0:6C, then event 7 opens the door)"
+    },
+    {
+      "room": "117",
+      "first": 1,
+      "count": 7,
+      "done": 8,
+      "fail": 9,
+      "note": "the crows' gallery ('All living things are destined to die'): the switches under the pictures of a life, newborn to old man, then the mourners; RE1's events 14-20 check the order (flags 4:19-4:1E) and a wrong one sends the crows down (fail flag: they attack)"
+    }
+  ],
+  "door_locks": [
+    {
+      "room": "11A",
+      "door": 1,
+      "opens": 24,
+      "msg": 10,
+      "note": "the crest door to 11B (and on to the courtyard): no lock in RE1's door data, its script keeps it shut until the crests are in; message 10 is the door's inscription"
+    }
+  ],
+  "masks": [
+    {
+      "room": "210",
+      "camera": 6,
+      "rect": [132, 0, 156, 198],
+      "depth": 6400,
+      "note": "the post by the partition (collision circle 8748-10512, 17496-19260, its middle 7211 deep from camera 6): camera 6 sees it in front of where Jill (and Yawn) go; RE1 masks only its lower part (rows 131-195, what a standing character overlaps), so Yawn's raised head showed over the rest; the rect is the whole post in the background picture"
+    }
+  ],
+  "enemies": [
+    {
+      "room": "210",
+      "model": "0x0D",
+      "wake_flag": 20,
+      "hole": [3300, 5150],
+      "note": "Yawn, its first fight: RE1's Em_set model 0x0D (killed flag 24) twice, hidden by the moon crest (4500,24500, the 0x80 byte) and where it lies after (11000,10000); it comes for Jill when the crest is taken and, hurt enough, goes back into its hole (aot 3 at 2300,4500 2000x1300: It's the hole where that big snake came out of.)"
+    },
+    {
+      "room": "212",
+      "model": "0x05",
+      "wake_flag": 20,
+      "note": "the balcony's crows (Em_set model 0x05, no killed flags of their own): they come down once the scene with Barry is over (its switch flag)"
+    },
+    {
+      "room": "117",
+      "model": "0x05",
+      "wake_flag": 9,
+      "note": "the gallery's six crows (Em_set model 0x05, killed flags 0x22-0x27, perched 5000-5500 up): RE1 places them only while the puzzle is unsolved and sends them down when a switch is pressed out of turn (En_ReOrder's fail flag)"
+    },
+    {
+      "room": "108",
+      "em": 0,
+      "dead_flag": 10,
+      "window": [
+        9200,
+        5418
+      ],
+      "window_flag": 11,
+      "note": "the first Cerberus: RE1's script parks it off the map while flag 1:40 is set and its event 0 brings it in through the window (glass effects at 9200,5418) when Jill walks into aot 4 or 5; after that (1:40 cleared) it's placed at 10000,3600"
+    },
+    {
+      "room": "108",
+      "em": 1,
+      "dead_flag": 12,
+      "window": [
+        28400,
+        16900
+      ],
+      "window_flag": 13,
+      "note": "the second: parked at the window (28400,-3000,16900) while 1:41 is set (aots 6/7 trigger it), else at 24000,15080"
+    }
+  ],
+  "camera_sets": [
+    {"room": "20A", "count": 3, "flag": 21, "note": "cameras 0-2 with the insect display dark, 3-5 with it lit (RE1's flag 0:12 clear: script 6 picks the second set with op 23 01, as in 20F)"},
+    {"room": "20F", "count": 3, "flag": 20, "note": "cameras 0-2 are the dark room, 3-5 the same views lit by the candle (same switch zones); RE1's flag 0:0A is set while it's dark (scripts 6 and 7)"}
+  ],
+  "examine_after": [
+    {"room": "20F", "msg": 0, "switch": 20, "then": 1, "note": "the candle (aot 1): 'A candle.', then 'The candle is lit.'"},
+    {"room": "20F", "rect": [3200, 1900, 1200, 2400], "msg": 2, "switch": 20, "note": "the dark corner (aot 4 while it's dark): 'It's too dark to see anything.'; once lit, the acid rounds"}
+  ],
+  "checks": [
+    {"room": "106", "rect": [14600, 800, 5200, 2200], "msg": [33], "note": "the front door: 'It's too dangerous to go outside!' (Jill's 106, message 33; RE1's aot 3 there is a type-7 spot whose event isn't decoded). With rdt2scene's --outside-exit over the same rectangle (the test build's way out to Kakariko Graveyard, ENTR_GRAVEYARD_2), walking in takes that exit and the text shows only when Link checks the door without walking through; without the option, as in RE1, the door stays shut with this text"},
+    {"room": "10D", "rect": [3000, 3556, 1600, 1400], "msg": [0], "note": "the tiger statue's plaque: 'It reads \"Some tigers have a red eye and a blue eye\".' (RE1 aot 1, type 10, data 0: an examine kind of its own, at the statue where aot 2 takes the jewels; 202's type-10 aot has no text, so they're added by hand)"},
+    {"room": "117", "rect": [6600, 6800, 5000, 1200], "msg": [4], "cam": 7, "note": "the gallery's title (RE1 aot 1, type 9, event 5: camera 7, message 4 'The title is \"All living things are destined to die\"...'): the hint to the switches' order"},
+    {"room": "201", "rect": [14700, 25700, 1500, 1900], "msg": [0, 1], "cam": 7, "note": "the numeric key panel by the door to 214 (RE1 aot 5 on the door's own rectangle, type 9, event 1: camera 7, messages 0 'A numeric key panel.' and 1 'You don't know the pass number.'). Jill's 214 is a 4-byte stub file: the door never opens in her game (message 2, 'You've entered the pass number.', is Chris's)"}
+  ]
+}

@@ -120,3 +120,5 @@
 /* 0x6B */ DEFINE_SCENE(hairal_niwa2_scene, g_pn_12, SCENE_HAIRAL_NIWA2, SDC_CASTLE_COURTYARD_GUARDS, 0, 0)
 /* 0x6C */ DEFINE_SCENE(sasatest_scene, none, SCENE_SASATEST, SDC_DEFAULT, 0, 0)
 /* 0x6D */ DEFINE_SCENE(testroom_scene, none, SCENE_TESTROOM, SDC_DEFAULT, 0, 0)
+/* Nightmareverse: RE1 rooms (re1/tools/soh_scene.py; resources from the player's own RE1 files) */
+/* 0x6E */ DEFINE_SCENE(re_foyer_scene, none, SCENE_RE_FOYER, SDC_DEFAULT, 0, 0)
