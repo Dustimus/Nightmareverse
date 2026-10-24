@@ -63,7 +63,7 @@ def _el(tag, **attrs):
 
 def background_jpeg(stage, room_id, cam_index, quality=95):
     """Camera background as a baseline JPEG for SoH (ResourceMgr_LoadJPEG: stb_image, 320x240)."""
-    w, h, rgba = rdt.load_background(os.path.join(stage, "RC%s%d.pak" % (room_id, cam_index)))
+    w, h, rgba = rdt.load_background(rdt.find_file(stage, "RC%s%d.pak" % (room_id, cam_index)))
     buf = io.BytesIO()
     Image.frombytes("RGBA", (w, h), rgba).convert("RGB").save(buf, "JPEG", quality=quality, subsampling=0)
     return buf.getvalue()
@@ -73,7 +73,7 @@ def background_raw(stage, room_id, cam_index):
     """Camera background as raw RGBA5551, big-endian, 320x240: RE1's own 15-bit pixels, bit for
     bit (lossless). SoH draws a Background's data directly as RGBA16 unless it starts with a
     JPEG header (z_room.c swapAndConvertJPEG), so no decoding happens at all."""
-    with open(os.path.join(stage, "RC%s%d.pak" % (room_id, cam_index)), "rb") as f:
+    with open(rdt.find_file(stage, "RC%s%d.pak" % (room_id, cam_index)), "rb") as f:
         tim = rdt.emd.parse_tim(rdt.pak_depack(f.read()), 0)
     assert tim.bpp == 16 and tim.width == 320 and tim.height == 240, (room_id, cam_index, tim.bpp)
     out = bytearray(320 * 240 * 2)
@@ -251,7 +251,7 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
         bgname = "%s_bg%d" % (name, c)
         open(os.path.join(d, bgname), "wb").write(_otr_header(SOH_BACKGROUND) + struct.pack("<I", len(px)) + px)
         # its mask: <bg>_mask (ReMask_Draw finds it by the background's path)
-        bg = rdt.load_background(os.path.join(stage, "RC%s%d.pak" % (room_id, c)))
+        bg = rdt.load_background(rdt.find_file(stage, "RC%s%d.pak" % (room_id, c)))
         blob = mask_blob(mask_pieces(room, c, bg))
         open(os.path.join(d, bgname + "_mask"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
         R.append("            " + _el("BgImage", Unknown_00=130, Id=c, ImagePath="%s/%s" % (base, bgname),

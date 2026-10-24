@@ -331,7 +331,7 @@ def jpeg_for(stage, room_id, cam_index, path):
     instead (see integrate.py, Mod1_BgSource)."""
     import io
 
-    w, h, rgba = rdt.load_background(os.path.join(stage, "RC%s%d.pak" % (room_id, cam_index)))
+    w, h, rgba = rdt.load_background(rdt.find_file(stage, "RC%s%d.pak" % (room_id, cam_index)))
     buf = io.BytesIO()
     Image.frombytes("RGBA", (w, h), rgba).convert("RGB").save(buf, "JPEG", quality=90, subsampling=2)
     data = buf.getvalue()
@@ -934,7 +934,7 @@ def write_scene(room, grid, stage, room_id, name, out, spawns, exits=(), cell_ex
              "static u64 sCanvas[(SCREEN_WIDTH * SCREEN_HEIGHT * G_IM_SIZ_16b_BYTES + 8) / sizeof(u64)] = { 1 };\n\n")
     mask_dls = []
     for c in range(ncam):
-        bg = rdt.load_background(os.path.join(stage, "RC%s%d.pak" % (room_id, c)))
+        bg = rdt.load_background(rdt.find_file(stage, "RC%s%d.pak" % (room_id, c)))
         dl, code = mask_c(room, c, "sMask%d" % c, bg, [tuple(m["rect"]) + (m["depth"],) for m in extra_masks
                                                       if m["camera"] == c])
         mask_dls.append(dl)

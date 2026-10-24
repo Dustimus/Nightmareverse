@@ -39,6 +39,8 @@ DOOR_FILES = (["door%02d.dor" % i for i in range(15)] +
 
 def find_file(re1, anim):
     d = os.path.join(re1, "ITEM_M1")
+    if not os.path.isdir(d):  # a partial install: the doors keep the plain fade
+        return None
     want = DOOR_FILES[anim].upper()
     for fn in os.listdir(d):
         if fn.upper() == want:

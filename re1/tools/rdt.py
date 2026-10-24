@@ -37,6 +37,7 @@ RDT (STAGEn/ROOMsrrp.RDT; p = 0 Chris, 1 Jill):
         get signed values; type 1 = rectangle, 3 = circle/ellipse)
 """
 
+import os
 import struct
 from dataclasses import dataclass
 
@@ -461,6 +462,16 @@ def room_models(room):
             objects.append(emd.MeshObject(verts, norms, tris))
         out.append((objects, tim))
     return out
+
+
+def find_file(directory, name):
+    """directory/name, matching the name in any case (RE1's releases differ: RC1060.pak in the
+    Japanese PC files, RC1060.PAK in the English ones)."""
+    want = name.upper()
+    for fn in os.listdir(directory):
+        if fn.upper() == want:
+            return os.path.join(directory, fn)
+    return os.path.join(directory, name)
 
 
 def load_room(path):
