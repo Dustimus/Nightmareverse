@@ -35,7 +35,7 @@ def doors(scenes, name):
     n = struct.unpack_from("<I", d, 4)[0]
     out = []
     for i in range(n):
-        x0, z0, x1, z1, flags, anim, spawn, target = struct.unpack_from("<4fBBH24s", d, 8 + 44 * i)
+        x0, z0, x1, z1, flags, anim, spawn, _, _, target = struct.unpack_from("<4fBBHBB2x24s", d, 8 + 48 * i)
         out.append(dict(rect=(x0, z0, x1, z1), flags=flags, anim=anim, spawn=spawn,
                         target=target.rstrip(b"\0").decode()[:-len("_scene")]))
     return out

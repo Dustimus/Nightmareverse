@@ -1028,8 +1028,10 @@ def load_rdt(stage, room_id, player):
     raise SystemExit("no RDT for room %s" % room_id)
 
 
-def _pack_soh(folder):
+def _pack_soh(folder, re1, anims):
+    import soh_doors
     import soh_scene
+    print("soh: door scenes %s" % soh_doors.write(re1, folder, anims))
     soh_scene.pack_o2r(folder, folder.rstrip("/") + ".o2r")
     print("soh: packed %s.o2r" % folder.rstrip("/"))
 
@@ -1494,7 +1496,10 @@ def main():
         print("%s: %d cameras, %d spawns, %d exits, %d collision polys, %d verts"
               % (name, len(room.cameras), len(spawns[rid]), len(exits), len(col.polys), len(col.verts)))
     if a.soh:
-        _pack_soh(a.soh)
+        base = os.path.dirname(a.stage.rstrip("/")) if os.path.basename(a.stage.rstrip("/")).upper().startswith(
+            "STAGE") else a.stage
+        _pack_soh(a.soh, base, [d.anim for rid, _, room in rooms for di, d in enumerate(room.doors)
+                                if (rid, di) in arrivals])
 
 
 if __name__ == "__main__":

@@ -653,6 +653,8 @@ void Play_Init(GameState* thisx) {
 
 void NvDev_Update(PlayState* play);
 void NvDoor_Update(PlayState* play);
+void NvDoorScene_Update(PlayState* play);
+void NvDoorScene_Draw(PlayState* play);
 
 void Play_Update(PlayState* play) {
     Input* input = play->state.input;
@@ -693,6 +695,7 @@ void Play_Update(PlayState* play) {
 
     NvDev_Update(play); // Nightmareverse dev: scripted walks for headless checks (z_nv_dev.c)
     NvDoor_Update(play); // Nightmareverse: RE1 doors, A in front of them (z_nv_door.c)
+    NvDoorScene_Update(play); // ...and RE1's door scenes between rooms (z_nv_doorscene.c)
 
     gSegments[4] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[play->objectCtx.mainKeepIndex].segment);
     gSegments[5] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[play->objectCtx.subKeepIndex].segment);
@@ -1294,6 +1297,8 @@ void Play_DrawOverlayElements(PlayState* play) {
     if ((play->pauseCtx.state != 0) || (play->pauseCtx.debugState != 0)) {
         KaleidoScopeCall_Draw(play);
     }
+
+    NvDoorScene_Draw(play); // Nightmareverse: RE1's door scene, over the room (z_nv_doorscene.c)
 
     if (gSaveContext.gameMode == GAMEMODE_NORMAL) {
         Interface_Draw(play);
