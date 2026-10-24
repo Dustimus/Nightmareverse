@@ -152,6 +152,52 @@ def mask_blob(pieces):
     return bytes(data)
 
 
+def extend_floor(room, grid, floor, steps=4):
+    """The floor grid grown up to `steps` cells (~35 OoT units) into free space beside it: RE1's
+    camera zones don't cover all the floor Jill can walk (she keeps the last camera there; in
+    203 the strip before the east wall, with its two doors, lies outside them), and the grid
+    only has cells in a zone. Cells inside RE1's solid shapes stay out; a grown cell takes its
+    neighbour's surface (camera), as RE1 keeps the camera it had."""
+    solid = [c for c in room.collisions if r2s._solid(c) and not floor.is_open(c)]
+    C = r2s.CELL
+    out = dict(grid)
+    front = list(grid)
+    for _ in range(steps):
+        nxt = []
+        for (gx, gz) in front:
+            for dx, dz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                n = (gx + dx, gz + dz)
+                if n in out:
+                    continue
+                x, z = (n[0] + 0.5) * C, (n[1] + 0.5) * C
+                if any(r2s._inside_collision(c, x, z) for c in solid):
+                    continue
+                out[n] = out[(gx, gz)]
+                nxt.append(n)
+        front = nxt
+    return out
+
+
+def grow_into_walls(room, grid, floor):
+    """The floor grid plus one ring of cells reaching into RE1's solid shapes. The grid keeps
+    only cells whose middle is clear of them, so it stops up to a cell short of RE1's walls;
+    RE1's walls still stop Link, and the floor's edge (edge_walls) then sits at or behind them
+    instead of in front (where it kept him out of door alcoves)."""
+    solid = [c for c in room.collisions if r2s._solid(c) and not floor.is_open(c)]
+    C = r2s.CELL
+    out = dict(grid)
+    for (gx, gz), surf in grid.items():
+        for dx in (-1, 0, 1):
+            for dz in (-1, 0, 1):
+                n = (gx + dx, gz + dz)
+                if n in out:
+                    continue
+                x, z = (n[0] + 0.5) * C, (n[1] + 0.5) * C
+                if any(r2s._inside_collision(c, x, z) for c in solid):
+                    out[n] = surf
+    return out
+
+
 def edge_walls(col, grid, wall_surface, floor):
     """Walls along every outer edge of the walkable floor (cell edges with no floor beyond),
     merged into straight runs. RE1's own collision shapes don't close the floor everywhere (the
@@ -227,6 +273,7 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     wall_surface = len(keys)
     surf_grid = {k: surf_index[(cam, cell_exit.get(k, 0))] for k, cam in grid.items()}
     floor = r2s.Floor(room_id)
+    surf_grid = grow_into_walls(room, extend_floor(room, surf_grid, floor), floor)
     col = r2s.build_collision(room, surf_grid, wall_surface, floor)
     edge_walls(col, surf_grid, wall_surface, floor)
     xs, ys, zs = ([v[i] for v in col.verts] for i in range(3))

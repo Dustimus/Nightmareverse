@@ -128,19 +128,26 @@ def door_stand(rect, tris, walls=()):
     lets him fall through it)."""
     x0, z0, x1, z1 = rect
     c = ((x0 + x1) / 2, (z0 + z1) / 2)
-    edges = {}
-    for t in tris:
-        for i in range(3):
-            e = tuple(sorted((t[i], t[(i + 1) % 3])))
-            edges[e] = edges.get(e, 0) + 1
-    boundary = [e for e, n in edges.items() if n == 1] + walls
-    near_tris = [t for t in tris if any(abs(p[0] - c[0]) < 120 and abs(p[1] - c[1]) < 120 for p in t)] or tris
+    near_tris = [t for t in tris if any(abs(p[0] - c[0]) < 150 and abs(p[1] - c[1]) < 150 for p in t)] or tris
+
+    def on_floor(q):
+        return any(_inside(q, t) for t in near_tris)
+
+    def edge_clearance(q):
+        # the floor's edge, by sampling around q (its merged rectangles meet in T-junctions, so
+        # their unshared edges aren't the edge), and the walls
+        for r in (5, 9, 13, LINK_RADIUS):
+            if not all(on_floor((q[0] + r * dx, q[1] + r * dz)) for dx, dz in
+                       ((1, 0), (-1, 0), (0, 1), (0, -1), (0.7, 0.7), (0.7, -0.7), (-0.7, 0.7), (-0.7, -0.7))):
+                return r - 4
+        return min([LINK_RADIUS] + [_seg_dist(q, a, b) for a, b in walls])
+
     cand = []
     for gx in range(int(x0) - 50, int(x1) + 51, 2):
         for gz in range(int(z0) - 50, int(z1) + 51, 2):
             p = (gx, gz)
-            if any(_inside(p, t) for t in near_tris):
-                edge = min((_seg_dist(p, a, b) for a, b in boundary), default=1e9)
+            if on_floor(p):
+                edge = edge_clearance(p)
                 dr = ((max(x0 - gx, 0, gx - x1)) ** 2 + (max(z0 - gz, 0, gz - z1)) ** 2) ** 0.5
                 cand.append((dr, (gx - c[0]) ** 2 + (gz - c[1]) ** 2, edge, p))
     best = None
@@ -156,11 +163,15 @@ def door_stand(rect, tris, walls=()):
     if best is None:
         return closest_floor(c, tris), c
     p = best[1]
-    if best[0][0] == 0:  # inside the rectangle (a door on open floor): step back to face it
-        dx, dz = p[0] - c[0], p[1] - c[1]
-        n = (dx * dx + dz * dz) ** 0.5
-        if n < 8:
-            return p, (c[0] + (c[0] - p[0]) * 3 + 0.01, c[1] + (c[1] - p[1]) * 3) if n > 0.5 else (c[0], c[1] - 20)
+    if best[0][0] == 0:  # standing in the rectangle (a door on open floor): face whichever way
+        # puts the point in front of him deepest inside it
+        def depth(q):
+            return min(q[0] - x0, x1 - q[0], q[1] - z0, z1 - q[1])
+
+        reach = LINK_RADIUS + 4
+        dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
+        d = max(dirs, key=lambda v: depth((p[0] + v[0] * reach, p[1] + v[1] * reach)))
+        return p, (p[0] + d[0] * 40, p[1] + d[1] * 40)
     return p, c
 
 
@@ -245,6 +256,9 @@ def main():
                 tgt = d["target"]
                 label = "%s door %d -> %s spawn %d" % (name, i, tgt, d["spawn"])
                 problems = []
+                if d["rect"][2] - d["rect"][0] < 1 or d["rect"][3] - d["rect"][1] < 1:
+                    report.append("%s: no rectangle (placed by the room's script), skipped" % label)
+                    continue
                 if not d["flags"] & 0x80:
                     report.append("%s: RE1 flags 0x%02X (never opens), skipped" % (label, d["flags"]))
                     continue
