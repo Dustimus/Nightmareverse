@@ -39,7 +39,6 @@ typedef struct NvDoor {
 } NvDoor;
 
 s32 NvDoorScene_Exists(s32 anim);
-void NvCamera_SetArrival(s32 cam);
 void NvDoorScene_Queue(s32 anim, s32 b10, s32 b11, s32 b13, s32 b15);
 s32 NvClimb_Active(void);
 s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD);
@@ -171,7 +170,6 @@ void NvDoor_Update(PlayState* play) {
         // the press is the door's, not Link's
         input->press.button &= ~BTN_A;
         input->cur.button &= ~BTN_A;
-        NvCamera_SetArrival(door.b13 & 0x3F); // RE1: the next room opens on this camera
         play->nextEntranceIndex = entrance;
         play->transitionTrigger = TRANS_TRIGGER_START;
         if (NvDoorScene_Exists(door.anim)) {

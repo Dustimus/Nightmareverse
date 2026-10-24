@@ -228,6 +228,44 @@ def room_aots(raw):
     return out
 
 
+def walk_cameras(floor, zones, starts):
+    """{floor cell: camera} as a player who walked there from (x, z) would have it: RE1 has no
+    camera regions, only the room's opening camera (entry_camera) and the switch zones of the
+    camera on (z_nv_camera.c). Breadth-first from each start, as RE1 switches (one zone of the
+    current camera's group per step); a cell keeps the camera of the shortest walk to it. Only
+    warps use it (z_nv_camera.c), so a dev warp shows Link."""
+    groups = {}
+    for rec in zones:
+        groups.setdefault(struct.unpack_from("<h", rec, 2)[0], []).append(rec)
+
+    def switch(cam, k):
+        px, pz = int((k[0] + 0.5) * re1_floor.CELL), int((k[1] + 0.5) * re1_floor.CELL)
+        for rec in groups.get(cam, [])[1:]:  # the group's first record is its header
+            if in_switch_zone(rec, px, pz):
+                return struct.unpack_from("<h", rec, 0)[0]
+        return cam
+
+    out, seen, queue = {}, set(), []
+    for x, z in starts:
+        k = floor.cell(x, z)
+        st = (k, entry_camera(zones, x, z))
+        if k in floor.cells and st not in seen:
+            seen.add(st)
+            queue.append(st)
+    i = 0
+    while i < len(queue):
+        k, cam = queue[i]
+        i += 1
+        out.setdefault(k, cam)
+        for n in ((k[0] + 1, k[1]), (k[0] - 1, k[1]), (k[0], k[1] + 1), (k[0], k[1] - 1)):
+            if n in floor.cells:
+                st = (n, switch(cam, n))
+                if st not in seen:
+                    seen.add(st)
+                    queue.append(st)
+    return out
+
+
 def camera_zone_records(raw, ncam):
     """RE1's switch-zone table (RDT+0x48) as its raw 20-byte records, grouped by camFrom (each
     group's first record is its header, the rest the quads tested while that camera is on). The
@@ -242,18 +280,29 @@ def camera_zone_records(raw, ncam):
     return out
 
 
-def camera_own_zones(raw):
-    """[(camera, quad)]: each camera's own record in RE1's switch-zone table (the first record of
-    its group), quad as [(x, z)] * 4."""
-    ncam = struct.unpack_from("<B", raw, 1)[0]
-    out, seen = [], set()
-    for rec in camera_zone_records(raw, ncam):
-        cam_to, cam_from = struct.unpack_from("<2h", rec, 0)
-        c = struct.unpack_from("<8H", rec, 4)
-        if cam_from not in seen:
-            seen.add(cam_from)
-            out.append((cam_from, [(c[0], c[1]), (c[2], c[3]), (c[4], c[5]), (c[6], c[7])]))
-    return out
+def in_switch_zone(rec, px, pz):
+    """RE1's is_entity_in_switch_zone (0x00462d90) on a raw 20-byte record, as z_nv_camera.c."""
+    c = struct.unpack_from("<8H", rec, 4)
+    x0, z0, x2, z2 = c[0], c[1], c[4], c[5]
+    if (c[2] - x0) * (pz - z0) > (c[3] - z0) * (px - x0):
+        return False
+    if (c[6] - x0) * (pz - z0) < (c[7] - z0) * (px - x0):
+        return False
+    if (c[2] - x2) * (pz - z2) < (c[3] - z2) * (px - x2):
+        return False
+    if (c[6] - x2) * (pz - z2) > (c[7] - z2) * (px - x2):
+        return False
+    return True
+
+
+def entry_camera(zones, x, z):
+    """The camera RE1 opens a room on with the player at (x, z): camera 0, then one pass of
+    camera 0's switch zones (room_set: g_roomCameraId = 0, check_camera_switch(1))."""
+    group = [rec for rec in zones if struct.unpack_from("<h", rec, 2)[0] == 0]
+    for rec in group[1:]:  # the group's first record is its header
+        if in_switch_zone(rec, int(x), int(z)):
+            return struct.unpack_from("<h", rec, 0)[0]
+    return 0
 
 
 def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, doors=(), bias_tables=None,
@@ -267,18 +316,16 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     os.makedirs(d, exist_ok=True)
     ncam = len(room.cameras)
 
-    # floor and walls from RE1's rules (re1_floor.py); each floor cell's surface carries the
-    # camera whose own switch-zone record holds it (only the starting camera comes from it:
-    # z_nv_camera.c switches by RE1's zones)
+    # floor and walls from RE1's rules (re1_floor.py)
     floor = re1_floor.Floor(room.raw, int(room_id[1:], 16),
                             list(arrivals) + [(sx, sz, 0) for sx, sz, _ in spawns], aots)
-    own = camera_own_zones(room.raw)
+    # each floor cell's surface carries the camera a player walking there would have (only warps
+    # use it: z_nv_camera.c opens rooms and switches by RE1's own rules)
+    zones = camera_zone_records(room.raw, ncam)
+    cell_cam = walk_cameras(floor, zones, [(a[0], a[1]) for a in arrivals] + [(sx, sz) for sx, sz, _ in spawns])
 
     def cam_at(x, z):
-        for cam, quad in own:
-            if r2s.inside_quad(quad, x, z):
-                return cam
-        return 0
+        return cell_cam.get(floor.cell(x, z), entry_camera(zones, x, z))
 
     cams = sorted({cam_at((k[0] + 0.5) * re1_floor.CELL, (k[1] + 0.5) * re1_floor.CELL) for k in floor.cells} | {0})
     surf_of_cam = {c: i for i, c in enumerate(cams)}
