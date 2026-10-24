@@ -53,6 +53,12 @@ them into `<folder>.o2r`:
 - `.../<name>_camzones`, `_doors`, `_climbs`: RE1's camera switch zones, doors and stairs
   (below)
 
+Scale: 0.0217 OoT units per RE1 unit (`rdt2scene.SCALE`). RE1's models: Chris 2941 units
+tall, Jill 2808. At this scale Chris comes to adult Link's hat tip (~64) and Jill to his head
+(~61), which matches them in play. Measured against a background, Link's full silhouette
+(hat included) reads ~5% taller than Jill: that's the hat, not the scale. Settled with the
+user, 2026-10-24.
+
 How the room plays, from RE1's own rules (ecruells/resident-evil-pc-decomp, read for the
 rules; none of its code is copied):
 
