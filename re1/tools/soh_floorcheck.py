@@ -23,7 +23,7 @@ import soh_doorcheck as dc  # noqa: E402
 import soh_tables  # noqa: E402
 
 WALK_FRAMES = 40  # frames allowed per walk (a step is ~80 units; Link runs ~6 a frame)
-CLEARANCE = dc.LINK_RADIUS + 4
+CLEARANCE = dc.LINK_RADIUS + 2
 SHORT = 8  # OoT units: a walk ending this far short of its point is a problem (running past
 # it is only Link's momentum)
 VEER = 20  # or this far off the line
