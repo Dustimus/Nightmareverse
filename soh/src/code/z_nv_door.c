@@ -8,8 +8,8 @@
  * (re1/tools/soh_scene.py writes the doors, with RE1's arrival points as start positions).
  *
  * Data: "scenes/shared/<name>_scene/<name>_doors" (soh_scene.door_blob): "RDOR", u32 count;
- * per door f32 x0, z0, x1, z1, u8 flags, u8 anim, u16 spawn, u8 type, handle, 2 bytes padding,
- * char target[24].
+ * per door f32 x0, z0, x1, z1, u8 flags, u8 anim, u16 spawn, u8 Door_set bytes 10, 11, 13, 15
+ * (the door scene's inputs), char target[24].
  *
  * A door with a door scene (z_nv_doorscene.c) cuts straight to it, as RE1 does; any other
  * fades to black.
@@ -31,14 +31,15 @@ typedef struct NvDoor {
     u8 flags;
     u8 anim;
     u16 spawn;
-    u8 type;   // Door_set byte 13: the door scene's variable 0
-    u8 handle; // Door_set byte 10: its variable 3
-    u8 pad[2];
+    u8 b10; // Door_set bytes 10, 11, 13 and 15: what RE1's door scene reads (z_nv_doorscene.c)
+    u8 b11;
+    u8 b13;
+    u8 b15;
     char target[24];
 } NvDoor;
 
 s32 NvDoorScene_Exists(s32 anim);
-void NvDoorScene_Queue(s32 anim, s32 type, s32 handle);
+void NvDoorScene_Queue(s32 anim, s32 b10, s32 b11, s32 b13, s32 b15);
 
 #define NV_DOOR_ACTION 0x80   // opens with the action button
 #define NV_DOOR_AT_PLAYER 0x40 // tested at the player's position, not in front of him
@@ -170,7 +171,7 @@ void NvDoor_Update(PlayState* play) {
         play->nextEntranceIndex = entrance;
         play->transitionTrigger = TRANS_TRIGGER_START;
         if (NvDoorScene_Exists(door.anim)) {
-            NvDoorScene_Queue(door.anim, door.type, door.handle);
+            NvDoorScene_Queue(door.anim, door.b10, door.b11, door.b13, door.b15);
             play->transitionType = TRANS_TYPE_INSTANT;
             gSaveContext.nextTransitionType = TRANS_TYPE_INSTANT;
         } else {

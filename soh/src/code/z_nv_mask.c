@@ -125,5 +125,6 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
         }
     }
     gDPPipeSync(gfx++);
+    gDPSetDepthSource(gfx++, G_ZS_PIXEL); // what follows sets its render mode, not its depth source
     *gfxP = gfx;
 }

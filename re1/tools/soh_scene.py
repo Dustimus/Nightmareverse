@@ -242,17 +242,17 @@ def edge_walls(col, grid, wall_surface, floor):
 def door_blob(doors):
     """Doors, for soh/src/code/z_nv_door.c: "RDOR", u32 count; per door f32 x0, z0, x1, z1 (the
     trigger rectangle, OoT units), u8 flags (Door_set byte 0x19), u8 anim (RE1's door scene),
-    u16 spawn (the target room's start position), u8 type, handle (Door_set bytes 13 and 10:
-    the door scene's variables 0 and 3), 2 bytes padding, char target[24] (the target scene's
-    file).
+    u16 spawn (the target room's start position), u8 Door_set bytes 10, 11, 13 and 15 (what
+    RE1's door scene reads as its variables: Bio.exe's table at 0x4b0de8), char target[24]
+    (the target scene's file).
     doors: [(Door, target scene file, spawn index)]."""
     data = bytearray(DOOR_MAGIC + struct.pack("<I", len(doors)))
     for door, target, spawn in doors:
         # OoT = (x, -y, -z) * SCALE: RE1's z range flips
         x0, x1 = door.x * r2s.SCALE, (door.x + door.w) * r2s.SCALE
         z0, z1 = -(door.z + door.d) * r2s.SCALE, -door.z * r2s.SCALE
-        data += struct.pack("<4fBBHBB2x24s", x0, z0, x1, z1, door.raw[0x19], door.anim, spawn, door.raw[13],
-                            door.raw[10], target.encode())
+        data += struct.pack("<4fBBH4B24s", x0, z0, x1, z1, door.raw[0x19], door.anim, spawn, door.raw[10],
+                            door.raw[11], door.raw[13], door.raw[15], target.encode())
     return bytes(data)
 
 

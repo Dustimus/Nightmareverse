@@ -21,6 +21,7 @@
 #define NV_DS_MAX_TICKS 1800
 // RE1 projects with a focal length of 256 at 320x240 (its room cameras): 2 atan(120 / 256)
 #define NV_DS_FOVY 50.0f
+#define NV_DS_DEPTH_SLIVER 0.002f
 #define NV_DS_CELL_W 64
 #define NV_DS_CELL_H 32
 
@@ -59,7 +60,7 @@ static struct {
     s32 pending; // queued by the door, played once the next scene is up
     s32 active;
     s16 anim;
-    s16 vars[4];
+    s8 vars[8];
     u8* script;
     u16* routines;
     s32 numRoutines;
@@ -97,12 +98,21 @@ s32 NvDoorScene_Exists(s32 anim) {
     return ResourceMgr_FileExists(path);
 }
 
-/** Queue a door scene for the next room (type, handle: the door script's variables 0 and 3). */
-void NvDoorScene_Queue(s32 anim, s32 type, s32 handle) {
+/**
+ * Queue a door scene for the next room, with the door's Door_set bytes its script reads. RE1's
+ * variables (Bio.exe 0x4b0de8, pointers to what 0x48d680 copies out of the door as it opens):
+ * 0 byte 10, 1 byte 11, 2 the scene's number (byte 12), 3 byte 13's low 6 bits, 4 byte 15 (the
+ * target stage and room), 7 byte 10 again; 5 and 6 are game state (taken as 0).
+ */
+void NvDoorScene_Queue(s32 anim, s32 b10, s32 b11, s32 b13, s32 b15) {
     memset(sNvDs.vars, 0, sizeof(sNvDs.vars));
     sNvDs.anim = anim;
-    sNvDs.vars[0] = type;
-    sNvDs.vars[3] = handle;
+    sNvDs.vars[0] = b10;
+    sNvDs.vars[1] = b11;
+    sNvDs.vars[2] = anim;
+    sNvDs.vars[3] = b13 & 0x3F;
+    sNvDs.vars[4] = b15;
+    sNvDs.vars[7] = b10;
     sNvDs.pending = true;
 }
 
@@ -194,11 +204,39 @@ static s32 NvDoorScene_Tick(void) {
                     break;
                 case 0x03:
                     goto yield;
-                case 0x04:
-                    if (sNvDs.vars[a[2] & 3] != (a[4] | (a[5] << 8))) {
+                case 0x04: { // 04 n k c v: run the next n bytes if var[k] (c) v, else skip them; signed bytes
+                    s8 var = sNvDs.vars[a[2] & 7];
+                    s8 v = (s8)a[4];
+                    s32 run;
+
+                    switch (a[3]) { // Bio.exe 0x434d40
+                        case 0:
+                            run = (var == v);
+                            break;
+                        case 1:
+                            run = (var > v);
+                            break;
+                        case 2:
+                            run = (var >= v);
+                            break;
+                        case 3:
+                            run = (var < v);
+                            break;
+                        case 4:
+                            run = (var <= v);
+                            break;
+                        case 5:
+                            run = (var != v);
+                            break;
+                        default:
+                            run = true;
+                            break;
+                    }
+                    if (!run) {
                         th->pc += a[1];
                     }
                     break;
+                }
                 case 0x06:
                     if (th->loopDepth < NV_DS_LOOPS) {
                         th->loopStart[th->loopDepth] = th->pc;
@@ -334,8 +372,8 @@ void NvDoorScene_Update(PlayState* play) {
             sNvDs.threads[0].pc = sNvDs.routines[0];
             sNvDs.active = true;
             sNvDs.startFrames = 0;
-            printf("NVDOORSCENE start anim=%d type=%d handle=%d\n", (int)sNvDs.anim, (int)sNvDs.vars[0],
-                   (int)sNvDs.vars[3]);
+            printf("NVDOORSCENE start anim=%d vars=%d,%d,%d,%d,%d\n", (int)sNvDs.anim, (int)sNvDs.vars[0],
+                   (int)sNvDs.vars[1], (int)sNvDs.vars[2], (int)sNvDs.vars[3], (int)sNvDs.vars[4]);
             fflush(stdout);
         }
     }
@@ -378,11 +416,25 @@ void NvDoorScene_Draw(PlayState* play) {
     Environment_FillScreen(gfxCtx, 0, 0, 0, 255, FILL_SCREEN_XLU);
     OPEN_DISPS(gfxCtx);
 
+
     if (sNvDs.active) {
         proj = Graph_Alloc(gfxCtx, sizeof(Mtx));
         view = Graph_Alloc(gfxCtx, sizeof(Mtx));
         // RE1's camera, in RE1's own space (y down: "up" is -y, so nothing comes out mirrored)
-        guPerspective(proj, &sPerspNorm, NV_DS_FOVY, (f32)SCREEN_WIDTH / SCREEN_HEIGHT, 30.0f, 40000.0f, 1.0f);
+        {
+            // the door's depth squeezed into the nearest sliver of the depth range, so it lies in
+            // front of whatever depth the room left (SoH's renderer won't write depth without the
+            // depth test, so the buffer can't simply be cleared) while its own faces still sort:
+            // z' = k z - (1 - k) w maps NDC depth [-1, 1] to [-1, 2k - 1]
+            MtxF mf;
+            s32 row;
+
+            guPerspectiveF(mf.mf, &sPerspNorm, NV_DS_FOVY, (f32)SCREEN_WIDTH / SCREEN_HEIGHT, 30.0f, 40000.0f, 1.0f);
+            for (row = 0; row < 4; row++) {
+                mf.mf[row][2] = NV_DS_DEPTH_SLIVER * mf.mf[row][2] - (1.0f - NV_DS_DEPTH_SLIVER) * mf.mf[row][3];
+            }
+            Matrix_MtxFToMtx(&mf, proj); // (as guMtxF2L: the same row-vector layout)
+        }
         guLookAt(view, sNvDs.cam[0], sNvDs.cam[1], sNvDs.cam[2], sNvDs.cam[3], sNvDs.cam[4], sNvDs.cam[5], 0.0f,
                  -1.0f, 0.0f);
         gSPPerspNormalize(OVERLAY_DISP++, sPerspNorm);
@@ -392,15 +444,14 @@ void NvDoorScene_Draw(PlayState* play) {
         // point sampled and unlit, as on the PSX; colour 0 (alpha 0) is see-through
         gDPPipeSync(OVERLAY_DISP++);
         gDPSetCycleType(OVERLAY_DISP++, G_CYC_1CYCLE);
-        // no depth test against the room underneath (its depth is still there); the door's own
-        // parts are drawn in RE1's slot order
-        gDPSetRenderMode(OVERLAY_DISP++, G_RM_AA_TEX_EDGE, G_RM_AA_TEX_EDGE2);
+        gDPSetDepthSource(OVERLAY_DISP++, G_ZS_PIXEL); // (render modes leave the depth source alone)
+        gDPSetRenderMode(OVERLAY_DISP++, G_RM_AA_ZB_TEX_EDGE, G_RM_AA_ZB_TEX_EDGE2);
         gDPSetTextureFilter(OVERLAY_DISP++, G_TF_POINT);
         gDPSetTexturePersp(OVERLAY_DISP++, G_TP_PERSP);
         gDPSetTextureLUT(OVERLAY_DISP++, G_TT_NONE);
         gDPSetCombineMode(OVERLAY_DISP++, G_CC_DECALRGBA, G_CC_DECALRGBA);
         gSPClearGeometryMode(OVERLAY_DISP++, G_LIGHTING | G_FOG | G_CULL_BOTH | G_TEXTURE_GEN);
-        gSPSetGeometryMode(OVERLAY_DISP++, G_SHADE | G_SHADING_SMOOTH);
+        gSPSetGeometryMode(OVERLAY_DISP++, G_ZBUFFER | G_SHADE | G_SHADING_SMOOTH);
         gSPTexture(OVERLAY_DISP++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
 
         for (i = 0; i < NV_DS_SLOTS; i++) {
