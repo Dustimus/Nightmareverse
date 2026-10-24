@@ -21,14 +21,18 @@ records keep her out of things, and only scripted climbs change her height. So h
   zone's first data word) is 1 (player_door_open_sequence 0x00457390; rooms 5 and 0x0E: 2114
   and 1402).
 - Walls: every face of every pushing shape that has floor beside it, and the floor's own outer
-  edge (where the flood stopped at the extent), from each level's floor up WALL_HEIGHT, moved
+  edge (where the flood stopped at the extent), from each level's floor up WALL_HEIGHT to its
+  ceiling, moved
   WALL_INSET into the shape (out past the edge) so Link stops where Jill does.
 """
 import math
 import struct
 
 CELL = 100  # RE1 units (~2.2 OoT units)
-WALL_HEIGHT = 30000  # RE1 needs only the player blocked; OoT throws things (bombs, arrows, hookshot)
+# RE1 needs only the player kept in; OoT throws things (bombs, arrows, the hookshot), so each
+# floor has a ceiling this far above it, with the walls up to it. RE1 has no ceiling height of
+# its own; this is above Link's head and the camera views' doorways.
+WALL_HEIGHT = 4000
 CLIMB = (4350, 2885)
 # Where the player stops: RE1 pushes Jill out to her radius (372, the SCA record's +10) plus 18
 # past a shape's face (collision_push_rect); Link stops at his own wall radius (18 OoT units,
@@ -206,6 +210,9 @@ class Floor:
                 x0, x1, z0, z1 = start * CELL, (prev + 1) * CELL, gz * CELL, (gz + 1) * CELL
                 quad(surf, to_oot((x0, y, z0)), to_oot((x1, y, z0)), to_oot((x1, y, z1)), to_oot((x0, y, z1)),
                      (0, 1, 0))
+                yc = y - WALL_HEIGHT  # the ceiling (RE1's y points down)
+                quad(wall_surface, to_oot((x0, yc, z0)), to_oot((x1, yc, z0)), to_oot((x1, yc, z1)),
+                     to_oot((x0, yc, z1)), (0, -1, 0))
                 if gx is not None:
                     start = prev = gx
 
