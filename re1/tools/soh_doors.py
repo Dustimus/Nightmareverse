@@ -25,6 +25,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import dor  # noqa: E402
+import rdt  # noqa: E402
 import soh_scene  # noqa: E402
 
 CELL_W, CELL_H = 64, 32
@@ -38,7 +39,7 @@ DOOR_FILES = (["door%02d.dor" % i for i in range(15)] +
 
 
 def find_file(re1, anim):
-    d = os.path.join(re1, "ITEM_M1")
+    d = rdt.find_file(re1, "ITEM_M1")  # Item_m1 in the GOG release
     if not os.path.isdir(d):  # a partial install: the doors keep the plain fade
         return None
     want = DOOR_FILES[anim].upper()
