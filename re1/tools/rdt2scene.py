@@ -1138,8 +1138,23 @@ def main():
         plans[rid] = (grid, exits, cell_exit)
         door_zones[rid] = door_cells
 
+    # SoH: RE1's own arrival points. Its doors open only when the point in front of the player
+    # is in the door's rectangle and the action button is pressed (Bio.exe 0x456880), and Link
+    # arrives facing away from the door, so nothing needs walking clear; only points past the
+    # floor's edge are moved onto it (below)
+    soh_spawns = {}
+    for rid, name, room in rooms:
+        open_set = set(by_id[rid][3]) & set(plans[rid][0])
+        soh_spawns[rid] = [spawns[rid][0]]
+        for x, z, yaw in spawns[rid][1:]:
+            k = (int(x // CELL), int(z // CELL))
+            if k not in open_set:
+                k = min(open_set, key=lambda c: ((c[0] + 0.5) * CELL - x) ** 2 + ((c[1] + 0.5) * CELL - z) ** 2)
+                x, z = (k[0] + 0.5) * CELL, (k[1] + 0.5) * CELL
+            soh_spawns[rid].append((x, z, yaw))
+
     # arrival points sit close to the door in RE1, against the wall; walk them into the room
-    # until they're clear of the door zones (and any exit), as RE1's Jill steps in
+    # until they're clear of the door zones (and any exit), as RE1's Jill steps in (N64 scenes)
     for rid, name, room in rooms:
         grid, exits, cell_exit = plans[rid]
         cell_exit = dict(cell_exit)
@@ -1461,7 +1476,10 @@ def main():
                           extra_masks)
         if a.soh:
             import soh_scene
-            print("  soh: %s" % soh_scene.write_room(room, grid, stage_dir(a.stage, rid), rid, name, a.soh, spawns[rid]))
+            soh_doors = [(door, by_id[arrivals[(rid, di)][0]][0] + "_scene", arrivals[(rid, di)][1])
+                         for di, door in enumerate(room.doors) if (rid, di) in arrivals]
+            print("  soh: %s" % soh_scene.write_room(room, grid, stage_dir(a.stage, rid), rid, name, a.soh,
+                                                     soh_spawns[rid], doors=soh_doors))
         camset = os.path.join(a.out, name, "camset.json")
         for cs in (story.load_camera_sets(a.story) if a.story else []):
             if cs["room"].upper() == rid:

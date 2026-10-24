@@ -5,7 +5,10 @@
  *   NV_POS="x,z[,yaw]"        put Link there once the scene is up (OoT units, binang)
  *   NV_WALK="x,z;x,z;wait:N"  steer Link through waypoints with the control stick (camera-
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
- *                             (default 200); "wait:N" stands still N frames
+ *                             (default 200); "wait:N" stands still N frames, "a" presses A,
+ *                             "pos:x,z" puts Link there, "face:x,z" turns him to face a point, "entr:N" warps to entrance N (the
+ *                             script goes on in the new scene), "mark:N" logs "NVMARK N" with
+ *                             the scene, position and yaw (re1/tools/soh_check.py --doors)
  *   NV_TOUR="x,y,z;x,y,z"     put Link at each point in turn, NV_TOUR_HOLD frames each (default
  *                             40), printing "NVTOUR <i> ..." once he has settled there and
  *                             "NVTOUR done" after the last (re1/tools/soh_check.py screenshots
@@ -19,10 +22,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define NV_MAX_WAYPOINTS 64
+#define NV_MAX_WAYPOINTS 512
+
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE } NvWaypointKind;
 
 typedef struct {
-    s16 wait; // 0: a waypoint, else frames to stand still
+    s16 kind;
+    s16 wait; // NV_WP_WAIT: frames; NV_WP_ENTR, NV_WP_MARK: the number
     s16 x;
     s16 z;
 } NvWaypoint;
@@ -111,20 +117,40 @@ static void NvDev_ParsePath(void) {
     while ((s != NULL) && (*s != '\0') && (sNvPathLen < NV_MAX_WAYPOINTS)) {
         NvWaypoint* wp = &sNvPath[sNvPathLen];
 
-        if (strncmp(s, "wait:", 5) == 0) {
-            wp->wait = (s16)atoi(s + 5);
-            wp->x = wp->z = 0;
-            sNvPathLen++;
-        } else {
-            int x;
-            int z;
+        int x;
+        int z;
 
-            if (sscanf(s, "%d,%d", &x, &z) == 2) {
-                wp->wait = 0;
-                wp->x = x;
-                wp->z = z;
-                sNvPathLen++;
-            }
+        wp->x = wp->z = wp->wait = 0;
+        if ((s[0] == 'a') && ((s[1] == ';') || (s[1] == '\0'))) {
+            wp->kind = NV_WP_A;
+            sNvPathLen++;
+        } else if (strncmp(s, "wait:", 5) == 0) {
+            wp->kind = NV_WP_WAIT;
+            wp->wait = (s16)atoi(s + 5);
+            sNvPathLen++;
+        } else if (strncmp(s, "entr:", 5) == 0) {
+            wp->kind = NV_WP_ENTR;
+            wp->wait = (s16)strtol(s + 5, NULL, 0);
+            sNvPathLen++;
+        } else if (strncmp(s, "mark:", 5) == 0) {
+            wp->kind = NV_WP_MARK;
+            wp->wait = (s16)atoi(s + 5);
+            sNvPathLen++;
+        } else if ((strncmp(s, "pos:", 4) == 0) && (sscanf(s + 4, "%d,%d", &x, &z) == 2)) {
+            wp->kind = NV_WP_POS;
+            wp->x = x;
+            wp->z = z;
+            sNvPathLen++;
+        } else if ((strncmp(s, "face:", 5) == 0) && (sscanf(s + 5, "%d,%d", &x, &z) == 2)) {
+            wp->kind = NV_WP_FACE;
+            wp->x = x;
+            wp->z = z;
+            sNvPathLen++;
+        } else if (sscanf(s, "%d,%d", &x, &z) == 2) {
+            wp->kind = NV_WP_WALK;
+            wp->x = x;
+            wp->z = z;
+            sNvPathLen++;
         }
         s = strchr(s, ';');
         if (s != NULL) {
@@ -164,7 +190,36 @@ void NvDev_Update(PlayState* play) {
     if ((play->gameplayFrames > 20) && (sNvPathIdx < sNvPathLen)) {
         NvWaypoint* wp = &sNvPath[sNvPathIdx];
 
-        if (wp->wait > 0) {
+        if (wp->kind == NV_WP_POS) {
+            player->actor.world.pos.x = player->actor.home.pos.x = wp->x;
+            player->actor.world.pos.z = player->actor.home.pos.z = wp->z;
+            player->actor.world.pos.y += 10.0f;
+            sNvPathIdx++;
+        } else if (wp->kind == NV_WP_FACE) {
+            s16 yaw = Math_Atan2S(wp->z - player->actor.world.pos.z, wp->x - player->actor.world.pos.x);
+
+            player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = yaw;
+            sNvPathIdx++;
+        } else if (wp->kind == NV_WP_ENTR) {
+            if (play->transitionTrigger == TRANS_TRIGGER_OFF) {
+                sNvPathIdx++;
+                play->nextEntranceIndex = wp->wait;
+                play->transitionTrigger = TRANS_TRIGGER_START;
+                play->transitionType = TRANS_TYPE_INSTANT;
+            }
+        } else if (wp->kind == NV_WP_MARK) {
+            printf("NVMARK %d scene=%d pos=%d,%d,%d yaw=%d\n", (int)wp->wait, (int)play->sceneNum,
+                   (int)player->actor.world.pos.x, (int)player->actor.world.pos.y, (int)player->actor.world.pos.z,
+                   (u16)player->actor.shape.rot.y);
+            fflush(stdout);
+            sNvPathIdx++;
+        } else if (wp->kind == NV_WP_A) {
+            input->press.button |= BTN_A;
+            input->cur.button |= BTN_A;
+            printf("NVWALK A pos=%d,%d yaw=%d f=%d\n", (int)player->actor.world.pos.x,
+                   (int)player->actor.world.pos.z, (u16)player->actor.shape.rot.y, (int)play->gameplayFrames);
+            sNvPathIdx++;
+        } else if (wp->kind == NV_WP_WAIT) {
             if (++sNvTimer > wp->wait) {
                 sNvPathIdx++;
                 sNvTimer = 0;

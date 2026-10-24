@@ -31,6 +31,9 @@ import rdt2scene as r2s
 SOH_BACKGROUND = 0x4F424749  # "OBGI", SohResourceType.h
 LUS_BLOB = 0x4F424C42  # "OBLB", libultraship ResourceType.h
 MASK_MAGIC = b"RMSK"
+DOOR_MAGIC = b"RDOR"
+DOOR_ACTION = 0x80  # Door_set byte 0x19: opens with the action button (all of the mansion's doors)
+DOOR_AT_PLAYER = 0x40  # ...tested at the player's position instead of the point in front of him
 BG_DECODED_SIZE = 320 * 240 * 2  # the decoded background, RGBA16 (what SoH writes back over the JPEG)
 
 
@@ -149,7 +152,21 @@ def mask_blob(pieces):
     return bytes(data)
 
 
-def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None):
+def door_blob(doors):
+    """Doors, for soh/src/code/z_nv_door.c: "RDOR", u32 count; per door f32 x0, z0, x1, z1 (the
+    trigger rectangle, OoT units), u8 flags (Door_set byte 0x19), u8 anim (RE1's door scene),
+    u16 spawn (the target room's start position), char target[24] (the target scene's file).
+    doors: [(Door, target scene file, spawn index)]."""
+    data = bytearray(DOOR_MAGIC + struct.pack("<I", len(doors)))
+    for door, target, spawn in doors:
+        # OoT = (x, -y, -z) * SCALE: RE1's z range flips
+        x0, x1 = door.x * r2s.SCALE, (door.x + door.w) * r2s.SCALE
+        z0, z1 = -(door.z + door.d) * r2s.SCALE, -door.z * r2s.SCALE
+        data += struct.pack("<4fBBH24s", x0, z0, x1, z1, door.raw[0x19], door.anim, spawn, target.encode())
+    return bytes(data)
+
+
+def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, doors=()):
     """One RE1 room as an SoH scene. spawns: [(x, z, yaw_binang)] in RE1 units. Returns the
     scene's resource path (what the scene table's file name resolves to)."""
     cell_exit = cell_exit or {}
@@ -237,6 +254,9 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None):
         R.append("            " + _el("BgImage", Unknown_00=130, Id=c, ImagePath="%s/%s" % (base, bgname),
                                       Unknown_0C=0, TLUT=0, Width=320, Height=240, Fmt=0, Siz=2, Mode0=0,
                                       TLUTCount=0))
+    # doors: "<name>_doors" (z_nv_door.c finds it by the scene's name)
+    blob = door_blob(doors)
+    open(os.path.join(d, name + "_doors"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
     R.append('        </Polygon>')
     R.append('    </SetMesh>')
     R.append("    <EndMarker/>")
