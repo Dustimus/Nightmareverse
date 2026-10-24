@@ -233,7 +233,7 @@ def main():
             marks, shot = {}, set()
             t0 = time.time()
             try:
-                while time.time() - t0 < 60 + 25 * len(ds) and proc.poll() is None:
+                while time.time() - t0 < 60 + 50 * len(ds) and proc.poll() is None:
                     time.sleep(0.25)
                     lines = open(log_path, errors="replace").read().splitlines()
                     for line in lines:
