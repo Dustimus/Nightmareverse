@@ -45,6 +45,12 @@ Example (the foyer, room 106):
 `NV_BOOT_ENTRANCE=<entrance index>` (e.g. `0x614`, the foyer) makes SoH skip the title and
 file select and load straight into that entrance on a debug save (`ovl_title/z_title.c`).
 
+Scripted play for headless checks (`soh/src/code/z_nv_dev.c`, inert without the variables):
+`NV_POS="x,z[,yaw]"` places Link, `NV_WALK="x,z;x,z;wait:N"` steers him through waypoints with
+the control stick, `NV_LOG=1` logs position, floor and camera every 20 frames. Checked on the
+foyer (2026-10-24): camera switching follows the floor, and the masks cut Link cleanly behind
+the gallery columns, their bases and the banister post.
+
 ## Plan (agreed with the user, 2026-10-23)
 
 1. Every room's foundation first, with nothing in the rooms: backgrounds, exact depth masks,

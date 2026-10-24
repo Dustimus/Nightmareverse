@@ -651,6 +651,8 @@ void Play_Init(GameState* thisx) {
 #endif
 }
 
+void NvDev_Update(PlayState* play);
+
 void Play_Update(PlayState* play) {
     Input* input = play->state.input;
     s32 isPaused;
@@ -687,6 +689,8 @@ void Play_Update(PlayState* play) {
     if (CVarGetInteger(CVAR_SETTING("FreeLook.Enabled"), 0) && Player_InCsMode(play)) {
         play->manualCamera = false;
     }
+
+    NvDev_Update(play); // Nightmareverse dev: scripted walks for headless checks (z_nv_dev.c)
 
     gSegments[4] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[play->objectCtx.mainKeepIndex].segment);
     gSegments[5] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[play->objectCtx.subKeepIndex].segment);
