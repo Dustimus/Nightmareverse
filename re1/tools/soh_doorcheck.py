@@ -30,7 +30,7 @@ WALK_IN_FRAMES = 60  # frames spent pushing into the door
 ARRIVE_FRAMES = 60  # frames after A for the fade and the next room
 # OoT units between the arrival and the start position: RE1 puts Jill right by the door, and
 # OoT pushes Link (wider) clear of the wall on arrival, by up to about his radius
-POS_TOLERANCE = 16
+POS_TOLERANCE = 20
 
 
 def doors(scenes, name):

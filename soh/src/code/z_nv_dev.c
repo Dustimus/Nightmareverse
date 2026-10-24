@@ -229,9 +229,15 @@ void NvDev_Update(PlayState* play) {
         NvWaypoint* wp = &sNvPath[sNvPathIdx];
 
         if (wp->kind == NV_WP_POS) {
+            // onto the floor there (an RE1 room's levels never lie over one another)
+            Vec3f probe = { wp->x, 5000.0f, wp->z };
+            CollisionPoly* poly;
+            s32 bgId;
+            f32 y = BgCheck_EntityRaycastFloor3(&play->colCtx, &poly, &bgId, &probe);
+
             player->actor.world.pos.x = player->actor.home.pos.x = wp->x;
             player->actor.world.pos.z = player->actor.home.pos.z = wp->z;
-            player->actor.world.pos.y += 10.0f;
+            player->actor.world.pos.y = (y > BGCHECK_Y_MIN ? y : player->actor.world.pos.y) + 10.0f;
             sNvPathIdx++;
         } else if (wp->kind == NV_WP_FACE) {
             s16 yaw = Math_Atan2S(wp->z - player->actor.world.pos.z, wp->x - player->actor.world.pos.x);
