@@ -27,7 +27,9 @@ import soh_tables  # noqa: E402
 
 WALK_IN_FRAMES = 60  # frames spent pushing into the door
 ARRIVE_FRAMES = 60  # frames after A for the fade and the next room
-POS_TOLERANCE = 6  # OoT units between the arrival and the start position (OoT pushes out of walls)
+# OoT units between the arrival and the start position: RE1 puts Jill right by the door, and
+# OoT pushes Link (wider) clear of the wall on arrival, by up to about his radius
+POS_TOLERANCE = 16
 
 
 def doors(scenes, name):
@@ -49,33 +51,94 @@ def start_positions(scenes, name):
                                 r'RotX="-?\d+" RotY="(-?\d+)"', xml)]
 
 
-def floor_points(col_path):
-    """Sample points of the room's floor (as soh_check.camera_spots samples), with their wall distance."""
+def floor_tris(col_path):
+    """The room's floor triangles, as ((x, z) * 3)."""
     s = open(col_path).read()
     verts = [tuple(map(int, m)) for m in re.findall(r'<Vertex X="(-?\d+)" Y="(-?\d+)" Z="(-?\d+)"', s)]
-    pts = []
+    out = []
     for a, b, c, ny in re.findall(r'<Polygon Type="\d+" VertexA="(\d+)" VertexB="(\d+)" VertexC="(\d+)" '
                                   r'NormalX="-?\d+" NormalY="(-?\d+)"', s):
-        if int(ny) < soh_check.FLOOR_NY:
-            continue
-        pa, pb, pc = verts[int(a)], verts[int(b)], verts[int(c)]
-        for i in range(1, 4):
-            for j in range(1, 4 - i):
-                k = 4 - i - j
-                pts.append(tuple((pa[n] * i + pb[n] * j + pc[n] * k) / 4 for n in (0, 2)))
-    return pts
+        if int(ny) >= soh_check.FLOOR_NY:
+            out.append(tuple((verts[int(i)][0], verts[int(i)][2]) for i in (a, b, c)))
+    return out
 
 
-def approach(rect, pts):
-    """Where a player would come from: the floor nearest the door's middle, then 25 units back
-    from the door along that line (snapped to the floor), so the walk in is straight."""
+def _closest_on_tri(p, tri):
+    def side(a, b):
+        return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+
+    d = [side(tri[i], tri[(i + 1) % 3]) for i in range(3)]
+    if all(v >= 0 for v in d) or all(v <= 0 for v in d):
+        return p
+    best = None
+    for i in range(3):
+        a, b = tri[i], tri[(i + 1) % 3]
+        dx, dz = b[0] - a[0], b[1] - a[1]
+        ll = dx * dx + dz * dz
+        u = 0.0 if ll == 0 else max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / ll))
+        q = (a[0] + u * dx, a[1] + u * dz)
+        if best is None or (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2 < (best[0] - p[0]) ** 2 + (best[1] - p[1]) ** 2:
+            best = q
+    return best
+
+
+def closest_floor(p, tris):
+    return min((_closest_on_tri(p, t) for t in tris), key=lambda q: (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2)
+
+
+LINK_RADIUS = 13  # OoT units kept between Link's centre and the floor's edge when placing him
+
+
+def _inside(p, tri):
+    def side(a, b):
+        return (b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])
+
+    d = [side(tri[i], tri[(i + 1) % 3]) for i in range(3)]
+    return all(v >= 0 for v in d) or all(v <= 0 for v in d)
+
+
+def _seg_dist(p, a, b):
+    dx, dz = b[0] - a[0], b[1] - a[1]
+    ll = dx * dx + dz * dz
+    u = 0.0 if ll == 0 else max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / ll))
+    return ((a[0] + u * dx - p[0]) ** 2 + (a[1] + u * dz - p[1]) ** 2) ** 0.5
+
+
+def door_stand(rect, tris):
+    """Where a player stands to open the door, and the point he faces (the door's middle): of
+    the floor within 50 units of the door, the spot nearest the door's rectangle that is at
+    least Link's radius from the floor's edge (so OoT neither pushes him off nor lets him fall
+    through it)."""
     x0, z0, x1, z1 = rect
-    cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
-    qx, qz = min(pts, key=lambda p: (p[0] - cx) ** 2 + (p[1] - cz) ** 2)
-    dx, dz = qx - cx, qz - cz
-    n = (dx * dx + dz * dz) ** 0.5 or 1.0
-    tx, tz = qx + dx / n * 25, qz + dz / n * 25
-    return min(pts, key=lambda p: (p[0] - tx) ** 2 + (p[1] - tz) ** 2)
+    c = ((x0 + x1) / 2, (z0 + z1) / 2)
+    edges = {}
+    for t in tris:
+        for i in range(3):
+            e = tuple(sorted((t[i], t[(i + 1) % 3])))
+            edges[e] = edges.get(e, 0) + 1
+    boundary = [e for e, n in edges.items() if n == 1]
+    near_tris = [t for t in tris if any(abs(p[0] - c[0]) < 120 and abs(p[1] - c[1]) < 120 for p in t)] or tris
+    best = None
+    for gx in range(int(x0) - 50, int(x1) + 51, 2):
+        for gz in range(int(z0) - 50, int(z1) + 51, 2):
+            p = (gx, gz)
+            if not any(_inside(p, t) for t in near_tris):
+                continue
+            if any(_seg_dist(p, a, b) < LINK_RADIUS for a, b in boundary):
+                continue
+            dr = ((max(x0 - gx, 0, gx - x1)) ** 2 + (max(z0 - gz, 0, gz - z1)) ** 2) ** 0.5
+            key = (dr, (gx - c[0]) ** 2 + (gz - c[1]) ** 2)
+            if best is None or key < best[0]:
+                best = (key, p)
+    if best is None:
+        return closest_floor(c, tris), c
+    p = best[1]
+    if best[0][0] == 0:  # inside the rectangle (a door on open floor): step back to face it
+        dx, dz = p[0] - c[0], p[1] - c[1]
+        n = (dx * dx + dz * dz) ** 0.5
+        if n < 8:
+            return p, (c[0] + (c[0] - p[0]) * 3 + 0.01, c[1] + (c[1] - p[1]) * 3) if n > 0.5 else (c[0], c[1] - 20)
+    return p, c
 
 
 def main():
@@ -104,16 +167,14 @@ def main():
             if a.room and name not in a.room:
                 continue
             ds = doors(a.scenes, name)
-            pts = floor_points(os.path.join(a.scenes, "scenes", "shared", name + "_scene", name + "_col"))
+            tris = floor_tris(os.path.join(a.scenes, "scenes", "shared", name + "_scene", name + "_col"))
             steps = []
             for i, d in enumerate(ds):
                 x0, z0, x1, z1 = d["rect"]
-                px, pz = approach(d["rect"], pts)
-                # as a player would: stand on the floor nearest the door, push into it (aiming
-                # past its middle, so the walk never ends with him turning on the spot), then
-                # back at the door, face it and press A (pushing can slide him along the wall)
-                cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
-                qx, qz = min(pts, key=lambda p: (p[0] - cx) ** 2 + (p[1] - cz) ** 2)
+                # as a player would: stand at the door, push into it for a while (aiming past
+                # its middle, so the walk never ends with him turning on the spot), then back at
+                # the door (pushing can slide him along the wall), face it and press A
+                (qx, qz), (cx, cz) = door_stand(d["rect"], tris)
                 tx, tz = cx + (cx - qx) * 3, cz + (cz - qz) * 3
                 steps += ["entr:0x%X" % entrance[name], "wait:10", "pos:%d,%d" % (qx, qz), "wait:10",
                           "%d,%d" % (tx, tz), "wait:10", "pos:%d,%d" % (qx, qz), "wait:10",
