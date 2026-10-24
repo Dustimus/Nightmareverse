@@ -1665,7 +1665,7 @@ typedef struct {
 } AnimationMinimalInfo; // size = 0xC
 
 typedef struct {
-    /* 0x00 */ s8  scene;
+    /* 0x00 */ u8  scene; // Nightmareverse: unsigned, for scenes past 0x7F
     /* 0x01 */ s8  spawn;
     /* 0x02 */ u16 field;
 } EntranceInfo; // size = 0x4

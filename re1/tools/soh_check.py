@@ -71,8 +71,9 @@ def run_room(soh_dir, entrance, spots, out, display, timeout=120):
         proc.terminate()
         try:
             proc.wait(5)
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired:  # a hung game can ignore SIGTERM
             proc.kill()
+            proc.wait()
 
 
 def main():
