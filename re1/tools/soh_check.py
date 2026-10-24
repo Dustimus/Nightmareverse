@@ -83,6 +83,7 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--room", action="append", default=[], help="only these rooms (e.g. re1_106)")
     ap.add_argument("--display", default=":79")
+    ap.add_argument("--resume", action="store_true", help="skip rooms already checked into --out")
     a = ap.parse_args()
 
     xvfb = subprocess.Popen(["Xvfb", a.display, "-screen", "0", "1280x720x24"],
@@ -103,7 +104,13 @@ def main():
             spots = camera_spots(col)
             cams = list(spots)
             out = os.path.join(a.out, name)
+            room_problems = os.path.join(out, "problems.txt")
+            if a.resume and os.path.exists(room_problems):
+                problems += [l for l in open(room_problems).read().splitlines() if l]
+                print("%s: already checked" % name, flush=True)
+                continue
             os.makedirs(out, exist_ok=True)
+            first = len(problems)
             seen = run_room(a.soh_dir, entrance, [spots[c] for c in cams], out, a.display)
             labels = []
             for i, cam in enumerate(cams):
@@ -117,6 +124,7 @@ def main():
                 if int(got.group(2)) != cam:
                     problems.append("%s cam %d: active camera is %s" % (name, cam, got.group(2)))
                 labels.append(("cam_%02d.png" % i, "%s  camera %d" % (name, cam)))
+            open(room_problems, "w").write("".join(p + "\n" for p in problems[first:]))
             print("%s: %d/%d cameras captured" % (name, len(labels), len(cams)), flush=True)
             if labels:
                 sheet = os.path.join(a.out, name + ".png")
