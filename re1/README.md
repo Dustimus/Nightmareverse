@@ -138,5 +138,10 @@ A from where a player would stand must reach the target at its arrival point.
 Marking spots by hand: hold L and press D-pad down, and SoH appends the room, Link's position,
 facing and camera to `nv_spots.txt` in its folder.
 
+Later: per-room ceiling heights. Every floor has a ceiling 3000 above it (walls up to it) for
+OoT's thrown things; RE1 stores none, and in narrow halls with low cameras it can sit wrong for
+bombs. To estimate from each room's cameras (positioned just under the ceiling in most rooms),
+checked against the backgrounds, or marked by hand.
+
 Later: RE1's FMVs (Cinepak AVIs, from the player's English PC copy), and the mansion's way in
 through a Lost Woods wrong turn instead of a replaced OoT door.
