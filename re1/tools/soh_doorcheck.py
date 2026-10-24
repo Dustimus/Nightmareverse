@@ -14,6 +14,7 @@ a SoH folder with the RE1 mod installed; screenshots show RE1's backgrounds (kee
         --out <folder> [--room re1_106 ...]
 """
 import argparse
+import math
 import os
 import re
 import struct
@@ -140,7 +141,11 @@ def door_stand(rect, tris, walls=()):
             if not all(on_floor((q[0] + r * dx, q[1] + r * dz)) for dx, dz in
                        ((1, 0), (-1, 0), (0, 1), (0, -1), (0.7, 0.7), (0.7, -0.7), (-0.7, 0.7), (-0.7, -0.7))):
                 return r - 4
-        return min([LINK_RADIUS] + [_seg_dist(q, a, b) for a, b in walls])
+        # walls are hard: OoT pushes Link a full radius out of them, so a spot nearer one isn't
+        # one he can stand on (returned as no clearance at all)
+        if any(_seg_dist(q, a, b) < LINK_RADIUS - 1 for a, b in walls):
+            return 0
+        return LINK_RADIUS
 
     cand = []
     for gx in range(int(x0) - 50, int(x1) + 51, 2):
@@ -168,9 +173,8 @@ def door_stand(rect, tris, walls=()):
         def depth(q):
             return min(q[0] - x0, x1 - q[0], q[1] - z0, z1 - q[1])
 
-        reach = LINK_RADIUS + 4
         dirs = [(1, 0), (-1, 0), (0, 1), (0, -1)]
-        d = max(dirs, key=lambda v: depth((p[0] + v[0] * reach, p[1] + v[1] * reach)))
+        d = max(dirs, key=lambda v: depth((p[0] + v[0] * 13, p[1] + v[1] * 13)))
         return p, (p[0] + d[0] * 40, p[1] + d[1] * 40)
     return p, c
 
@@ -214,7 +218,8 @@ def main():
                 tx, tz = cx + (cx - qx) * 3, cz + (cz - qz) * 3
                 steps += ["entr:0x%X" % entrance[name], "wait:10", "pos:%d,%d" % (qx, qz), "wait:10",
                           "%d,%d" % (tx, tz), "wait:10", "pos:%d,%d" % (qx, qz), "wait:10",
-                          "face:%d,%d" % (cx, cz), "wait:2", "mark:%d" % (2 * i), "a",
+                          "facerect:%d,%d,%d,%d" % (math.floor(x0), math.floor(z0), math.ceil(x1), math.ceil(z1)),
+                          "wait:2", "mark:%d" % (2 * i), "a",
                           "wait:%d" % ARRIVE_FRAMES, "mark:%d" % (2 * i + 1)]
             steps.append("mark:9999")
             out = os.path.join(a.out, name)

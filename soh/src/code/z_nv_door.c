@@ -48,6 +48,10 @@ void NvDoorScene_Queue(s32 anim, s32 type, s32 handle);
 // radius: 18 adult, 14 child), as RE1's door rectangles start at the wall's surface and Link
 // stops his radius short of it.
 #define NV_DOOR_REACH_PAST_BODY 4.0f
+// RE1's own point: 600 units in front of the player. A door whose rectangle lies on open floor
+// (a doorway, a corner) can be smaller than Link's reach; standing in it, RE1's point is inside
+// while the far one is past it. So the door opens if any point from RE1's to Link's reach is in.
+#define NV_DOOR_REACH_RE1 13.0f
 
 // The entrance for a scene file's start position (soh_tables.py: four per start position, the
 // first is setup 0), or -1
@@ -104,8 +108,8 @@ void NvDoor_Update(PlayState* play) {
     u8* data;
     u32 count;
     u32 i;
-    f32 fx;
-    f32 fz;
+    f32 sx;
+    f32 sz;
     f32 reach;
 
     if ((player == NULL) || !CHECK_BTN_ALL(input->press.button, BTN_A) ||
@@ -119,8 +123,8 @@ void NvDoor_Update(PlayState* play) {
         return;
     }
     reach = player->ageProperties->wallCheckRadius + NV_DOOR_REACH_PAST_BODY;
-    fx = player->actor.world.pos.x + Math_SinS(player->actor.shape.rot.y) * reach;
-    fz = player->actor.world.pos.z + Math_CosS(player->actor.shape.rot.y) * reach;
+    sx = Math_SinS(player->actor.shape.rot.y);
+    sz = Math_CosS(player->actor.shape.rot.y);
     for (i = 0; i < count; i++) {
         NvDoor door;
         f32 px;
@@ -131,10 +135,27 @@ void NvDoor_Update(PlayState* play) {
         if (!(door.flags & NV_DOOR_ACTION)) {
             continue;
         }
-        px = (door.flags & NV_DOOR_AT_PLAYER) ? player->actor.world.pos.x : fx;
-        pz = (door.flags & NV_DOOR_AT_PLAYER) ? player->actor.world.pos.z : fz;
-        if ((px < door.x0) || (px > door.x1) || (pz < door.z0) || (pz > door.z1)) {
-            continue;
+        if (door.flags & NV_DOOR_AT_PLAYER) {
+            px = player->actor.world.pos.x;
+            pz = player->actor.world.pos.z;
+            if ((px < door.x0) || (px > door.x1) || (pz < door.z0) || (pz > door.z1)) {
+                continue;
+            }
+        } else {
+            f32 d;
+            s32 in = false;
+
+            for (d = NV_DOOR_REACH_RE1; d <= reach + 0.01f; d += 1.0f) {
+                px = player->actor.world.pos.x + sx * d;
+                pz = player->actor.world.pos.z + sz * d;
+                if ((px >= door.x0) && (px <= door.x1) && (pz >= door.z0) && (pz <= door.z1)) {
+                    in = true;
+                    break;
+                }
+            }
+            if (!in) {
+                continue;
+            }
         }
         door.target[sizeof(door.target) - 1] = '\0';
         entrance = NvDoor_Entrance(door.target, door.spawn);

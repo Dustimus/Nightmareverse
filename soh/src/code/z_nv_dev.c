@@ -6,7 +6,9 @@
  *   NV_WALK="x,z;x,z;wait:N"  steer Link through waypoints with the control stick (camera-
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
  *                             (default 200); "wait:N" stands still N frames, "a" presses A,
- *                             "pos:x,z" puts Link there, "face:x,z" turns him to face a point, "entr:N" warps to entrance N (the
+ *                             "pos:x,z" puts Link there, "face:x,z" turns him to face a point,
+ *                             "facerect:x0,z0,x1,z1" turns him (16 ways) to put the point in
+ *                             front of him deepest into a rectangle (as a player faces a door), "entr:N" warps to entrance N (the
  *                             script goes on in the new scene), "mark:N" logs "NVMARK N" with
  *                             the scene, position and yaw (re1/tools/soh_check.py --doors)
  *   NV_TOUR="x,y,z;x,y,z"     put Link at each point in turn, NV_TOUR_HOLD frames each (default
@@ -27,13 +29,15 @@
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT } NvWaypointKind;
 
 typedef struct {
     s16 kind;
     s16 wait; // NV_WP_WAIT: frames; NV_WP_ENTR, NV_WP_MARK: the number
     s16 x;
     s16 z;
+    s16 x1; // NV_WP_FACERECT: the rectangle's far corner
+    s16 z1;
 } NvWaypoint;
 
 static NvWaypoint sNvPath[NV_MAX_WAYPOINTS];
@@ -144,6 +148,18 @@ static void NvDev_ParsePath(void) {
             wp->x = x;
             wp->z = z;
             sNvPathLen++;
+        } else if (strncmp(s, "facerect:", 9) == 0) {
+            int x1;
+            int z1;
+
+            if (sscanf(s + 9, "%d,%d,%d,%d", &x, &z, &x1, &z1) == 4) {
+                wp->kind = NV_WP_FACERECT;
+                wp->x = x;
+                wp->z = z;
+                wp->x1 = x1;
+                wp->z1 = z1;
+                sNvPathLen++;
+            }
         } else if ((strncmp(s, "face:", 5) == 0) && (sscanf(s + 5, "%d,%d", &x, &z) == 2)) {
             wp->kind = NV_WP_FACE;
             wp->x = x;
@@ -221,6 +237,31 @@ void NvDev_Update(PlayState* play) {
             s16 yaw = Math_Atan2S(wp->z - player->actor.world.pos.z, wp->x - player->actor.world.pos.x);
 
             player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = yaw;
+            sNvPathIdx++;
+        } else if (wp->kind == NV_WP_FACERECT) {
+            // the yaw whose points 13..22 in front of Link reach deepest into the rectangle
+            f32 best = -1e9f;
+            s16 bestYaw = player->actor.shape.rot.y;
+            s32 k;
+
+            for (k = 0; k < 16; k++) {
+                s16 yaw = k * 0x1000;
+                f32 d;
+                f32 deepest = -1e9f;
+
+                for (d = 13.0f; d <= 22.0f; d += 1.0f) {
+                    f32 px = player->actor.world.pos.x + Math_SinS(yaw) * d;
+                    f32 pz = player->actor.world.pos.z + Math_CosS(yaw) * d;
+                    f32 depth = MIN(MIN(px - wp->x, wp->x1 - px), MIN(pz - wp->z, wp->z1 - pz));
+
+                    deepest = MAX(deepest, depth);
+                }
+                if (deepest > best) {
+                    best = deepest;
+                    bestYaw = yaw;
+                }
+            }
+            player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = bestYaw;
             sNvPathIdx++;
         } else if (wp->kind == NV_WP_ENTR) {
             if (play->transitionTrigger == TRANS_TRIGGER_OFF) {
