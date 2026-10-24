@@ -138,6 +138,12 @@ A from where a player would stand must reach the target at its arrival point.
 Marking spots by hand: hold L and press D-pad down, and SoH appends the room, Link's position,
 facing and camera to `nv_spots.txt` in its folder.
 
+Later: walkable stairs. The stairs inside rooms (203's grand staircase, 207's, 20E's) work by
+A for now, as in RE1; they should also be ramps Link can just walk, built over each type 5/6
+zone from its low end to its high end (the move and rise RE1's climb makes), with the stair
+box's walls opened there. The stairs RE1 treats as doors (the foyer's to 203, 10B to 207) stay
+doors.
+
 Later: ceilings, so OoT's thrown things (bombs) stay in the room; RE1 has none. A first try
 (a ceiling over every floor) boxed Link in, most likely by pushing the collision past OoT's
 polygon budget (the foyer went from 7.4k to 9.4k polygons): it needs merged floor and wall
