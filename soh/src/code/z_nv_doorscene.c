@@ -61,6 +61,7 @@ static struct {
     s32 active;
     s16 anim;
     s8 vars[8];
+    s16 shortVar; // the scripts' one short variable (ops 0C, 0D, 05)
     u8* script;
     u16* routines;
     s32 numRoutines;
@@ -80,10 +81,11 @@ static struct {
 } sNvDs;
 
 // operand bytes per opcode, the opcode included (0: not seen in a door script)
+// bytes per op, from RE1's handlers (the g_doorOps table)
 static const u8 sNvDsOpSize[0x26] = {
-    2, 2, 6, 2, 6, 0, 4, 2, 4, 0, 2, 0, 0, 0, 6, 6, // 0x00
-    6, 14, 14, 2, 4, 8, 8, 2, 4, 8, 0, 2, 4, 0, 0, 4, // 0x10
-    2, 4, 0, 0, 2, 2,                                 // 0x20
+    2, 2, 2, 2, 6, 6, 4, 2, 4, 2, 4, 4, 4, 4, 6, 6,      // 0x00
+    6, 14, 14, 2, 4, 8, 8, 2, 4, 8, 6, 2, 4, 10, 10, 4, // 0x10
+    4, 4, 4, 4, 2, 2,                                    // 0x20
 };
 
 static void NvDoorScene_Path(char* path, size_t size, s32 anim) {
@@ -198,9 +200,16 @@ static s32 NvDoorScene_Tick(void) {
             th->pc += size;
             s = &sNvDs.slots[a[1] % NV_DS_SLOTS];
             switch (op) {
-                case 0x00:
-                case 0x01:
+                case 0x00: // the end of the scene (door_op_end: every thread stops)
+                    return false;
+                case 0x01: // this thread is done
                     th->pc = -1;
+                    break;
+                case 0x02: // wait until thread a[1] is done
+                    if (sNvDs.threads[a[1] % NV_DS_THREADS].pc >= 0) {
+                        th->pc -= size;
+                        goto yield;
+                    }
                     break;
                 case 0x03:
                     goto yield;
@@ -244,17 +253,70 @@ static s32 NvDoorScene_Tick(void) {
                         th->loopDepth++;
                     }
                     break;
-                case 0x07:
+                case 0x07: // loop back (and wait a frame), or past the loop's end at once
                     if (th->loopDepth > 0) {
                         if (--th->loopCount[th->loopDepth - 1] > 0) {
                             th->pc = th->loopStart[th->loopDepth - 1];
-                        } else {
-                            th->loopDepth--;
+                            goto yield;
                         }
+                        th->loopDepth--;
                     }
-                    goto yield;
+                    break;
+                case 0x05: { // like 04, on the short variable
+                    s16 v = a[4] | (a[5] << 8);
+                    s16 var = sNvDs.shortVar;
+                    s32 run;
+
+                    switch (a[3]) {
+                        case 0:
+                            run = (var == v);
+                            break;
+                        case 1:
+                            run = (var > v);
+                            break;
+                        case 2:
+                            run = (var >= v);
+                            break;
+                        case 3:
+                            run = (var < v);
+                            break;
+                        case 4:
+                            run = (var <= v);
+                            break;
+                        case 5:
+                            run = (var != v);
+                            break;
+                        default:
+                            run = false;
+                            break;
+                    }
+                    if (!run) {
+                        th->pc += a[1];
+                    }
+                    break;
+                }
                 case 0x08:
                     NvDoorScene_StartThread(a[2], a[3]);
+                    break;
+                case 0x09: // stop thread a[1]
+                    sNvDs.threads[a[1] % NV_DS_THREADS].pc = -1;
+                    break;
+                case 0x0A:
+                    sNvDs.vars[a[1] & 7] = (s8)a[2];
+                    break;
+                case 0x0B:
+                    sNvDs.vars[a[1] & 7] += (s8)a[2];
+                    break;
+                case 0x0C:
+                    sNvDs.shortVar = a[2] | (a[3] << 8);
+                    break;
+                case 0x0D:
+                    sNvDs.shortVar += (s16)(a[2] | (a[3] << 8));
+                    break;
+                case 0x1A:
+                    for (k = 0; k < 3; k++) {
+                        s->rotVel[k] = (s8)a[2 + k];
+                    }
                     break;
                 case 0x0E: // RE1's door sounds come with the sound work; OoT's door meanwhile
                     Sfx_PlaySfxCentered(NA_SE_OC_DOOR_OPEN);
@@ -324,11 +386,11 @@ static s32 NvDoorScene_Tick(void) {
                 case 0x21:
                     s->flags = a[2];
                     break;
-                case 0x20:
-                    // where RE1 waits for the next room to finish loading (the single door's
-                    // scene loops on for 10 s past it): ours is loaded, so the scene ends here
-                    return false;
-                default: // 0x02, 0x0A, 0x1F, 0x24, 0x25: not understood, skipped
+                case 0x20: // play_sfx (RE1's door sounds come with the sound work)
+                    break;
+                case 0x24: // dispatch off until the sound system is ready: a frame here
+                    goto yield;
+                default: // 0x1D, 0x1E (model vertices), 0x1F (message), 0x22, 0x23, 0x25: nothing here
                     break;
             }
         }
@@ -369,6 +431,7 @@ void NvDoorScene_Update(PlayState* play) {
             memset(sNvDs.cam, 0, sizeof(sNvDs.cam));
             memset(sNvDs.camVel, 0, sizeof(sNvDs.camVel));
             sNvDs.ticks = sNvDs.tickAccum = 0;
+            sNvDs.shortVar = 0;
             sNvDs.threads[0].pc = sNvDs.routines[0];
             sNvDs.active = true;
             sNvDs.startFrames = 0;
