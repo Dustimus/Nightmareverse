@@ -28,7 +28,7 @@ import math
 import struct
 
 CELL = 100  # RE1 units (~2.2 OoT units)
-WALL_HEIGHT = 3000
+WALL_HEIGHT = 30000  # RE1 needs only the player blocked; OoT throws things (bombs, arrows, hookshot)
 CLIMB = (4350, 2885)
 # Where the player stops: RE1 pushes Jill out to her radius (372, the SCA record's +10) plus 18
 # past a shape's face (collision_push_rect); Link stops at his own wall radius (18 OoT units,
