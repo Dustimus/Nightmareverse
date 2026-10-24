@@ -2050,7 +2050,7 @@ s16 func_800C09D8(PlayState* play, s16 camId, s16 arg2) {
 }
 
 void Play_SaveSceneFlags(PlayState* play) {
-    SavedSceneFlags* savedSceneFlags = &gSaveContext.sceneFlags[play->sceneNum];
+    SavedSceneFlags* savedSceneFlags = NvScene_SavedFlags(play->sceneNum);
 
     savedSceneFlags->chest = play->actorCtx.flags.chest;
     savedSceneFlags->swch = play->actorCtx.flags.swch;

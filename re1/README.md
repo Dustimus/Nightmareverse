@@ -31,18 +31,27 @@ them into `<folder>.o2r`:
 - `.../<name>_bg<n>_mask`: camera n's mask pieces (rectangle, depth, shape), drawn by
   `soh/src/code/z_nv_mask.c` as invisible depth-only rectangles right after the background
 
-The engine side registers each room in `soh/include/tables/scene_table.h` and
-`entrance_table.h` (after OoT's own).
+`tools/soh_tables.py <folder>` then registers the rooms with the engine: it writes
+`soh/include/tables/nv_re1_scene_table.h` and `nv_re1_entrance_table.h`, which OoT's scene and
+entrance tables include after their own entries (scenes from 0x6E, entrances from 0x614; four
+entrances per start position, one per OoT setup). Scenes past OoT's 124 save slots keep their
+per-scene flags in a scratch set (`soh/src/code/z_nv_scene.c`); RE1's own state comes with the
+core systems.
 
-Example (the foyer, room 106):
+Pass 1 (stages 1-2, the 44 rooms with data; the other room numbers are 4-byte placeholders):
 
-    python3 re1/tools/rdt2scene.py --stage <RE1>/JPN --player 1 --room 106:re_foyer \
-        --spawn 17200,3600,-32768 --out /tmp/c_out --soh /tmp/re1
+    python3 re1/tools/rdt2scene.py --stage <RE1>/JPN --player 1 --spawn 17200,3600,-32768 \
+        --room 106:re1_106 --room 100:re1_100 ... --out /tmp/c_out --soh /tmp/re1
+    python3 re1/tools/soh_tables.py /tmp/re1
     cp /tmp/re1.o2r <SoH folder>/mods/
+
+`tools/soh_check.py` boots each room headless, puts Link on a floor spot of every camera,
+screenshots it and flags spots with no floor or the wrong camera; it writes a contact sheet per
+room (local only: the screenshots show RE1's backgrounds).
 
 ## Dev boot
 
-`NV_BOOT_ENTRANCE=<entrance index>` (e.g. `0x614`, the foyer) makes SoH skip the title and
+`NV_BOOT_ENTRANCE=<entrance index>` (e.g. `0x670`, the foyer; `soh_tables.py` prints each room's) makes SoH skip the title and
 file select and load straight into that entrance on a debug save (`ovl_title/z_title.c`).
 
 Scripted play for headless checks (`soh/src/code/z_nv_dev.c`, inert without the variables):

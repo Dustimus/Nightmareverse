@@ -426,7 +426,7 @@ const char* ResolveSceneID(int sceneID, int roomID) {
     } else if (sceneID == SCENE_WINDMILL_AND_DAMPES_GRAVE) {
         // Only the last room of Dampe's Grave (rm 6) is considered the windmill.
         return roomID == 6 ? "Windmill" : "Dampe's Grave";
-    } else if (sceneID < SCENE_ID_MAX) {
+    } else if (sceneID < ARRAY_COUNT(sceneMappings)) {
         return sceneMappings[sceneID];
     }
 

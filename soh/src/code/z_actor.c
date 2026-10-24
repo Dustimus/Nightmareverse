@@ -2541,7 +2541,7 @@ void Actor_InitContext(PlayState* play, ActorContext* actorCtx, ActorEntry* acto
     SavedSceneFlags* savedSceneFlags;
     s32 i;
 
-    savedSceneFlags = &gSaveContext.sceneFlags[play->sceneNum];
+    savedSceneFlags = NvScene_SavedFlags(play->sceneNum);
 
     memset(actorCtx, 0, sizeof(*actorCtx));
 

@@ -6,6 +6,10 @@
  *   NV_WALK="x,z;x,z;wait:N"  steer Link through waypoints with the control stick (camera-
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
  *                             (default 200); "wait:N" stands still N frames
+ *   NV_TOUR="x,y,z;x,y,z"     put Link at each point in turn, NV_TOUR_HOLD frames each (default
+ *                             40), printing "NVTOUR <i> ..." once he has settled there and
+ *                             "NVTOUR done" after the last (re1/tools/soh_check.py screenshots
+ *                             on those lines)
  *   NV_LOG=1                  log Link's position, floor and camera every 20 frames
  *
  * Called from Play_Update (z_play.c) before the actors update.
@@ -30,6 +34,71 @@ static s32 sNvTimer = 0;
 static s32 sNvTimeout = 200;
 static s32 sNvPosDone = false;
 static s32 sNvScene = -1;
+static Vec3s sNvTour[NV_MAX_WAYPOINTS * 4];
+static s32 sNvTourLen = -1;
+static s32 sNvTourIdx = 0;
+static s32 sNvTourTimer = 0;
+static s32 sNvTourHold = 40;
+
+static void NvDev_ParseTour(void) {
+    const char* s = getenv("NV_TOUR");
+    const char* h = getenv("NV_TOUR_HOLD");
+
+    sNvTourLen = 0;
+    if (h != NULL) {
+        sNvTourHold = atoi(h);
+    }
+    while ((s != NULL) && (*s != '\0') && (sNvTourLen < ARRAY_COUNT(sNvTour))) {
+        int x;
+        int y;
+        int z;
+
+        if (sscanf(s, "%d,%d,%d", &x, &y, &z) == 3) {
+            sNvTour[sNvTourLen].x = x;
+            sNvTour[sNvTourLen].y = y;
+            sNvTour[sNvTourLen].z = z;
+            sNvTourLen++;
+        }
+        s = strchr(s, ';');
+        if (s != NULL) {
+            s++;
+        }
+    }
+}
+
+// one tour step: Link goes to the point at the start of it, and the camera gets the rest to settle
+static void NvDev_Tour(PlayState* play, Player* player) {
+    Vec3s* p;
+
+    if (sNvTourLen < 0) {
+        NvDev_ParseTour();
+    }
+    if ((sNvTourIdx > sNvTourLen) || (play->gameplayFrames < 30)) {
+        return;
+    }
+    if (sNvTourIdx == sNvTourLen) {
+        printf("NVTOUR done\n");
+        fflush(stdout);
+        sNvTourIdx++;
+        return;
+    }
+    p = &sNvTour[sNvTourIdx];
+    if (sNvTourTimer < 4) { // hold him there while the floor and camera catch up
+        player->actor.world.pos.x = player->actor.home.pos.x = p->x;
+        player->actor.world.pos.y = player->actor.home.pos.y = p->y + 10.0f;
+        player->actor.world.pos.z = player->actor.home.pos.z = p->z;
+        player->actor.velocity.y = 0.0f;
+    }
+    if (++sNvTourTimer == sNvTourHold) {
+        printf("NVTOUR %d pos=%d,%d,%d floor=%d cam=%d\n", (int)sNvTourIdx, (int)player->actor.world.pos.x,
+               (int)player->actor.world.pos.y, (int)player->actor.world.pos.z, player->actor.floorPoly != NULL,
+               (int)GET_ACTIVE_CAM(play)->camDataIdx);
+        fflush(stdout);
+    } else if (sNvTourTimer >= sNvTourHold + 20) { // 20 frames for the screenshot
+        sNvTourIdx++;
+        sNvTourTimer = 0;
+    }
+}
 
 static void NvDev_ParsePath(void) {
     const char* s = getenv("NV_WALK");
@@ -116,6 +185,9 @@ void NvDev_Update(PlayState* play) {
                 input->cur.stick_y = input->rel.stick_y = (s8)(Math_CosS(rel) * 60.0f);
             }
         }
+    }
+    if (getenv("NV_TOUR") != NULL) {
+        NvDev_Tour(play, player);
     }
     if ((getenv("NV_LOG") != NULL) && ((play->gameplayFrames % 20) == 0)) {
         printf("NVPOS scene=%d f=%d pos=%d,%d,%d yaw=%d floor=%d cam=%d\n", (int)play->sceneNum,
