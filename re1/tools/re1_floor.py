@@ -21,7 +21,8 @@ records keep her out of things, and only scripted climbs change her height. So h
   zone's first data word) is 1 (player_door_open_sequence 0x00457390; rooms 5 and 0x0E: 2114
   and 1402).
 - Walls: every face of every pushing shape that has floor beside it, and the floor's own outer
-  edge (where the flood stopped at the extent), from each level's floor up WALL_HEIGHT.
+  edge (where the flood stopped at the extent), from each level's floor up WALL_HEIGHT, moved
+  WALL_INSET into the shape (out past the edge) so Link stops where Jill does.
 """
 import math
 import struct
@@ -29,6 +30,13 @@ import struct
 CELL = 100  # RE1 units (~2.2 OoT units)
 WALL_HEIGHT = 3000
 CLIMB = (4350, 2885)
+# Where the player stops: RE1 pushes Jill out to her radius (372, the SCA record's +10) plus 18
+# past a shape's face (collision_push_rect); Link stops at his own wall radius (18 OoT units,
+# adult) from an OoT wall. So the walls sit the difference inside RE1's faces, and Link's body
+# stops where Jill's does.
+JILL_STOP = 372 + 18
+LINK_RADIUS = 18 / 0.0217
+WALL_INSET = LINK_RADIUS - JILL_STOP
 CLIMB_SHALLOW = (2114, 1402)  # rooms 0x05 and 0x0E of every stage
 
 
@@ -210,20 +218,27 @@ class Floor:
             if not pushes(r):
                 continue
             x0, z0, x1, z1, shape, _ = r
+            cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+            # the face moved in by the inset, down to the shape's middle line (a thin shape
+            # still blocks)
+            ix, iz = min(WALL_INSET, (x1 - x0) / 2), min(WALL_INSET, (z1 - z0) / 2)
             if shape == 3:
-                cx, cz, rx, rz = (x0 + x1) / 2, (z0 + z1) / 2, (x1 - x0) / 2, (z1 - z0) / 2
-                ring = [(cx + rx * math.cos(t * math.pi / 8), cz + rz * math.sin(t * math.pi / 8)) for t in range(16)]
+                rx, rz = (x1 - x0) / 2, (z1 - z0) / 2
+                ring = [(math.cos(t * math.pi / 8), math.sin(t * math.pi / 8)) for t in range(16)]
+                outer = [(cx + rx * c, cz + rz * sn) for c, sn in ring]
+                inner = [(cx + (rx - ix) * c, cz + (rz - iz) * sn) for c, sn in ring]
             else:
-                cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
-                ring = [(x0, z0), (x1, z0), (x1, z1), (x0, z1)]
-            for i in range(len(ring)):
-                (ax, az), (bx, bz) = ring[i], ring[(i + 1) % len(ring)]
+                outer = [(x0, z0), (x1, z0), (x1, z1), (x0, z1)]
+                inner = [(x0 + ix, z0 + iz), (x1 - ix, z0 + iz), (x1 - ix, z1 - iz), (x0 + ix, z1 - iz)]
+            for i in range(len(outer)):
+                (ax, az), (bx, bz) = outer[i], outer[(i + 1) % len(outer)]
                 mx, mz = (ax + bx) / 2, (az + bz) / 2
                 ox, oz = mx - cx, mz - cz
                 ol = math.hypot(ox, oz) or 1.0
                 beside = self.cell(mx + ox / ol * CELL, mz + oz / ol * CELL)
                 if beside not in self.cells:
                     continue
+                (ax, az), (bx, bz) = inner[i], inner[(i + 1) % len(inner)]
                 wall(ax, az, bx, bz, self.level.get(self.comp[beside], 0), ox / ol, oz / ol)
 
         # the floor's outer edge
@@ -233,9 +248,9 @@ class Floor:
                 if (gx + ddx, gz + ddz) in self.cells:
                     continue
                 if ddx:
-                    ex = (gx + (ddx > 0)) * CELL
+                    ex = (gx + (ddx > 0)) * CELL + ddx * WALL_INSET
                     wall(ex, gz * CELL, ex, (gz + 1) * CELL, y, -ddx, 0)
                 else:
-                    ez = (gz + (ddz > 0)) * CELL
+                    ez = (gz + (ddz > 0)) * CELL + ddz * WALL_INSET
                     wall(gx * CELL, ez, (gx + 1) * CELL, ez, y, 0, -ddz)
         return verts, polys
