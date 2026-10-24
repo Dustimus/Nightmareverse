@@ -151,6 +151,50 @@ class Floor:
                     changed = True
         self.level = level
 
+        # walkable stairs: RE1's stairs are a solid box with a climb zone over it, between two
+        # floors. The box's strip under the zone becomes a ramp from the one floor's edge to the
+        # other's (_/‾); the rest of the box stays solid, so the stairs keep their sides.
+        self.ramps = []
+        self.ramp_cells = {}
+        records = list(self.records)
+        for zt, zx, zz, zw, zd, _d0 in climb_zones(aots):
+            cx, cz = zx + zw / 2, zz + zd / 2
+            boxes = [r for r in records if r[4] == 1 and inside(r, cx, cz)]
+            if not boxes:
+                continue
+            if zt == 5:  # along x, across z
+                along = (min(r[0] for r in boxes), max(r[2] for r in boxes))
+                across = (zz, zz + zd)
+            else:
+                along = (min(r[1] for r in boxes), max(r[3] for r in boxes))
+                across = (zx, zx + zw)
+            k0 = int(along[0] // CELL)
+            k1 = int((along[1] - 1) // CELL)
+            j0 = int(across[0] // CELL)
+            j1 = int((across[1] - 1) // CELL)
+            if zt == 5:
+                before, after = (k0 - 1, (j0 + j1) // 2), (k1 + 1, (j0 + j1) // 2)
+            else:
+                before, after = ((j0 + j1) // 2, k0 - 1), ((j0 + j1) // 2, k1 + 1)
+            c0, c1 = comp.get(before), comp.get(after)
+            if c0 is None or c1 is None or c0 not in level or c1 not in level:
+                continue
+            ramp = (zt, k0 * CELL, (k1 + 1) * CELL, j0 * CELL, (j1 + 1) * CELL, level[c0], level[c1])
+            self.ramps.append(ramp)
+            for k in range(k0, k1 + 1):
+                for j in range(j0, j1 + 1):
+                    self.ramp_cells[(k, j) if zt == 5 else (j, k)] = ramp
+            # the box outside the strip stays
+            for r in boxes:
+                records.remove(r)
+                x0, z0, x1, z1, shape, fl = r
+                if zt == 5:
+                    parts = [(x0, z0, x1, across[0], shape, fl), (x0, across[1], x1, z1, shape, fl)]
+                else:
+                    parts = [(x0, z0, across[0], z1, shape, fl), (across[1], z0, x1, z1, shape, fl)]
+                records += [q for q in parts if q[2] > q[0] and q[3] > q[1]]
+        self.records = records
+
     def cell(self, x, z):
         return (int(x // CELL), int(z // CELL))
 
@@ -212,9 +256,24 @@ class Floor:
                 if gx is not None:
                     start = prev = gx
 
-        def wall(ax, az, bx, bz, y, want_x, want_z):
-            quad(wall_surface, to_oot((ax, y, az)), to_oot((bx, y, bz)), to_oot((bx, y - WALL_HEIGHT, bz)),
-                 to_oot((ax, y - WALL_HEIGHT, az)), (want_x, 0, -want_z))
+        def wall(ax, az, bx, bz, y, want_x, want_z, height=WALL_HEIGHT):
+            quad(wall_surface, to_oot((ax, y, az)), to_oot((bx, y, bz)), to_oot((bx, y - height, bz)),
+                 to_oot((ax, y - height, az)), (want_x, 0, -want_z))
+
+        def ramp_foot(ramp):
+            """A ramp's walls start at its lower end (RE1's y points down) and reach its top's."""
+            return max(ramp[5], ramp[6]), WALL_HEIGHT + abs(ramp[5] - ramp[6])
+
+        # the ramps: one slope each, from the lower floor's edge to the upper's
+        for ramp in self.ramps:
+            zt, a0, a1, c0, c1, y0, y1 = ramp
+            mid = ((a0 + a1) / 2, (c0 + c1) / 2) if zt == 5 else ((c0 + c1) / 2, (a0 + a1) / 2)
+            surf = cam_of(self.cell(*mid))
+            if zt == 5:
+                pts = [(a0, y0, c0), (a1, y1, c0), (a1, y1, c1), (a0, y0, c1)]
+            else:
+                pts = [(c0, y0, a0), (c0, y1, a1), (c1, y1, a1), (c1, y0, a0)]
+            quad(surf, *[to_oot(p) for p in pts], (0, 1, 0))
 
         # the shapes' faces with floor beside them, at that floor's level
         for r in self.records:
@@ -239,24 +298,28 @@ class Floor:
                 ox, oz = mx - cx, mz - cz
                 ol = math.hypot(ox, oz) or 1.0
                 beside = self.cell(mx + ox / ol * CELL, mz + oz / ol * CELL)
-                if beside not in self.cells:
-                    continue
                 (ax, az), (bx, bz) = inner[i], inner[(i + 1) % len(inner)]
-                wall(ax, az, bx, bz, self.level.get(self.comp[beside], 0), ox / ol, oz / ol)
+                if beside in self.cells:
+                    wall(ax, az, bx, bz, self.level.get(self.comp[beside], 0), ox / ol, oz / ol)
+                elif beside in self.ramp_cells:
+                    y, h = ramp_foot(self.ramp_cells[beside])
+                    wall(ax, az, bx, bz, y, ox / ol, oz / ol, h)
 
         # the floor's outer edge: each straight run of cell edges as one wall (OoT's wall test
         # misjudges walls only a cell wide: one blocked Link 300 units away in the foyer)
         runs = {}
-        for (gx, gz) in self.cells:
-            y = self.level.get(self.comp[(gx, gz)], 0)
+        edge_cells = [(k, self.level.get(self.comp[k], 0), WALL_HEIGHT) for k in self.cells]
+        edge_cells += [(k,) + ramp_foot(r) for k, r in self.ramp_cells.items()]
+        for (gx, gz), y, h in edge_cells:
             for ddx, ddz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                if (gx + ddx, gz + ddz) in self.cells:
+                n = (gx + ddx, gz + ddz)
+                if n in self.cells or n in self.ramp_cells:
                     continue
                 if ddx:
-                    runs.setdefault(("x", gx + (ddx > 0), ddx, y), []).append(gz)
+                    runs.setdefault(("x", gx + (ddx > 0), ddx, y, h), []).append(gz)
                 else:
-                    runs.setdefault(("z", gz + (ddz > 0), ddz, y), []).append(gx)
-        for (axis, line, d, y), steps in runs.items():
+                    runs.setdefault(("z", gz + (ddz > 0), ddz, y, h), []).append(gx)
+        for (axis, line, d, y, h), steps in runs.items():
             steps.sort()
             start = prev = steps[0]
             for k in steps[1:] + [None]:
@@ -266,10 +329,10 @@ class Floor:
                 a, b = start * CELL, (prev + 1) * CELL
                 if axis == "x":
                     ex = line * CELL + d * WALL_INSET
-                    wall(ex, a, ex, b, y, -d, 0)
+                    wall(ex, a, ex, b, y, -d, 0, h)
                 else:
                     ez = line * CELL + d * WALL_INSET
-                    wall(a, ez, b, ez, y, 0, -d)
+                    wall(a, ez, b, ez, y, 0, -d, h)
                 if k is not None:
                     start = prev = k
         return verts, polys
