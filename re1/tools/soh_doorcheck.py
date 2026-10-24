@@ -33,6 +33,11 @@ ARRIVE_FRAMES = 60  # frames after A for the fade and the next room
 POS_TOLERANCE = 20
 
 
+def is_stairs(anim):
+    """RE1's staircases between rooms (z_nv_door.c NV_DOOR_IS_STAIRS): walking into one takes it."""
+    return 22 <= anim <= 24
+
+
 def doors(scenes, name):
     d = open(os.path.join(scenes, "scenes", "shared", name + "_scene", name + "_doors"), "rb").read()[64 + 4:]
     n = struct.unpack_from("<I", d, 4)[0]
@@ -216,6 +221,13 @@ def main():
                 # the door (pushing can slide him along the wall), face it and press A
                 (qx, qz), (cx, cz) = door_stand(d["rect"], tris, walls)
                 tx, tz = cx + (cx - qx) * 3, cz + (cz - qz) * 3
+                if is_stairs(d["anim"]):  # walking into the stairs must take them
+                    steps += ["entr:0x%X" % entrance[name], "wait:10", "pos:%d,%d" % (qx, qz), "wait:10",
+                              "facerect:%d,%d,%d,%d" % (math.floor(x0), math.floor(z0), math.ceil(x1),
+                                                        math.ceil(z1)),
+                              "wait:2", "mark:%d" % (2 * i), "%d,%d" % (tx, tz),
+                              "wait:%d" % ARRIVE_FRAMES, "mark:%d" % (2 * i + 1)]
+                    continue
                 steps += ["entr:0x%X" % entrance[name], "wait:10", "pos:%d,%d" % (qx, qz), "wait:10",
                           "%d,%d" % (tx, tz), "wait:10", "pos:%d,%d" % (qx, qz), "wait:10",
                           "facerect:%d,%d,%d,%d" % (math.floor(x0), math.floor(z0), math.ceil(x1), math.ceil(z1)),
@@ -275,7 +287,8 @@ def main():
                     if tgt not in scene_id:
                         problems.append("target room not converted")
                     elif after[0] != scene_id[tgt]:
-                        problems.append("A did not reach the target (scene %d)" % after[0])
+                        problems.append("%s did not reach the target (scene %d)" %
+                                        ("walking in" if is_stairs(d["anim"]) else "A", after[0]))
                     else:
                         sx, sz, syaw = start_positions(a.scenes, tgt)[d["spawn"]]
                         dist = ((after[1] - sx) ** 2 + (after[3] - sz) ** 2) ** 0.5

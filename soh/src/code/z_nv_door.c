@@ -45,6 +45,12 @@ s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD, s32 s
 
 #define NV_DOOR_ACTION 0x80   // opens with the action button
 #define NV_DOOR_AT_PLAYER 0x40 // tested at the player's position, not in front of him
+// RE1's staircases between rooms are doors with a stairs scene (kai01..kai03: the foyer to 203,
+// 101 to 201, 10B to 207). Walking into one takes it, no A needed (the user's choice: RE1 wants
+// the action button); every other door opens on A only
+#define NV_DOOR_IS_STAIRS(anim) (((anim) >= 22) && ((anim) <= 24))
+#define NV_DOOR_STAIRS_STICK 30 // stick push that counts as walking into the stairs (pressed against
+                                // their solid box Link stands still, so it's the stick, not his speed)
 // How far in front of Link the door point is. RE1's 600 units in front of Jill reach about 150
 // past her body (13 OoT units against a radius taken as ~450 units, ~10 OoT: RE2's player
 // radius, Jill's own still to be read from Bio.exe). Measured from Link's body instead (his wall
@@ -178,7 +184,7 @@ s32 NvDoor_DoAction(PlayState* play, Player* player) {
         return -1;
     }
     if (NvDoor_Find(play, player, &door) >= 0) {
-        return DO_ACTION_OPEN;
+        return NV_DOOR_IS_STAIRS(door.anim) ? DO_ACTION_CLIMB : DO_ACTION_OPEN;
     }
     if (NvClimb_TryStart(play, player, NV_DOOR_REACH_RE1, NvDoor_Reach(player), false)) {
         return DO_ACTION_CLIMB;
@@ -193,11 +199,18 @@ void NvDoor_Update(PlayState* play) {
     s32 i;
     s16 entrance;
 
-    if (!CHECK_BTN_ALL(input->press.button, BTN_A) || !NvDoor_CanAct(play, player)) {
+    s32 pressA = CHECK_BTN_ALL(input->press.button, BTN_A);
+
+    if (!NvDoor_CanAct(play, player)) {
         return;
     }
     i = NvDoor_Find(play, player, &door);
-    if (i < 0) {
+    if (!pressA) { // only stairs between rooms, by walking into them
+        if ((i < 0) || !NV_DOOR_IS_STAIRS(door.anim) ||
+            (SQ(input->rel.stick_x) + SQ(input->rel.stick_y) < SQ(NV_DOOR_STAIRS_STICK))) {
+            return;
+        }
+    } else if (i < 0) {
         // no door: the room's stairs (z_nv_climb.c), with the same points
         if (NvClimb_TryStart(play, player, NV_DOOR_REACH_RE1, NvDoor_Reach(player), true)) {
             input->press.button &= ~BTN_A;

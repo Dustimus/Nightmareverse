@@ -47,6 +47,7 @@ static s32 sNvTimer = 0;
 static s32 sNvTimeout = 200;
 static s32 sNvPosDone = false;
 static s32 sNvScene = -1;
+static s32 sNvWalkScene = -1; // the room a walk step started in: it ends if the room changes
 static Vec3s sNvTour[NV_MAX_WAYPOINTS * 4];
 static s32 sNvTourLen = -1;
 static s32 sNvTourIdx = 0;
@@ -227,6 +228,15 @@ void NvDev_Update(PlayState* play) {
     }
     if ((play->gameplayFrames > 20) && (sNvPathIdx < sNvPathLen)) {
         NvWaypoint* wp = &sNvPath[sNvPathIdx];
+
+        // a walk that took Link into another room (stairs walked into) is over
+        if ((wp->kind == NV_WP_WALK) && (sNvWalkScene >= 0) && (sNvWalkScene != play->sceneNum)) {
+            sNvWalkScene = -1;
+            sNvTimer = 0;
+            sNvPathIdx++;
+            return;
+        }
+        sNvWalkScene = (wp->kind == NV_WP_WALK) ? play->sceneNum : -1;
 
         if (wp->kind == NV_WP_POS) {
             // onto the floor there (an RE1 room's levels never lie over one another)
