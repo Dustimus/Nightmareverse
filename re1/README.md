@@ -4,6 +4,15 @@ Part of Nightmareverse: Ship of Harkinian (the PC port of the OoT decomp) with o
 rooms, systems and stories added alongside Hyrule. Resident Evil is the first. Its N64-ROM
 forerunner, `dustimus/mod1`, stays a separate, self-contained demo; this is the PC version.
 
+## Reference: RE1's own code
+
+RE1's rules come from RE1, never from the N64 demo (`dustimus/mod1`, whose converter guessed
+much of this). The reference is the decompilation of the 1997 PC release,
+[ecruells/resident-evil-pc-decomp](https://github.com/ecruells/resident-evil-pc-decomp)
+(functional-complete; its `docs/` cover the RDT format, SCD opcodes and the engine), checked
+against `Bio.exe` where needed. It is GPL-3: we read it to learn the rules and write our own
+code; none of its code is copied here.
+
 ## Game data stays out of the repository
 
 Nothing from RE1 or OoT is committed: no backgrounds, models, text, sounds or videos. Each
