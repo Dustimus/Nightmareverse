@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import soh_doorcheck as dc  # noqa: E402
 import soh_tables  # noqa: E402
 
+BATCH = 100  # walks per SoH run (5 waypoints each; z_nv_dev.c takes 512)
 WALK_FRAMES = 40  # frames allowed per walk (a step is ~80 units; Link runs ~6 a frame)
 CLEARANCE = dc.LINK_RADIUS + 2
 SHORT = 8  # OoT units: a walk ending this far short of its point is a problem (running past
@@ -110,7 +111,10 @@ def main():
             col = os.path.join(a.scenes, "scenes", "shared", name + "_scene", name + "_col")
             tris, walls = dc.floor_tris(col), dc.wall_segs(col)
             walks = pairs(tris, walls, a.step)
-            marks = run_room(a.soh_dir, name, walks, a.out, a.display)
+            marks = {}
+            for b in range(0, len(walks), BATCH):
+                part = run_room(a.soh_dir, name, walks[b:b + BATCH], a.out, a.display)
+                marks.update({b + k: v for k, v in part.items() if k != 9999})
             bad = []
             for i, (p, q) in enumerate(walks):
                 if i not in marks:
