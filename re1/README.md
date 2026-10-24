@@ -64,8 +64,10 @@ rules; none of its code is copied):
   of the doors arriving in it, carried across the room's stairs.
 - Cameras (`soh/src/code/z_nv_camera.c`): RE1's switch zones (RDT+0x48), grouped by camera;
   the first record of a group is its header, the others are quads that cut to their camera
-  while that camera is on. The table ends at a record with camera -1. A room opens on the
-  camera its door names (Door_set byte 13).
+  while that camera is on. The table ends at a record with camera -1. A room opens on camera
+  0 with one pass of camera 0's zones (room_set), wherever the player arrives; Door_set byte
+  13 is only a door-scene input. After a warp (dev tools), the camera is the one a player
+  walking there would have (`soh_scene.walk_cameras`).
 - Stairs (`soh/src/code/z_nv_climb.c`): Aot_set zones of type 5 (along x) and 6 (along z)
   over a solid box. A with the zone in front of Link and him facing along it carries him 4350
   units along the axis and 2885 up or down (player_door_open_sequence); 2114 / 1402 in rooms
