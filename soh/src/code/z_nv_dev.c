@@ -314,6 +314,11 @@ void NvDev_Update(PlayState* play) {
         NvDev_Tour(play, player);
     }
     if ((getenv("NV_LOG") != NULL) && ((play->gameplayFrames % 20) == 0)) {
+        if (player->actor.wallPoly != NULL) {
+            CollisionPoly* w = player->actor.wallPoly;
+            printf("NVWALL n=%d,%d,%d d=%d bg=%x\n", w->normal.x, w->normal.y, w->normal.z, w->dist,
+                   player->actor.bgCheckFlags);
+        }
         printf("NVPOS scene=%d f=%d pos=%d,%d,%d yaw=%d floor=%d cam=%d\n", (int)play->sceneNum,
                (int)play->gameplayFrames, (int)player->actor.world.pos.x, (int)player->actor.world.pos.y,
                (int)player->actor.world.pos.z, (u16)player->actor.shape.rot.y, player->actor.floorPoly != NULL,

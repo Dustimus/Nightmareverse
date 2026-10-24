@@ -244,16 +244,32 @@ class Floor:
                 (ax, az), (bx, bz) = inner[i], inner[(i + 1) % len(inner)]
                 wall(ax, az, bx, bz, self.level.get(self.comp[beside], 0), ox / ol, oz / ol)
 
-        # the floor's outer edge
+        # the floor's outer edge: each straight run of cell edges as one wall (OoT's wall test
+        # misjudges walls only a cell wide: one blocked Link 300 units away in the foyer)
+        runs = {}
         for (gx, gz) in self.cells:
             y = self.level.get(self.comp[(gx, gz)], 0)
             for ddx, ddz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                 if (gx + ddx, gz + ddz) in self.cells:
                     continue
                 if ddx:
-                    ex = (gx + (ddx > 0)) * CELL + ddx * WALL_INSET
-                    wall(ex, gz * CELL, ex, (gz + 1) * CELL, y, -ddx, 0)
+                    runs.setdefault(("x", gx + (ddx > 0), ddx, y), []).append(gz)
                 else:
-                    ez = (gz + (ddz > 0)) * CELL + ddz * WALL_INSET
-                    wall(gx * CELL, ez, (gx + 1) * CELL, ez, y, 0, -ddz)
+                    runs.setdefault(("z", gz + (ddz > 0), ddz, y), []).append(gx)
+        for (axis, line, d, y), steps in runs.items():
+            steps.sort()
+            start = prev = steps[0]
+            for k in steps[1:] + [None]:
+                if k is not None and k == prev + 1:
+                    prev = k
+                    continue
+                a, b = start * CELL, (prev + 1) * CELL
+                if axis == "x":
+                    ex = line * CELL + d * WALL_INSET
+                    wall(ex, a, ex, b, y, -d, 0)
+                else:
+                    ez = line * CELL + d * WALL_INSET
+                    wall(a, ez, b, ez, y, 0, -d)
+                if k is not None:
+                    start = prev = k
         return verts, polys
