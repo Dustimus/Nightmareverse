@@ -352,7 +352,7 @@ u8 CheckBridgeRewardCount() {
     return bridgeRewardCount;
 }
 
-void NvEnemy_SpawnRoom(PlayState* play);
+void NvScript_RoomInit(PlayState* play);
 
 void Play_Init(GameState* thisx) {
     PlayState* play = (PlayState*)thisx;
@@ -607,7 +607,7 @@ void Play_Init(GameState* thisx) {
     gSaveContext.seqId = play->sequenceCtx.seqId;
     gSaveContext.natureAmbienceId = play->sequenceCtx.natureAmbienceId;
     Actor_InitPlayerHorse(play, GET_PLAYER(play));
-    NvEnemy_SpawnRoom(play); // Nightmareverse: RE1's enemies (z_nv_enemy.c)
+    NvScript_RoomInit(play); // Nightmareverse: RE1's room scripts, enemies with them (z_nv_script.c)
     AnimationContext_Update(play, &play->animationCtx);
     gSaveContext.respawnFlag = 0;
 
@@ -658,6 +658,9 @@ void NvDev_Update(PlayState* play);
 void NvDoor_Update(PlayState* play);
 void NvDoorScene_Update(PlayState* play);
 void NvDoorScene_Draw(PlayState* play);
+void NvScript_Update(PlayState* play);
+s32 NvMovie_Update(PlayState* play);
+void NvMovie_Draw(PlayState* play);
 
 void Play_Update(PlayState* play) {
     Input* input = play->state.input;
@@ -696,9 +699,13 @@ void Play_Update(PlayState* play) {
         play->manualCamera = false;
     }
 
+    if (NvMovie_Update(play)) { // Nightmareverse: an RE1 movie playing holds the game (z_nv_movie.c)
+        return;
+    }
     NvDev_Update(play); // Nightmareverse dev: scripted walks for headless checks (z_nv_dev.c)
     NvDoor_Update(play); // Nightmareverse: RE1 doors, A in front of them (z_nv_door.c)
     NvDoorScene_Update(play); // ...and RE1's door scenes between rooms (z_nv_doorscene.c)
+    NvScript_Update(play);    // ...and the room's own scripts (z_nv_script.c)
 
     gSegments[4] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[play->objectCtx.mainKeepIndex].segment);
     gSegments[5] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[play->objectCtx.subKeepIndex].segment);
@@ -1312,6 +1319,8 @@ void Play_DrawOverlayElements(PlayState* play) {
     if (play->gameOverCtx.state != GAMEOVER_INACTIVE) {
         GameOver_FadeInLights(play);
     }
+
+    NvMovie_Draw(play); // Nightmareverse: an RE1 movie, over everything (z_nv_movie.c)
 }
 
 void Play_Draw(PlayState* play) {

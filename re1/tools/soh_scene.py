@@ -229,60 +229,137 @@ def room_aots(raw):
 
 
 ENEMY_TYPES = set()  # enemy types the written rooms place (soh_enemy.py writes their models)
+MOVIES = set()  # RE1 movie ids the written rooms' scripts can play (cmd_fmv_set)
+
+# RE1's event scripts (room_events_check 0x0041d6a0; the decomp's docs/SCD_SCRIPT_SYSTEM.md):
+# operand lengths of the control bytes (any state) and of state 1's and 2's opcodes
+_EVT_CTRL = {0xF6: 1, 0xF7: 1, 0xF8: 3, 0xF9: 3, 0xFA: 4, 0xFB: 1, 0xFC: 2, 0xFD: 1, 0xFE: 1, 0xFF: 1}
+_EVT_S1 = {0x00: 1, 0x80: 1, 0x82: 1, 0x83: 9, 0x84: 5, 0x85: 5, 0x86: 1, 0x87: 4, 0x88: 3, 0x89: 2, 0x8A: 2,
+           0x8B: 1}
+_EVT_S2 = {0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 4, 6: 4, 7: 8, 8: 3, 9: 2, 0xA: 4, 0xB: 12}
 
 
-def room_enemies(raw):
-    """Enemy_set (SCD 0x1B, 22 bytes) of the room's init script, each with the conditions of the
-    if/else blocks around it: [(raw, [(want, [(bank, bit, value)])])]. A term holds when its bit
-    tests (SCD 0x04, cmd_bit_test) all match, or don't, as want says: an if's own tests, or not
-    them in its else (if: 01 len, the tests, its block to +len; else: 02 len, its block to +len).
-    Other conditions (0x06 compares...) are left out of the term: true."""
+def _scd_chain(raw, off):
+    """An SCD block chain (run_command_functions): u16 block size (with itself), the commands, ...,
+    a zero size."""
+    p = off
+    while struct.unpack_from("<H", raw, p)[0]:
+        p += struct.unpack_from("<H", raw, p)[0]
+    return raw[off:p + 2]
+
+
+def room_scd(raw):
+    """The room's scripts as RE1 keeps them: the init chain (RDT+0x60, run once), the main chain
+    (RDT+0x64, run every frame by game_loop) and the event table with its scripts (RDT+0x68:
+    offsets from the table, zero-ended)."""
     offs = struct.unpack_from("<19I", raw, 0x94 - 76)
+    init = _scd_chain(raw, offs[6]) if offs[6] else b"\0\0"
+    main = _scd_chain(raw, offs[7]) if offs[7] else b"\0\0"
+    evt = b"\0\0\0\0"
+    if offs[8]:
+        later = sorted(o for o in offs if o > offs[8])
+        evt = raw[offs[8]:later[0] if later else len(raw)]
+    return init, main, evt
+
+
+def _scd_commands(chain):
+    """Every command of a block chain, as (offset, bytes)."""
     out = []
-    if not offs[6]:
-        return out
-    length = struct.unpack_from("<H", raw, offs[6])[0]
-    code = raw[offs[6] + 2:offs[6] + 2 + length]
-    blocks = []  # (end, term)
-    pending = None  # an if's tests, while they're read
-    last_if = None  # the term of the if block that just closed (for an else)
-    i = 0
-    while i < len(code):
-        while blocks and i >= blocks[-1][0]:
-            last_if = blocks.pop()[1]
-        n = rdt.scd_inst_len(code, i)
-        if n <= 0:
-            break
-        op = code[i]
-        if pending is not None and op not in (0x04, 0x06):
-            blocks.append((pending[0], (True, pending[1])))
-            pending = None
-        if op == 0x01:
-            pending = (i + code[i + 1], [])
-        elif op == 0x02:
-            term = (not last_if[0], last_if[1]) if last_if else (True, [])
-            blocks.append((i + code[i + 1], term))
-        elif op == 0x04 and pending is not None:
-            pending[1].append((code[i + 1], code[i + 2], code[i + 3]))
-        elif op == 0x1B and i + 22 <= len(code):
-            out.append((bytes(code[i:i + 22]), [b[1] for b in blocks if b[1][1]]))
-        if op != 0x02:
-            last_if = None if op not in (0x04, 0x06) else last_if
-        i += n
+    p = 0
+    while p + 2 <= len(chain) and struct.unpack_from("<H", chain, p)[0]:
+        size = struct.unpack_from("<H", chain, p)[0]
+        i = p + 2
+        while i < p + size and chain[i] != 0:
+            n = rdt.scd_inst_len(chain, i)
+            if n <= 0:
+                break
+            out.append((i, chain[i:i + n]))
+            i += n
+        p += size
     return out
 
 
-def enemy_blob(enemies):
-    """"RENE", u32 count; per enemy its 22 Enemy_set bytes, u8 number of terms, per term u8
-    want, u8 number of tests, the tests as u8 bank, bit, value (z_nv_enemy.c)."""
-    data = bytearray(b"RENE" + struct.pack("<I", len(enemies)))
-    for raw, terms in enemies:
-        data += raw + bytes([len(terms)])
-        for want, tests in terms:
-            data += bytes([1 if want else 0, len(tests)])
-            for t in tests:
-                data += bytes(t)
-    return bytes(data)
+def _event_commands(evt):
+    """The SCD commands the event scripts run (state 0's 0x06 blocks and 0x07 single commands),
+    read from each script's start through the states it reaches."""
+    out = []
+    starts = []
+    p = 0
+    while p + 4 <= len(evt) and struct.unpack_from("<I", evt, p)[0]:
+        starts.append(struct.unpack_from("<I", evt, p)[0])
+        p += 4
+    for a in starts:
+        i, st = a, 0
+        while i < len(evt):
+            op = evt[i]
+            if op in _EVT_CTRL:
+                n = _EVT_CTRL[op]
+                if op == 0xFF:
+                    break
+            elif st == 0:
+                if op in (6, 7):
+                    n = evt[i + 1] if op == 6 else evt[i + 1]
+                    if op == 6:
+                        out += [c for _o, c in _scd_commands(evt[i + 2:i + n])]
+                    else:
+                        k = rdt.scd_inst_len(evt, i + 2)
+                        if k > 0:
+                            out.append(evt[i + 2:i + 2 + k])
+                elif op in (0, 1, 2, 3):
+                    n = 1
+                    st = {0: 0, 1: 1, 2: 2, 3: 2}[op]
+                elif op in (4, 5):
+                    n = 3
+                elif op in (8, 9):
+                    n = 2
+                else:
+                    break
+            elif st == 1:
+                n = (12 if evt[i + 1] & 0x0F else 2) if op == 0x81 else _EVT_S1.get(op, 0)
+                if op in (0x80, 0x8B):
+                    st = 0
+            else:
+                n = _EVT_S2.get(op, 0)
+                if op == 1:
+                    st = 0
+            if n <= 0:
+                break
+            i += n
+    return out
+
+
+# RE1's movie table (the PC exe's, 0x004c39d8): cmd_fmv_set's id -> MOVIE file
+MOVIE_FILES = ["OU", "PU", "DMF", "DM3", "DM4", "DM1", "DM6", "DM7", "DM8", "DM2", None, "DMB", "DMC", "DMD", "DME",
+               "ED1", "ED2", "ED3", "EU4", "EU5", "ED6", "ED7", "ED8", "capcom", "stfc_r", "stfj_r", "stfz_r",
+               "staf_r", "vlogo"]
+
+
+def write_movies(re1, out, ids):
+    """Copy RE1's movies (Cinepak AVIs) for these ids, byte for byte, as "re1/movies/<id>"
+    (z_nv_movie.c plays them). Returns the ids written; a missing file is left out."""
+    done = []
+    d = os.path.join(out, "re1", "movies")
+    os.makedirs(d, exist_ok=True)
+    try:
+        mdir = rdt.find_file(re1, "MOVIE")
+    except Exception:
+        mdir = os.path.join(re1, "MOVIE")
+    for i in sorted(set(ids)):
+        name = MOVIE_FILES[i] if i < len(MOVIE_FILES) else None
+        path = rdt.find_file(mdir, name + ".avi") if (name and os.path.isdir(mdir)) else None
+        if not path or not os.path.exists(path):
+            print("movie %d (%s): not found, left out" % (i, name))
+            continue
+        data = open(path, "rb").read()
+        open(os.path.join(d, str(i)), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(data)) + data)
+        done.append(i)
+    return done
+
+
+def scd_blob(init, main, evt):
+    """"RSCD", u32 lengths of the init chain, main chain and event table + scripts, then the three
+    as RE1 has them (z_nv_script.c runs them)."""
+    return b"RSCD" + struct.pack("<3I", len(init), len(main), len(evt)) + init + main + evt
 
 
 def walk_cameras(floor, zones, starts):
@@ -481,11 +558,13 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
         struct.pack("<3Bx4H2h", t, sat, d0 & 0xFF, x, z, w, dd, along, up) for t, x, z, w, dd, d0, sat in climbs)
     open(os.path.join(d, name + "_climbs"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
 
-    # enemies: "<name>_enemies" (z_nv_enemy.c)
-    enemies = room_enemies(room.raw)
-    ENEMY_TYPES.update(e[0][1] for e in enemies)
-    blob = enemy_blob(enemies)
-    open(os.path.join(d, name + "_enemies"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    # RE1's scripts: "<name>_scd" (z_nv_script.c), with the enemies they place and movies they play
+    init, main, evt = room_scd(room.raw)
+    cmds = [c for _o, c in _scd_commands(init) + _scd_commands(main)] + _event_commands(evt)
+    ENEMY_TYPES.update(c[1] for c in cmds if c[0] == 0x1B)
+    MOVIES.update(c[1] for c in cmds if c[0] == 0x29)
+    blob = scd_blob(init, main, evt)
+    open(os.path.join(d, name + "_scd"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
 
     # doors: "<name>_doors" (z_nv_door.c finds it by the scene's name)
     blob = door_blob(doors)

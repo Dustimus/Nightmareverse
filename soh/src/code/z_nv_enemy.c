@@ -1,19 +1,19 @@
 /*
  * Nightmareverse: RE1's enemies.
  *
- * A room's enemies are its init script's Enemy_set instructions (SCD 0x1B, cmd_enemy_set
- * 0x004617d0), "scenes/shared/<name>_scene/<name>_enemies" (re1/tools/soh_scene.py), each with
- * the flag tests of the if/else blocks around it. Each one that passes becomes an Nv_Enemy actor
- * (registered with the ActorDB by NvActors.cpp), drawn with RE1's own model and animations,
- * "re1/enemies/em<type>" (re1/tools/soh_enemy.py).
+ * A room's enemies are what its init script's Enemy_set instructions place (SCD 0x1B,
+ * cmd_enemy_set 0x004617d0; the scripts run in z_nv_script.c), in RE1's enemy slots. Each becomes
+ * an Nv_Enemy actor (registered with the ActorDB by NvActors.cpp), drawn with RE1's own model and
+ * animations, "re1/enemies/em<type>" (re1/tools/soh_enemy.py).
  *
  * The zombie (types 0, 1 and 17) is RE1's: zombie_update and its tables
  * (docs/ZOMBIE_STATE_MACHINE.md in the PC decomp), in RE1's units, angles (4096 a turn) and
  * 30 Hz ticks, three ticks every two of OoT's frames. Ported so far: eating (behaviour 5), getting
  * up, turning to Link, the walking chase, the grab and bite and the stagger back after it, the hit
- * reaction and the falling death. Not yet: the idle head turns and wandering of the other behaviours, the knock-downs and
- * leg shots, getting back up, the script-held zombies (behaviour bit 7: their room events drive
- * them; here they act as their behaviour alone), and RE1's sounds.
+ * reaction and the falling death. A zombie whose behaviour has bit 7 is held for its room's
+ * script (zombie_state_check returns at once) until enemy_prop_set changes it. Not yet: the idle
+ * head turns and wandering of the other behaviours, the knock-downs and leg shots, getting back
+ * up, the events' own animation of enemies, and RE1's sounds.
  * Kenneth's corpse (37, 41) is posed and still.
  *
  * Link's side is OoT's: his weapons hurt it through its collider and his life is in hearts. The
@@ -40,7 +40,7 @@
 #define NV_EM_MODELS 6
 #define NV_EM_CELL_W 64
 #define NV_EM_CELL_H 32
-#define NV_EM_FLAG_BYTES 32 // g_EnemiesFlags (bank 3): 256 death flags
+#define NV_ENEMY_SLOTS 16 // cmd_enemy_set's slot (its low nibble)
 
 typedef struct {
     u16 cell;
@@ -106,7 +106,10 @@ enum { NV_ZST_IDLE = 1, NV_ZST_DAMAGED = 2, NV_ZST_DIE = 3, NV_ZST_ATTACK = 5 };
 
 static NvEmModel sNvEmModels[NV_EM_MODELS];
 static s32 sNvEmModelsInit = false;
-static u8 sNvEnemyFlags[NV_EM_FLAG_BYTES];
+static Actor* sNvEnemySlots[NV_ENEMY_SLOTS];
+
+s32 NvFlags_Test(s32 bank, s32 bit); // z_nv_script.c
+void NvFlags_Op(s32 bank, s32 bit, s32 mode);
 
 s32 NvActor_EnemyId(void); // NvActors.cpp
 
@@ -183,24 +186,10 @@ static s32 NvEnemy_IsCorpse(s32 type) {
 
 /* ---- flags ---- */
 
-/**
- * RE1's flag banks, as far as Nightmareverse keeps them: the enemies' death flags (bank 3) for
- * the session. The story flags come with the core systems; until then bank 1's bit 2 stands set
- * (the dining room's opening, which puts the corridor zombie over Kenneth) and the rest clear.
- */
-static s32 NvEnemy_Flag(u8 bank, u8 bit) {
-    if (bank == 3) {
-        return (sNvEnemyFlags[bit >> 3] >> (bit & 7)) & 1;
-    }
-    if ((bank == 1) && (bit == 2)) {
-        return 1;
-    }
-    return 0;
-}
-
+/** Flg_on(g_EnemiesFlags, death_event_id): bank 3, killed for good. */
 static void NvEnemy_SetDeathFlag(u8 bit) {
     if (bit != 0xFF) {
-        sNvEnemyFlags[bit >> 3] |= 1 << (bit & 7);
+        NvFlags_Op(3, bit, 0);
     }
 }
 
@@ -707,6 +696,9 @@ static void NvZombie_Tick(NvEnemy* this, PlayState* play) {
     NvEnemy_PlayerRe1(play, &px, &pz);
     switch (this->state) {
         case NV_ZST_IDLE:
+            if (this->behaviour & 0x80) { // zombie_state_check: held for the room's script
+                break;
+            }
             if ((this->behaviour & 0x0F) == 5) {
                 NvZombie_Eating(this, play, px, pz);
                 break;
@@ -799,7 +791,9 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x2A; // (a ReDead)
         NvZombie_SetState(this, NV_ZST_IDLE, 0, 0, 0);
         NvEnemy_SetAnim(this, sNvZombieAnimId[this->behaviour & 0xF], 0);
-        if ((this->behaviour & 0x0F) != 5) {
+        if ((this->behaviour & 0x0F) == 5) {
+            this->actionState = 2; // zombie_init: an eating zombie starts at getting up
+        } else {
             this->action = 2; // the other behaviours' idling and wandering aren't ported: it comes at Link
         }
         if (this->behaviour == 6) { // lying dead
@@ -822,6 +816,11 @@ void NvEnemy_Destroy(Actor* thisx, PlayState* play) {
     NvEnemy* this = (NvEnemy*)thisx;
 
     Collider_DestroyCylinder(play, &this->collider);
+    for (s32 i = 0; i < NV_ENEMY_SLOTS; i++) {
+        if (sNvEnemySlots[i] == thisx) {
+            sNvEnemySlots[i] = NULL;
+        }
+    }
 }
 
 s32 NvDoorScene_Covering(void);
@@ -1037,82 +1036,51 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
     CLOSE_DISPS(gfxCtx);
 }
 
-/* ---- spawning ---- */
+/* ---- the script's side ---- */
 
-/** Spawn the room's enemies whose flag tests pass (Play_Init, once the room is in). */
-void NvEnemy_SpawnRoom(PlayState* play) {
-    char path[256];
-    const char* file;
-    size_t len;
-    u8* d;
-    u32 count;
-    u32 i;
-    s32 id;
+void NvEnemy_ClearSlots(void) {
+    memset(sNvEnemySlots, 0, sizeof(sNvEnemySlots));
+}
 
-    if ((play->loadedScene == NULL) || (play->loadedScene->sceneFile.fileName == NULL)) {
-        return;
-    }
-    file = play->loadedScene->sceneFile.fileName;
-    len = strlen(file);
-    if ((len <= 6) || (strcmp(file + len - 6, "_scene") != 0)) {
-        return;
-    }
-    snprintf(path, sizeof(path), "scenes/shared/%s/%.*s_enemies", file, (int)(len - 6), file);
-    if (!ResourceMgr_FileExists(path)) {
-        return;
-    }
-    d = (u8*)ResourceGetDataByName(path);
-    if ((d == NULL) || (memcmp(d, "RENE", 4) != 0)) {
-        return;
-    }
-    if (getenv("NV_NO_ENEMIES") != NULL) {
-        return;
-    }
-    id = NvActor_EnemyId();
-    memcpy(&count, d + 4, sizeof(count));
-    d += 8;
-    for (i = 0; i < count; i++) {
-        u8* e = d; // the 22 Enemy_set bytes
-        s32 numTerms = d[22];
-        s32 pass = true;
-        s32 t;
-        s16 y;
-        u16 angle;
-        u16 x;
-        u16 z;
+/** cmd_enemy_set: place one (its 22 bytes), unless its death flag is up or its slot is taken. */
+void NvEnemy_ScdSet(PlayState* play, const u8* e) {
+    s32 slot = e[0x12] & 0xF;
+    s16 y;
+    u16 angle;
+    u16 x;
+    u16 z;
 
-        d += 23;
-        for (t = 0; t < numTerms; t++) {
-            s32 want = d[0];
-            s32 numTests = d[1];
-            s32 all = true;
-            s32 k;
-
-            for (k = 0; k < numTests; k++) {
-                if (NvEnemy_Flag(d[2 + k * 3], d[3 + k * 3]) != (d[4 + k * 3] != 0)) {
-                    all = false;
-                }
-            }
-            if (all != want) {
-                pass = false;
-            }
-            d += 2 + numTests * 3;
-        }
-        // cmd_enemy_set: killed (its death flag set) stays dead
-        if ((e[3] != 0xFF) && NvEnemy_Flag(3, e[3])) {
-            pass = false;
-        }
-        if (!pass || !(NvEnemy_IsZombie(e[1]) || NvEnemy_IsCorpse(e[1]))) {
-            continue;
-        }
-        memcpy(&angle, e + 8, 2);
-        memcpy(&x, e + 12, 2);
-        memcpy(&y, e + 14, 2);
-        memcpy(&z, e + 16, 2);
-        // (RE1's x and z are unsigned: rooms run past 32767) rot: behaviour, angle, death flag
-        Actor_Spawn(&play->actorCtx, play, id, x * NV_RE1_SCALE, -y * NV_RE1_SCALE, -z * NV_RE1_SCALE, e[2],
-                    angle & 0xFFF, e[3], e[1]);
+    if (((e[3] != 0xFF) && NvFlags_Test(3, e[3])) || (sNvEnemySlots[slot] != NULL)) {
+        return;
     }
+    if (!(NvEnemy_IsZombie(e[1]) || NvEnemy_IsCorpse(e[1]))) {
+        return; // (the other types aren't ported)
+    }
+    memcpy(&angle, e + 8, 2);
+    memcpy(&x, e + 12, 2);
+    memcpy(&y, e + 14, 2);
+    memcpy(&z, e + 16, 2);
+    // (RE1's x and z are unsigned: rooms run past 32767) rot: behaviour, angle, death flag
+    sNvEnemySlots[slot] = Actor_Spawn(&play->actorCtx, play, NvActor_EnemyId(), x * NV_RE1_SCALE, -y * NV_RE1_SCALE,
+                                      -z * NV_RE1_SCALE, e[2], angle & 0xFFF, e[3], e[1]);
+}
+
+/** cmd_enemy_prop_set: 0 the behaviour byte, 2 the action (the others aren't run yet). */
+void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param) {
+    NvEnemy* this;
+
+    if ((slot >= NV_ENEMY_SLOTS) || (sNvEnemySlots[slot] == NULL)) {
+        return;
+    }
+    this = (NvEnemy*)sNvEnemySlots[slot];
+    if (subCmd == 0) {
+        this->behaviour = param & 0xFF;
+    } else if (subCmd == 2) {
+        this->action = param & 0xFF;
+        this->actionState = 0;
+    }
+    printf("NVENEMY slot %d prop %d = %d\n", (int)slot, (int)subCmd, (int)param);
+    fflush(stdout);
 }
 
 const size_t gNvEnemySize = sizeof(NvEnemy);

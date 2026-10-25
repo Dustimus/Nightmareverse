@@ -150,18 +150,30 @@ arm or shield can show through holes in RE1's own mask art (102's wardrobe has a
 column inside the wood). Masks and spacing stay as RE1 has them; single spots can be patched
 if one bothers in play (agreed with the user, 2026-10-25).
 
-Enemies (first step: the corridor zombie in 104, agreed with the user 2026-10-25). A room's
-enemies are its init script's Enemy_set instructions with the flag tests around them
-(`<name>_enemies`, `tools/soh_scene.py`), drawn with RE1's own models and animations
-(`re1/enemies/em<type>`, `tools/soh_enemy.py`) by one actor, `soh/src/code/z_nv_enemy.c`
-(registered with the ActorDB in `soh/soh/Enhancements/Nightmareverse/NvActors.cpp`). The zombie's
-behaviour is RE1's `zombie_update` in RE1's units and 30 Hz ticks: eating, getting up, turning,
-the walking chase, grab and bite, the stagger back, the flinch and the falling death. From mod1,
-as the user allowed: the collider's size, the damage table (Link's weapons) and the bite (half a
-heart every 25 frames); RE1's health 17-99 is kept as tenths. Until the story flags exist, bank 1
-bit 2 stands set so 104 has the feeding zombie; death flags last for the session only. Not yet:
-the other behaviours' idling and wandering, knock-downs, getting back up, room events driving
-script-held zombies, RE1's sounds. The headless checks run with `NV_NO_ENEMIES=1`.
+Room scripts (2026-10-25): each room keeps RE1's three scripts as they are (`<name>_scd`,
+`tools/soh_scene.py`), and `soh/src/code/z_nv_script.c` runs them as RE1 does: the init chain once
+as the room loads, the main chain every tick, and the eight event slots (RE1's event VM). Run so
+far: if/else, RE1's ten flag banks (a bit test passes when the bit *differs* from the byte given),
+the stage/room/camera test, Enemy_set, enemy_prop_set's behaviour, events, movies. Other commands
+are stepped over at their RE1 length and other tests are false. Flags last for the session.
+
+Enemies (first step: the corridor zombie in 104, agreed with the user 2026-10-25): placed by the
+init script's Enemy_set, drawn with RE1's own models and animations (`re1/enemies/em<type>`,
+`tools/soh_enemy.py`) by one actor, `soh/src/code/z_nv_enemy.c` (registered with the ActorDB in
+`soh/soh/Enhancements/Nightmareverse/NvActors.cpp`). The zombie's behaviour is RE1's
+`zombie_update` in RE1's units and 30 Hz ticks: eating, getting up, turning, the walking chase,
+grab and bite, the stagger back, the flinch and the falling death; one whose behaviour has bit 7
+is held for its room's script. From mod1, as the user allowed: the collider's size, the damage
+table (Link's weapons) and the bite (half a heart every 25 frames); RE1's health 17-99 is kept as
+tenths. Not yet: the other behaviours' idling and wandering, knock-downs, getting back up, events
+animating enemies, RE1's sounds. The headless checks run with `NV_NO_ENEMIES=1` (no scripts).
+
+Movies: RE1's own AVIs (Cinepak + PCM), copied into the mod unchanged for the movies the rooms'
+scripts can play (`re1/movies/<id>`), and played by `soh/src/code/z_nv_movie.c` (its own AVI
+reader and Cinepak decoder; the sound through SDL, `NvMovieAudio.cpp`). Any button skips. 104's
+scene is RE1's: entering camera 4 makes the main script start event 2, which plays movie 3
+(DM3.avi), releases the zombie (behaviour 0x85 to 5: it gets up) and sets bank 1 bit 2, so the
+next visit has the other zombie.
 
 Ramps: the stairs inside rooms (203's grand staircase, 207's, 20E's) are walked; the stairs RE1
 treats as doors (the foyer's to 203, 10B to 207) stay doors.
@@ -172,8 +184,7 @@ polygon budget (the foyer went from 7.4k to 9.4k polygons): it needs merged floo
 polygons first. Heights per room: to estimate from each room's cameras, checked against the
 backgrounds, or marked by hand.
 
-Later: RE1's FMVs (Cinepak AVIs, from the player's English PC copy), and the mansion's way in
-through a Lost Woods wrong turn instead of a replaced OoT door.
+Later: the mansion's way in through a Lost Woods wrong turn instead of a replaced OoT door.
 
 ## Design notes (from the user)
 
