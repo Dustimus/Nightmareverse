@@ -12,6 +12,7 @@
  * drawn as SoH draws a room's background. Any button skips it, as RE1's in-game movies allow.
  */
 #include "global.h"
+#include "soh/OTRGlobals.h"
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/resourcebridge.h>
 #include <stdio.h>
