@@ -144,6 +144,12 @@ A from where a player would stand must reach the target at its arrival point.
 Marking spots by hand: hold L and press D-pad down, and SoH appends the room, Link's position,
 facing and camera to `nv_spots.txt` in its folder.
 
+Known quirk, left alone on purpose: RE1's masks only cover what Jill can reach. Link's centre
+stops where hers does (the wall inset), but his body is wider, so pressed against furniture his
+arm or shield can show through holes in RE1's own mask art (102's wardrobe has a transparent
+column inside the wood). Masks and spacing stay as RE1 has them; single spots can be patched
+if one bothers in play (agreed with the user, 2026-10-25).
+
 Later: walkable stairs. The stairs inside rooms (203's grand staircase, 207's, 20E's) work by
 A for now, as in RE1; they should also be ramps Link can just walk, built over each type 5/6
 zone from its low end to its high end (the move and rise RE1's climb makes), with the stair
