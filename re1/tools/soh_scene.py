@@ -418,7 +418,8 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     # stairs: "<name>_climbs" (z_nv_climb.c), RE1's Aot_set zones of type 5 and 6 with the move
     # player_door_open_sequence makes (shallower in rooms 0x05 and 0x0E)
     along, up = re1_floor.CLIMB_SHALLOW if int(room_id[1:], 16) in (0x05, 0x0E) else re1_floor.CLIMB
-    climbs = [a for a in aots if a[0] in (5, 6)]
+    # (a staircase that became a ramp is walked, not climbed: no A there)
+    climbs = [a for a in aots if a[0] in (5, 6) and tuple(a[:5]) not in floor.ramp_zones]
     blob = b"RCLB" + struct.pack("<I", len(climbs)) + b"".join(
         struct.pack("<3Bx4H2h", t, sat, d0 & 0xFF, x, z, w, dd, along, up) for t, x, z, w, dd, d0, sat in climbs)
     open(os.path.join(d, name + "_climbs"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)

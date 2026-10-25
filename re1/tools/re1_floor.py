@@ -156,6 +156,7 @@ class Floor:
         # other's (_/‾); the rest of the box stays solid, so the stairs keep their sides.
         self.ramps = []
         self.ramp_cells = {}
+        self.ramp_zones = set()  # (type, x, z, w, d) of the climb zones made ramps
         records = list(self.records)
         for zt, zx, zz, zw, zd, _d0 in climb_zones(aots):
             cx, cz = zx + zw / 2, zz + zd / 2
@@ -181,6 +182,7 @@ class Floor:
                 continue
             ramp = (zt, k0 * CELL, (k1 + 1) * CELL, j0 * CELL, (j1 + 1) * CELL, level[c0], level[c1])
             self.ramps.append(ramp)
+            self.ramp_zones.add((zt, zx, zz, zw, zd))
             for k in range(k0, k1 + 1):
                 for j in range(j0, j1 + 1):
                     self.ramp_cells[(k, j) if zt == 5 else (j, k)] = ramp
