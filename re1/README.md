@@ -164,3 +164,9 @@ backgrounds, or marked by hand.
 
 Later: RE1's FMVs (Cinepak AVIs, from the player's English PC copy), and the mansion's way in
 through a Lost Woods wrong turn instead of a replaced OoT door.
+
+## Design notes (from the user)
+
+- Link takes Jill's place; Jill stays only where the FMVs need her.
+- Guns (when they come back): Link is left-handed, as in OoT, so the Beretta and the rest
+  are held and fired with his left hand (mod1 had them in the right).
