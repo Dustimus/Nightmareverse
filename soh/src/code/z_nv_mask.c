@@ -43,6 +43,7 @@ typedef struct NvMaskPiece {
  */
 #define NV_MASK_SUB 4.0f      // mask vertices: steps per OoT unit
 #define NV_MASK_OVERLAP 0.5f  // pixels each piece reaches past its rectangle
+#define NV_MASK_NEAR 1.5f     // nearest a piece is placed, in near-plane distances
 
 s32 NvDoorScene_Covering(void);
 
@@ -155,7 +156,9 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
                     f32 v = (c >= 2) ? rows + NV_MASK_OVERLAP : -NV_MASK_OVERLAP;
                     f32 dx = (piece.x + u - 160.0f) / k;
                     f32 dy = (120.0f - (piece.y + row + v)) / k;
-                    f32 d = piece.depth * NV_MASK_SUB;
+                    // RE1 keys "always in front" pieces (a chandelier seen from above) at ~128 units,
+                    // nearer than the camera's near plane: kept just past it, or they'd be clipped
+                    f32 d = MAX(piece.depth, play->view.zNear * NV_MASK_NEAR) * NV_MASK_SUB;
 
                     vtx[c].v.ob[0] = d * (fwd.x + right.x * dx + up.x * dy);
                     vtx[c].v.ob[1] = d * (fwd.y + right.y * dx + up.y * dy);
