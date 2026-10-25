@@ -41,6 +41,9 @@ typedef struct NvMaskPiece {
  * background was drawn. The scene "<name>_scene" keeps camera n's mask, if it has one, at
  * scenes/shared/<name>_scene/<name>_bg<n>_mask (re1/tools/soh_scene.py).
  */
+#define NV_MASK_SUB 4.0f      // mask vertices: steps per OoT unit
+#define NV_MASK_OVERLAP 0.5f  // pixels each piece reaches past its rectangle
+
 s32 NvDoorScene_Covering(void);
 
 void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
@@ -113,7 +116,13 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
         gSPClearGeometryMode(gfx++, G_CULL_BOTH | G_LIGHTING | G_FOG | G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR);
         gSPSetGeometryMode(gfx++, G_ZBUFFER | G_SHADE);
         gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
-        gSPMatrix(gfx++, &gMtxClear, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        // vertices relative to the eye, in quarter units: the corners of neighbouring pieces meet
+        // (whole units rounded them up to half a pixel apart, and Link showed through the seams)
+        Matrix_Push();
+        Matrix_Translate(play->view.eye.x, play->view.eye.y, play->view.eye.z, MTXMODE_NEW);
+        Matrix_Scale(1.0f / NV_MASK_SUB, 1.0f / NV_MASK_SUB, 1.0f / NV_MASK_SUB, MTXMODE_APPLY);
+        gSPMatrix(gfx++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        Matrix_Pop();
 
         for (i = 0; i < count; i++) {
             NvMaskPiece piece;
@@ -140,18 +149,20 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
                 // the depth buffer tests Link against it per pixel (RE1 sorts each body part at
                 // its own view depth, t[2] >> 4 per part)
                 for (c = 0; c < 4; c++) {
-                    f32 sx = piece.x + ((c == 1 || c == 2) ? piece.w : 0);
-                    f32 sy = piece.y + row + ((c >= 2) ? rows : 0);
-                    f32 dx = (sx - 160.0f) / k;
-                    f32 dy = (120.0f - sy) / k;
-                    f32 d = piece.depth;
+                    // half a pixel past the rectangle each way, so pieces overlap at their seams
+                    // (the texture's clamped edge fills it)
+                    f32 u = (c == 1 || c == 2) ? piece.w + NV_MASK_OVERLAP : -NV_MASK_OVERLAP;
+                    f32 v = (c >= 2) ? rows + NV_MASK_OVERLAP : -NV_MASK_OVERLAP;
+                    f32 dx = (piece.x + u - 160.0f) / k;
+                    f32 dy = (120.0f - (piece.y + row + v)) / k;
+                    f32 d = piece.depth * NV_MASK_SUB;
 
-                    vtx[c].v.ob[0] = play->view.eye.x + d * (fwd.x + right.x * dx + up.x * dy);
-                    vtx[c].v.ob[1] = play->view.eye.y + d * (fwd.y + right.y * dx + up.y * dy);
-                    vtx[c].v.ob[2] = play->view.eye.z + d * (fwd.z + right.z * dx + up.z * dy);
+                    vtx[c].v.ob[0] = d * (fwd.x + right.x * dx + up.x * dy);
+                    vtx[c].v.ob[1] = d * (fwd.y + right.y * dx + up.y * dy);
+                    vtx[c].v.ob[2] = d * (fwd.z + right.z * dx + up.z * dy);
                     vtx[c].v.flag = 0;
-                    vtx[c].v.tc[0] = ((c == 1 || c == 2) ? piece.w : 0) << 5;
-                    vtx[c].v.tc[1] = ((c >= 2) ? rows : 0) << 5;
+                    vtx[c].v.tc[0] = (s16)(u * 32.0f);
+                    vtx[c].v.tc[1] = (s16)(v * 32.0f);
                     vtx[c].v.cn[0] = vtx[c].v.cn[1] = vtx[c].v.cn[2] = vtx[c].v.cn[3] = 255;
                 }
                 gDPLoadTextureBlock(gfx++, texels + row * piece.stride, G_IM_FMT_I, G_IM_SIZ_8b, piece.stride, rows, 0,
