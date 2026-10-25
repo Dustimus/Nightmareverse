@@ -65,7 +65,7 @@ def run_room(soh_dir, name, walks, out, display):
     for i, (p, q) in enumerate(walks):
         steps += ["pos:%d,%d" % p, "wait:3", "%d,%d" % q, "wait:2", "mark:%d" % i]
     steps.append("mark:9999")
-    env = dict(os.environ, SHIP_HOME=soh_dir, LIBGL_ALWAYS_SOFTWARE="1", DISPLAY=display,
+    env = dict(os.environ, SHIP_HOME=soh_dir, LIBGL_ALWAYS_SOFTWARE="1", NV_NO_ENEMIES="1", DISPLAY=display,
                NV_BOOT_ENTRANCE=name, NV_WALK=";".join(steps), NV_WALK_TIMEOUT=str(WALK_FRAMES))
     log_path = os.path.join(out, name + ".log")
     proc = subprocess.Popen(["./soh.elf"], cwd=soh_dir, env=env, stdout=open(log_path, "w"),

@@ -150,11 +150,21 @@ arm or shield can show through holes in RE1's own mask art (102's wardrobe has a
 column inside the wood). Masks and spacing stay as RE1 has them; single spots can be patched
 if one bothers in play (agreed with the user, 2026-10-25).
 
-Later: walkable stairs. The stairs inside rooms (203's grand staircase, 207's, 20E's) work by
-A for now, as in RE1; they should also be ramps Link can just walk, built over each type 5/6
-zone from its low end to its high end (the move and rise RE1's climb makes), with the stair
-box's walls opened there. The stairs RE1 treats as doors (the foyer's to 203, 10B to 207) stay
-doors.
+Enemies (first step: the corridor zombie in 104, agreed with the user 2026-10-25). A room's
+enemies are its init script's Enemy_set instructions with the flag tests around them
+(`<name>_enemies`, `tools/soh_scene.py`), drawn with RE1's own models and animations
+(`re1/enemies/em<type>`, `tools/soh_enemy.py`) by one actor, `soh/src/code/z_nv_enemy.c`
+(registered with the ActorDB in `soh/soh/Enhancements/Nightmareverse/NvActors.cpp`). The zombie's
+behaviour is RE1's `zombie_update` in RE1's units and 30 Hz ticks: eating, getting up, turning,
+the walking chase, grab and bite, the stagger back, the flinch and the falling death. From mod1,
+as the user allowed: the collider's size, the damage table (Link's weapons) and the bite (half a
+heart every 25 frames); RE1's health 17-99 is kept as tenths. Until the story flags exist, bank 1
+bit 2 stands set so 104 has the feeding zombie; death flags last for the session only. Not yet:
+the other behaviours' idling and wandering, knock-downs, getting back up, room events driving
+script-held zombies, RE1's sounds. The headless checks run with `NV_NO_ENEMIES=1`.
+
+Ramps: the stairs inside rooms (203's grand staircase, 207's, 20E's) are walked; the stairs RE1
+treats as doors (the foyer's to 203, 10B to 207) stay doors.
 
 Later: ceilings, so OoT's thrown things (bombs) stay in the room; RE1 has none. A first try
 (a ceiling over every floor) boxed Link in, most likely by pushing the collision past OoT's

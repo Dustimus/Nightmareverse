@@ -236,7 +236,7 @@ def main():
             steps.append("mark:9999")
             out = os.path.join(a.out, name)
             os.makedirs(out, exist_ok=True)
-            env = dict(os.environ, SHIP_HOME=a.soh_dir, LIBGL_ALWAYS_SOFTWARE="1", DISPLAY=a.display,
+            env = dict(os.environ, SHIP_HOME=a.soh_dir, LIBGL_ALWAYS_SOFTWARE="1", NV_NO_ENEMIES="1", DISPLAY=a.display,
                        NV_BOOT_ENTRANCE="0x%X" % entrance[name], NV_WALK=";".join(steps),
                        NV_WALK_TIMEOUT=str(WALK_IN_FRAMES))
             log_path = os.path.join(out, "soh.log")

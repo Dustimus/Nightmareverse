@@ -1024,7 +1024,9 @@ def load_rdt(stage, room_id, player):
 def _pack_soh(folder, re1, anims):
     import soh_doors
     import soh_scene
+    import soh_enemy
     print("soh: door scenes %s" % soh_doors.write(re1, folder, anims))
+    print("soh: enemies %s" % soh_enemy.write(re1, folder, soh_scene.ENEMY_TYPES))
     soh_scene.pack_o2r(folder, folder.rstrip("/") + ".o2r")
     print("soh: packed %s.o2r" % folder.rstrip("/"))
 

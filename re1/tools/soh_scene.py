@@ -228,6 +228,63 @@ def room_aots(raw):
     return out
 
 
+ENEMY_TYPES = set()  # enemy types the written rooms place (soh_enemy.py writes their models)
+
+
+def room_enemies(raw):
+    """Enemy_set (SCD 0x1B, 22 bytes) of the room's init script, each with the conditions of the
+    if/else blocks around it: [(raw, [(want, [(bank, bit, value)])])]. A term holds when its bit
+    tests (SCD 0x04, cmd_bit_test) all match, or don't, as want says: an if's own tests, or not
+    them in its else (if: 01 len, the tests, its block to +len; else: 02 len, its block to +len).
+    Other conditions (0x06 compares...) are left out of the term: true."""
+    offs = struct.unpack_from("<19I", raw, 0x94 - 76)
+    out = []
+    if not offs[6]:
+        return out
+    length = struct.unpack_from("<H", raw, offs[6])[0]
+    code = raw[offs[6] + 2:offs[6] + 2 + length]
+    blocks = []  # (end, term)
+    pending = None  # an if's tests, while they're read
+    last_if = None  # the term of the if block that just closed (for an else)
+    i = 0
+    while i < len(code):
+        while blocks and i >= blocks[-1][0]:
+            last_if = blocks.pop()[1]
+        n = rdt.scd_inst_len(code, i)
+        if n <= 0:
+            break
+        op = code[i]
+        if pending is not None and op not in (0x04, 0x06):
+            blocks.append((pending[0], (True, pending[1])))
+            pending = None
+        if op == 0x01:
+            pending = (i + code[i + 1], [])
+        elif op == 0x02:
+            term = (not last_if[0], last_if[1]) if last_if else (True, [])
+            blocks.append((i + code[i + 1], term))
+        elif op == 0x04 and pending is not None:
+            pending[1].append((code[i + 1], code[i + 2], code[i + 3]))
+        elif op == 0x1B and i + 22 <= len(code):
+            out.append((bytes(code[i:i + 22]), [b[1] for b in blocks if b[1][1]]))
+        if op != 0x02:
+            last_if = None if op not in (0x04, 0x06) else last_if
+        i += n
+    return out
+
+
+def enemy_blob(enemies):
+    """"RENE", u32 count; per enemy its 22 Enemy_set bytes, u8 number of terms, per term u8
+    want, u8 number of tests, the tests as u8 bank, bit, value (z_nv_enemy.c)."""
+    data = bytearray(b"RENE" + struct.pack("<I", len(enemies)))
+    for raw, terms in enemies:
+        data += raw + bytes([len(terms)])
+        for want, tests in terms:
+            data += bytes([1 if want else 0, len(tests)])
+            for t in tests:
+                data += bytes(t)
+    return bytes(data)
+
+
 def walk_cameras(floor, zones, starts):
     """{floor cell: camera} as a player who walked there from (x, z) would have it: RE1 has no
     camera regions, only the room's opening camera (entry_camera) and the switch zones of the
@@ -423,6 +480,12 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     blob = b"RCLB" + struct.pack("<I", len(climbs)) + b"".join(
         struct.pack("<3Bx4H2h", t, sat, d0 & 0xFF, x, z, w, dd, along, up) for t, x, z, w, dd, d0, sat in climbs)
     open(os.path.join(d, name + "_climbs"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+
+    # enemies: "<name>_enemies" (z_nv_enemy.c)
+    enemies = room_enemies(room.raw)
+    ENEMY_TYPES.update(e[0][1] for e in enemies)
+    blob = enemy_blob(enemies)
+    open(os.path.join(d, name + "_enemies"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
 
     # doors: "<name>_doors" (z_nv_door.c finds it by the scene's name)
     blob = door_blob(doors)

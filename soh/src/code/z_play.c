@@ -352,6 +352,8 @@ u8 CheckBridgeRewardCount() {
     return bridgeRewardCount;
 }
 
+void NvEnemy_SpawnRoom(PlayState* play);
+
 void Play_Init(GameState* thisx) {
     PlayState* play = (PlayState*)thisx;
     GraphicsContext* gfxCtx = play->state.gfxCtx;
@@ -605,6 +607,7 @@ void Play_Init(GameState* thisx) {
     gSaveContext.seqId = play->sequenceCtx.seqId;
     gSaveContext.natureAmbienceId = play->sequenceCtx.natureAmbienceId;
     Actor_InitPlayerHorse(play, GET_PLAYER(play));
+    NvEnemy_SpawnRoom(play); // Nightmareverse: RE1's enemies (z_nv_enemy.c)
     AnimationContext_Update(play, &play->animationCtx);
     gSaveContext.respawnFlag = 0;
 
