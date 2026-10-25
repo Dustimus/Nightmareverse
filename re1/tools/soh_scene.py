@@ -356,6 +356,22 @@ def write_movies(re1, out, ids):
     return done
 
 
+def re1col_blob(raw):
+    """"RCOL", u32 lengths of the boundary block and the walk zones, then both as RE1 has them:
+    the boundaries (RDT+0x4C: s16 cellX, cellZ, u32 count per quadrant x5, then 12-byte records
+    u16 xMax, zMax, xMin, zMin, type, flags; check_room_collision) and the walk zones (RDT+0x58:
+    count byte, pad, then 12-byte zones; zone_path_find). z_nv_zombie.c moves enemies by them."""
+    offs = struct.unpack_from("<19I", raw, 0x94 - 76)
+    bnd = b""
+    if offs[1]:
+        counts = struct.unpack_from("<5I", raw, offs[1] + 4)
+        bnd = raw[offs[1]:offs[1] + 0x18 + 12 * sum(counts)]
+    zones = b""
+    if offs[4]:
+        zones = raw[offs[4]:offs[4] + 2 + 12 * raw[offs[4]]]
+    return b"RCOL" + struct.pack("<2I", len(bnd), len(zones)) + bnd + zones
+
+
 def scd_blob(init, main, evt):
     """"RSCD", u32 lengths of the init chain, main chain and event table + scripts, then the three
     as RE1 has them (z_nv_script.c runs them)."""
@@ -565,6 +581,9 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     MOVIES.update(c[1] for c in cmds if c[0] == 0x29)
     blob = scd_blob(init, main, evt)
     open(os.path.join(d, name + "_scd"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    # RE1's own collision and walk zones: "<name>_re1col" (z_nv_zombie.c)
+    blob = re1col_blob(room.raw)
+    open(os.path.join(d, name + "_re1col"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
 
     # doors: "<name>_doors" (z_nv_door.c finds it by the scene's name)
     blob = door_blob(doors)

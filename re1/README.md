@@ -157,16 +157,25 @@ far: if/else, RE1's ten flag banks (a bit test passes when the bit *differs* fro
 the stage/room/camera test, Enemy_set, enemy_prop_set's behaviour, events, movies. Other commands
 are stepped over at their RE1 length and other tests are false. Flags last for the session.
 
-Enemies (first step: the corridor zombie in 104, agreed with the user 2026-10-25): placed by the
-init script's Enemy_set, drawn with RE1's own models and animations (`re1/enemies/em<type>`,
-`tools/soh_enemy.py`) by one actor, `soh/src/code/z_nv_enemy.c` (registered with the ActorDB in
-`soh/soh/Enhancements/Nightmareverse/NvActors.cpp`). The zombie's behaviour is RE1's
-`zombie_update` in RE1's units and 30 Hz ticks: eating, getting up, turning, the walking chase,
-grab and bite, the stagger back, the flinch and the falling death; one whose behaviour has bit 7
-is held for its room's script. From mod1, as the user allowed: the collider's size, the damage
-table (Link's weapons) and the bite (half a heart every 25 frames); RE1's health 17-99 is kept as
-tenths. Not yet: the other behaviours' idling and wandering, knock-downs, getting back up, events
-animating enemies, RE1's sounds. The headless checks run with `NV_NO_ENEMIES=1` (no scripts).
+Enemies (2026-10-25: "port them over as accurately as possible and then reverse engineer some
+Zelda logic on to them"): RE1's zombie is a port, kept apart from the OoT side.
+`soh/src/code/z_nv_zombie.c` is RE1's own code on an RE1 entity (`z_nv_re1.h`, the decomp's
+Entity fields) in RE1's units and 30 Hz ticks: `zombie_update` and all its states, the action,
+move and damage tables, the attack (grab, bite, push back), the knock-down and getting back up,
+death, and the script actions (roar, head shot, vomit); with them RE1's room collision and walk
+zones (`<name>_re1col`, `tools/soh_scene.py`: RDT+0x4C and +0x58), sight test, path finding,
+wandering and `Joint_move`. `soh/src/code/z_nv_enemy.c` is the Zelda layer: one actor per entity
+(registered with the ActorDB in `soh/soh/Enhancements/Nightmareverse/NvActors.cpp`) that draws
+RE1's model and animation (`re1/enemies/em<type>`, `tools/soh_enemy.py`), feeds Link to the port
+as RE1's player (position, facing, Jill's size, button mashing), turns Link's weapon hits into
+RE1 hits (blades as the knife, shots as the handgun, explosions as the grenade launcher; OoT
+damage x 9 on RE1's health), holds Link in a grab with OoT's grab (`play->grabPlayer`) at the spot
+RE1 puts the player, and turns RE1's bite damage into hearts (10 = half a heart). Z-targeting
+reaches 350 units. Masks hide enemies as they hide Link. Room scripts place enemies with Enemy_set
+and enemy_pos_set; one whose behaviour has bit 7 is held for its script. Not yet: RE1's sounds and
+effects, other enemy types' code (they stand), events animating enemies. Dev hook:
+`NV_TEST_ENEMY="type,x,z"` (OoT units) adds a held, non-solid enemy. The headless checks run with
+`NV_NO_ENEMIES=1` (no scripts).
 
 Movies: RE1's own AVIs (Cinepak + PCM), copied into the mod unchanged for the movies the rooms'
 scripts can play (`re1/movies/<id>`), and played by `soh/src/code/z_nv_movie.c` (its own AVI

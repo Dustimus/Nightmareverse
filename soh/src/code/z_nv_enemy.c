@@ -1,27 +1,28 @@
 /*
- * Nightmareverse: RE1's enemies.
+ * Nightmareverse: RE1's enemies, as actors.
  *
  * A room's enemies are what its init script's Enemy_set instructions place (SCD 0x1B,
  * cmd_enemy_set 0x004617d0; the scripts run in z_nv_script.c), in RE1's enemy slots. Each becomes
  * an Nv_Enemy actor (registered with the ActorDB by NvActors.cpp), drawn with RE1's own model and
  * animations, "re1/enemies/em<type>" (re1/tools/soh_enemy.py).
  *
- * The zombie (types 0, 1 and 17) is RE1's: zombie_update and its tables
- * (docs/ZOMBIE_STATE_MACHINE.md in the PC decomp), in RE1's units, angles (4096 a turn) and
- * 30 Hz ticks, three ticks every two of OoT's frames. Ported so far: eating (behaviour 5), getting
- * up, turning to Link, the walking chase, the grab and bite and the stagger back after it, the hit
- * reaction and the falling death. A zombie whose behaviour has bit 7 is held for its room's
- * script (zombie_state_check returns at once) until enemy_prop_set changes it. Not yet: the idle
- * head turns and wandering of the other behaviours, the knock-downs and leg shots, getting back
- * up, the events' own animation of enemies, and RE1's sounds.
- * Kenneth's corpse (37, 41) is posed and still.
- *
- * Link's side is OoT's: his weapons hurt it through its collider and his life is in hearts. The
- * numbers that don't come from RE1 come from mod1 (z_en_re_zombie.c): the collider's size, the
- * damage table and the bite (half a heart). RE1's health (17-99) is kept as health / 10, the
- * Kokiri Sword's 1 being about a handgun shot.
+ * The enemy itself is RE1's: an RE1 entity run by RE1's code, ported (z_nv_zombie.c: the zombie,
+ * types 0, 1 and 17), in RE1's units, 30 Hz ticks and room collision. This file is the Zelda
+ * layer on top of it:
+ *  - Link is RE1's player to it (gNvRe1Player), refreshed each tick: where he is, his facing,
+ *    Jill's collision volume, whether he's mashing while held, whether he's swinging.
+ *  - Link's weapons hit it through an OoT collider, and a hit enters RE1's own hit path
+ *    (apply_weapon_damage's end: damage, hit state, the damaged or dying state) only when RE1
+ *    would take one (hit_state clear). OoT's damage table is mod1's (its sizes, as the user
+ *    allowed); each point of it is a handgun shot's 9 of RE1's damage, and the weapon's kind picks
+ *    RE1's hit state: blades the knife's, shots the handgun's, blasts the grenade launcher's.
+ *  - RE1's grab is OoT's grab: Link held where RE1 holds the player, RE1's timer and mashing
+ *    deciding when it lets go, each RE1 bite half a heart (mod1's bite).
+ *  - Targeting: OoT's usual enemy range, the focus at head height; not while it's dead.
+ * Kenneth's corpse (37, 41) and the other characters are posed and still for now.
  */
 #include "global.h"
+#include "z_nv_re1.h"
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/resourcebridge.h>
 #include <math.h>
@@ -49,20 +50,12 @@ typedef struct {
 } NvEmBatch;
 
 typedef struct {
-    s32 numFrames;
-    s16* frames; // per frame: root offset[3], root speed[3], angles[3 * bones]
-    s32 numAnims;
-    u16* steps[NV_EM_MAX_ANIMS]; // u16 frame, u16 flags (low byte: ticks to hold it)
-    s32 numSteps[NV_EM_MAX_ANIMS];
-} NvEmBank;
-
-typedef struct {
     s32 type; // -1: free
     s32 numBones;
     s32 numBonesAll; // in the file (numBones is capped)
     s16* bones; // per bone: x, y, z (from its parent), parent
     s32 order[NV_EM_MAX_BONES]; // parents first
-    NvEmBank bank;
+    NvRe1Anim bank;
     s32 cellsW;
     u16* cells;
     s32 firstBatch[NV_EM_MAX_BONES];
@@ -75,34 +68,16 @@ typedef struct {
     ColliderCylinder collider;
     NvEmModel* model;
     s32 type;
-    // RE1's entity, in its units (y down)
-    f32 rx, ry, rz;
-    s16 angle; // 4096 a turn
-    u8 behaviour; // behavior_flags
-    u8 deathFlag; // death_event_id (0xFF: none)
-    u8 state;
-    u8 ignorePlayer;
-    u8 action;
-    u8 actionState;
-    u8 animId;
-    u8 frameId;
-    u8 timing;
-    u8 blend;
-    s16 ticks; // action_ticks_counter
-    s16 deathTimer;
-    s16 moveSpeed; // move_speed_current
-    s16 nextTurn;
-    s16 attackTimer;
-    u8 attackDir;
+    NvRe1Entity e; // RE1's entity
     u8 tickPhase;
-    s16 rootT[3];
-    s16 rot[NV_EM_MAX_BONES][3];
-    s16 grabCooldown;
-    s16 biteTimer; // frames to the next bite
     s32 grabbing;
 } NvEnemy;
 
 enum { NV_ZST_IDLE = 1, NV_ZST_DAMAGED = 2, NV_ZST_DIE = 3, NV_ZST_ATTACK = 5 };
+
+void NvRe1_Register(NvRe1Entity* e); // z_nv_zombie.c
+void NvRe1_Unregister(NvRe1Entity* e);
+extern s16 gNvRe1BiteDamage;
 
 static NvEmModel sNvEmModels[NV_EM_MODELS];
 static s32 sNvEmModelsInit = false;
@@ -184,15 +159,6 @@ static s32 NvEnemy_IsCorpse(s32 type) {
     return (type == 37) || (type == 38) || (type == 41);
 }
 
-/* ---- flags ---- */
-
-/** Flg_on(g_EnemiesFlags, death_event_id): bank 3, killed for good. */
-static void NvEnemy_SetDeathFlag(u8 bit) {
-    if (bit != 0xFF) {
-        NvFlags_Op(3, bit, 0);
-    }
-}
-
 /* ---- models ---- */
 
 static NvEmModel* NvEnemy_Model(s32 type) {
@@ -245,6 +211,8 @@ static NvEmModel* NvEnemy_Model(s32 type) {
         if (b == 0) {
             m->bank.numFrames = numFrames;
             m->bank.frames = (s16*)(d + 2);
+            m->bank.frameShorts = 6 + 3 * m->numBonesAll;
+            m->bank.numJoints = m->numBones;
         }
         d += 2 + numFrames * frameSize;
         numAnims = *(u16*)d;
@@ -309,455 +277,147 @@ static NvEmModel* NvEnemy_Model(s32 type) {
     return m;
 }
 
-/* ---- RE1's helpers, on the actor ---- */
+/* ---- the Zelda layer ---- */
 
-static s16 NvEnemy_AngleTo(NvEnemy* this, f32 x, f32 z) {
-    // RE1's facing: forward is +x turned by RotMatrixY, (cos a, -sin a) in x, z
-    return (s16)((s32)(atan2f(-(z - this->rz), x - this->rx) * (2048.0f / NV_PI)) & 0xFFF);
-}
+// Jill's collision volume (g_scaJillData): radius 372, half height 1350
+static const s16 sNvJillSca[8] = { (s16)0x8000, 0, (s16)0xFABA, 0, 0x0546, 0x0174, 0, 0 };
+// what cmd_enemy_set gives every entity before its own init: Chris's (g_scaDataTable[0]), r 422
+static const s16 sNvChrisSca[8] = { (s16)0x8000, 0, (s16)0xFA06, 0, 0x05FA, 0x01A6, 0, 0 };
 
-/** turn_toward_target: a step toward the target's angle, 0 when within twice the step. */
-static s32 NvEnemy_TurnStep(NvEnemy* this, f32 x, f32 z, s16 step) {
-    s32 delta = ((NvEnemy_AngleTo(this, x, z) - this->angle) + step) & 0xFFF;
+#define NV_RE1_HANDGUN_DAMAGE 9 // RE1's handgun on a zombie; a point of OoT damage is one shot
+#define NV_BITE_HEARTS -8       // half a heart a bite (mod1's)
 
-    if (delta < (s32)(u16)(step * 2)) {
-        return 0;
+/** Link, as RE1's player: where he is (RE1's units), his facing, how he's pressing. */
+static void NvEnemy_PlayerToRe1(PlayState* play) {
+    Player* player = GET_PLAYER(play);
+    NvRe1Player* p = &gNvRe1Player;
+    Input* input = &play->state.input[0];
+
+    p->pos[0] = (s16)p->t[0];
+    p->pos[1] = (s16)p->t[1];
+    p->pos[2] = (s16)p->t[2];
+    p->t[0] = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
+    p->t[1] = (s32)lroundf(-player->actor.world.pos.y / NV_RE1_SCALE);
+    p->t[2] = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
+    p->angle = (0x400 - player->actor.shape.rot.y / 16) & 0xFFF; // (OoT yaw = 0x4000 - 16 angle)
+    p->sca = sNvJillSca;
+    p->health = (gSaveContext.health > 0) ? 0x7FFF : -1;
+    p->attackTimer = (player->meleeWeaponState != 0) ? 1 : 0;
+    p->padHeld = 0;
+    if ((ABS(input->rel.stick_x) > 30) || (ABS(input->rel.stick_y) > 30)) {
+        p->padHeld |= 1;
     }
-    return (delta < 0x801) ? step : -step;
-}
-
-/** checkAngularViewAndDistance: within a Manhattan distance and fovHalf of the facing. */
-static s32 NvEnemy_InView(NvEnemy* this, f32 x, f32 z, s16 fovHalf, s32 maxDist) {
-    s32 delta;
-
-    if (fabsf(x - this->rx) + fabsf(z - this->rz) > maxDist) {
-        return false;
+    if (CHECK_BTN_ANY(input->cur.button, BTN_A | BTN_B)) {
+        p->padHeld |= 2;
     }
-    delta = ((NvEnemy_AngleTo(this, x, z) - this->angle) + fovHalf) & 0xFFF;
-    return delta <= fovHalf * 2;
 }
 
-static void NvEnemy_SetAnim(NvEnemy* this, s32 anim, s32 blend) {
-    this->animId = anim;
-    this->frameId = 0;
-    this->timing = 0;
-    this->blend = blend;
+/** OoT's damage table entry to RE1's weapon: (hit state, weapon id). */
+static void NvEnemy_HitKind(u8 effect, s32 dmgType, u8* hit, u8* weapon) {
+    // blades and blunt: the knife's record (hit 1, weapon 1)
+    *hit = 1;
+    *weapon = 1;
+    switch (dmgType) {
+        case 2:  // slingshot
+        case 5:  // arrows
+        case 11: // fire arrow
+        case 12: // ice arrow
+        case 13: // light arrow
+        case 14: // (unk arrows: the guns' rounds in mod1)
+        case 15:
+        case 16:
+            *hit = 1; // the handgun's
+            *weapon = 2;
+            break;
+        case 3: // explosive: the grenade launcher's (hit 2, weapon 7)
+            *hit = 2;
+            *weapon = 7;
+            break;
+    }
 }
 
-/** Joint_move: one tick of the animation; true when it wraps. */
-static s32 NvEnemy_JointMove(NvEnemy* this) {
-    NvEmModel* m = this->model;
-    NvEmBank* bank;
-    u16* step;
-    s16* data;
+/** Which of OoT's damage kinds hit: the bit of the collider's acHitInfo->toucher.dmgFlags. */
+static s32 NvEnemy_DamageType(NvEnemy* this) {
+    u32 flags = (this->collider.info.acHitInfo != NULL) ? this->collider.info.acHitInfo->toucher.dmgFlags : 0;
     s32 i;
 
-    if (this->timing > 1) {
-        this->timing--;
-        return false;
-    }
-    if (m == NULL) {
-        return false;
-    }
-    bank = &m->bank;
-    if ((this->animId >= bank->numAnims) || (bank->numSteps[this->animId] == 0)) {
-        return false;
-    }
-    if (this->frameId >= bank->numSteps[this->animId]) {
-        this->frameId = 0;
-    }
-    step = bank->steps[this->animId] + this->frameId * 2;
-    if (step[0] >= bank->numFrames) {
-        return false;
-    }
-    data = bank->frames + step[0] * (6 + 3 * m->numBonesAll);
-    this->rootT[0] = data[0];
-    this->rootT[2] = data[2];
-    if (this->blend == 0) {
-        this->rootT[1] = data[1];
-        for (i = 0; i < m->numBones; i++) {
-            this->rot[i][0] = data[6 + i * 3];
-            this->rot[i][1] = data[6 + i * 3 + 1];
-            this->rot[i][2] = data[6 + i * 3 + 2];
+    for (i = 0; i < 32; i++) {
+        if (flags & (1u << i)) {
+            return i;
         }
-    } else {
-        // blend: blend/4 of the old pose with the rest of the new, the shorter way round
-        s32 k;
-
-        this->rootT[1] = (this->rootT[1] * this->blend + data[1] * (4 - this->blend)) / 4;
-        for (i = 0; i < m->numBones; i++) {
-            for (k = 0; k < 3; k++) {
-                s32 cur = this->rot[i][k];
-                s32 diff = ((data[6 + i * 3 + k] - cur + 0x800) & 0xFFF) - 0x800;
-
-                this->rot[i][k] = cur + diff * (4 - this->blend) / 4;
-            }
-        }
-        this->blend--;
     }
-    this->timing = step[1] & 0xFF;
-    this->frameId++;
-    if (this->frameId > bank->numSteps[this->animId] - 1) {
-        this->frameId = 0;
-        return true;
-    }
-    return false;
+    return -1;
 }
 
-/** Add_speedXZ: move moveSpeed along the facing (plus an offset). */
-static void NvEnemy_AddSpeed(NvEnemy* this, s16 offset) {
-    f32 a = (this->angle + offset) * (NV_PI / 2048.0f);
+static void NvEnemy_Hits(NvEnemy* this, PlayState* play) {
+    NvRe1Entity* e = &this->e;
+    u8 hit;
+    u8 weapon;
+    s32 points;
 
-    this->rx += cosf(a) * this->moveSpeed;
-    this->rz -= sinf(a) * this->moveSpeed;
-}
-
-static void NvEnemy_PlayerRe1(PlayState* play, f32* x, f32* z) {
-    Player* player = GET_PLAYER(play);
-
-    *x = player->actor.world.pos.x / NV_RE1_SCALE;
-    *z = -player->actor.world.pos.z / NV_RE1_SCALE;
-}
-
-static s32 NvEnemy_Manhattan(NvEnemy* this, f32 x, f32 z) {
-    return (s32)(fabsf(x - this->rx) + fabsf(z - this->rz));
-}
-
-/* ---- the zombie ---- */
-
-static void NvZombie_SetState(NvEnemy* this, u8 state, u8 ignore, u8 action, u8 actionState) {
-    this->state = state;
-    this->ignorePlayer = ignore;
-    this->action = action;
-    this->actionState = actionState;
-}
-
-/** zombie_eating: feed until Link is within 3000, get up, then turn to him. */
-static void NvZombie_Eating(NvEnemy* this, PlayState* play, f32 px, f32 pz) {
-    switch (this->actionState) {
-        case 0:
-            this->actionState = 1;
-            NvEnemy_SetAnim(this, 0x1E, 3);
-            this->frameId = Rand_Next() & 0x1F;
-            this->ticks = (Rand_Next() & 0xF) + 0x2D;
-            // fall through
-        case 1:
-            if (NvEnemy_JointMove(this)) {
-                this->animId = (Rand_Next() & 1) ? 0x1D : 0x1E;
-            }
-            if (NvEnemy_Manhattan(this, px, pz) < 3000) {
-                this->actionState++;
-            }
-            break;
-        case 2:
-            this->actionState = 3;
-            NvEnemy_SetAnim(this, 0x0D, this->blend);
-            // fall through
-        case 3:
-            if (NvEnemy_JointMove(this)) {
-                this->behaviour = 0;
-                NvZombie_SetState(this, NV_ZST_IDLE, 1, 3, 0);
-                this->ry = 0.0f;
-            }
-            break;
-    }
-}
-
-/** fast_player_facing: turn to Link at 0x54 a tick for 30-93 ticks, then walk at him. */
-static void NvZombie_FaceFast(NvEnemy* this, f32 px, f32 pz) {
-    s32 turn;
-    s16 ticks;
-
-    if (this->actionState == 0) {
-        NvEnemy_SetAnim(this, 3, 3);
-        this->actionState = 1;
-        this->ticks = (Rand_Next() & 0x3F) + 0x1E;
-    }
-    turn = NvEnemy_TurnStep(this, px, pz, 0x54);
-    ticks = this->ticks--;
-    if ((ticks != 0) && (turn != 0)) {
-        NvEnemy_JointMove(this);
-        this->angle = (this->angle + turn) & 0xFFF;
-        return;
-    }
-    NvZombie_SetState(this, NV_ZST_IDLE, 0, 2, 2);
-}
-
-/** zombie_chase_walk: the shamble at 45 a tick, with a slower weave now and then. */
-static void NvZombie_ChaseWalk(NvEnemy* this, f32 px, f32 pz) {
-    s16 ticks;
-
-    switch (this->actionState) {
-        case 0:
-            this->actionState = 1;
-            this->moveSpeed = 0;
-            NvEnemy_SetAnim(this, 2, 3);
-            // fall through
-        case 1:
-            this->actionState += NvEnemy_JointMove(this);
-            break;
-        case 2:
-            this->actionState = 3;
-            this->timing = 0;
-            this->animId = 3;
-            this->blend = 3;
-            this->ticks = (Rand_Next() & 0x7F) + 10;
-            this->nextTurn = 0;
-            // fall through
-        case 3:
-            ticks = this->ticks--;
-            if (ticks == 0) {
-                this->nextTurn = (Rand_Next() & 0x0F) + 0x14;
-                this->ticks = this->nextTurn + (Rand_Next() & 0x7F);
-            }
-            NvEnemy_JointMove(this);
-            this->moveSpeed = 45;
-            if (this->nextTurn != 0) {
-                // the weave (entity_update_wander_turn, not ported): slow, turning away
-                this->angle = (this->angle - 24 * 2 / 4) & 0xFFF;
-                this->moveSpeed = 10;
-                this->nextTurn--;
-            }
-            break;
-    }
-    // zombie_check_player_distance / the move behaviours' steering: toward Link at turn_speed
-    if (this->nextTurn == 0) {
-        this->angle = (this->angle + NvEnemy_TurnStep(this, px, pz, 24)) & 0xFFF;
-    }
-    NvEnemy_AddSpeed(this, 0);
-}
-
-static void NvZombie_Action(NvEnemy* this, PlayState* play, f32 px, f32 pz) {
-    switch (this->action) {
-        case 3:
-            NvZombie_FaceFast(this, px, pz);
-            break;
-        case 2:
-        default:
-            NvZombie_ChaseWalk(this, px, pz);
-            break;
-    }
-}
-
-static void NvZombie_StartAttack(NvEnemy* this, PlayState* play, f32 px, f32 pz) {
-    Player* player = GET_PLAYER(play);
-    s16 linkFacing;
-    s32 facing;
-
-    if ((this->grabCooldown > 0) || (player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) ||
-        !play->grabPlayer(play, player)) {
-        return;
-    }
-    this->angle = NvEnemy_AngleTo(this, px, pz);
-    NvZombie_SetState(this, NV_ZST_ATTACK, 0, this->action, 0);
-    // is_facing_toward_entity: Link looking at it (within 90 degrees)
-    linkFacing = player->actor.shape.rot.y;
-    facing = ABS((s16)(Actor_WorldYawTowardActor(&player->actor, &this->actor) - linkFacing)) < 0x4000;
-    this->attackDir = (this->behaviour & 2) + (facing ? 1 : 0);
-    this->grabbing = true;
-    this->biteTimer = 0;
-    printf("NVENEMY grab (direction %d)\n", this->attackDir);
-    fflush(stdout);
-    this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-}
-
-/** zombie_attack: wind up, bite for 105 ticks (Link mashing out ends it sooner), let go. */
-static void NvZombie_Attack(NvEnemy* this, PlayState* play) {
-    Player* player = GET_PLAYER(play);
-
-    if (this->grabbing && !(player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) && (this->actionState < 4)) {
-        this->actionState = 4; // he got free
-    }
-    switch (this->actionState) {
-        case 0:
-            NvEnemy_SetAnim(this, sNvZombieAttackAnim[this->attackDir & 3], 3);
-            this->actionState = 1;
-            break;
-        case 1:
-            this->actionState += NvEnemy_JointMove(this);
-            break;
-        case 2:
-            this->actionState = 3;
-            this->animId++;
-            this->timing = 0;
-            this->attackTimer = 105;
-            break;
-        case 3:
-            NvEnemy_JointMove(this);
-            if (--this->attackTimer < 0) {
-                this->actionState = 4;
-                if (player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) {
-                    player->av2.actionVar2 = 101; // let him go (Player_Action_8084F308's mash count)
-                }
-            }
-            break;
-        case 4:
-            this->actionState = 5;
-            this->animId++;
-            this->frameId = 0;
-            this->timing = 0;
-            this->blend = 3;
-            this->grabbing = false;
-            this->grabCooldown = NV_GRAB_COOLDOWN;
-            this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
-            // fall through
-        case 5:
-            if (NvEnemy_JointMove(this)) {
-                // zombie_attack_withdraw: the long push back
-                NvZombie_SetState(this, NV_ZST_DAMAGED, 1, 6, 0);
-            }
-            break;
-    }
-}
-
-/** long_push_back: staggering back (animation 7 from its 12th step) after letting go. */
-static void NvZombie_LongPushBack(NvEnemy* this) {
-    if (this->actionState == 0) {
-        this->actionState = 1;
-        this->animId = 7;
-        this->frameId = 0x0C;
-        this->timing = 1;
-        this->moveSpeed = 0x1E;
-    } else if (this->actionState == 2) {
-        s16 ticks = this->ticks--;
-
-        if (ticks == 0) {
-            NvZombie_SetState(this, NV_ZST_IDLE, 0, 2, 2);
-        }
-        NvEnemy_AddSpeed(this, 2048);
-        return;
-    }
-    if (NvEnemy_JointMove(this)) {
-        this->actionState = 2;
-        this->ticks = Rand_Next() & 7;
-        this->moveSpeed = 15;
-    }
-    NvEnemy_AddSpeed(this, 2048);
-}
-
-/** short_push_back: the flinch (animation 4 or 5) at 15 a tick, then turn back to Link. */
-static void NvZombie_Damaged(NvEnemy* this) {
-    if (this->action == 6) {
-        NvZombie_LongPushBack(this);
-        return;
-    }
-    if (this->actionState == 0) {
-        this->actionState = 1;
-        NvEnemy_SetAnim(this, 4, 3);
-        this->moveSpeed = 0;
-    } else {
-        this->moveSpeed = 15;
-    }
-    if (NvEnemy_JointMove(this)) {
-        if ((this->behaviour & 0x0F) == 5) {
-            this->behaviour = 0;
-        }
-        NvZombie_SetState(this, NV_ZST_IDLE, 1, 3, 0);
-    }
-    NvEnemy_AddSpeed(this, 0);
-}
-
-/** zombie_die + zombie_dead_animation: fall (8, or 16 from the floor), then lie there. */
-static void NvZombie_Die(NvEnemy* this) {
-    if (this->ignorePlayer == 0) {
-        this->ignorePlayer = 1;
-        this->action = ((this->behaviour & 2) || (this->behaviour == 5)) ? 2 : 0;
-        NvEnemy_SetDeathFlag(this->deathFlag);
-        this->actionState = 0;
-    }
-    if (this->actionState == 0) {
-        this->actionState = 1;
-        NvEnemy_SetAnim(this, (this->action == 2) ? 16 : 8, 3);
-        this->deathTimer = 70;
-    }
-    switch (this->actionState) {
-        case 1:
-            if (this->action == 0) {
-                this->moveSpeed = 20;
-                NvEnemy_AddSpeed(this, 0);
-            }
-            // (once it wraps it isn't moved again: the pose stays on the last frame)
-            this->actionState += NvEnemy_JointMove(this);
-            break;
-        case 2:
-            if (--this->deathTimer <= 0) {
-                this->actionState = 3;
-            }
-            break;
-        default:
-            break;
-    }
-}
-
-static void NvZombie_Tick(NvEnemy* this, PlayState* play) {
-    f32 px;
-    f32 pz;
-
-    NvEnemy_PlayerRe1(play, &px, &pz);
-    switch (this->state) {
-        case NV_ZST_IDLE:
-            if (this->behaviour & 0x80) { // zombie_state_check: held for the room's script
-                break;
-            }
-            if ((this->behaviour & 0x0F) == 5) {
-                NvZombie_Eating(this, play, px, pz);
-                break;
-            }
-            // zombie_chase_player: in reach (700 either side, 1500 away) and nobody on him: grab
-            if ((this->ignorePlayer == 0) && NvEnemy_InView(this, px, pz, 700, 1500)) {
-                NvZombie_StartAttack(this, play, px, pz);
-                if (this->state == NV_ZST_ATTACK) {
-                    NvZombie_Attack(this, play);
-                    break;
-                }
-            }
-            NvZombie_Action(this, play, px, pz);
-            break;
-        case NV_ZST_DAMAGED:
-            NvZombie_Damaged(this);
-            break;
-        case NV_ZST_DIE:
-            NvZombie_Die(this);
-            break;
-        case NV_ZST_ATTACK:
-            NvZombie_Attack(this, play);
-            break;
-    }
-}
-
-/** Link's hits, OoT's way; the reaction is RE1's (a flinch, or the fall at no health left). */
-static void NvZombie_UpdateDamage(NvEnemy* this, PlayState* play) {
     if (!(this->collider.base.acFlags & AC_HIT)) {
         return;
     }
     this->collider.base.acFlags &= ~AC_HIT;
-    if ((this->state == NV_ZST_DIE) || (this->actor.colChkInfo.damageEffect == 0)) {
+    points = this->actor.colChkInfo.damage;
+    // apply_weapon_damage takes a hit only on an enemy not already reacting (hit_state clear)
+    if ((this->actor.colChkInfo.damageEffect == 0) || (points == 0) || (e->hit_state != 0) || (e->health < 0)) {
         return;
     }
-    Actor_SetDropFlag(&this->actor, &this->collider.info, true);
+    NvEnemy_HitKind(this->actor.colChkInfo.damageEffect, NvEnemy_DamageType(this), &hit, &weapon);
     Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 8);
-    Actor_ApplyDamage(&this->actor);
-    printf("NVENEMY hit: health %d\n", this->actor.colChkInfo.health);
+    NvZombie_Hit(e, (s16)(points * NV_RE1_HANDGUN_DAMAGE), hit, weapon);
+    printf("NVENEMY hit: %d points, health %d, hit state 0x%02x\n", (int)points, e->health, e->hit_state);
     fflush(stdout);
-    if (this->actor.colChkInfo.health == 0) {
-        if (this->grabbing) {
-            Player* player = GET_PLAYER(play);
-
-            player->av2.actionVar2 = 101;
-            this->grabbing = false;
-        }
-        NvZombie_SetState(this, NV_ZST_DIE, 0, 0, 0);
-        this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
+    if (e->health < 0) {
         Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x90);
-    } else if (this->state != NV_ZST_ATTACK) {
-        // zombie_damaged: the eating zombie gets up instead (benddown_and_standup, as getting up)
-        if ((this->behaviour & 0x0F) == 5) {
-            if (this->actionState < 2) {
-                this->actionState = 2;
-            }
-        } else {
-            NvZombie_SetState(this, NV_ZST_DAMAGED, 1, 0, 0);
+    }
+}
+
+/** RE1's grab, as OoT's: held while RE1's attack lasts, let go when it ends. */
+static void NvEnemy_Grab(NvEnemy* this, PlayState* play) {
+    Player* player = GET_PLAYER(play);
+    NvRe1Entity* e = &this->e;
+
+    if ((e->state == NV_ZST_ATTACK) && !this->grabbing) {
+        if (!(player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) && play->grabPlayer(play, player)) {
+            this->grabbing = true;
+            printf("NVENEMY grab (direction %d)\n", e->attacking_direction);
+            fflush(stdout);
+        } else { // OoT won't hand Link over (a cutscene, another grab): no attack
+            e->state = NV_ZST_IDLE;
+            e->ignore_player_flag = 1;
+            e->action_behavior = 3;
+            e->action_state = 0;
+            e->hit_state = 0;
+            gNvRe1Player.isBeingAttackedFlag = 0;
         }
+    }
+    if (!this->grabbing) {
+        return;
+    }
+    if (e->state != NV_ZST_ATTACK) {
+        // the attack is over: let him go (Player_Action_8084F308's mash count)
+        if (player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) {
+            player->av2.actionVar2 = 101;
+        }
+        this->grabbing = false;
+        gNvRe1Player.isBeingAttackedFlag = 0;
+        return;
+    }
+    // RE1 decides when it ends: OoT's own mashing out stays off, RE1's mashing counts instead
+    player->av2.actionVar2 = 0;
+    // the player stands at RE1's grab point. is_facing_toward_entity is true when she faces the way
+    // the zombie does, so directions 1 and 3 take her from behind, 0 and 2 face to face
+    player->actor.world.pos.x = e->unk_c6 * NV_RE1_SCALE;
+    player->actor.world.pos.z = -e->unk_c8 * NV_RE1_SCALE;
+    player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw =
+        (s16)(0x4000 - e->angle * 16) + ((e->attacking_direction & 1) ? 0 : 0x8000);
+    while (gNvRe1BiteDamage > 0) {
+        gNvRe1BiteDamage -= 10;
+        play->damagePlayer(play, NV_BITE_HEARTS);
+        Rumble_Request(this->actor.xzDistToPlayer, 240, 1, 12);
+        Player_PlaySfx(&player->actor, NA_SE_VO_LI_DAMAGE_S + player->ageProperties->unk_92);
     }
 }
 
@@ -765,58 +425,57 @@ static void NvZombie_UpdateDamage(NvEnemy* this, PlayState* play) {
 
 void NvEnemy_Init(Actor* thisx, PlayState* play) {
     NvEnemy* this = (NvEnemy*)thisx;
+    NvRe1Entity* e = &this->e;
 
     this->type = thisx->params & 0xFF;
-    this->behaviour = thisx->home.rot.x & 0xFF;
-    this->deathFlag = thisx->home.rot.z & 0xFF;
     this->model = NvEnemy_Model(this->type);
-    this->rx = thisx->world.pos.x / NV_RE1_SCALE;
-    this->ry = -thisx->world.pos.y / NV_RE1_SCALE;
-    this->rz = -thisx->world.pos.z / NV_RE1_SCALE;
-    this->angle = thisx->home.rot.y & 0xFFF;
+    memset(e, 0, sizeof(*e));
+    e->id = this->type;
+    e->behavior_flags = thisx->home.rot.x & 0xFF;
+    e->death_event_id = thisx->home.rot.z & 0xFF;
+    e->angle = thisx->home.rot.y & 0xFFF;
+    e->t[0] = (s32)lroundf(thisx->world.pos.x / NV_RE1_SCALE);
+    e->t[1] = (s32)lroundf(-thisx->world.pos.y / NV_RE1_SCALE);
+    e->t[2] = (s32)lroundf(-thisx->world.pos.z / NV_RE1_SCALE);
+    e->status_flags = 1;
+    e->anim = (this->model != NULL) ? &this->model->bank : NULL;
+    e->sca = sNvChrisSca; // cmd_enemy_set's (the zombie's init gives it its own)
     thisx->world.rot.x = thisx->world.rot.z = thisx->shape.rot.x = thisx->shape.rot.z = 0;
     ActorShape_Init(&thisx->shape, 0.0f, NULL, 0.0f);
-    thisx->gravity = -3.5f;
-    thisx->targetMode = 0;
-    thisx->colChkInfo.mass = MASS_HEAVY;
+    thisx->targetMode = 3; // OoT's usual enemy range (350)
+    thisx->colChkInfo.mass = MASS_IMMOVABLE; // RE1 moves it; OoT only pushes Link off it
     Collider_InitCylinder(play, &this->collider);
     Collider_SetCylinder(play, &this->collider, thisx, &sNvEnemyCylinder);
-
-    if (NvEnemy_IsZombie(this->type)) {
-        // zombie_init: health 59/79/99/39 less 0-21, kept as tenths
-        s32 health = sNvZombieHealth[Rand_Next() & 0xF] - (s32)(Rand_Next() % 22);
-
-        thisx->colChkInfo.health = MAX(1, (health + 9) / 10);
+    if (NvEnemy_IsZombie(this->type) && (this->model != NULL)) {
         thisx->colChkInfo.damageTable = &sNvZombieDamage;
-        thisx->naviEnemyId = 0x2A; // (a ReDead)
-        NvZombie_SetState(this, NV_ZST_IDLE, 0, 0, 0);
-        NvEnemy_SetAnim(this, sNvZombieAnimId[this->behaviour & 0xF], 0);
-        if ((this->behaviour & 0x0F) == 5) {
-            this->actionState = 2; // zombie_init: an eating zombie starts at getting up
-        } else {
-            this->action = 2; // the other behaviours' idling and wandering aren't ported: it comes at Link
-        }
-        if (this->behaviour == 6) { // lying dead
-            NvZombie_SetState(this, NV_ZST_DIE, 1, 2, 2);
-            NvEnemy_SetAnim(this, 16, 0);
-            thisx->flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
-        }
+        thisx->colChkInfo.health = 255; // (RE1's health decides)
+        thisx->naviEnemyId = 0x2A; // (a ReDead's)
+        NvRe1_TickBegin();
+        NvZombie_Init(e);
     } else {
         thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
-        NvEnemy_SetAnim(this, 0, 0);
+        e->animationId = 0;
+        if (this->model != NULL) {
+            NvRe1_JointMove(e, 0, 0x400);
+        }
     }
-    NvEnemy_JointMove(this);
+    NvRe1_Register(e);
     printf("NVENEMY type %d behaviour 0x%02x at %d,%d,%d angle %d model %s health %d\n", (int)this->type,
-           this->behaviour, (int)this->rx, (int)this->ry, (int)this->rz, this->angle,
-           (this->model != NULL) ? "ok" : "missing", thisx->colChkInfo.health);
+           e->behavior_flags, (int)e->t[0], (int)e->t[1], (int)e->t[2], e->angle,
+           (this->model != NULL) ? "ok" : "missing", e->health);
     fflush(stdout);
 }
 
 void NvEnemy_Destroy(Actor* thisx, PlayState* play) {
     NvEnemy* this = (NvEnemy*)thisx;
+    s32 i;
 
     Collider_DestroyCylinder(play, &this->collider);
-    for (s32 i = 0; i < NV_ENEMY_SLOTS; i++) {
+    NvRe1_Unregister(&this->e);
+    if (this->grabbing) {
+        gNvRe1Player.isBeingAttackedFlag = 0;
+    }
+    for (i = 0; i < NV_ENEMY_SLOTS; i++) {
         if (sNvEnemySlots[i] == thisx) {
             sNvEnemySlots[i] = NULL;
         }
@@ -824,79 +483,60 @@ void NvEnemy_Destroy(Actor* thisx, PlayState* play) {
 }
 
 s32 NvDoorScene_Covering(void);
+s32 NvMovie_Playing(void);
 
 void NvEnemy_Update(Actor* thisx, PlayState* play) {
     NvEnemy* this = (NvEnemy*)thisx;
+    NvRe1Entity* e = &this->e;
     s32 ticks;
     s32 t;
+    s32 alive;
 
-    if (this->model == NULL) {
-        return;
-    }
-    if (NvDoorScene_Covering()) {
+    if ((this->model == NULL) || NvDoorScene_Covering()) {
         return;
     }
     // RE1 runs at 30 Hz: three ticks every two frames
     ticks = (this->tickPhase ^= 1) ? 1 : 2;
-    if (this->grabCooldown > 0) {
-        this->grabCooldown--;
-    }
-    // the bite (zombie_attack's damage loop: the first as it starts biting)
-    if (this->grabbing && (this->state == NV_ZST_ATTACK) && (this->actionState == 3) && (--this->biteTimer <= 0)) {
-        Player* player = GET_PLAYER(play);
-
-        play->damagePlayer(play, NV_BITE_DAMAGE);
-        Rumble_Request(thisx->xzDistToPlayer, 240, 1, 12);
-        Player_PlaySfx(&player->actor, NA_SE_VO_LI_DAMAGE_S + player->ageProperties->unk_92);
-        this->biteTimer = NV_BITE_FRAMES;
-    }
     if (NvEnemy_IsZombie(this->type)) {
-        NvZombie_UpdateDamage(this, play);
+        NvEnemy_Hits(this, play);
         for (t = 0; t < ticks; t++) {
-            NvZombie_Tick(this, play);
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvZombie_Update(e);
+            NvEnemy_Grab(this, play);
         }
     } else {
         for (t = 0; t < ticks; t++) {
-            NvEnemy_JointMove(this);
+            NvRe1_JointMove(e, 0, 0x400);
         }
     }
-
     if (getenv("NV_LOG") && ((play->gameplayFrames % 20) == 0)) {
-        printf("NVENEMY f=%d state %d action %d/%d anim %d at %d,%d angle %d\n", (int)play->gameplayFrames,
-               this->state, this->action, this->actionState, this->animId, (int)this->rx, (int)this->rz,
-               this->angle);
+        printf("NVENEMY f=%d state %d %d/%d/%d anim %d at %d,%d angle %d health %d hit 0x%02x\n",
+               (int)play->gameplayFrames, e->state, e->ignore_player_flag, e->action_behavior, e->action_state,
+               e->animationId, (int)e->t[0], (int)e->t[2], e->angle, e->health, e->hit_state);
         fflush(stdout);
     }
-    // to OoT, OoT's walls and floor, and back
-    thisx->world.pos.x = this->rx * NV_RE1_SCALE;
-    thisx->world.pos.z = -this->rz * NV_RE1_SCALE;
-    thisx->shape.rot.y = thisx->world.rot.y = (s16)(0x4000 - this->angle * 16);
-    if (this->grabbing) {
-        Player* player = GET_PLAYER(play);
-        f32 d = (this->attackDir & 1) ? 22.0f : -25.0f; // in front of him, or behind
 
-        Math_SmoothStepToF(&thisx->world.pos.x, player->actor.world.pos.x + Math_SinS(player->actor.shape.rot.y) * d,
-                           1.0f, 10.0f, 0.0f);
-        Math_SmoothStepToF(&thisx->world.pos.z, player->actor.world.pos.z + Math_CosS(player->actor.shape.rot.y) * d,
-                           1.0f, 10.0f, 0.0f);
-        Math_SmoothStepToF(&thisx->world.pos.y, player->actor.world.pos.y, 1.0f, 10.0f, 0.0f);
-        thisx->shape.rot.y = thisx->world.rot.y =
-            player->actor.shape.rot.y + ((this->attackDir & 1) ? 0x8000 : 0);
-        this->angle = (0x400 - thisx->shape.rot.y / 16) & 0xFFF; // (OoT yaw = 0x4000 - 16 angle)
-    } else {
-        Actor_MoveXZGravity(thisx);
-        thisx->velocity.x = thisx->velocity.z = 0.0f;
-        Actor_UpdateBgCheckInfo(play, thisx, 20.0f, 422.0f * NV_RE1_SCALE, 40.0f, 0x1D);
-    }
-    this->rx = thisx->world.pos.x / NV_RE1_SCALE;
-    this->rz = -thisx->world.pos.z / NV_RE1_SCALE;
+    // where RE1 put it, in OoT's terms (RE1 x, -y, -z)
+    thisx->world.pos.x = e->t[0] * NV_RE1_SCALE;
+    thisx->world.pos.y = -e->t[1] * NV_RE1_SCALE;
+    thisx->world.pos.z = -e->t[2] * NV_RE1_SCALE;
+    thisx->shape.rot.y = thisx->world.rot.y = (s16)(0x4000 - e->angle * 16);
     thisx->focus.pos = thisx->world.pos;
     thisx->focus.pos.y += 54.0f;
 
-    if ((this->state != NV_ZST_DIE) || !NvEnemy_IsZombie(this->type)) {
+    alive = (e->health >= 0) && !(e->status_flags & 2);
+    if (NvEnemy_IsZombie(this->type)) {
+        if (alive) {
+            thisx->flags |= ACTOR_FLAG_ATTENTION_ENABLED;
+        } else {
+            thisx->flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
+        }
+    }
+    if ((alive || !NvEnemy_IsZombie(this->type)) && (thisx != sNvEnemySlots[15])) { // (15: the dev test one)
         Collider_UpdateCylinder(thisx, &this->collider);
         CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-        if (NvEnemy_IsZombie(this->type)) {
+        if (NvEnemy_IsZombie(this->type) && (e->state != NV_ZST_ATTACK)) {
             CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
@@ -922,8 +562,8 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
         tint = 80;
     }
     // the entity: RotMatrixY(angle), then to OoT's axes and scale (x, -y, -z)
-    ca = cosf(this->angle * (NV_PI / 2048.0f));
-    sa = sinf(this->angle * (NV_PI / 2048.0f));
+    ca = cosf(this->e.angle * (NV_PI / 2048.0f));
+    sa = sinf(this->e.angle * (NV_PI / 2048.0f));
     base[0][0] = ca * NV_RE1_SCALE;
     base[0][1] = 0.0f;
     base[0][2] = sa * NV_RE1_SCALE;
@@ -937,9 +577,9 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
     for (n = 0; n < m->numBones; n++) {
         s32 i = m->order[n];
         s16 p = m->bones[i * 4 + 3];
-        f32 a = this->rot[i][0] * (NV_PI / 2048.0f);
-        f32 b = this->rot[i][1] * (NV_PI / 2048.0f);
-        f32 c = this->rot[i][2] * (NV_PI / 2048.0f);
+        f32 a = this->e.rot[i][0] * (NV_PI / 2048.0f);
+        f32 b = this->e.rot[i][1] * (NV_PI / 2048.0f);
+        f32 c = this->e.rot[i][2] * (NV_PI / 2048.0f);
         f32 sx = sinf(a), cx = cosf(a), sy = sinf(b), cy = cosf(b), sz = sinf(c), cz = cosf(c);
         f32 L[3][3];
         s32 r;
@@ -961,7 +601,7 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
                 for (k = 0; k < 3; k++) {
                     R[i][r][k] = L[r][k];
                 }
-                T[i][r] = this->rootT[r];
+                T[i][r] = this->e.rootT[r];
             }
         } else {
             for (r = 0; r < 3; r++) {
@@ -1008,7 +648,7 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
             mf.mf[r][3] = 0.0f;
         }
         mf.mf[3][0] += thisx->world.pos.x;
-        mf.mf[3][1] += thisx->world.pos.y - this->ry * NV_RE1_SCALE;
+        mf.mf[3][1] += thisx->world.pos.y;
         mf.mf[3][2] += thisx->world.pos.z;
         mf.mf[3][3] = 1.0f;
         mtx = Graph_Alloc(gfxCtx, sizeof(Mtx));
@@ -1065,6 +705,23 @@ void NvEnemy_ScdSet(PlayState* play, const u8* e) {
                                       -z * NV_RE1_SCALE, e[2], angle & 0xFFF, e[3], e[1]);
 }
 
+/** cmd_enemy_pos_set: put one somewhere (rooms place enemies by script). */
+void NvEnemy_ScdPos(s32 slot, s16 angle, s16 x, s16 y, s16 z) {
+    NvEnemy* this;
+
+    if ((slot >= NV_ENEMY_SLOTS) || (sNvEnemySlots[slot] == NULL)) {
+        return;
+    }
+    this = (NvEnemy*)sNvEnemySlots[slot];
+    this->e.angle = angle;
+    this->e.t[0] = x; // (signed here, as cmd_enemy_pos_set has it)
+    this->e.t[1] = y;
+    this->e.t[2] = z;
+    this->e.pos[0] = x;
+    this->e.pos[1] = y;
+    this->e.pos[2] = z;
+}
+
 /** cmd_enemy_prop_set: 0 the behaviour byte, 2 the action (the others aren't run yet). */
 void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param) {
     NvEnemy* this;
@@ -1074,10 +731,10 @@ void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param) {
     }
     this = (NvEnemy*)sNvEnemySlots[slot];
     if (subCmd == 0) {
-        this->behaviour = param & 0xFF;
+        this->e.behavior_flags = param & 0xFF;
     } else if (subCmd == 2) {
-        this->action = param & 0xFF;
-        this->actionState = 0;
+        this->e.action_behavior = param & 0xFF;
+        this->e.action_state = 0;
     }
     printf("NVENEMY slot %d prop %d = %d\n", (int)slot, (int)subCmd, (int)param);
     fflush(stdout);

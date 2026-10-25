@@ -10,7 +10,7 @@
  * control bytes 0xF6-0xFF in any state, state 0's commands.
  *
  * What runs so far: if/else/end if, the flag banks (test, set/clear/toggle), the state byte test
- * (stage, room, camera), Enemy_set (z_nv_enemy.c), enemy_prop_set's behaviour, events (create,
+ * (stage, room, camera), Enemy_set (z_nv_enemy.c), enemy_prop_set's behaviour, enemy_pos_set, events (create,
  * kill), movies (cmd_fmv_set: z_nv_movie.c). Every other command is stepped over at its RE1 length;
  * the other tests are false. Events' animation (state 1) and movement (state 2) opcodes are
  * stepped over too: nothing is animated or moved by them yet.
@@ -35,6 +35,8 @@
 void NvEnemy_ClearSlots(void);
 void NvEnemy_ScdSet(PlayState* play, const u8* rec);
 void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param);
+void NvEnemy_ScdPos(s32 slot, s16 angle, s16 x, s16 y, s16 z);
+#include "z_nv_re1.h"
 void NvMovie_Start(s32 id);
 s32 NvMovie_Playing(void);
 s32 NvDoorScene_Covering(void);
@@ -220,6 +222,14 @@ static s32 NvScd_Cmd(void) {
             NvEnemy_ScdProp(p[2], p[3], p[4] | (p[5] << 8));
             sNvIp = p + n;
             return 1;
+        case 0x21: { // cmd_enemy_pos_set
+            s16 v[5];
+
+            memcpy(v, p + 4, sizeof(v)); // angle, (pitch), x, y, z
+            NvEnemy_ScdPos((s8)p[1], v[0], v[2], v[3], v[4]);
+            sNvIp = p + 14;
+            return 1;
+        }
         case 0x29: // cmd_fmv_set
             NvMovie_Start(p[1]);
             sNvIp = p + 2;
@@ -509,6 +519,8 @@ void NvScript_RoomInit(PlayState* play) {
         sNvEvt[i].active = 0;
     }
     NvEnemy_ClearSlots();
+    NvRe1_RoomLoad(play); // RE1's collision and walk zones, for its enemies (z_nv_zombie.c)
+    gNvRe1Player.isBeingAttackedFlag = 0;
     sNvLastCamera = -1;
     if ((play->loadedScene == NULL) || (play->loadedScene->sceneFile.fileName == NULL)) {
         return;
@@ -546,6 +558,30 @@ void NvScript_RoomInit(PlayState* play) {
         sNvInitRun = true;
         NvScd_Run(sNvInit);
         sNvInitRun = false;
+    }
+    // dev: NV_TEST_ENEMY="type,x,z" (OoT units) places one more, held still (behaviour 0x80), e.g. to
+    // see it against a mask
+    if (getenv("NV_TEST_ENEMY") != NULL) {
+        int type;
+        int x;
+        int z;
+
+        if (sscanf(getenv("NV_TEST_ENEMY"), "%d,%d,%d", &type, &x, &z) == 3) {
+            u8 rec[22] = { 0 };
+            s16 rx = (s16)(x / 0.0217f);
+            s16 rz = (s16)(-z / 0.0217f);
+
+            rec[0] = 0x1B;
+            rec[1] = type;
+            rec[2] = 0x80;
+            rec[3] = 0xFF;
+            memcpy(rec + 12, &rx, 2);
+            memcpy(rec + 16, &rz, 2);
+            rec[0x12] = 15;
+            sNvInitRun = true;
+            NvEnemy_ScdSet(play, rec);
+            sNvInitRun = false;
+        }
     }
     printf("NVSCRIPT %s init: stage %d room %d camera %d\n", file, sNvStage, sNvRoom, sNvCamera);
     fflush(stdout);
