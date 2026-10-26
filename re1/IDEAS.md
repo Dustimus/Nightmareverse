@@ -49,3 +49,7 @@ here is agreed or scheduled.
   movie's track has the voice-over on it; a clean version would be the user's own file (or a
   vocal-separation pass done by the user), dropped in a folder that make_mod packs into their
   re1.o2r. Never committed to the repo, like all game data.
+- Music files: the converter looks for a fixed name (e.g. "opening") with any common extension
+  and any quality (ogg, mp3, wav, flac) and packs it as is; SoH already decodes Vorbis and MP3
+  for its custom audio (AudioSampleFactory.cpp, libvorbis + dr_libs), so nothing is converted
+  and any version the user finds just drops in.
