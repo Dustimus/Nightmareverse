@@ -53,3 +53,12 @@ here is agreed or scheduled.
   and any quality (ogg, mp3, wav, flac) and packs it as is; SoH already decodes Vorbis and MP3
   for its custom audio (AudioSampleFactory.cpp, libvorbis + dr_libs), so nothing is converted
   and any version the user finds just drops in.
+
+## Getting to the mansion (from the user, 2026-10-26)
+- First arrival: by a warp song; the first time, the whole opening movie plays, then the game
+  starts in the mansion.
+- Keep the mansion's front door as RE1 has it (its movie with the dog when you try it), rather
+  than making it the way in and out.
+- A warp point somewhere like the courtyard instead, for coming and going.
+- Still wanted: a physical door in the Lost Woods (see the Lost Woods note in design.md), just not
+  wired to the front door.
