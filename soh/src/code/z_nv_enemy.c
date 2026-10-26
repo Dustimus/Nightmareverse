@@ -71,7 +71,10 @@ typedef struct {
     NvRe1Entity e; // RE1's entity
     u8 tickPhase;
     s32 grabbing;
+    s16 sunStun; // frames left frozen by the Sun's Song, as a ReDead (En_Rd's 600)
 } NvEnemy;
+
+s32 gNvSunSongSeen; // an enemy took this Sun's Song (z_nv_script.c ends it next frame)
 
 enum { NV_ZST_IDLE = 1, NV_ZST_DAMAGED = 2, NV_ZST_DIE = 3, NV_ZST_ATTACK = 5 };
 
@@ -498,7 +501,23 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
     // RE1 runs at 30 Hz: three ticks every two frames
     ticks = (this->tickPhase ^= 1) ? 1 : 2;
     if (NvEnemy_IsZombie(this->type)) {
+        // the Sun's Song freezes zombies as it does ReDeads: RE1's code waits, hits still land
+        if ((gSaveContext.sunsSongState != SUNSSONG_INACTIVE) && (e->health >= 0) && !this->grabbing) {
+            gNvSunSongSeen = true;
+            if (this->sunStun == 0) {
+                this->sunStun = 600;
+                Audio_PlayActorSound2(thisx, NA_SE_EN_LIGHT_ARROW_HIT);
+            }
+        }
         NvEnemy_Hits(this, play);
+        if ((this->sunStun > 0) && (e->hit_state != 0)) {
+            this->sunStun = 0; // struck: it wakes into the hit
+        }
+        if (this->sunStun > 0) {
+            this->sunStun--;
+            Actor_SetColorFilter(thisx, -0x8000, 0xC8, 0, 0xFF);
+            ticks = 0;
+        }
         for (t = 0; t < ticks; t++) {
             NvEnemy_PlayerToRe1(play);
             NvRe1_TickBegin();

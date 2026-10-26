@@ -589,10 +589,17 @@ void NvScript_RoomInit(PlayState* play) {
 
 /** Play_Update: the main chain and the events, at RE1's tick rate. */
 void NvScript_Update(PlayState* play) {
+    extern s32 gNvSunSongSeen;
     s32 ticks;
     s32 t;
     s32 i;
 
+    // the Sun's Song reached the room's enemies last frame (z_nv_enemy.c): it's spent, as
+    // En_Rd ends it once its ReDeads have it
+    if (gNvSunSongSeen && (gSaveContext.sunsSongState == SUNSSONG_SPECIAL)) {
+        gSaveContext.sunsSongState = SUNSSONG_INACTIVE;
+    }
+    gNvSunSongSeen = false;
     if ((sNvMain == NULL) || (sNvPlay != play) || NvDoorScene_Covering() || NvMovie_Playing() ||
         (play->transitionTrigger != TRANS_TRIGGER_OFF) || (getenv("NV_NO_ENEMIES") != NULL)) {
         return;
