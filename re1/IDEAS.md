@@ -62,3 +62,9 @@ here is agreed or scheduled.
 - A warp point somewhere like the courtyard instead, for coming and going.
 - Still wanted: a physical door in the Lost Woods (see the Lost Woods note in design.md), just not
   wired to the front door.
+- The warp song lands Link at the front door, inside the foyer. Small warps around the mansion:
+  probably too much.
+- The warp song's music: "Icy Gaze" (Japanese or English, the user's own file) or the end credits
+  song, heard when it's played after the first time (the first time plays the opening movie).
+- Moonlight Sonata (the piano bar puzzle, 10F) as an ocarina song of its own.
+- Both songs as two more notes on the Quest screen next to OoT's songs.
