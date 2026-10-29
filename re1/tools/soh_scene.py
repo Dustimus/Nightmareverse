@@ -26,6 +26,7 @@ from xml.sax.saxutils import quoteattr
 from PIL import Image
 
 import rdt
+import re1_verify
 import re1_floor
 import re1_masks
 import rdt2scene as r2s
@@ -434,7 +435,8 @@ def msg_blob(raw):
     count, u32 offsets into the strings, then the strings (NUL-terminated, decode_message)."""
     mp = struct.unpack_from("<I", raw, 0x74)[0]
     texts = []
-    if mp:
+    # the Japanese release's text is in its own font's encoding: left out until it has a decoder
+    if mp and re1_verify.text_language(raw) != "japanese":
         first = struct.unpack_from("<H", raw, mp)[0]
         for i in range(first // 2):
             texts.append(decode_message(raw, mp + struct.unpack_from("<H", raw, mp + 2 * i)[0]).encode("ascii"))

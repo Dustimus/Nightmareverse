@@ -20,6 +20,7 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import rdt2scene  # noqa: E402
+import re1_verify  # noqa: E402
 
 FIRST_ROOM = "106"  # the foyer: spawn 0 is where Jill stands after the opening
 FIRST_SPAWN = "17200,3600,-32768"
@@ -47,6 +48,13 @@ def main():
     if FIRST_ROOM not in ids and not os.path.exists(rdt2scene.stage_dir(re1, FIRST_ROOM)):
         sys.exit("no RE1 rooms found in %s (point it at the folder holding Stage1..Stage7)" % re1)
     ids = [FIRST_ROOM] + [r for r in ids if r != FIRST_ROOM]
+    # which release and language this copy is, and anything off about it (re1_verify.py)
+    release, lang, problems = re1_verify.check(re1)
+    print("RE1 files: %s, text in %s" % (release or "a release we don't know", lang or "no language found"))
+    for p in problems:
+        print("warning: " + p)
+    if lang == "japanese":
+        print("note: the Japanese text isn't read yet, so examine spots will be silent")
     work = tempfile.mkdtemp(prefix="re1mod_")
     try:
         soh = os.path.join(work, "re1")

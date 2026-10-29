@@ -30,6 +30,12 @@ where the data folder is the one holding Stage1..Stage7 ("USA" in the GOG releas
 `re1.o2r` in Ship of Harkinian's `mods` folder. Until the mansion has its way in (the Lost
 Woods), a file `nv_boot.txt` holding `re1_106` in the SoH folder starts the game in the foyer.
 
+Before converting, `make_mod.py` checks the copy (`tools/re1_verify.py`): each room file's
+fingerprint against the releases we know (`tools/re1_known.json`: hashes only, no game data) and
+the language of its text. It prints which release and language it found, and warns about room
+files that match no known release (modded, damaged or another version) or text in more than one
+language. `re1_verify.py --learn <name> <folder>` adds another release's fingerprints.
+
 ## Pipeline
 
 `tools/rdt2scene.py` drives the conversion (it started as the N64 demo's converter, with its
