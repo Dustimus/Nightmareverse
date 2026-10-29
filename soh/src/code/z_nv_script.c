@@ -23,6 +23,7 @@
 #include "global.h"
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/resourcebridge.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,6 +64,19 @@ static u8 sNvCamera;
 static s32 sNvLastCamera = -1;
 static u8 sNvTickPhase;
 static s32 sNvInitRun; // Enemy_set only places enemies while the init chain runs
+
+// the room action table (g_RoomActionTable: 12-byte entries the scripts build with door_set,
+// room_action_set and change with room_action_reset / _arm), as RE1 keeps it
+#define NV_AOT_SLOTS 32
+typedef struct {
+    u8 handler; // room_check_actions index: 1 door, 2 message, ...
+    u8 flags;   // 0x01 probed, 0x80 on the action press, 0x40 at the player (not in front)
+    u16 param[3];
+    u16 zone[4]; // x, z, width, depth (RE1 units, unsigned compares)
+} NvAot;
+static NvAot sNvAot[NV_AOT_SLOTS];
+static s32 sNvAotCount;
+static const u8* sNvMsg; // the room's messages ("<name>_msg", re1/tools/soh_scene.py)
 
 // run_command_functions' state
 static const u8* sNvIp;
@@ -207,6 +221,39 @@ static s32 NvScd_Cmd(void) {
                     return 0;
             }
         }
+        case 0x0C: // cmd_door_set: handler 1 (doors themselves are z_nv_door.c's)
+        case 0x0D: // cmd_room_action_set
+            if (p[1] < NV_AOT_SLOTS) {
+                NvAot* a = &sNvAot[p[1]];
+
+                memcpy(a->zone, p + 2, sizeof(a->zone));
+                if (p[0] == 0x0C) {
+                    a->handler = 1;
+                    a->flags = p[0x19];
+                } else {
+                    a->handler = p[10];
+                    a->flags = p[11];
+                    memcpy(a->param, p + 12, sizeof(a->param));
+                }
+                sNvAotCount = MAX(sNvAotCount, p[1] + 1);
+            }
+            sNvIp = p + NvScd_Len(p);
+            return 1;
+        case 0x12: // cmd_room_action_reset: all but the zone
+            if (p[1] < NV_AOT_SLOTS) {
+                sNvAot[p[1]].handler = p[2];
+                sNvAot[p[1]].flags = p[3];
+                memcpy(sNvAot[p[1]].param, p + 4, sizeof(sNvAot[p[1]].param));
+            }
+            sNvIp = p + 10;
+            return 1;
+        case 0x13: // cmd_room_action_arm: handler and flags
+            if (p[1] < NV_AOT_SLOTS) {
+                sNvAot[p[1]].handler = p[2];
+                sNvAot[p[1]].flags = p[3];
+            }
+            sNvIp = p + 4;
+            return 1;
         case 0x14: // cmd_scd_event_create
             NvEvt_Create(p[2], p[3]);
             sNvIp = p + 4;
@@ -505,6 +552,106 @@ static void NvEvt_Step(NvEvt* e) {
 /* ---- the room ---- */
 
 /** Play_Init, once the room is in: RE1's room_set / room_init. */
+/* ---- examine spots: the room action table's message entries ---- */
+
+#define NV_RE1_SCALE 0.0217f // OoT units per RE1 unit (re1/tools/rdt2scene.py SCALE)
+#define NV_TEXT_ID 0xA1E0    // the text box RE1's messages are shown in (NvMessages.cpp)
+
+static const char* sNvMsgText;
+
+/** The room's message n ("" for none). */
+static const char* NvMsg_Get(s32 n) {
+    u32 count;
+    u32 off;
+
+    if (sNvMsg == NULL) {
+        return "";
+    }
+    memcpy(&count, sNvMsg + 4, sizeof(count));
+    if ((n < 0) || ((u32)n >= count)) {
+        return "";
+    }
+    memcpy(&off, sNvMsg + 8 + 4 * n, sizeof(off));
+    return (const char*)sNvMsg + 8 + 4 * count + off;
+}
+
+/** The text NvMessages.cpp shows for NV_TEXT_ID. */
+const char* NvMsg_PendingText(void) {
+    return sNvMsgText;
+}
+
+void NvMsg_EnsureHook(void);
+
+/**
+ * check_action_object (0x0041c150): the action press probes the point 600 units in front of the
+ * player (the player's own position for entries flagged 0x40) against every entry flagged 0x01
+ * and 0x80, in table order; the first one that holds it is the one acted on. -1: none.
+ */
+static s32 NvAot_Probe(Player* player) {
+    s32 px = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
+    s32 pz = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
+    s32 angle = (0x400 - player->actor.shape.rot.y / 16) & 0xFFF; // (OoT yaw = 0x4000 - 16 angle)
+    f32 a = angle * (3.14159265f / 2048.0f);
+    // MovePlayerXZ(angle, (600, 0, 0)): RE1's forward is +x turned by RotMatrixY
+    s32 fx = px + (s32)lroundf(600.0f * cosf(a));
+    s32 fz = pz - (s32)lroundf(600.0f * sinf(a));
+    s32 i;
+
+    if (sNvMain == NULL) {
+        return -1;
+    }
+    for (i = 0; i < sNvAotCount; i++) {
+        const NvAot* e = &sNvAot[i];
+        s32 x = (e->flags & 0x40) ? px : fx;
+        s32 z = (e->flags & 0x40) ? pz : fz;
+
+        if ((e->handler == 0) || !(e->flags & 0x01) || !(e->flags & 0x80)) {
+            continue;
+        }
+        // is_point_in_action_zone: unsigned compares, so a point left of or above the zone fails
+        if (((u32)(x - e->zone[0]) <= e->zone[2]) && ((u32)(z - e->zone[1]) <= e->zone[3])) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/** The A button's label for what A would do here, or -1 (z_nv_door.c, after doors and stairs). */
+s32 NvAot_DoAction(PlayState* play, Player* player) {
+    s32 i = NvAot_Probe(player);
+
+    return ((i >= 0) && (sNvAot[i].handler == 2)) ? DO_ACTION_CHECK : -1;
+}
+
+/**
+ * The action press, when no door or stairs took it (z_nv_door.c): the entry's handler, as
+ * room_check_actions runs it. So far display_msg_room_action (2): the room's message, in OoT's
+ * text box. True when the press was taken.
+ */
+s32 NvAot_Act(PlayState* play, Player* player) {
+    s32 i = NvAot_Probe(player);
+    u16 id;
+
+    if ((i < 0) || (sNvAot[i].handler != 2)) {
+        return false;
+    }
+    id = sNvAot[i].param[0];
+    if (id & 0x40) { // the executable's own messages: not read yet
+        printf("NVMSG spot %d: global message 0x%02X (not yet)\n", (int)i, id & 0x3F);
+        fflush(stdout);
+        return false;
+    }
+    sNvMsgText = NvMsg_Get(id & 0x3F);
+    printf("NVMSG spot %d: message %d\n", (int)i, id & 0x3F);
+    fflush(stdout);
+    if (sNvMsgText[0] == '\0') {
+        return false;
+    }
+    NvMsg_EnsureHook();
+    Message_StartTextbox(play, NV_TEXT_ID, NULL);
+    return true;
+}
+
 void NvScript_RoomInit(PlayState* play) {
     char path[256];
     const char* file;
@@ -519,6 +666,9 @@ void NvScript_RoomInit(PlayState* play) {
         sNvEvt[i].active = 0;
     }
     NvEnemy_ClearSlots();
+    memset(sNvAot, 0, sizeof(sNvAot));
+    sNvAotCount = 0;
+    sNvMsg = NULL;
     NvRe1_RoomLoad(play); // RE1's collision and walk zones, for its enemies (z_nv_zombie.c)
     gNvRe1Player.isBeingAttackedFlag = 0;
     sNvLastCamera = -1;
@@ -550,6 +700,13 @@ void NvScript_RoomInit(PlayState* play) {
         sNvRoom = (u8)strtol(hex, NULL, 16);
     }
     sNvCamera = GET_ACTIVE_CAM(play)->camDataIdx;
+    snprintf(path, sizeof(path), "scenes/shared/%s/%.*s_msg", file, (int)(len - 6), file);
+    if (ResourceMgr_FileExists(path)) {
+        sNvMsg = (const u8*)ResourceGetDataByName(path);
+        if ((sNvMsg != NULL) && (memcmp(sNvMsg, "RMSG", 4) != 0)) {
+            sNvMsg = NULL;
+        }
+    }
     memcpy(lens, d + 4, sizeof(lens));
     sNvInit = d + 16;
     sNvMain = sNvInit + lens[0];

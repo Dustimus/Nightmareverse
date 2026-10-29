@@ -177,6 +177,18 @@ effects, other enemy types' code (they stand), events animating enemies. Dev hoo
 `NV_TEST_ENEMY="type,x,z"` (OoT units) adds a held, non-solid enemy. The headless checks run with
 `NV_NO_ENEMIES=1` (no scripts).
 
+Examine spots (2026-10-29): RE1's own, as its scripts build them. The room scripts' door_set,
+room_action_set, room_action_reset and room_action_arm (0x0C, 0x0D, 0x12, 0x13) fill RE1's room
+action table in `soh/src/code/z_nv_script.c`; A probes it as check_action_object does (the point
+600 units in front of Link, or Link's own position for entries flagged 0x40; the first entry
+flagged 0x01 and 0x80 that holds it), after doors and stairs. The A button reads Check there.
+Message spots (handler 2) show the room's message in OoT's text box, in Navi's blue
+(`soh/soh/Enhancements/Nightmareverse/NvMessages.cpp`). The text is decoded from the player's own
+room files when the mod is made (`tools/soh_scene.py` decode_message: RE1's font order, its page
+breaks and highlight colour) and never committed. Not yet: the executable's shared messages (id
+bit 0x40), item names inside messages, yes/no prompts and the other handlers (items, keys,
+events), and the Japanese release's text (its own font encoding).
+
 Movies: RE1's own AVIs (Cinepak + PCM), copied into the mod unchanged for the movies the rooms'
 scripts can play (`re1/movies/<id>`), and played by `soh/src/code/z_nv_movie.c` (its own AVI
 reader and Cinepak decoder; the sound through SDL, `NvMovieAudio.cpp`). Any button skips. 104's

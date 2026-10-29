@@ -372,6 +372,80 @@ def re1col_blob(raw):
     return b"RCOL" + struct.pack("<2I", len(bnd), len(zones)) + bnd + zones
 
 
+# RE1's message font (fontus.tim): a message byte b is the glyph in column b % 18, row b / 18 + 2
+# (message_render_chars 0x00456020), the cell PrintText8x14 draws for ASCII b + 36. The cells
+# follow ASCII from there except where the font has its own glyphs.
+MSG_GLYPHS = {24: ",", 25: '"', 26: "!", 27: "?", 55: "(", 56: "/", 57: ")", 58: "'", 59: "-", 60: ".",
+              120: '"', 121: ".", 122: "-", 123: "-"}
+
+
+def _msg_char(b):
+    if b in MSG_GLYPHS:
+        return MSG_GLYPHS[b]
+    if 12 <= b <= 23 or 29 <= b <= 54 or 61 <= b <= 86:
+        return chr(b + 36)  # digits, ':', ';', A-Z, a-z
+    return ""  # RE1's own symbols, and a handful of accented capitals
+
+
+def decode_message(raw, p):
+    """One RE1 message at raw[p] (message state machine, Rendering.cpp 0x00455a10) as an SoH
+    CustomMessage string: '^' a new box (RE1's 03 page break), '%r'/'%w' RE1's highlight colour
+    (05 n), '%r?%w' for an item name (06 n, from the executable's tables: not yet). A line break
+    (02) is a space: SoH wraps lines to its own box. Stops at the end (01) or at a yes/no prompt
+    (08: its choices drive item actions, which come with the items)."""
+    out = []
+    while p < len(raw):
+        b = raw[p]
+        if b == 0 or b == 2:
+            out.append(" ")
+            p += 1
+        elif b == 1 or b == 8:
+            break
+        elif b == 3:
+            out.append("^")
+            p += 2
+        elif b == 4:  # text speed (and, as 04 00, a skipped block up to the next 04)
+            if p + 1 < len(raw) and raw[p + 1] == 0:
+                q = p + 2
+                while q < len(raw) and raw[q] != 4:
+                    q += 2 if raw[q] in (5, 6, 0xF8, 0xF9, 0xFA) else 1
+                p = q + 2
+            else:
+                p += 2
+        elif b == 5:
+            out.append("%r" if raw[p + 1] else "%w")
+            p += 2
+        elif b == 6:
+            out.append("%r?%w")
+            p += 2
+        elif b == 7:
+            p += 1
+        elif b in (0xF8, 0xF9, 0xFA):
+            p += 2
+        else:
+            out.append(_msg_char(b))
+            p += 1
+    text = " ".join("".join(out).split())  # RE1 pads lines with spaces
+    return text.replace(" ^", "^").replace("^ ", "^").strip("^ ")
+
+
+def msg_blob(raw):
+    """The room's messages (RDT+0x74: u16 offsets, then the text) for z_nv_script.c: "RMSG", u32
+    count, u32 offsets into the strings, then the strings (NUL-terminated, decode_message)."""
+    mp = struct.unpack_from("<I", raw, 0x74)[0]
+    texts = []
+    if mp:
+        first = struct.unpack_from("<H", raw, mp)[0]
+        for i in range(first // 2):
+            texts.append(decode_message(raw, mp + struct.unpack_from("<H", raw, mp + 2 * i)[0]).encode("ascii"))
+    head = b"RMSG" + struct.pack("<I", len(texts))
+    offs, pos = [], 0
+    for t in texts:
+        offs.append(pos)
+        pos += len(t) + 1
+    return head + b"".join(struct.pack("<I", o) for o in offs) + b"".join(t + b"\0" for t in texts)
+
+
 def scd_blob(init, main, evt):
     """"RSCD", u32 lengths of the init chain, main chain and event table + scripts, then the three
     as RE1 has them (z_nv_script.c runs them)."""
@@ -584,6 +658,9 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     # RE1's own collision and walk zones: "<name>_re1col" (z_nv_zombie.c)
     blob = re1col_blob(room.raw)
     open(os.path.join(d, name + "_re1col"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    # RE1's messages: "<name>_msg" (z_nv_script.c's examine spots)
+    blob = msg_blob(room.raw)
+    open(os.path.join(d, name + "_msg"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
 
     # doors: "<name>_doors" (z_nv_door.c finds it by the scene's name)
     blob = door_blob(doors)

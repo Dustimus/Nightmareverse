@@ -179,6 +179,9 @@ static s32 NvDoor_Find(PlayState* play, Player* player, NvDoor* out) {
  * The A button's label for RE1's doors and stairs (z_player.c, Player_UpdateInterface):
  * DO_ACTION_OPEN or DO_ACTION_CLIMB when A would use one, else -1.
  */
+s32 NvAot_DoAction(PlayState* play, Player* player);
+s32 NvAot_Act(PlayState* play, Player* player);
+
 s32 NvDoor_DoAction(PlayState* play, Player* player) {
     NvDoor door;
 
@@ -191,7 +194,7 @@ s32 NvDoor_DoAction(PlayState* play, Player* player) {
     if (NvClimb_TryStart(play, player, NV_DOOR_REACH_RE1, NvDoor_Reach(player), false)) {
         return DO_ACTION_CLIMB;
     }
-    return -1;
+    return NvAot_DoAction(play, player); // what else RE1 would act on: an examine spot (z_nv_script.c)
 }
 
 void NvDoor_Update(PlayState* play) {
@@ -214,7 +217,9 @@ void NvDoor_Update(PlayState* play) {
         }
     } else if (i < 0) {
         // no door: the room's stairs (z_nv_climb.c), with the same points
-        if (NvClimb_TryStart(play, player, NV_DOOR_REACH_RE1, NvDoor_Reach(player), true)) {
+        // then, as RE1's player_input_to_behavior, the room's examine spots (z_nv_script.c)
+        if (NvClimb_TryStart(play, player, NV_DOOR_REACH_RE1, NvDoor_Reach(player), true) ||
+            NvAot_Act(play, player)) {
             input->press.button &= ~BTN_A;
             input->cur.button &= ~BTN_A;
         }
