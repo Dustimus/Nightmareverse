@@ -68,3 +68,9 @@ here is agreed or scheduled.
   song, heard when it's played after the first time (the first time plays the opening movie).
 - Moonlight Sonata (the piano bar puzzle, 10F) as an ocarina song of its own.
 - Both songs as two more notes on the Quest screen next to OoT's songs.
+- Decided (2026-10-29): after the first time, the warp song plays the opening movie's own audio
+  from just after the narration ends, where the cast list starts (the user will give the exact
+  time in ou.avi). Taken from whichever version's movie the user has (USA or Japanese), so it
+  echoes the movie that played the first time. Sound effects and voice-over in that stretch are
+  fine. Ocarina notes: the user picks a short phrase by ear from OoT's five notes and sends the
+  buttons; check it doesn't start like an existing song.
