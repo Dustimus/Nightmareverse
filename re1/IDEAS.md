@@ -74,3 +74,13 @@ here is agreed or scheduled.
   echoes the movie that played the first time. Sound effects and voice-over in that stretch are
   fine. Ocarina notes: the user picks a short phrase by ear from OoT's five notes and sends the
   buttons; check it doesn't start like an existing song.
+
+## Young Link at the mansion (from the user, 2026-10-29)
+- Young Link (seven years earlier, before the outbreak) arrives in the foyer with every door
+  locked: no enemies, no story, just the place.
+- Easter egg: Spencer wouldn't be there by then, but Wesker plausibly could be. A brief Wesker
+  sighting (his model and animations are already in the game) would be a fun nod.
+- Bigger idea kept for later: young Link as Chris's campaign (fewer slots, no lockpick; the room
+  scripts already hold both characters' branches).
+- Where the song comes from: the first visit by the Lost Woods door; the song learned inside
+  (Richard's radio, sheet music, or Brad's helicopter signal) to get back out.
