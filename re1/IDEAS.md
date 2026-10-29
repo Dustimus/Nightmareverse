@@ -84,3 +84,7 @@ here is agreed or scheduled.
   scripts already hold both characters' branches).
 - Where the song comes from: the first visit by the Lost Woods door; the song learned inside
   (Richard's radio, sheet music, or Brad's helicopter signal) to get back out.
+- Young Link's Wesker: a little dismissive, like the Gerudo guard turning young Link away. In an
+  outfit fit for 1991 (in RE0's flashbacks he already has the slicked blond hair and sunglasses),
+  so a clothing retexture: done at conversion from the user's own files (a recolor step or a
+  texture the user supplies), never committed.
