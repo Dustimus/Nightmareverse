@@ -41,7 +41,7 @@ typedef struct NvMaskPiece {
  * background was drawn. The scene "<name>_scene" keeps camera n's mask, if it has one, at
  * scenes/shared/<name>_scene/<name>_bg<n>_mask (re1/tools/soh_scene.py).
  */
-#define NV_MASK_SUB 4.0f      // mask vertices: steps per OoT unit
+#define NV_MASK_STEPS 4096.0f // mask vertices: steps per piece depth (|offsets| stay < 32767)
 #define NV_MASK_OVERLAP 0.5f  // pixels each piece reaches past its rectangle
 #define NV_MASK_NEAR 1.5f     // nearest a piece is placed, in near-plane distances
 
@@ -117,16 +117,9 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
         gSPClearGeometryMode(gfx++, G_CULL_BOTH | G_LIGHTING | G_FOG | G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR);
         gSPSetGeometryMode(gfx++, G_ZBUFFER | G_SHADE);
         gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
-        // vertices relative to the eye, in quarter units: the corners of neighbouring pieces meet
-        // (whole units rounded them up to half a pixel apart, and Link showed through the seams)
-        Matrix_Push();
-        Matrix_Translate(play->view.eye.x, play->view.eye.y, play->view.eye.z, MTXMODE_NEW);
-        Matrix_Scale(1.0f / NV_MASK_SUB, 1.0f / NV_MASK_SUB, 1.0f / NV_MASK_SUB, MTXMODE_APPLY);
-        gSPMatrix(gfx++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        Matrix_Pop();
-
         for (i = 0; i < count; i++) {
             NvMaskPiece piece;
+            f32 d;
             u8* texels;
             s32 rowsPerLoad;
             s32 row;
@@ -137,6 +130,17 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
             if ((piece.w == 0) || (piece.h == 0) || (piece.stride == 0)) {
                 continue;
             }
+            // RE1 keys "always in front" pieces (a chandelier seen from above) at ~128 units,
+            // nearer than the camera's near plane: kept just past it, or they'd be clipped
+            d = MAX(piece.depth, play->view.zNear * NV_MASK_NEAR);
+            // vertices relative to the eye, in steps of the piece's own depth / NV_MASK_STEPS (a
+            // pixel is ~20 steps at any depth): fixed steps (quarter units) were several pixels
+            // wide for the near pieces, and Link showed through the seams between them (208)
+            Matrix_Push();
+            Matrix_Translate(play->view.eye.x, play->view.eye.y, play->view.eye.z, MTXMODE_NEW);
+            Matrix_Scale(d / NV_MASK_STEPS, d / NV_MASK_STEPS, d / NV_MASK_STEPS, MTXMODE_APPLY);
+            gSPMatrix(gfx++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+            Matrix_Pop();
             rowsPerLoad = NV_MASK_TMEM / piece.stride;
             if (rowsPerLoad < 1) {
                 rowsPerLoad = 1;
@@ -156,13 +160,9 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
                     f32 v = (c >= 2) ? rows + NV_MASK_OVERLAP : -NV_MASK_OVERLAP;
                     f32 dx = (piece.x + u - 160.0f) / k;
                     f32 dy = (120.0f - (piece.y + row + v)) / k;
-                    // RE1 keys "always in front" pieces (a chandelier seen from above) at ~128 units,
-                    // nearer than the camera's near plane: kept just past it, or they'd be clipped
-                    f32 d = MAX(piece.depth, play->view.zNear * NV_MASK_NEAR) * NV_MASK_SUB;
-
-                    vtx[c].v.ob[0] = d * (fwd.x + right.x * dx + up.x * dy);
-                    vtx[c].v.ob[1] = d * (fwd.y + right.y * dx + up.y * dy);
-                    vtx[c].v.ob[2] = d * (fwd.z + right.z * dx + up.z * dy);
+                    vtx[c].v.ob[0] = NV_MASK_STEPS * (fwd.x + right.x * dx + up.x * dy);
+                    vtx[c].v.ob[1] = NV_MASK_STEPS * (fwd.y + right.y * dx + up.y * dy);
+                    vtx[c].v.ob[2] = NV_MASK_STEPS * (fwd.z + right.z * dx + up.z * dy);
                     vtx[c].v.flag = 0;
                     vtx[c].v.tc[0] = (s16)(u * 32.0f);
                     vtx[c].v.tc[1] = (s16)(v * 32.0f);
