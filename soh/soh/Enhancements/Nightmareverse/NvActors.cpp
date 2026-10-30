@@ -34,6 +34,20 @@ extern "C" s32 NvActor_EnemyId(void) {
         entry.update = NvEnemy_Update;
         entry.draw = NvEnemy_Draw;
         id = ActorDB::Instance->AddEntry(entry).entry.id;
+        // RE1's enemies don't start OoT's battle music: it would give away a zombie RE1 keeps quiet
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnVanillaBehavior>(
+            [](GIVanillaBehavior flag, bool* should, va_list originalArgs) {
+                if (flag != VB_DETECT_BGM_ENEMY) {
+                    return;
+                }
+                va_list args;
+                va_copy(args, originalArgs);
+                Actor* actor = va_arg(args, Actor*);
+                va_end(args);
+                if ((actor != nullptr) && (actor->id == id)) {
+                    *should = false;
+                }
+            });
     }
     return id;
 }

@@ -372,9 +372,6 @@ static void NvEnemy_Hits(NvEnemy* this, PlayState* play) {
     NvZombie_Hit(e, (s16)(points * NV_RE1_HANDGUN_DAMAGE), hit, weapon);
     printf("NVENEMY hit: %d points, health %d, hit state 0x%02x\n", (int)points, e->health, e->hit_state);
     fflush(stdout);
-    if (e->health < 0) {
-        Item_DropCollectibleRandom(play, NULL, &this->actor.world.pos, 0x90);
-    }
 }
 
 /** RE1's grab, as OoT's: held while RE1's attack lasts, let go when it ends. */
@@ -488,6 +485,10 @@ void NvEnemy_Destroy(Actor* thisx, PlayState* play) {
 s32 NvDoorScene_Covering(void);
 s32 NvMovie_Playing(void);
 
+static s32 NvEnemy_Parked(const NvRe1Entity* e) {
+    return (e->behavior_flags & 0x80) && (e->t[0] == 0) && (e->t[1] == 0) && (e->t[2] == 0);
+}
+
 void NvEnemy_Update(Actor* thisx, PlayState* play) {
     NvEnemy* this = (NvEnemy*)thisx;
     NvRe1Entity* e = &this->e;
@@ -544,7 +545,9 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
     thisx->focus.pos = thisx->world.pos;
     thisx->focus.pos.y += 54.0f;
 
-    alive = (e->health >= 0) && !(e->status_flags & 2);
+    // a placeholder: held for its script (behaviour bit 7) and still at the room's origin, where
+    // the script parks an enemy until its event moves it in (105's zombie that follows Jill back)
+    alive = (e->health >= 0) && !(e->status_flags & 2) && !NvEnemy_Parked(e);
     if (NvEnemy_IsZombie(this->type)) {
         if (alive) {
             thisx->flags |= ACTOR_FLAG_ATTENTION_ENABLED;
@@ -552,7 +555,7 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             thisx->flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         }
     }
-    if ((alive || !NvEnemy_IsZombie(this->type)) && (thisx != sNvEnemySlots[15])) { // (15: the dev test one)
+    if ((alive || (!NvEnemy_IsZombie(this->type) && !NvEnemy_Parked(e))) && (thisx != sNvEnemySlots[15])) { // (15: the dev test one)
         Collider_UpdateCylinder(thisx, &this->collider);
         CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         if (NvEnemy_IsZombie(this->type) && (e->state != NV_ZST_ATTACK)) {
@@ -574,7 +577,7 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
     s32 n;
     u8 tint = 255;
 
-    if ((m == NULL) || NvDoorScene_Covering()) {
+    if ((m == NULL) || NvDoorScene_Covering() || NvEnemy_Parked(&this->e)) {
         return;
     }
     if (thisx->colorFilterTimer != 0) {
