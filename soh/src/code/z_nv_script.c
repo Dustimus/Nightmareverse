@@ -99,6 +99,25 @@ static s32 sNvContinue;
 
 /* ---- flags ---- */
 
+/**
+ * RE1's flags as a new game of Jill's starts them (GameStart.cpp, game_init): bank 0 bit 0 is the
+ * character (SCENARIO_FLAG_STAGE_VARIANT: 0 Chris, 1 Jill), which the rooms' scripts branch on;
+ * bank 7 is the room items' flags (set: the item still lies there), all set but items 1 and 172.
+ */
+static void NvFlags_NewGame(void) {
+    static s32 sDone = false;
+
+    if (sDone) {
+        return;
+    }
+    sDone = true;
+    memset(sNvFlags, 0, sizeof(sNvFlags));
+    memset(sNvFlags[7], 0xFF, sizeof(sNvFlags[7]));
+    sNvFlags[7][1 >> 5] &= ~(0x80000000u >> (1 & 31));
+    sNvFlags[7][172 >> 5] &= ~(0x80000000u >> (172 & 31));
+    sNvFlags[0][0] |= 0x80000000u; // bit 0: Jill
+}
+
 s32 NvFlags_Test(s32 bank, s32 bit) {
     if ((bank < 0) || (bank >= 10)) {
         return 0;
@@ -776,6 +795,7 @@ s32 NvAot_Act(PlayState* play, Player* player) {
 }
 
 void NvScript_RoomInit(PlayState* play) {
+    NvFlags_NewGame();
     char path[256];
     const char* file;
     size_t len;

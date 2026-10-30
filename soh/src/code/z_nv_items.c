@@ -2,7 +2,7 @@
  * Nightmareverse: RE1's items as RE1 keeps them, for the mansion's pickups.
  *
  * One pool (re1/README.md, "Items"): the player's slots (Jill 8, Chris 6), RE1's linked item box,
- * and the room items' taken flags (g_roomItemsFlags: one bit per item record across the game).
+ * and the room items' flags (RE1's g_roomItemsFlags, the scripts' flag bank 7).
  * Picking up follows RE1's room_event_item_pickup (RoomEvents.cpp 0x00451700): ammo and ink
  * ribbons merge into a stack already carried, up to 250, the rest into a new slot; anything else
  * takes a new slot. With no room for it, nothing changes and the item stays where it lies.
@@ -26,7 +26,6 @@ typedef struct {
 
 static NvItemSlot sNvSlots[NV_SLOTS_MAX];
 static NvItemSlot sNvBox[NV_BOX_SLOTS];
-static u32 sNvTaken[8]; // the room items taken (RE1 keeps the opposite: a bit set while it lies there)
 static u8 sNvMapsOwned; // bit n: map item 0x4E + n
 
 // The items' plain names, by RE1's item id (Types.h ITEM_*)
@@ -201,13 +200,16 @@ s32 NvItems_Give(s32 id, s32 qty) {
     return true;
 }
 
-/** RE1's room item flags: whether the item record n still lies in its room. */
+/** RE1's room item flags (flag bank 7, the scripts' own: set while the item lies there). */
+s32 NvFlags_Test(s32 bank, s32 bit);
+void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+
 s32 NvItems_InRoom(s32 n) {
-    return !(sNvTaken[(n >> 5) & 7] & (1u << (n & 31)));
+    return NvFlags_Test(7, n);
 }
 
 void NvItems_SetTaken(s32 n) {
-    sNvTaken[(n >> 5) & 7] |= 1u << (n & 31);
+    NvFlags_Op(7, n, 1);
 }
 
 /** For the menus to come: slot i's item (0: none) and count. */
