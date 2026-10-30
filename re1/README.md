@@ -215,6 +215,29 @@ Later: the mansion's way in through a Lost Woods wrong turn instead of a replace
 
 ## Design notes (from the user)
 
+### Items (decided with the user, 2026-10-30)
+
+- One pool. Every RE1 item Link owns is in one pool, the same one RE1's (linked) item boxes hold.
+  Nothing picked up is ever lost: what doesn't fit stays where it lies (RE1's "can't carry any
+  more") or goes to the box.
+- Inside the mansion: RE1's own status screen, exactly: 8 slots, items stacked only by Combine up
+  to RE1's per-item caps (g_ItemMaxQty), the box a plain swap with separate stacks, ~48 slots.
+- Outside: a Zelda-style tab of the pause menu with only what's useful outside, pulled from the
+  same pool. It appears once Link has been to the mansion. RE1's ammo has no cap there (it stays
+  scarce because the mansion only has so much); walking back in, it splits into RE1's stacks and
+  whatever passes the 8 slots goes to the box.
+- The tab's 6 x 4 grid, as OoT's (blank until owned):
+  guns: knife, Beretta, shotgun, Colt Python, flamethrower, rocket launcher (the infinite one
+  is the same item with RE1's flag); the grenade launcher with its rounds beside it, as OoT's bow
+  and magic arrows (acid, flame; explosive the default or its own slot), Ingram, Minimi; healing:
+  first aid spray, green, red and blue herbs, and each mix its own slot. Ammo isn't on the grid:
+  its count is on the gun's icon, as arrows on the bow. 21-22 slots, 2-3 free.
+- Puzzle items stay RE1-only (the 8 slots), except ones with a use outside: tentatively the
+  lighter (lights torches, burns webs) and the bottle (maybe as one of OoT's bottles instead,
+  a crossover puzzle: later). Other ideas noted in IDEAS.md.
+- Not on the grid: keys (RE1 slots only), the radio (a story flag in RE1; maybe a Quest screen
+  icon), the pick axe (unused in RE1), the serum (a story item).
+
 - Link takes Jill's place; Jill stays only where the FMVs need her.
 - Guns (when they come back): Link is left-handed, as in OoT, so the Beretta and the rest
   are held and fired with his left hand (mod1 had them in the right).

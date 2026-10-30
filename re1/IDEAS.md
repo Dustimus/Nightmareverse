@@ -88,3 +88,12 @@ here is agreed or scheduled.
   outfit fit for 1991 (in RE0's flashbacks he already has the slicked blond hair and sunglasses),
   so a clothing retexture: done at conversion from the user's own files (a recolor step or a
   texture the user supplies), never committed.
+
+## RE1 items outside the mansion (brainstorm, 2026-10-30)
+- Flare: a flash that stuns (as a Deku Nut) or lights a dark place for a while.
+- V-Jolt: withers Deku Babas or vines and weeds blocking a path.
+- Lockpick: only some of Hyrule's locks (Kakariko's houses, a few chests); OoT's keys stay.
+- Oil + lighter: burn one specific thing (a blocked passage, a hive).
+- Jewels, medals, crests: worth rupees, but only once they've done their puzzle job.
+- Radio: "call Brad", a hint line with RE flavour, or the helicopter at the end.
+- Ammo in tall grass: off by default; maybe only once Link owns the gun, rarely.
