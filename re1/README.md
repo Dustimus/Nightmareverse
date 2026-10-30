@@ -201,8 +201,11 @@ action table (handler 4 an item, 0x0F a map, 0x0D a document; none once taken). 
 `soh/src/code/z_nv_items.c`); yes takes it by RE1's rules (room_event_item_pickup: ammo and ink
 ribbons merge into a carried stack up to 250, the rest a new slot; with no room it stays where it
 lies) and sets the item's taken flag, so it's gone from the room. Jill's 8 slots, the item box and
-the taken flags last for the session until the save system. Not yet: the items' 3D models in the
-rooms, documents, the item box's use, RE1's status screen.
+the taken flags last for the session until the save system. The items lying in a room are drawn
+with RE1's own item models (RDT+0x54, `<name>_items`, `tools/soh_scene.py` items_blob) at the
+item_set's position, by one actor (`Nv_Items`, `z_nv_items.c`), and vanish when taken. Not yet:
+the 14 items RE1 hangs on a room object or the player (scaParent other than 0xFF), the sparkle,
+documents, the item box's use, RE1's status screen.
 
 Movies: RE1's own AVIs (Cinepak + PCM), copied into the mod unchanged for the movies the rooms'
 scripts can play (`re1/movies/<id>`), and played by `soh/src/code/z_nv_movie.c` (its own AVI

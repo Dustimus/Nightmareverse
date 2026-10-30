@@ -43,6 +43,7 @@ void NvItems_SetTaken(s32 n);
 s32 NvItems_Give(s32 id, s32 qty);
 const char* NvItems_Name(s32 id);
 void NvItems_Log(void);
+void NvItems_RoomLoad(PlayState* play);
 void NvMovie_Start(s32 id);
 s32 NvMovie_Playing(void);
 s32 NvDoorScene_Covering(void);
@@ -81,6 +82,10 @@ typedef struct {
     u8 item;     // item_set's record: the item, its count, its room item flag
     u8 qty;
     u8 itemFlag;
+    u8 isItem;   // set by item_set: a model to draw while the entry is live
+    u8 model;    // the room's item model (RDT item_models)
+    u8 parent;   // 0xFF: pos is in the room; 0xFE the player; else a room object (not drawn yet)
+    s16 pos[3];
 } NvAot;
 static NvAot sNvAot[NV_AOT_SLOTS];
 static s32 sNvAotCount;
@@ -235,6 +240,7 @@ static s32 NvScd_Cmd(void) {
                 NvAot* a = &sNvAot[p[1]];
 
                 memcpy(a->zone, p + 2, sizeof(a->zone));
+                a->isItem = false;
                 if (p[0] == 0x0C) {
                     a->handler = 1;
                     a->flags = p[0x19];
@@ -279,6 +285,10 @@ static s32 NvScd_Cmd(void) {
                     a->handler = (item < 0x4E) ? 4 : (item <= 0x53) ? 0x0F : 0x0D;
                 }
                 a->flags = p[0x17];
+                a->isItem = true;
+                a->model = p[12];
+                a->parent = p[13];
+                memcpy(a->pos, p + 0xE, sizeof(a->pos));
                 a->param[0] = (p[0x18] | (p[0x19] << 8)) & 1;
                 a->param[1] = p[12];
                 a->param[2] = p[0x16];
@@ -648,6 +658,24 @@ static s32 NvAot_Probe(Player* player) {
     return -1;
 }
 
+/** Item i of the room action table, if it's an item still lying in the room: its model, its
+ * parent (0xFF: none) and position (z_nv_items.c draws it). */
+s32 NvAot_Item(s32 i, s32* model, s32* parent, s16* pos) {
+    const NvAot* a;
+
+    if ((i < 0) || (i >= sNvAotCount)) {
+        return false;
+    }
+    a = &sNvAot[i];
+    if (!a->isItem || (a->handler == 0)) {
+        return false;
+    }
+    *model = a->model;
+    *parent = a->parent;
+    memcpy(pos, a->pos, sizeof(a->pos));
+    return true;
+}
+
 /** The A button's label for what A would do here, or -1 (z_nv_door.c, after doors and stairs). */
 s32 NvAot_DoAction(PlayState* play, Player* player) {
     s32 i = NvAot_Probe(player);
@@ -765,6 +793,7 @@ void NvScript_RoomInit(PlayState* play) {
     sNvAotCount = 0;
     sNvMsg = NULL;
     NvRe1_RoomLoad(play); // RE1's collision and walk zones, for its enemies (z_nv_zombie.c)
+    NvItems_RoomLoad(play); // the room's item models (z_nv_items.c)
     gNvRe1Player.isBeingAttackedFlag = 0;
     sNvLastCamera = -1;
     if ((play->loadedScene == NULL) || (play->loadedScene->sceneFile.fileName == NULL)) {

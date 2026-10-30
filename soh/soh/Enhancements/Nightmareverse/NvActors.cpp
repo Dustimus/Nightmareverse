@@ -10,6 +10,10 @@ void NvEnemy_Destroy(Actor* thisx, PlayState* play);
 void NvEnemy_Update(Actor* thisx, PlayState* play);
 void NvEnemy_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvEnemySize;
+void NvItemsActor_Init(Actor* thisx, PlayState* play);
+void NvItemsActor_Destroy(Actor* thisx, PlayState* play);
+void NvItemsActor_Update(Actor* thisx, PlayState* play);
+void NvItemsActor_Draw(Actor* thisx, PlayState* play);
 }
 
 // RE1's enemies (soh/src/code/z_nv_enemy.c)
@@ -29,6 +33,27 @@ extern "C" s32 NvActor_EnemyId(void) {
         entry.destroy = NvEnemy_Destroy;
         entry.update = NvEnemy_Update;
         entry.draw = NvEnemy_Draw;
+        id = ActorDB::Instance->AddEntry(entry).entry.id;
+    }
+    return id;
+}
+
+// The items lying in an RE1 room (soh/src/code/z_nv_items.c): one actor draws them all
+extern "C" s32 NvActor_ItemsId(void) {
+    static int id = -1;
+
+    if (id < 0) {
+        ActorDBInit entry;
+        entry.name = "Nv_Items";
+        entry.desc = "RE1 room items";
+        entry.category = ACTORCAT_PROP;
+        entry.flags = ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED;
+        entry.objectId = OBJECT_GAMEPLAY_KEEP;
+        entry.instanceSize = sizeof(Actor);
+        entry.init = NvItemsActor_Init;
+        entry.destroy = NvItemsActor_Destroy;
+        entry.update = NvItemsActor_Update;
+        entry.draw = NvItemsActor_Draw;
         id = ActorDB::Instance->AddEntry(entry).entry.id;
     }
     return id;

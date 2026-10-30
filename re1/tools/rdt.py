@@ -429,14 +429,15 @@ def parse_objects(d, offset):
     return out
 
 
-def room_models(room):
+def room_models(room, which=2):
     """The room's own object models (header byte 2 of them; offsets[2]: per model a TMD and a
     TIM offset): [(emd.MeshObject list, emd TIM), or None]. TMD textured triangles only (mode 0x34),
-    which is all these use; texture coordinates are relative to the TIM's left edge."""
+    which is all these use; texture coordinates are relative to the TIM's left edge. which=3: the
+    room's item models instead (header byte 3, offsets[3]: the same pairs)."""
     d = room.raw
     out = []
-    for k in range(d[2]):
-        tmd, tim_off = struct.unpack_from("<2I", d, room.offsets[2] + 8 * k)
+    for k in range(d[which]):
+        tmd, tim_off = struct.unpack_from("<2I", d, room.offsets[which] + 8 * k)
         if not tmd:  # an object with no model of its own (e.g. room 10F's third: collision only)
             out.append(None)
             continue

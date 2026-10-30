@@ -231,3 +231,173 @@ void NvItems_Log(void) {
     printf("\n");
     fflush(stdout);
 }
+
+/* ---- the items lying in the room: RE1's item models ---- */
+
+#include "soh/ResourceManagerHelpers.h"
+#include <libultraship/bridge/resourcebridge.h>
+#include <stdlib.h>
+
+#define NV_RE1_SCALE 0.0217f // OoT units per RE1 unit (re1/tools/rdt2scene.py SCALE)
+#define NV_IT_CELL_W 64
+#define NV_IT_CELL_H 32
+#define NV_IT_MODELS 16
+
+typedef struct {
+    u16 cell;
+    u16 numVerts;
+    Vtx* vtx;
+} NvItBatch;
+
+typedef struct {
+    u16* cells;
+    s32 numBatches;
+    NvItBatch* batches;
+} NvItModel;
+
+static NvItModel sNvItModels[NV_IT_MODELS];
+static s32 sNvItCount;
+
+s32 NvAot_Item(s32 i, s32* model, s32* parent, s16* pos);
+s32 NvActor_ItemsId(void);
+s32 NvDoorScene_Covering(void);
+
+/**
+ * The room's "<name>_items" (re1/tools/soh_scene.py items_blob) into sNvItModels, and the actor
+ * that draws them. Called as the room loads (z_nv_script.c), before its scripts place the items.
+ */
+void NvItems_RoomLoad(PlayState* play) {
+    char path[256];
+    const char* file;
+    size_t len;
+    const u8* d;
+    u16 count;
+    s32 i;
+
+    for (i = 0; i < sNvItCount; i++) {
+        s32 b;
+
+        for (b = 0; b < sNvItModels[i].numBatches; b++) {
+            free(sNvItModels[i].batches[b].vtx);
+        }
+        free(sNvItModels[i].batches);
+    }
+    memset(sNvItModels, 0, sizeof(sNvItModels));
+    sNvItCount = 0;
+    if ((play->loadedScene == NULL) || (play->loadedScene->sceneFile.fileName == NULL)) {
+        return;
+    }
+    file = play->loadedScene->sceneFile.fileName;
+    len = strlen(file);
+    if ((len <= 6) || (strcmp(file + len - 6, "_scene") != 0)) {
+        return;
+    }
+    snprintf(path, sizeof(path), "scenes/shared/%s/%.*s_items", file, (int)(len - 6), file);
+    if (!ResourceMgr_FileExists(path)) {
+        return;
+    }
+    d = (const u8*)ResourceGetDataByName(path);
+    if ((d == NULL) || (memcmp(d, "RITM", 4) != 0)) {
+        return;
+    }
+    memcpy(&count, d + 4, 2);
+    d += 6;
+    for (i = 0; (i < count) && (i < NV_IT_MODELS); i++) {
+        NvItModel* m = &sNvItModels[i];
+        u16 cw;
+        u16 ch;
+        u16 nb;
+        s32 b;
+
+        memcpy(&cw, d, 2);
+        memcpy(&ch, d + 2, 2);
+        d += 4;
+        m->cells = (u16*)d;
+        d += cw * ch * NV_IT_CELL_W * NV_IT_CELL_H * 2;
+        memcpy(&nb, d, 2);
+        d += 2;
+        m->numBatches = nb;
+        m->batches = calloc(MAX(nb, 1), sizeof(NvItBatch));
+        for (b = 0; b < nb; b++) {
+            NvItBatch* batch = &m->batches[b];
+
+            memcpy(&batch->cell, d, 2);
+            memcpy(&batch->numVerts, d + 2, 2);
+            d += 4;
+            batch->vtx = malloc(batch->numVerts * sizeof(Vtx));
+            memcpy(batch->vtx, d, batch->numVerts * sizeof(Vtx));
+            d += batch->numVerts * sizeof(Vtx);
+        }
+    }
+    sNvItCount = MIN(count, NV_IT_MODELS);
+    if (sNvItCount > 0) {
+        Actor_Spawn(&play->actorCtx, play, NvActor_ItemsId(), 0.0f, 0.0f, 0.0f, 0, 0, 0, 0);
+    }
+}
+
+void NvItemsActor_Init(Actor* thisx, PlayState* play) {
+}
+
+void NvItemsActor_Destroy(Actor* thisx, PlayState* play) {
+}
+
+void NvItemsActor_Update(Actor* thisx, PlayState* play) {
+}
+
+/** Every item still lying in the room, at RE1's position: RE1 x, -y, -z, scaled. */
+void NvItemsActor_Draw(Actor* thisx, PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    s32 i;
+
+    if (NvDoorScene_Covering()) {
+        return;
+    }
+    OPEN_DISPS(gfxCtx);
+    gDPPipeSync(POLY_OPA_DISP++);
+    gDPSetCycleType(POLY_OPA_DISP++, G_CYC_1CYCLE);
+    gDPSetDepthSource(POLY_OPA_DISP++, G_ZS_PIXEL);
+    gDPSetRenderMode(POLY_OPA_DISP++, G_RM_AA_ZB_TEX_EDGE, G_RM_AA_ZB_TEX_EDGE2);
+    gDPSetTextureFilter(POLY_OPA_DISP++, G_TF_POINT);
+    gDPSetTexturePersp(POLY_OPA_DISP++, G_TP_PERSP);
+    gDPSetTextureLUT(POLY_OPA_DISP++, G_TT_NONE);
+    gDPSetCombineMode(POLY_OPA_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
+    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
+    gSPClearGeometryMode(POLY_OPA_DISP++, G_LIGHTING | G_FOG | G_CULL_BOTH | G_TEXTURE_GEN);
+    gSPSetGeometryMode(POLY_OPA_DISP++, G_ZBUFFER | G_SHADE | G_SHADING_SMOOTH);
+    gSPTexture(POLY_OPA_DISP++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
+    for (i = 0; i < 32; i++) {
+        s32 model;
+        s32 parent;
+        s16 pos[3];
+        NvItModel* m;
+        s32 b;
+
+        if (!NvAot_Item(i, &model, &parent, pos) || (model >= sNvItCount) || (parent != 0xFF)) {
+            continue; // (items on a room object or the player: not yet)
+        }
+        m = &sNvItModels[model];
+        Matrix_Push();
+        Matrix_Translate(pos[0] * NV_RE1_SCALE, -pos[1] * NV_RE1_SCALE, -pos[2] * NV_RE1_SCALE, MTXMODE_NEW);
+        Matrix_Scale(NV_RE1_SCALE, -NV_RE1_SCALE, -NV_RE1_SCALE, MTXMODE_APPLY);
+        gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        Matrix_Pop();
+        for (b = 0; b < m->numBatches; b++) {
+            NvItBatch* batch = &m->batches[b];
+            s32 v;
+
+            gDPLoadTextureBlock(POLY_OPA_DISP++, m->cells + batch->cell * NV_IT_CELL_W * NV_IT_CELL_H, G_IM_FMT_RGBA,
+                                G_IM_SIZ_16b, NV_IT_CELL_W, NV_IT_CELL_H, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                                G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+            for (v = 0; v + 3 <= batch->numVerts; v += 30) {
+                s32 cnt = MIN(30, batch->numVerts - v);
+                s32 q;
+
+                gSPVertex(POLY_OPA_DISP++, batch->vtx + v, cnt, 0);
+                for (q = 0; q + 3 <= cnt; q += 3) {
+                    gSP1Triangle(POLY_OPA_DISP++, q, q + 1, q + 2, 0);
+                }
+            }
+        }
+    }
+    CLOSE_DISPS(gfxCtx);
+}
