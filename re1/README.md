@@ -195,6 +195,15 @@ breaks and highlight colour) and never committed. Not yet: the executable's shar
 bit 0x40), item names inside messages, yes/no prompts and the other handlers (items, keys,
 events), and the Japanese release's text (its own font encoding).
 
+Pickups (2026-10-30): the scripts' item_set (0x18) puts each item lying in a room into the room
+action table (handler 4 an item, 0x0F a map, 0x0D a document; none once taken). A on one asks
+"Take the <item>?" with OoT's yes/no (our own wording and plain item names,
+`soh/src/code/z_nv_items.c`); yes takes it by RE1's rules (room_event_item_pickup: ammo and ink
+ribbons merge into a carried stack up to 250, the rest a new slot; with no room it stays where it
+lies) and sets the item's taken flag, so it's gone from the room. Jill's 8 slots, the item box and
+the taken flags last for the session until the save system. Not yet: the items' 3D models in the
+rooms, documents, the item box's use, RE1's status screen.
+
 Movies: RE1's own AVIs (Cinepak + PCM), copied into the mod unchanged for the movies the rooms'
 scripts can play (`re1/movies/<id>`), and played by `soh/src/code/z_nv_movie.c` (its own AVI
 reader and Cinepak decoder; the sound through SDL, `NvMovieAudio.cpp`). Any button skips. 104's

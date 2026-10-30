@@ -38,6 +38,11 @@ void NvEnemy_ScdSet(PlayState* play, const u8* rec);
 void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param);
 void NvEnemy_ScdPos(s32 slot, s16 angle, s16 x, s16 y, s16 z);
 #include "z_nv_re1.h"
+s32 NvItems_InRoom(s32 n);
+void NvItems_SetTaken(s32 n);
+s32 NvItems_Give(s32 id, s32 qty);
+const char* NvItems_Name(s32 id);
+void NvItems_Log(void);
 void NvMovie_Start(s32 id);
 s32 NvMovie_Playing(void);
 s32 NvDoorScene_Covering(void);
@@ -73,6 +78,9 @@ typedef struct {
     u8 flags;   // 0x01 probed, 0x80 on the action press, 0x40 at the player (not in front)
     u16 param[3];
     u16 zone[4]; // x, z, width, depth (RE1 units, unsigned compares)
+    u8 item;     // item_set's record: the item, its count, its room item flag
+    u8 qty;
+    u8 itemFlag;
 } NvAot;
 static NvAot sNvAot[NV_AOT_SLOTS];
 static s32 sNvAotCount;
@@ -253,6 +261,30 @@ static s32 NvScd_Cmd(void) {
                 sNvAot[p[1]].flags = p[3];
             }
             sNvIp = p + 4;
+            return 1;
+        case 0x18: // cmd_item_model_set: an item lying in the room (CmdFunctions.cpp 0x00461220)
+            if ((p[1] & 0x7F) < NV_AOT_SLOTS) {
+                NvAot* a = &sNvAot[p[1] & 0x7F];
+                u8 item = p[10];
+
+                memcpy(a->zone, p + 2, sizeof(a->zone));
+                a->item = item;
+                a->qty = p[11];
+                a->itemFlag = p[0x16];
+                // the handler by kind (4 an item, 0x0F a map, 0x0D a document), 0 once taken; Jill
+                // finds no ink ribbons on the PC (jill_needs_ink_ribbons): she has no typewriter here
+                if (!NvItems_InRoom(a->itemFlag) || (item == 0x2F)) {
+                    a->handler = 0;
+                } else {
+                    a->handler = (item < 0x4E) ? 4 : (item <= 0x53) ? 0x0F : 0x0D;
+                }
+                a->flags = p[0x17];
+                a->param[0] = (p[0x18] | (p[0x19] << 8)) & 1;
+                a->param[1] = p[12];
+                a->param[2] = p[0x16];
+                sNvAotCount = MAX(sNvAotCount, (p[1] & 0x7F) + 1);
+            }
+            sNvIp = p + 0x1A;
             return 1;
         case 0x14: // cmd_scd_event_create
             NvEvt_Create(p[2], p[3]);
@@ -620,7 +652,57 @@ static s32 NvAot_Probe(Player* player) {
 s32 NvAot_DoAction(PlayState* play, Player* player) {
     s32 i = NvAot_Probe(player);
 
-    return ((i >= 0) && (sNvAot[i].handler == 2)) ? DO_ACTION_CHECK : -1;
+    if (i < 0) {
+        return -1;
+    }
+    switch (sNvAot[i].handler) {
+        case 2:    // a message
+        case 4:    // an item
+        case 0x0F: // a map
+            return DO_ACTION_CHECK;
+        default:
+            return -1;
+    }
+}
+
+static char sNvPrompt[160];
+static s32 sNvPickup = -1; // the item spot whose prompt is open
+
+/**
+ * The pickup prompt's answer (RE1: message 0xC0's yes/no, then handle_message_post_action's
+ * room_event_take_item). Yes: the item goes to the slots and leaves the room, or, with no room
+ * for it, stays where it lies with RE1's refusal. Each frame, from NvScript_Update.
+ */
+static void NvPickup_Update(PlayState* play) {
+    NvAot* a;
+
+    if (sNvPickup < 0) {
+        return;
+    }
+    if (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) {
+        sNvPickup = -1;
+        return;
+    }
+    if ((Message_GetState(&play->msgCtx) != TEXT_STATE_CHOICE) || !Message_ShouldAdvance(play)) {
+        return;
+    }
+    a = &sNvAot[sNvPickup];
+    sNvPickup = -1;
+    if (play->msgCtx.choiceIndex != 0) {
+        Message_CloseTextbox(play);
+        return;
+    }
+    if (!NvItems_Give(a->item, a->qty)) {
+        snprintf(sNvPrompt, sizeof(sNvPrompt), "You can't carry any more.");
+        sNvMsgText = sNvPrompt;
+        Message_ContinueTextbox(play, NV_TEXT_ID);
+        return;
+    }
+    NvItems_SetTaken(a->itemFlag);
+    a->handler = 0;
+    printf("NVITEM took %02X x%d (flag %d)\n", a->item, a->qty, a->itemFlag);
+    NvItems_Log();
+    Message_CloseTextbox(play);
 }
 
 /**
@@ -632,7 +714,20 @@ s32 NvAot_Act(PlayState* play, Player* player) {
     s32 i = NvAot_Probe(player);
     u16 id;
 
-    if ((i < 0) || (sNvAot[i].handler != 2)) {
+    if (i < 0) {
+        return false;
+    }
+    if ((sNvAot[i].handler == 4) || (sNvAot[i].handler == 0x0F)) { // an item or a map: take it?
+        snprintf(sNvPrompt, sizeof(sNvPrompt), "Take the %%r%s%%w?\x1B%%gYes&No%%w", NvItems_Name(sNvAot[i].item));
+        sNvMsgText = sNvPrompt;
+        sNvPickup = i;
+        printf("NVITEM spot %d: %02X x%d\n", (int)i, sNvAot[i].item, sNvAot[i].qty);
+        fflush(stdout);
+        NvMsg_EnsureHook();
+        Message_StartTextbox(play, NV_TEXT_ID, NULL);
+        return true;
+    }
+    if (sNvAot[i].handler != 2) {
         return false;
     }
     id = sNvAot[i].param[0];
@@ -757,6 +852,7 @@ void NvScript_Update(PlayState* play) {
         gSaveContext.sunsSongState = SUNSSONG_INACTIVE;
     }
     gNvSunSongSeen = false;
+    NvPickup_Update(play); // an item prompt's answer
     if ((sNvMain == NULL) || (sNvPlay != play) || NvDoorScene_Covering() || NvMovie_Playing() ||
         (play->transitionTrigger != TRANS_TRIGGER_OFF) || (getenv("NV_NO_ENEMIES") != NULL)) {
         return;
