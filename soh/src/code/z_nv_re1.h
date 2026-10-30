@@ -68,6 +68,7 @@ typedef struct NvRe1Entity {
     s16 unk_c6; // grab / SCD target point
     s16 unk_c8;
     s16 turn_delta; // +0x170
+    u8 headless;    // the head burst (a crawler's grab ends with the player's stomp)
     const s16* sca; // Sca_info record: [0] terminator, [1..3] offset, [4] half height, [5] radius
     s16 scaWorld[3];
     // the skeleton's pose (Joint_move)

@@ -2287,7 +2287,8 @@ static void zombie_attack_head_bite(void) {
     entity_apply_anim_vertex();
     E->action_state += (u8)Joint_move(0, 0x400);
     if (sAttackAnim[E->attacking_direction * 3 + 2] == E->animation_frame_id) {
-        E->action_state = 10; // (the head bursts: effects not ported)
+        E->action_state = 10;
+        E->headless = true; // the head bursts (z_nv_enemy.c draws it gone, with the burst)
     }
 }
 
@@ -2307,6 +2308,7 @@ static void zombie_attack_headless_death(void) {
     E->status_flags |= 0x0E;
     E->health = -1;
     E->hit_state = 1;
+    E->headless = true; // (cases 7 and 9 both park a headless corpse: the vomit path's too)
 }
 
 static void zombie_attack(void) {

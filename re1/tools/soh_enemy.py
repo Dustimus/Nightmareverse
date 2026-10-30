@@ -90,6 +90,21 @@ def enemy_blob(path):
     return bytes(out)
 
 
+def player_blob(path):
+    """The player's side of an enemy's grabs and hits (the EMD's first section, which RE1 plays on the
+    player: emdScratchPtr, PlayerAnimations.cpp), or None: "RPLA", u16 numBones, per bone s16 x, y,
+    z, parent, then a bank as in enemy_blob (frames, then anims). z_nv_linkanim.c plays them on Link."""
+    e = emd.load(path)
+    sk = e.extra_skeleton
+    if sk is None:
+        return None
+    out = bytearray(b"RPLA" + struct.pack("<H", len(sk.relpos)))
+    for i in range(len(sk.relpos)):
+        out += struct.pack("<4h", *sk.relpos[i], sk.parents[i])
+    out += bank(sk, e.extra_animations)
+    return bytes(out)
+
+
 def write(re1, out, types):
     """Write the models for these enemy types into the SoH folder; returns the ones written."""
     done = []
@@ -103,6 +118,10 @@ def write(re1, out, types):
         blob = enemy_blob(path)
         open(os.path.join(d, "em%d" % t), "wb").write(
             soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+        pl = player_blob(path)
+        if pl is not None:
+            open(os.path.join(d, "em%d_pl" % t), "wb").write(
+                soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(pl)) + pl)
         done.append(t)
     return done
 

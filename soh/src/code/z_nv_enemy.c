@@ -39,6 +39,12 @@
 #define NV_EM_MAX_ANIMS 64
 #define NV_EM_MAX_BATCHES 384
 #define NV_EM_MODELS 6
+s32 NvLinkAnim_Play(s32 type, s32 anim, s32 hold);
+void NvLinkAnim_Stop(void);
+s32 NvLinkAnim_Playing(void);
+s32 NvLinkAnim_Done(void);
+#define NV_ZOMBIE_HEAD_BONE 2 // the zombie's head: the chest's child with none of its own
+
 #define NV_EM_CELL_W 64
 #define NV_EM_CELL_H 32
 #define NV_ENEMY_SLOTS 16 // cmd_enemy_set's slot (its low nibble)
@@ -72,6 +78,7 @@ typedef struct {
     u8 tickPhase;
     s32 grabbing;
     s16 sunStun; // frames left frozen by the Sun's Song, as a ReDead (En_Rd's 600)
+    u8 wasHeadless;
 } NvEnemy;
 
 s32 gNvSunSongSeen; // an enemy took this Sun's Song (z_nv_script.c ends it next frame)
@@ -397,13 +404,27 @@ static void NvEnemy_Grab(NvEnemy* this, PlayState* play) {
         return;
     }
     if (e->state != NV_ZST_ATTACK) {
-        // the attack is over: let him go (Player_Action_8084F308's mash count)
+        // the attack is over; RE1's last player animation (a crawler's: Jill's stomp) plays out first
+        if (NvLinkAnim_Playing() && !NvLinkAnim_Done()) {
+            player->av2.actionVar2 = 0;
+            return;
+        }
+        NvLinkAnim_Stop();
+        // let him go (Player_Action_8084F308's mash count)
         if (player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) {
             player->av2.actionVar2 = 101;
         }
         this->grabbing = false;
         gNvRe1Player.isBeingAttackedFlag = 0;
         return;
+    }
+    // the player's side, as RE1 plays it from the zombie's EMD (z_nv_linkanim.c): per direction
+    // three animations (zombie_attack_player_anim_tbl: 0, 3, 6, 9): the grab, the hold (the bites,
+    // looping), then the end (pushed off, or a crawler's head stomped)
+    {
+        s32 phase = (e->action_state < 2) ? 0 : (e->action_state < 4) ? 1 : 2;
+
+        NvLinkAnim_Play(this->type, e->attacking_direction * 3 + phase, phase != 1);
     }
     // RE1 decides when it ends: OoT's own mashing out stays off, RE1's mashing counts instead
     player->av2.actionVar2 = 0;
@@ -537,6 +558,14 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
         fflush(stdout);
     }
 
+    if (e->headless && !this->wasHeadless) { // the head bursts: a splash of red and the crunch
+        Vec3f head = thisx->world.pos;
+
+        this->wasHeadless = true;
+        head.y += 10.0f;
+        EffectSsHitMark_SpawnCustomScale(play, 2, 400, &head);
+        Audio_PlayActorSound2(thisx, NA_SE_EN_DEADHAND_BITE);
+    }
     // where RE1 put it, in OoT's terms (RE1 x, -y, -z)
     thisx->world.pos.x = e->t[0] * NV_RE1_SCALE;
     thisx->world.pos.y = -e->t[1] * NV_RE1_SCALE;
@@ -658,7 +687,7 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
         s32 k;
         s32 b;
 
-        if (m->numBatches[n] == 0) {
+        if ((m->numBatches[n] == 0) || (this->e.headless && (n == NV_ZOMBIE_HEAD_BONE))) {
             continue;
         }
         // OoT = pos + base * (R p + T); mf[column][row]

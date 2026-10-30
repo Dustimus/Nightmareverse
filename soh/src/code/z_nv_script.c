@@ -860,21 +860,22 @@ void NvScript_RoomInit(PlayState* play) {
         NvScd_Run(sNvInit);
         sNvInitRun = false;
     }
-    // dev: NV_TEST_ENEMY="type,x,z" (OoT units) places one more, held still (behaviour 0x80), e.g. to
-    // see it against a mask
+    // dev: NV_TEST_ENEMY="type,x,z[,behaviour]" (OoT units) places one more, held still (behaviour
+    // 0x80) unless a behaviour is given (e.g. 2: a crawler), e.g. to see it against a mask
     if (getenv("NV_TEST_ENEMY") != NULL) {
         int type;
         int x;
         int z;
+        int beh = 0x80;
 
-        if (sscanf(getenv("NV_TEST_ENEMY"), "%d,%d,%d", &type, &x, &z) == 3) {
+        if (sscanf(getenv("NV_TEST_ENEMY"), "%d,%d,%d,%d", &type, &x, &z, &beh) >= 3) {
             u8 rec[22] = { 0 };
             s16 rx = (s16)(x / 0.0217f);
             s16 rz = (s16)(-z / 0.0217f);
 
             rec[0] = 0x1B;
             rec[1] = type;
-            rec[2] = 0x80;
+            rec[2] = beh;
             rec[3] = 0xFF;
             memcpy(rec + 12, &rx, 2);
             memcpy(rec + 16, &rz, 2);

@@ -12201,6 +12201,7 @@ static Vec3f sDogSpawnOffset = { 0.0f, 0.0f, -30.0f };
 
 s32 Player_UpdateNoclip(Player* this, PlayState* play);
 s32 NvClimb_UpdatePlayer(Player* player, PlayState* play); // Nightmareverse: RE1 stairs (z_nv_climb.c)
+void NvLinkAnim_Apply(Player* player, PlayState* play);
 
 void Player_Update(Actor* thisx, PlayState* play) {
     static Vec3f sDogSpawnPos;
@@ -12336,6 +12337,7 @@ void Player_Update(Actor* thisx, PlayState* play) {
         // Actor_PlaySfx_Flagged(&player->actor, NA_SE_EV_WIND_TRAP - SFX_FLAG);
     }
 
+    NvLinkAnim_Apply(this, play); // Nightmareverse: an RE1 animation over Link's own (z_nv_linkanim.c)
     GameInteractor_ExecuteOnPlayerUpdate();
 }
 
