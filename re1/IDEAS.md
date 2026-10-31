@@ -97,3 +97,7 @@ here is agreed or scheduled.
 - Jewels, medals, crests: worth rupees, but only once they've done their puzzle job.
 - Radio: "call Brad", a hint line with RE flavour, or the helicopter at the end.
 - Ammo in tall grass: off by default; maybe only once Link owns the gun, rarely.
+
+- Status screen background (user, 2026-10-31): the RE1 page now sits at the right size inside the
+  map page's border; later, give it its own custom background in place of OoT's map page art, and
+  tune the scaling.
