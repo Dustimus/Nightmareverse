@@ -2,6 +2,7 @@
 
 s32 NvStatus_InMansion(PlayState* play);
 void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive);
+s32 NvFiles_Reading(void);
 #include <stdlib.h>
 #include <string.h>
 
@@ -4277,7 +4278,8 @@ void KaleidoScope_Update(PlayState* play) {
                         pauseCtx->state = 0x12;
                         WREG(2) = -6240;
                         func_800F64E0(0);
-                    } else if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
+                    } else if (CHECK_BTN_ALL(input->press.button, BTN_B) && !NvFiles_Reading()) {
+                        // (Nightmareverse: B closes a file being read, not the menu, z_nv_files.c)
                         pauseCtx->mode = 0;
                         pauseCtx->promptChoice = 0;
                         Audio_PlaySfxGeneral(NA_SE_SY_DECIDE, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,

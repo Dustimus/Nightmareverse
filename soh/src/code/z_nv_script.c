@@ -707,6 +707,7 @@ s32 NvAot_DoAction(PlayState* play, Player* player) {
         case 2:    // a message
         case 4:    // an item
         case 0x0F: // a map
+        case 0x0D: // a document
             return DO_ACTION_CHECK;
         default:
             return -1;
@@ -758,6 +759,8 @@ static void NvPickup_Update(PlayState* play) {
  * room_check_actions runs it. So far display_msg_room_action (2): the room's message, in OoT's
  * text box. True when the press was taken.
  */
+s32 NvFiles_Take(s32 id);
+
 s32 NvAot_Act(PlayState* play, Player* player) {
     s32 i = NvAot_Probe(player);
     u16 id;
@@ -773,6 +776,16 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         fflush(stdout);
         NvMsg_EnsureHook();
         Message_StartTextbox(play, NV_TEXT_ID, NULL);
+        return true;
+    }
+    if (sNvAot[i].handler == 0x0D) { // a document: RE1 takes it and reads it at once
+        NvAot* a = &sNvAot[i];
+
+        printf("NVFILE spot %d: %02X\n", (int)i, a->item);
+        fflush(stdout);
+        NvItems_SetTaken(a->itemFlag);
+        a->handler = 0;
+        NvFiles_Take(a->item);
         return true;
     }
     if (sNvAot[i].handler != 2) {

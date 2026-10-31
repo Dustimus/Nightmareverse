@@ -1031,6 +1031,7 @@ def _pack_soh(folder, re1, anims):
     import soh_ui
     print("soh: item icons %d" % soh_ui.write_icons(re1, folder))
     print("soh: status sprites %d" % soh_ui.write_status(re1, folder))
+    print("soh: files %d" % soh_ui.write_files(re1, folder))
     soh_scene.pack_o2r(folder, folder.rstrip("/") + ".o2r")
     print("soh: packed %s.o2r" % folder.rstrip("/"))
 

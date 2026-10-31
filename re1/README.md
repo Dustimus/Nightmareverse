@@ -205,7 +205,7 @@ the taken flags last for the session until the save system. The items lying in a
 with RE1's own item models (RDT+0x54, `<name>_items`, `tools/soh_scene.py` items_blob) at the
 item_set's position, by one actor (`Nv_Items`, `z_nv_items.c`), and vanish when taken. Not yet:
 the 14 items RE1 hangs on a room object or the player (scaParent other than 0xFF), the sparkle,
-documents, the item box's use, RE1's status screen.
+the item box's use.
 
 RE1's player animations on Link (2026-10-31): each enemy's EMD carries the player's side of its
 grabs (`re1/enemies/em<type>_pl`, `tools/soh_enemy.py`); `soh/src/code/z_nv_linkanim.c` poses
@@ -217,12 +217,28 @@ skeletons per frame; `tools/linkanim_debug.py soh.log out.png` draws them side b
 
 Status screen (2026-10-31): in RE1's rooms the pause menu's map page is RE1's status screen
 (`soh/src/code/z_nv_status.c`, hooked into z_kaleido_scope_PAL.c where the world map is drawn) and
-the pause menu opens on it there (z_kaleido_setup.c). Jill's 8 slots with the items' names, a
-cursor (stick or D-pad), and A for RE1's actions: Use (heals by RE1's g_ItemHealTable: a third, two
-thirds or all of Link's hearts; an item that would do nothing isn't used up), Combine (then the
-second item: RE1's herb mixes), Check (name and count), Back. Each slot shows RE1's own icon
-(`re1/ui/icons`, `tools/soh_ui.py`: Data/ITEM_ALL.PIX, 40 x 30, in STATUS.TIM's third CLUT, from the
-player's files when the mod is made), its name and count. Not yet: Equip, files, the map, RE1's look. Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad).
+the pause menu opens on it there (z_kaleido_setup.c). It is drawn in RE1's own pictures, cut at
+mod-making time out of the player's STATUS.TIM, BLUE.TIM and STATFACE.TIM (`re1/ui/status`,
+`tools/soh_ui.py` STATUS_SPRITES, at the places MainMenu.cpp draws them from): the Map/File/Exit
+tabs (no radio yet), Jill's face and condition (Fine/Caution/Danger by Link's hearts in RE1's
+quarters), the equipped weapon, and the 2 x 4 slots on RE1's blue ground with RE1's icons
+(`re1/ui/icons`: ITEM_ALL.PIX in STATUS.TIM's third CLUT, by the item record's icon byte, so the
+mixed herbs have theirs), RE1's digits for counts and RE1's cursors. A on an item opens RE1's action
+box: Equip (weapons only; RE1's g_EquippedItemId, which follows its slot as slots close up; its use
+in the rooms comes with the weapons), Use (heals by RE1's g_ItemHealTable: a third, two thirds or
+all of Link's hearts; an item that would do nothing isn't used up), Check, Combine (then the second
+item: RE1's herb mixes). Up from the top slots reaches the tabs: Exit closes the pause menu, File
+lists the files found, Map says there's no map yet.
+
+Files (2026-10-31): a document lying in a room (item 0x5F + its file number, handler 0x0D) is taken
+with A and, as in RE1, read at once: the pause menu opens on its pages (`soh/src/code/z_nv_files.c`).
+The pages are the player's own (`re1/ui/file<n>`, from item_m2/filem_*.pix: a table of offsets to
+PAK-packed 256 x 256 4 bpp TIMs, in RE1's g_filemPixNames order), shown whole screen; left/right turn
+pages, A on the last page or B closes. The File tab reads them again. Their list names are our own
+plain "File n" for now.
+
+Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad); NV_GIVE="id,qty;..." gives
+items on the first room; NV_FILE=n takes file n there.
 
 Movies: RE1's own AVIs (Cinepak + PCM), copied into the mod unchanged for the movies the rooms'
 scripts can play (`re1/movies/<id>`), and played by `soh/src/code/z_nv_movie.c` (its own AVI

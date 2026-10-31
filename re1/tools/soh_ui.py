@@ -10,6 +10,10 @@ height, then each icon as RGBA5551, big-endian.
 draws them from (MainMenu.cpp menu_draw_inventory, menu_draw_cursor, display_item_qty, the item
 action box): "RSPR", u16 count, then per sprite u16 width, height and its RGBA5551 pixels
 (big-endian; RE1's colour 0 is clear). z_nv_status.c knows them by their order in STATUS_SPRITES.
+
+"re1/ui/file<n>": file n's pages (z_nv_files.c), from the player's item_m2/filem_*.pix (RE1's
+g_filemPixNames order: l to z, then 00; each a table of u32 offsets to PAK-packed 4 bpp TIMs):
+"RFIL", u16 pages, width, height, then each page as RGBA5551, big-endian.
 """
 import os
 import struct
@@ -84,6 +88,42 @@ def write_status(re1, out):
     open(os.path.join(d, "status"), "wb").write(
         soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
     return len(STATUS_SPRITES)
+
+
+FILE_PIX = ["filem_%s0.pix" % c for c in "lmnopqrstuvwxyz"] + ["filem_00.pix"]
+
+
+def file_blob(re1, n):
+    pix = open(rdt.find_file(rdt.find_file(re1, "ITEM_M2"), FILE_PIX[n]), "rb").read()
+    pages = []
+    for i in range(16):
+        o = struct.unpack_from("<I", pix, 4 * i)[0]
+        if o == 0 or o >= len(pix):
+            break
+        pages.append(emd.parse_tim(bytes(rdt.pak_depack(pix[o:])), 0))
+    w, h = pages[0].width, pages[0].height
+    out = bytearray(b"RFIL" + struct.pack("<3H", len(pages), w, h))
+    for tim in pages:
+        rgba = emd.tim_to_rgba(tim)[2]
+        for k in range(w * h):
+            out += struct.pack(">H", _rgba5551(rgba[k * 4:k * 4 + 4]))
+    return bytes(out)
+
+
+def write_files(re1, out):
+    """Write each file's pages; returns how many files (0 when the files aren't there)."""
+    d = os.path.join(out, "re1", "ui")
+    done = 0
+    for n in range(len(FILE_PIX)):
+        try:
+            blob = file_blob(re1, n)
+        except (OSError, IndexError, ValueError):
+            continue
+        os.makedirs(d, exist_ok=True)
+        open(os.path.join(d, "file%d" % n), "wb").write(
+            soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+        done += 1
+    return done
 
 
 def write_icons(re1, out):

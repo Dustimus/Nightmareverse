@@ -181,7 +181,7 @@ static void NvSt_Count(Gfx** gfxP, s32 id, s32 qty, s32 x, s32 y) {
 #define NV_ST_EQ_X 40
 #define NV_ST_EQ_Y 116
 #define NV_ST_ACT_X 148
-#define NV_ST_ACT_Y 72
+#define NV_ST_ACT_Y 56
 
 typedef enum { NV_TAB_MAP, NV_TAB_FILE, NV_TAB_EXIT, NV_TAB_COUNT } NvStTab;
 static const u8 sNvStTabRow[NV_TAB_COUNT] = { 0, 2, 3 }; // their rows in the tab picture (no radio)
@@ -196,6 +196,9 @@ s32 NvItems_ToggleEquip(s32 i);
 s32 NvFiles_Count(void);
 void NvFiles_Open(PlayState* play, s32 k);
 const char* NvFiles_Name(s32 k);
+s32 NvFiles_Reading(void);
+s32 NvFiles_Update(Input* input, s32 stickX);
+Gfx* NvFiles_Draw(Gfx* gfx);
 
 #define NV_ST_TABS_ROW NV_ST_SLOTS // the cursor on the tabs
 
@@ -472,6 +475,17 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
     if (!interactive || (pauseCtx->state != 6) || (pauseCtx->unk_1E4 != 0)) {
         return;
     }
+    if (NvFiles_Reading()) {
+        // a file open: its pages, whole screen, over the rest
+        if (pauseCtx->debugState == 0) {
+            NvFiles_Update(&play->state.input[0], pauseCtx->stickRelX);
+        }
+        sNvStHeld = 0;
+        OPEN_DISPS(gfxCtx);
+        OVERLAY_DISP = NvFiles_Draw(OVERLAY_DISP);
+        CLOSE_DISPS(gfxCtx);
+        return;
+    }
     if (pauseCtx->debugState == 0) {
         NvSt_Input(play);
     }
@@ -556,7 +570,7 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
     if (sNvStMode == NV_ST_FILES) {
         // the files read so far, and Back
         for (i = 0; i <= NvFiles_Count(); i++) {
-            GfxPrint_SetPos(&printer, 18, 7 + i);
+            GfxPrint_SetPos(&printer, 12, 10 + i);
             GfxPrint_SetColor(&printer, (i == sNvStAction) ? 255 : 150, (i == sNvStAction) ? 210 : 150,
                               (i == sNvStAction) ? 60 : 160, 255);
             GfxPrint_Printf(&printer, "%c%.20s", (i == sNvStAction) ? '>' : ' ',

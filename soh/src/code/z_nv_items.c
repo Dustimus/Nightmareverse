@@ -276,10 +276,18 @@ static void NvItems_DevGive(void) {
     unsigned int id, qty;
     int used;
 
-    if (sDone || (s == NULL)) {
+    if (sDone) {
         return;
     }
     sDone = true;
+    if (getenv("NV_FILE") != NULL) { // NV_FILE=n: take RE1 file n, as if found in the room
+        s32 NvFiles_Take(s32 id);
+
+        NvFiles_Take(0x5F + atoi(getenv("NV_FILE")));
+    }
+    if (s == NULL) {
+        return;
+    }
     while (sscanf(s, "%i,%i%n", &id, &qty, &used) == 2) {
         NvItems_Give(id, qty);
         s += used;
