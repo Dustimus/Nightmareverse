@@ -1,6 +1,7 @@
 #include "global.h"
 
 s32 NvStatus_InMansion(PlayState* play);
+void NvStatus_OnPause(PlayState* play);
 
 s16 sKaleidoSetupKscpPos0[] = { PAUSE_QUEST, PAUSE_EQUIP, PAUSE_ITEM, PAUSE_MAP };
 f32 sKaleidoSetupEyeX0[] = { 0.0f, 64.0f, 0.0f, -64.0f };
@@ -44,6 +45,7 @@ void KaleidoSetup_Update(PlayState* play) {
             // map page's place (z_nv_status.c): the page it last showed is the page it turns to
             if (NvStatus_InMansion(play)) {
                 pauseCtx->pageIndex = PAUSE_MAP;
+                NvStatus_OnPause(play);
             }
 
             if (ZREG(48) == 0) {

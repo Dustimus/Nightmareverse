@@ -403,3 +403,107 @@ void NvItemsActor_Draw(Actor* thisx, PlayState* play) {
     }
     CLOSE_DISPS(gfxCtx);
 }
+
+/* ---- Use and Combine (RE1's status screen, z_nv_status.c) ---- */
+
+// RE1's healing per item (MenuData.cpp g_ItemHealTable): low nibble 1 a third of the player's
+// health, 2 two thirds, 3 all of it; 0x10 / 0x20 cures (the serum's, the blue herb's poison)
+static u8 NvItems_Heal(s32 id) {
+    switch (id) {
+        case 0x41: // first aid spray
+            return 0x03;
+        case 0x44: // green herb
+            return 0x01;
+        case 0x45: // blue herb
+            return 0x20;
+        case 0x46: // green + red
+        case 0x4A: // green x3
+            return 0x03;
+        case 0x47: // green x2
+            return 0x02;
+        case 0x48: // green + blue
+            return 0x21;
+        case 0x49: // green + red + blue
+            return 0x23;
+        case 0x4B: // green x2 + blue
+            return 0x22;
+        default:
+            return 0;
+    }
+}
+
+/** Remove one of slot i's item, closing the gap as RE1 does (rearrange_item_slots). */
+static void NvItems_TakeOne(s32 i) {
+    s32 k;
+
+    if (sNvSlots[i].qty > 1) {
+        sNvSlots[i].qty--;
+        return;
+    }
+    for (k = i; k < NvItems_SlotCount() - 1; k++) {
+        sNvSlots[k] = sNvSlots[k + 1];
+    }
+    sNvSlots[NvItems_SlotCount() - 1].id = sNvSlots[NvItems_SlotCount() - 1].qty = 0;
+}
+
+/**
+ * Use slot i's item (menu_item_use_heal): a heal fills Link's hearts by RE1's thirds; a cure has
+ * nothing to cure in Hyrule (no poison). As RE1, an item that would do nothing isn't used up.
+ * Returns 1 used, 0 nothing happened, -1 not usable here.
+ */
+s32 NvItems_Use(PlayState* play, s32 i) {
+    s32 id = NvItems_Slot(i, NULL);
+    u8 heal = NvItems_Heal(id);
+    s32 cap = gSaveContext.healthCapacity;
+    s32 amount;
+
+    if (heal == 0) {
+        return -1;
+    }
+    if (((heal & 0x0F) == 0) || (gSaveContext.health >= cap)) {
+        return 0;
+    }
+    amount = ((heal & 0x0F) == 1) ? cap / 3 : ((heal & 0x0F) == 2) ? cap * 2 / 3 : cap;
+    Health_ChangeBy(play, amount);
+    NvItems_TakeOne(i);
+    return 1;
+}
+
+/** RE1's herb mixes: the item made by combining a with b (either order), or 0. */
+static s32 NvItems_Mix(s32 a, s32 b) {
+    static const u8 sMixes[][3] = {
+        { 0x44, 0x44, 0x47 }, // green + green
+        { 0x44, 0x43, 0x46 }, // green + red
+        { 0x44, 0x45, 0x48 }, // green + blue
+        { 0x47, 0x44, 0x4A }, // green x2 + green
+        { 0x47, 0x45, 0x4B }, // green x2 + blue
+        { 0x48, 0x44, 0x4B }, // green + blue + green
+        { 0x46, 0x45, 0x49 }, // green + red + blue
+        { 0x48, 0x43, 0x49 }, // green + blue + red
+    };
+    s32 k;
+
+    for (k = 0; k < (s32)ARRAY_COUNT(sMixes); k++) {
+        if (((sMixes[k][0] == a) && (sMixes[k][1] == b)) || ((sMixes[k][0] == b) && (sMixes[k][1] == a))) {
+            return sMixes[k][2];
+        }
+    }
+    return 0;
+}
+
+/** Combine slot a with slot b: the mix replaces a, b is used up. True when they combined. */
+s32 NvItems_Combine(s32 a, s32 b) {
+    s32 mix;
+
+    if ((a == b) || (NvItems_Slot(a, NULL) == 0) || (NvItems_Slot(b, NULL) == 0)) {
+        return false;
+    }
+    mix = NvItems_Mix(sNvSlots[a].id, sNvSlots[b].id);
+    if (mix == 0) {
+        return false;
+    }
+    sNvSlots[a].id = mix;
+    sNvSlots[a].qty = 1;
+    NvItems_TakeOne(b);
+    return true;
+}
