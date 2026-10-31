@@ -296,9 +296,10 @@ static s32 NvScd_Cmd(void) {
                 a->item = item;
                 a->qty = p[11];
                 a->itemFlag = p[0x16];
-                // the handler by kind (4 an item, 0x0F a map, 0x0D a document), 0 once taken; Jill
-                // finds no ink ribbons on the PC (jill_needs_ink_ribbons): she has no typewriter here
-                if (!NvItems_InRoom(a->itemFlag) || (item == 0x2F)) {
+                // the handler by kind (4 an item, 0x0F a map, 0x0D a document), 0 once taken. Ink
+                // ribbons lie in the rooms for Jill too: the console (and PC second-run) rule, the
+                // user's choice over the PC's first-run Jill, who saves without them
+                if (!NvItems_InRoom(a->itemFlag)) {
                     a->handler = 0;
                 } else {
                     a->handler = (item < 0x4E) ? 4 : (item <= 0x53) ? 0x0F : 0x0D;

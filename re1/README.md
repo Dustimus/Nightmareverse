@@ -255,6 +255,8 @@ Later: the mansion's way in through a Lost Woods wrong turn instead of a replace
 - Puzzle items stay RE1-only (the 8 slots), except ones with a use outside: tentatively the
   lighter (lights torches, burns webs) and the bottle (maybe as one of OoT's bottles instead,
   a crossover puzzle: later). Other ideas noted in IDEAS.md.
+- Ink ribbons (2026-10-31): Jill needs them, the console (and PC second-run) rule, not the PC's
+  first-run Jill who saves without; the ribbons lie in the rooms for her as for Chris.
 - Not on the grid: keys (RE1 slots only), the radio (a story flag in RE1; maybe a Quest screen
   icon), the pick axe (unused in RE1), the serum (a story item).
 
