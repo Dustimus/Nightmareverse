@@ -3,7 +3,7 @@
  * (re1/README.md, "Items": the dungeon map's place, and the page the pause menu opens on there).
  *
  * RE1's layout in RE1's own pictures (re1/tools/soh_ui.py, from the player's files): the tabs
- * (Map, File, Exit) along the top, Jill's face and condition, the equipped weapon, and her 2 x 4
+ * (Map, File, Exit) along the top, the face (the user's Link portrait) and Jill's condition, the equipped weapon, and her 2 x 4
  * slots (z_nv_items.c) with RE1's cursor and counts. A on an item opens RE1's action box: Equip
  * (weapons), Use (the heals, by RE1's rules), Check, Combine (then the second item: RE1's herb
  * mixes). The File tab lists the files read (z_nv_files.c). Drawn flat over the page once it has
@@ -13,14 +13,15 @@
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/resourcebridge.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define NV_ST_SLOTS 8
 #define NV_ST_COLS 2
 #define NV_ST_ICON_W 40
 #define NV_ST_ICON_H 30
-#define NV_ST_X(i) (204 + ((i) % NV_ST_COLS) * 42) // a slot's corner (screen pixels), RE1's 2 x 4
-#define NV_ST_Y(i) (56 + ((i) / NV_ST_COLS) * 31)
+#define NV_ST_X(i) (198 + ((i) % NV_ST_COLS) * 42) // a slot's corner (screen pixels), RE1's 2 x 4
+#define NV_ST_Y(i) (64 + ((i) / NV_ST_COLS) * 31)
 
 s32 NvItems_Slot(s32 i, s32* qty);
 const char* NvItems_Name(s32 id);
@@ -86,7 +87,7 @@ typedef enum {
     NV_SPR_SLOT_CUR2,
     NV_SPR_INFINITE,
     NV_SPR_SLOT,     // an item slot's background
-    NV_SPR_FACE,     // Jill
+    NV_SPR_FACE,     // the face (Link's portrait, or Jill's)
     NV_SPR_MAX
 } NvStSprite;
 
@@ -136,11 +137,19 @@ static void NvSt_Pic(Gfx** gfxP, s32 pic, s32 row, s32 rows, s32 rowH, s32 x, s3
     s32 h = (rowH > 0) ? rows * rowH : sp->h;
     const u16* px = sp->px + ((rowH > 0) ? row * rowH * sp->w : 0);
 
+    s32 strip = MAX(1, 4096 / (sp->w * 2)); // rows per load: one texture load holds 4 KB
+    s32 r;
+
     gDPSetPrimColor(gfx++, 0, 0, shade, shade, shade, alpha);
-    gDPLoadTextureBlock(gfx++, px, G_IM_FMT_RGBA, G_IM_SIZ_16b, sp->w, h, 0, G_TX_NOMIRROR | G_TX_CLAMP,
-                        G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
-    gSPTextureRectangle(gfx++, x << 2, y << 2, (x + sp->w) << 2, (y + h) << 2, G_TX_RENDERTILE, 0, 0, 1 << 10,
-                        1 << 10);
+    for (r = 0; r < h; r += strip) {
+        s32 n = MIN(strip, h - r);
+
+        gDPLoadTextureBlock(gfx++, px + r * sp->w, G_IM_FMT_RGBA, G_IM_SIZ_16b, sp->w, n, 0,
+                            G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
+                            G_TX_NOLOD, G_TX_NOLOD);
+        gSPTextureRectangle(gfx++, x << 2, (y + r) << 2, (x + sp->w) << 2, (y + r + n) << 2, G_TX_RENDERTILE, 0,
+                            0, 1 << 10, 1 << 10);
+    }
     *gfxP = gfx;
 }
 
@@ -171,17 +180,17 @@ static void NvSt_Count(Gfx** gfxP, s32 id, s32 qty, s32 x, s32 y) {
     }
 }
 
-// the page's layout (screen pixels; GfxPrint's text grid is 8)
-#define NV_ST_PANEL_X 28
-#define NV_ST_PANEL_Y 38
-#define NV_ST_TAB_X(t) (44 + (t) * 50)
-#define NV_ST_TAB_Y 54
-#define NV_ST_FACE_X 40
-#define NV_ST_FACE_Y 78
-#define NV_ST_EQ_X 40
-#define NV_ST_EQ_Y 116
-#define NV_ST_ACT_X 148
-#define NV_ST_ACT_Y 56
+// the page's layout (screen pixels; GfxPrint's text grid is 8), inside the map page's border
+#define NV_ST_PANEL_X 36
+#define NV_ST_PANEL_Y 60
+#define NV_ST_TAB_X(t) (42 + (t) * 50)
+#define NV_ST_TAB_Y 64
+#define NV_ST_FACE_X 42
+#define NV_ST_FACE_Y 86
+#define NV_ST_EQ_X 42
+#define NV_ST_EQ_Y 122
+#define NV_ST_ACT_X 140
+#define NV_ST_ACT_Y 86
 
 typedef enum { NV_TAB_MAP, NV_TAB_FILE, NV_TAB_EXIT, NV_TAB_COUNT } NvStTab;
 static const u8 sNvStTabRow[NV_TAB_COUNT] = { 0, 2, 3 }; // their rows in the tab picture (no radio)
@@ -472,7 +481,7 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
     s32 pics;
     s32 i;
 
-    if (!interactive || (pauseCtx->state != 6) || (pauseCtx->unk_1E4 != 0)) {
+    if (!interactive || (pauseCtx->state != 6) || (pauseCtx->unk_1E4 != 0) || (getenv("NV_ST_HIDE") != NULL)) {
         return;
     }
     if (NvFiles_Reading()) {
@@ -498,7 +507,7 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
     gDPSetRenderMode(gfx++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
     gDPSetCombineMode(gfx++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
     gSPClearGeometryMode(gfx++, G_ZBUFFER);
-    NvSt_Rect(&gfx, NV_ST_PANEL_X, NV_ST_PANEL_Y, 264, 150, 0, 0, 0, 235);
+    NvSt_Rect(&gfx, NV_ST_PANEL_X, NV_ST_PANEL_Y, 248, 136, 0, 0, 0, 235);
 
     if (pics) {
         s32 eq = NvItems_Equipped();
@@ -520,7 +529,7 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
                 NvSt_Pic(&gfx, NV_SPR_TAB_CUR, 0, 0, 0, NV_ST_TAB_X(i), NV_ST_TAB_Y, 255, 90);
             }
         }
-        // Jill's face, her condition, and the equipped weapon
+        // the face, the condition, and the equipped weapon
         NvSt_Pic(&gfx, NV_SPR_FACE, 0, 0, 0, NV_ST_FACE_X, NV_ST_FACE_Y, 255, 255);
         NvSt_Pic(&gfx, NV_SPR_COND, NvSt_ConditionRow(), 1, 8, NV_ST_FACE_X + 38, NV_ST_FACE_Y + 11, 255, 255);
         if (eq >= 0) {
@@ -564,13 +573,13 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
     }
     if (pics && (NvItems_Equipped() >= 0)) {
         GfxPrint_SetColor(&printer, 255, 210, 60, 255);
-        GfxPrint_SetPos(&printer, (NV_ST_X(NvItems_Equipped()) + 32) / 8, NV_ST_Y(NvItems_Equipped()) / 8 - 1);
+        GfxPrint_SetPos(&printer, (NV_ST_X(NvItems_Equipped()) + 32) / 8, NV_ST_Y(NvItems_Equipped()) / 8);
         GfxPrint_Printf(&printer, "E");
     }
     if (sNvStMode == NV_ST_FILES) {
         // the files read so far, and Back
         for (i = 0; i <= NvFiles_Count(); i++) {
-            GfxPrint_SetPos(&printer, 12, 10 + i);
+            GfxPrint_SetPos(&printer, 15, 11 + i);
             GfxPrint_SetColor(&printer, (i == sNvStAction) ? 255 : 150, (i == sNvStAction) ? 210 : 150,
                               (i == sNvStAction) ? 60 : 160, 255);
             GfxPrint_Printf(&printer, "%c%.20s", (i == sNvStAction) ? '>' : ' ',
@@ -578,12 +587,12 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
         }
     }
     // the message line: the item under the cursor's name, or what just happened
-    GfxPrint_SetPos(&printer, 5, 19);
+    GfxPrint_SetPos(&printer, 5, 20);
     if (sNvStLine[0] != '\0') {
         GfxPrint_SetColor(&printer, 200, 160, 40, 255);
         GfxPrint_Printf(&printer, "%.19s", sNvStLine);
         if (strlen(sNvStLine) > 19) {
-            GfxPrint_SetPos(&printer, 5, 20);
+            GfxPrint_SetPos(&printer, 5, 21);
             GfxPrint_Printf(&printer, "%.19s", sNvStLine + 19);
         }
     } else if (sNvStMode == NV_ST_ACTIONS) {

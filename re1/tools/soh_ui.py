@@ -52,8 +52,23 @@ STATUS_SPRITES = [
     ("STATUS.TIM", 0, 168, 224, 40, 30), # the slot cursor, second item (Combine)
     ("STATUS.TIM", 0, 152, 112, 10, 8),  # the infinity mark
     ("BLUE.TIM", 0, 0, 0, 40, 30),       # an item slot's background
-    ("STATFACE.TIM", 0, 32, 0, 30, 30),  # Jill's face
+    ("STATFACE.TIM", 0, 32, 0, 30, 30),  # the face: Link's portrait (re1/assets) over Jill's
 ]
+
+# the user's own portrait of Link in RE1's portrait style, in the face's place (32 x 32: its
+# middle 30 x 30, the size of RE1's faces)
+LINK_PORTRAIT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "link_portrait.png")
+
+
+def _link_face():
+    try:
+        from PIL import Image
+        im = Image.open(LINK_PORTRAIT).convert("RGBA")
+    except (OSError, ImportError):
+        return None
+    w, h = im.size
+    im = im.crop(((w - 30) // 2, (h - 30) // 2, (w - 30) // 2 + 30, (h - 30) // 2 + 30))
+    return list(im.getdata())
 
 
 def _rgba5551(rgba):
@@ -66,6 +81,11 @@ def status_blob(re1):
     tims = {}
     out = bytearray(b"RSPR" + struct.pack("<H", len(STATUS_SPRITES)))
     for name, clut, u, v, w, h in STATUS_SPRITES:
+        if name == "STATFACE.TIM" and _link_face() is not None:
+            out += struct.pack("<2H", w, h)
+            for rgba in _link_face():
+                out += struct.pack(">H", _rgba5551(rgba))
+            continue
         if name not in tims:
             tims[name] = emd.parse_tim(open(rdt.find_file(data, name), "rb").read(), 0)
         tim = tims[name]
