@@ -9,10 +9,17 @@
  * OoT's frame.
  */
 #include "global.h"
+#include "soh/ResourceManagerHelpers.h"
+#include <libultraship/bridge/resourcebridge.h>
 #include <stdio.h>
+#include <string.h>
 
 #define NV_ST_SLOTS 8
 #define NV_ST_COLS 2
+#define NV_ST_ICON_W 40
+#define NV_ST_ICON_H 30
+#define NV_ST_X(i) (36 + ((i) % NV_ST_COLS) * 128) // a slot's corner (pixels: the text grid is 8)
+#define NV_ST_Y(i) (45 + ((i) / NV_ST_COLS) * 32)
 
 s32 NvItems_Slot(s32 i, s32* qty);
 const char* NvItems_Name(s32 id);
@@ -20,6 +27,38 @@ s32 NvItems_Use(PlayState* play, s32 i);
 s32 NvItems_Combine(s32 a, s32 b);
 
 typedef enum { NV_ST_BROWSE, NV_ST_ACTIONS, NV_ST_COMBINE } NvStMode;
+
+/** RE1's item icons ("re1/ui/icons", re1/tools/soh_ui.py): "RICN", u16 count, w, h, RGBA5551. */
+static const u8* NvSt_Icons(void) {
+    static const u8* sIcons;
+    static s32 sTried;
+
+    if (!sTried) {
+        sTried = true;
+        if (ResourceMgr_FileExists("re1/ui/icons")) {
+            sIcons = (const u8*)ResourceGetDataByName("re1/ui/icons");
+            if ((sIcons != NULL) && (memcmp(sIcons, "RICN", 4) != 0)) {
+                sIcons = NULL;
+            }
+        }
+    }
+    return sIcons;
+}
+
+/** Item id's icon (RE1: icon id - 1, GameStart.cpp LoadItemImage), or NULL. */
+static const u16* NvSt_Icon(s32 id) {
+    const u8* d = NvSt_Icons();
+    u16 count;
+
+    if ((d == NULL) || (id <= 0)) {
+        return NULL;
+    }
+    memcpy(&count, d + 4, 2);
+    if (id - 1 >= count) {
+        return NULL;
+    }
+    return (const u16*)(d + 10 + (id - 1) * NV_ST_ICON_W * NV_ST_ICON_H * 2);
+}
 
 static const char* sNvStActions[] = { "Use", "Combine", "Check", "Back" };
 
@@ -212,42 +251,67 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
     gDPSetCombineMode(gfx++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
     gSPClearGeometryMode(gfx++, G_ZBUFFER);
 
-    // the panel, Jill's slots in two columns, and the cursor
-    NvSt_Rect(&gfx, 48, 52, 224, 140, 0, 0, 0, 170);
+    // the panel, Jill's slots in two columns (icon, then name), and the cursor; the text grid is 8
+    // pixels, so a slot is 4 text rows (32 pixels) and its name starts 44 pixels in
+    NvSt_Rect(&gfx, 28, 38, 264, 150, 0, 0, 0, 170);
     for (i = 0; i < NV_ST_SLOTS; i++) {
-        s32 x = 60 + (i % NV_ST_COLS) * 104;
-        s32 y = 70 + (i / NV_ST_COLS) * 24; // (text cells are 8 pixels: row 9 + 3 per slot row)
+        s32 x = NV_ST_X(i);
+        s32 y = NV_ST_Y(i);
 
         if ((sNvStMode == NV_ST_COMBINE) && (i == sNvStFirst)) {
-            NvSt_Rect(&gfx, x - 3, y - 3, 102, 20, 60, 140, 200, 220);
+            NvSt_Rect(&gfx, x - 3, y - 3, 130, 36, 60, 140, 200, 220);
         }
         if (i == sNvStCursor) {
-            NvSt_Rect(&gfx, x - 3, y - 3, 102, 20, 200, 160, 40, 220);
+            NvSt_Rect(&gfx, x - 3, y - 3, 130, 36, 200, 160, 40, 220);
         }
-        NvSt_Rect(&gfx, x, y, 96, 14, 40, 40, 50, 230);
+        NvSt_Rect(&gfx, x, y, 124, 30, 40, 40, 50, 230);
+    }
+    // the items' icons (re1/ui/icons, from RE1's ITEM_ALL.PIX)
+    if (NvSt_Icons() != NULL) {
+        gDPPipeSync(gfx++);
+        gDPSetRenderMode(gfx++, G_RM_OPA_SURF, G_RM_OPA_SURF2);
+        gDPSetCombineMode(gfx++, G_CC_DECALRGBA, G_CC_DECALRGBA);
+        gDPSetTexturePersp(gfx++, G_TP_NONE);
+        gDPSetTextureFilter(gfx++, G_TF_POINT);
+        gDPSetTextureLUT(gfx++, G_TT_NONE);
+        for (i = 0; i < NV_ST_SLOTS; i++) {
+            const u16* icon = NvSt_Icon(NvItems_Slot(i, NULL));
+
+            if (icon == NULL) {
+                continue;
+            }
+            gDPLoadTextureBlock(gfx++, icon, G_IM_FMT_RGBA, G_IM_SIZ_16b, NV_ST_ICON_W, NV_ST_ICON_H, 0,
+                                G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
+                                G_TX_NOLOD, G_TX_NOLOD);
+            gSPTextureRectangle(gfx++, NV_ST_X(i) << 2, NV_ST_Y(i) << 2, (NV_ST_X(i) + NV_ST_ICON_W) << 2,
+                                (NV_ST_Y(i) + NV_ST_ICON_H) << 2, G_TX_RENDERTILE, 0, 0, 1 << 10, 1 << 10);
+        }
     }
     gDPPipeSync(gfx++);
 
     GfxPrint_Init(&printer);
     GfxPrint_Open(&printer, gfx);
     GfxPrint_SetColor(&printer, 230, 230, 230, 255);
-    GfxPrint_SetPos(&printer, 7, 7);
-    GfxPrint_Printf(&printer, "STATUS");
     for (i = 0; i < NV_ST_SLOTS; i++) {
         s32 qty = 0;
         s32 id = NvItems_Slot(i, &qty);
 
-        GfxPrint_SetPos(&printer, 8 + (i % NV_ST_COLS) * 13, 9 + (i / NV_ST_COLS) * 3);
+        GfxPrint_SetPos(&printer, (NV_ST_X(i) + 44) / 8, (NV_ST_Y(i) + 11) / 8);
         if (id == 0) {
             GfxPrint_SetColor(&printer, 90, 90, 100, 255);
             GfxPrint_Printf(&printer, "-");
         } else {
             GfxPrint_SetColor(&printer, 230, 230, 230, 255);
-            GfxPrint_Printf(&printer, "%.12s", NvItems_Name(id));
+            GfxPrint_Printf(&printer, "%.10s", NvItems_Name(id));
+            if (qty > 1) {
+                GfxPrint_SetPos(&printer, (NV_ST_X(i) + 44) / 8, (NV_ST_Y(i) + 11) / 8 + 1);
+                GfxPrint_SetColor(&printer, 200, 200, 120, 255);
+                GfxPrint_Printf(&printer, "x%d", (int)qty);
+            }
         }
     }
     // the message line, or the action list along it
-    GfxPrint_SetPos(&printer, 7, 21);
+    GfxPrint_SetPos(&printer, 4, 22);
     if (sNvStMode == NV_ST_ACTIONS) {
         for (i = 0; i < (s32)ARRAY_COUNT(sNvStActions); i++) {
             if (i == sNvStAction) {

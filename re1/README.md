@@ -220,8 +220,9 @@ Status screen (2026-10-31): in RE1's rooms the pause menu's map page is RE1's st
 the pause menu opens on it there (z_kaleido_setup.c). Jill's 8 slots with the items' names, a
 cursor (stick or D-pad), and A for RE1's actions: Use (heals by RE1's g_ItemHealTable: a third, two
 thirds or all of Link's hearts; an item that would do nothing isn't used up), Combine (then the
-second item: RE1's herb mixes), Check (name and count), Back. Not yet: Equip, item pictures, files,
-the map, RE1's look. Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad).
+second item: RE1's herb mixes), Check (name and count), Back. Each slot shows RE1's own icon
+(`re1/ui/icons`, `tools/soh_ui.py`: Data/ITEM_ALL.PIX, 40 x 30, in STATUS.TIM's third CLUT, from the
+player's files when the mod is made), its name and count. Not yet: Equip, files, the map, RE1's look. Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad).
 
 Movies: RE1's own AVIs (Cinepak + PCM), copied into the mod unchanged for the movies the rooms'
 scripts can play (`re1/movies/<id>`), and played by `soh/src/code/z_nv_movie.c` (its own AVI
