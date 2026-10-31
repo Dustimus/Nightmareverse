@@ -89,6 +89,19 @@ typedef struct {
 } NvAot;
 static NvAot sNvAot[NV_AOT_SLOTS];
 static s32 sNvAotCount;
+
+// the room's objects (g_omodel_table: furniture, statues, the item box's lid...), as the scripts'
+// omodel_set places them (CmdFunctions.cpp cmd_omodel_set) and obj_flag_set shows or hides them
+#define NV_OBJ_SLOTS 64
+typedef struct {
+    u8 set;    // placed by omodel_set
+    u8 flags;  // its byte 2 (bit 0: drawn, render_room_objects)
+    u8 parent; // 0xFF the room; 0xFE the player; 0x80+ an enemy; else another object
+    s16 pos[3];
+    s16 rot[3]; // RE1's SVECTOR (+0x72): x 0, y the record's, z 0 (the item box's lid turns it)
+} NvObj;
+static NvObj sNvObj[NV_OBJ_SLOTS];
+static u8 sNvItemHidden[NV_AOT_SLOTS]; // obj_flag_set on an item model: bit 0 clear hides it
 static const u8* sNvMsg; // the room's messages ("<name>_msg", re1/tools/soh_scene.py)
 
 // run_command_functions' state
@@ -284,6 +297,33 @@ static s32 NvScd_Cmd(void) {
             if (p[1] < NV_AOT_SLOTS) {
                 sNvAot[p[1]].handler = p[2];
                 sNvAot[p[1]].flags = p[3];
+            }
+            sNvIp = p + 4;
+            return 1;
+        case 0x1F: // cmd_omodel_set: a room object (CmdFunctions.cpp 0x00461ac0)
+            {
+                NvObj* o = &sNvObj[p[1] & 0x3F];
+
+                o->set = true;
+                o->flags = p[2];
+                o->parent = p[3];
+                o->pos[0] = (s16)(p[4] | (p[5] << 8));
+                o->pos[1] = (s16)(p[6] | (p[7] << 8));
+                o->pos[2] = (s16)(p[8] | (p[9] << 8));
+                o->rot[0] = 0;
+                o->rot[1] = (s16)(p[10] | (p[11] << 8));
+                o->rot[2] = 0;
+                printf("NVOBJ %d flags %02X parent %02X pos %d,%d,%d ry %d\n", p[1] & 0x3F, p[2], p[3], o->pos[0],
+                       o->pos[1], o->pos[2], o->rot[1]);
+            }
+            sNvIp = p + 28;
+            return 1;
+        case 0x35: // cmd_obj_flag_set: an object's (or item model's) flags byte
+            // (op1 = the opcode and its kind byte; op2 = the index and the new value)
+            if (p[1] == 0) {
+                sNvObj[p[2] & 0x3F].flags = p[3];
+            } else if (p[1] == 1) {
+                sNvItemHidden[p[2] % NV_AOT_SLOTS] = !(p[3] & 1);
             }
             sNvIp = p + 4;
             return 1;
@@ -687,13 +727,39 @@ s32 NvAot_Item(s32 i, s32* model, s32* parent, s16* pos) {
         return false;
     }
     a = &sNvAot[i];
-    if (!a->isItem || (a->handler == 0)) {
+    if (!a->isItem || (a->handler == 0) || sNvItemHidden[i]) {
         return false;
     }
     *model = a->model;
     *parent = a->parent;
     memcpy(pos, a->pos, sizeof(a->pos));
     return true;
+}
+
+/** Room object i's parent, position and rotation, if the scripts placed it. */
+s32 NvObj_Placed(s32 i, s32* parent, s16* pos, s16* rot) {
+    NvObj* o;
+
+    if ((i < 0) || (i >= NV_OBJ_SLOTS) || !sNvObj[i].set) {
+        return false;
+    }
+    o = &sNvObj[i];
+    *parent = o->parent;
+    memcpy(pos, o->pos, sizeof(o->pos));
+    memcpy(rot, o->rot, sizeof(o->rot));
+    return true;
+}
+
+/** As NvObj_Placed, and only if it's drawn (render_room_objects: bit 0 of its flags). */
+s32 NvObj_Get(s32 i, s32* parent, s16* pos, s16* rot) {
+    return NvObj_Placed(i, parent, pos, rot) && (sNvObj[i].flags & 1);
+}
+
+/** The item box's lid: object i's z turn (check_itembox_state's +0x76). */
+void NvObj_SetRotZ(s32 i, s16 z) {
+    if ((i >= 0) && (i < NV_OBJ_SLOTS)) {
+        sNvObj[i].rot[2] = z;
+    }
 }
 
 /** The A button's label for what A would do here, or -1 (z_nv_door.c, after doors and stairs). */
@@ -709,6 +775,8 @@ s32 NvAot_DoAction(PlayState* play, Player* player) {
         case 0x0F: // a map
         case 0x0D: // a document
             return DO_ACTION_CHECK;
+        case 8: // the item box
+            return DO_ACTION_OPEN;
         default:
             return -1;
     }
@@ -760,6 +828,9 @@ static void NvPickup_Update(PlayState* play) {
  * text box. True when the press was taken.
  */
 s32 NvFiles_Take(s32 id);
+void NvBox_Open(s32 lid);
+void NvBox_Update(PlayState* play);
+void NvBox_Reset(void);
 
 s32 NvAot_Act(PlayState* play, Player* player) {
     s32 i = NvAot_Probe(player);
@@ -776,6 +847,14 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         fflush(stdout);
         NvMsg_EnsureHook();
         Message_StartTextbox(play, NV_TEXT_ID, NULL);
+        return true;
+    }
+    if (sNvAot[i].handler == 8) { // the item box: open_itembox (its lid: the entry's +4, param 1)
+        printf("NVBOX spot %d: lid object %d\n", (int)i, sNvAot[i].param[1]);
+        fflush(stdout);
+        Audio_PlaySfxGeneral(NA_SE_EV_TBOX_OPEN, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
+                             &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        NvBox_Open(sNvAot[i].param[1]);
         return true;
     }
     if (sNvAot[i].handler == 0x0D) { // a document: RE1 takes it and reads it at once
@@ -825,6 +904,9 @@ void NvScript_RoomInit(PlayState* play) {
     NvEnemy_ClearSlots();
     memset(sNvAot, 0, sizeof(sNvAot));
     sNvAotCount = 0;
+    memset(sNvObj, 0, sizeof(sNvObj));
+    NvBox_Reset();
+    memset(sNvItemHidden, 0, sizeof(sNvItemHidden));
     sNvMsg = NULL;
     NvRe1_RoomLoad(play); // RE1's collision and walk zones, for its enemies (z_nv_zombie.c)
     NvItems_RoomLoad(play); // the room's item models (z_nv_items.c)
@@ -917,6 +999,7 @@ void NvScript_Update(PlayState* play) {
     }
     gNvSunSongSeen = false;
     NvPickup_Update(play); // an item prompt's answer
+    NvBox_Update(play);    // the item box's lid
     if ((sNvMain == NULL) || (sNvPlay != play) || NvDoorScene_Covering() || NvMovie_Playing() ||
         (play->transitionTrigger != TRANS_TRIGGER_OFF) || (getenv("NV_NO_ENEMIES") != NULL)) {
         return;

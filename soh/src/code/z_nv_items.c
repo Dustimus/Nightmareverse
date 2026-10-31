@@ -261,7 +261,14 @@ typedef struct {
 static NvItModel sNvItModels[NV_IT_MODELS];
 static s32 sNvItCount;
 
+// the room's object models (cmd_omodel_set's slots: model i is object i's)
+#define NV_OBJ_MODELS 64
+static NvItModel sNvObjModels[NV_OBJ_MODELS];
+static s32 sNvObjCount;
+
 s32 NvAot_Item(s32 i, s32* model, s32* parent, s16* pos);
+s32 NvObj_Get(s32 i, s32* parent, s16* pos, s16* rot);
+s32 NvObj_Placed(s32 i, s32* parent, s16* pos, s16* rot);
 s32 NvActor_ItemsId(void);
 s32 NvDoorScene_Covering(void);
 
@@ -298,46 +305,38 @@ static void NvItems_DevGive(void) {
     }
 }
 
-void NvItems_RoomLoad(PlayState* play) {
-    char path[256];
-    const char* file;
-    size_t len;
+static void NvIt_FreeSet(NvItModel* models, s32* count) {
+    s32 i;
+
+    for (i = 0; i < *count; i++) {
+        s32 b;
+
+        for (b = 0; b < models[i].numBatches; b++) {
+            free(models[i].batches[b].vtx);
+        }
+        free(models[i].batches);
+    }
+    memset(models, 0, sizeof(NvItModel) * *count);
+    *count = 0;
+}
+
+/** One of the room's model sets ("<name>_items" / "<name>_objs", soh_scene.py items_blob). */
+static s32 NvIt_LoadSet(const char* path, const char* magic, NvItModel* models, s32 max) {
     const u8* d;
     u16 count;
     s32 i;
 
-    NvItems_DevGive();
-
-    for (i = 0; i < sNvItCount; i++) {
-        s32 b;
-
-        for (b = 0; b < sNvItModels[i].numBatches; b++) {
-            free(sNvItModels[i].batches[b].vtx);
-        }
-        free(sNvItModels[i].batches);
-    }
-    memset(sNvItModels, 0, sizeof(sNvItModels));
-    sNvItCount = 0;
-    if ((play->loadedScene == NULL) || (play->loadedScene->sceneFile.fileName == NULL)) {
-        return;
-    }
-    file = play->loadedScene->sceneFile.fileName;
-    len = strlen(file);
-    if ((len <= 6) || (strcmp(file + len - 6, "_scene") != 0)) {
-        return;
-    }
-    snprintf(path, sizeof(path), "scenes/shared/%s/%.*s_items", file, (int)(len - 6), file);
     if (!ResourceMgr_FileExists(path)) {
-        return;
+        return 0;
     }
     d = (const u8*)ResourceGetDataByName(path);
-    if ((d == NULL) || (memcmp(d, "RITM", 4) != 0)) {
-        return;
+    if ((d == NULL) || (memcmp(d, magic, 4) != 0)) {
+        return 0;
     }
     memcpy(&count, d + 4, 2);
     d += 6;
-    for (i = 0; (i < count) && (i < NV_IT_MODELS); i++) {
-        NvItModel* m = &sNvItModels[i];
+    for (i = 0; (i < count) && (i < max); i++) {
+        NvItModel* m = &models[i];
         u16 cw;
         u16 ch;
         u16 nb;
@@ -363,8 +362,31 @@ void NvItems_RoomLoad(PlayState* play) {
             d += batch->numVerts * sizeof(Vtx);
         }
     }
-    sNvItCount = MIN(count, NV_IT_MODELS);
-    if (sNvItCount > 0) {
+    return MIN(count, max);
+}
+
+void NvItems_RoomLoad(PlayState* play) {
+    char path[256];
+    const char* file;
+    size_t len;
+
+    NvItems_DevGive();
+
+    NvIt_FreeSet(sNvItModels, &sNvItCount);
+    NvIt_FreeSet(sNvObjModels, &sNvObjCount);
+    if ((play->loadedScene == NULL) || (play->loadedScene->sceneFile.fileName == NULL)) {
+        return;
+    }
+    file = play->loadedScene->sceneFile.fileName;
+    len = strlen(file);
+    if ((len <= 6) || (strcmp(file + len - 6, "_scene") != 0)) {
+        return;
+    }
+    snprintf(path, sizeof(path), "scenes/shared/%s/%.*s_items", file, (int)(len - 6), file);
+    sNvItCount = NvIt_LoadSet(path, "RITM", sNvItModels, NV_IT_MODELS);
+    snprintf(path, sizeof(path), "scenes/shared/%s/%.*s_objs", file, (int)(len - 6), file);
+    sNvObjCount = NvIt_LoadSet(path, "ROBJ", sNvObjModels, NV_OBJ_MODELS);
+    if ((sNvItCount > 0) || (sNvObjCount > 0)) {
         Actor_Spawn(&play->actorCtx, play, NvActor_ItemsId(), 0.0f, 0.0f, 0.0f, 0, 0, 0, 0);
     }
 }
@@ -379,6 +401,58 @@ void NvItemsActor_Update(Actor* thisx, PlayState* play) {
 }
 
 /** Every item still lying in the room, at RE1's position: RE1 x, -y, -z, scaled. */
+static void NvIt_DrawModel(GraphicsContext* gfxCtx, NvItModel* m) {
+    s32 b;
+
+    OPEN_DISPS(gfxCtx);
+    gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    for (b = 0; b < m->numBatches; b++) {
+        NvItBatch* batch = &m->batches[b];
+        s32 v;
+
+        gDPLoadTextureBlock(POLY_OPA_DISP++, m->cells + batch->cell * NV_IT_CELL_W * NV_IT_CELL_H, G_IM_FMT_RGBA,
+                            G_IM_SIZ_16b, NV_IT_CELL_W, NV_IT_CELL_H, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                            G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+        for (v = 0; v + 3 <= batch->numVerts; v += 30) {
+            s32 cnt = MIN(30, batch->numVerts - v);
+            s32 q;
+
+            gSPVertex(POLY_OPA_DISP++, batch->vtx + v, cnt, 0);
+            for (q = 0; q + 3 <= cnt; q += 3) {
+                gSP1Triangle(POLY_OPA_DISP++, q, q + 1, q + 2, 0);
+            }
+        }
+    }
+    CLOSE_DISPS(gfxCtx);
+}
+
+#define NV_PSX_ANGLE(a) ((a) * (2.0f * M_PI / 4096.0f))
+
+/**
+ * Apply room object i's place in RE1's space to the current matrix, its parents' first
+ * (InitScaMatrix: an object on another object moves with it). Objects on the player or an enemy
+ * are placed in the room for now. False when it isn't placed.
+ */
+static s32 NvIt_ApplyObject(s32 i, s32 depth) {
+    s32 parent;
+    s16 pos[3];
+    s16 rot[3];
+
+    // (a hidden parent still carries its children)
+    if ((depth > 4) || !NvObj_Placed(i, &parent, pos, rot)) {
+        return false;
+    }
+    if (parent < 0x80) {
+        NvIt_ApplyObject(parent, depth + 1);
+    }
+    Matrix_Translate(pos[0], pos[1], pos[2], MTXMODE_APPLY);
+    // RotMatrix: x, then y, then z
+    Matrix_RotateX(NV_PSX_ANGLE(rot[0]), MTXMODE_APPLY);
+    Matrix_RotateY(NV_PSX_ANGLE(rot[1]), MTXMODE_APPLY);
+    Matrix_RotateZ(NV_PSX_ANGLE(rot[2]), MTXMODE_APPLY);
+    return true;
+}
+
 void NvItemsActor_Draw(Actor* thisx, PlayState* play) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     s32 i;
@@ -399,41 +473,46 @@ void NvItemsActor_Draw(Actor* thisx, PlayState* play) {
     gSPClearGeometryMode(POLY_OPA_DISP++, G_LIGHTING | G_FOG | G_CULL_BOTH | G_TEXTURE_GEN);
     gSPSetGeometryMode(POLY_OPA_DISP++, G_ZBUFFER | G_SHADE | G_SHADING_SMOOTH);
     gSPTexture(POLY_OPA_DISP++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
+    CLOSE_DISPS(gfxCtx);
+
+    // the room's objects (render_room_objects' first pass: those with bit 0 set and a model);
+    // NV_NO_OBJS hides them, for comparisons
+    for (i = 0; (i < sNvObjCount) && (getenv("NV_NO_OBJS") == NULL); i++) {
+        s32 parent;
+        s16 pos[3];
+        s16 rot[3];
+
+        if (!NvObj_Get(i, &parent, pos, rot) || (sNvObjModels[i].numBatches == 0)) {
+            continue;
+        }
+        Matrix_Push();
+        Matrix_Scale(NV_RE1_SCALE, -NV_RE1_SCALE, -NV_RE1_SCALE, MTXMODE_NEW);
+        NvIt_ApplyObject(i, 0);
+        NvIt_DrawModel(gfxCtx, &sNvObjModels[i]);
+        Matrix_Pop();
+    }
+    // the items: in the room, or on a room object (its offset in the object's space)
     for (i = 0; i < 32; i++) {
         s32 model;
         s32 parent;
         s16 pos[3];
-        NvItModel* m;
-        s32 b;
 
-        if (!NvAot_Item(i, &model, &parent, pos) || (model >= sNvItCount) || (parent != 0xFF)) {
-            continue; // (items on a room object or the player: not yet)
+        if (!NvAot_Item(i, &model, &parent, pos) || (model >= sNvItCount)) {
+            continue;
         }
-        m = &sNvItModels[model];
         Matrix_Push();
-        Matrix_Translate(pos[0] * NV_RE1_SCALE, -pos[1] * NV_RE1_SCALE, -pos[2] * NV_RE1_SCALE, MTXMODE_NEW);
-        Matrix_Scale(NV_RE1_SCALE, -NV_RE1_SCALE, -NV_RE1_SCALE, MTXMODE_APPLY);
-        gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        Matrix_Pop();
-        for (b = 0; b < m->numBatches; b++) {
-            NvItBatch* batch = &m->batches[b];
-            s32 v;
-
-            gDPLoadTextureBlock(POLY_OPA_DISP++, m->cells + batch->cell * NV_IT_CELL_W * NV_IT_CELL_H, G_IM_FMT_RGBA,
-                                G_IM_SIZ_16b, NV_IT_CELL_W, NV_IT_CELL_H, 0, G_TX_NOMIRROR | G_TX_CLAMP,
-                                G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
-            for (v = 0; v + 3 <= batch->numVerts; v += 30) {
-                s32 cnt = MIN(30, batch->numVerts - v);
-                s32 q;
-
-                gSPVertex(POLY_OPA_DISP++, batch->vtx + v, cnt, 0);
-                for (q = 0; q + 3 <= cnt; q += 3) {
-                    gSP1Triangle(POLY_OPA_DISP++, q, q + 1, q + 2, 0);
-                }
-            }
+        Matrix_Scale(NV_RE1_SCALE, -NV_RE1_SCALE, -NV_RE1_SCALE, MTXMODE_NEW);
+        if (parent == 0xFF) {
+            Matrix_Translate(pos[0], pos[1], pos[2], MTXMODE_APPLY);
+        } else if ((parent < 0x80) && NvIt_ApplyObject(parent, 0)) {
+            Matrix_Translate(pos[0], pos[1], pos[2], MTXMODE_APPLY);
+        } else {
+            Matrix_Pop();
+            continue; // (on the player: not yet)
         }
+        NvIt_DrawModel(gfxCtx, &sNvItModels[model]);
+        Matrix_Pop();
     }
-    CLOSE_DISPS(gfxCtx);
 }
 
 /* ---- Use and Combine (RE1's status screen, z_nv_status.c) ---- */
@@ -482,6 +561,146 @@ static void NvItems_TakeOne(s32 i) {
     } else if (sNvEquipped > i + 1) {
         sNvEquipped--;
     }
+}
+
+/* ---- the item box (RE1's g_itemboxSlots: one box, linked across every box in the mansion) ---- */
+
+/** Box slot i's item (0: empty) and count. */
+s32 NvItems_BoxSlot(s32 i, s32* qty) {
+    if ((i < 0) || (i >= NV_BOX_SLOTS)) {
+        return 0;
+    }
+    if (qty != NULL) {
+        *qty = sNvBox[i].qty;
+    }
+    return sNvBox[i].id;
+}
+
+s32 NvItems_BoxSize(void) {
+    return NV_BOX_SLOTS;
+}
+
+/**
+ * Swap Jill's slot a with box slot b (menu_itembox_interaction's exchange). Jill's slots stay
+ * packed as RE1 keeps them (an item put away closes the gap); the box keeps its places. The
+ * equipped weapon is unequipped once it goes in the box. False when there was nothing to move.
+ */
+s32 NvItems_BoxSwap(s32 a, s32 b) {
+    NvItemSlot t;
+    s32 held = NvItems_Held();
+    s32 k;
+
+    if ((a < 0) || (a >= NvItems_SlotCount()) || (b < 0) || (b >= NV_BOX_SLOTS)) {
+        return false;
+    }
+    if (a >= held) {
+        a = held; // an empty slot of Jill's: the first free one
+    }
+    if ((a >= NvItems_SlotCount()) || ((sNvSlots[a].id == 0) && (sNvBox[b].id == 0))) {
+        return false;
+    }
+    if (sNvEquipped == a + 1) {
+        sNvEquipped = 0;
+    }
+    t = sNvSlots[a];
+    sNvSlots[a] = sNvBox[b];
+    sNvBox[b] = t;
+    if (sNvSlots[a].id == 0) { // put away with nothing taken: close the gap
+        for (k = a; k < NvItems_SlotCount() - 1; k++) {
+            sNvSlots[k] = sNvSlots[k + 1];
+        }
+        sNvSlots[NvItems_SlotCount() - 1].id = sNvSlots[NvItems_SlotCount() - 1].qty = 0;
+        if (sNvEquipped > a + 1) {
+            sNvEquipped--;
+        }
+    }
+    return true;
+}
+
+/*
+ * Opening the box in a room (RoomEvents.cpp check_itembox_state): the lid (a room object) swings
+ * open, faster and faster, past -199, then eases to a stop; the box menu then opens. When the menu
+ * closes the lid snaps shut.
+ */
+void NvObj_SetRotZ(s32 i, s16 z);
+static s8 sNvBoxState;   // g_itembox_state: 0 idle, 1 start, 2 opening, 3 settling, 4 menu open
+static s16 sNvBoxTimer;  // g_short_itembox_open_timer
+static s16 sNvBoxStep;   // g_counter_increase
+static s16 sNvBoxAngle;  // the lid's +0x76
+static s8 sNvBoxLid;     // the lid's object
+static s8 sNvBoxWantPause;
+
+/** open_itembox: start opening the box whose lid is room object lid. */
+void NvBox_Open(s32 lid) {
+    if (sNvBoxState == 0) {
+        sNvBoxState = 1;
+        sNvBoxLid = lid;
+    }
+}
+
+/** Whether the box menu is (to be) open: the status screen shows the box. */
+s32 NvBox_MenuOpen(void) {
+    return sNvBoxState == 4;
+}
+
+/** Whether the pause menu should open now on the box (once). */
+s32 NvBox_WantPause(void) {
+    s32 want = sNvBoxWantPause;
+
+    sNvBoxWantPause = false;
+    if (want) {
+        printf("NVBOX pause opens\n");
+        fflush(stdout);
+    }
+    return want;
+}
+
+/** Each frame (z_nv_script.c). */
+void NvBox_Update(PlayState* play) {
+    switch (sNvBoxState) {
+        case 1:
+            sNvBoxTimer = 1;
+            sNvBoxStep = 1;
+            sNvBoxAngle = 0;
+            sNvBoxState = 2;
+            // fall through
+        case 2:
+            sNvBoxAngle -= sNvBoxTimer;
+            sNvBoxTimer += sNvBoxStep;
+            if (sNvBoxAngle < -199) {
+                sNvBoxState = 3;
+                sNvBoxStep = -sNvBoxStep;
+            }
+            break;
+        case 3:
+            sNvBoxAngle -= sNvBoxTimer;
+            sNvBoxTimer += sNvBoxStep;
+            if (sNvBoxTimer < 1) {
+                sNvBoxState = 4; // settled: the box menu
+                sNvBoxWantPause = true;
+                printf("NVBOX lid open (%d), menu\n", sNvBoxAngle);
+                fflush(stdout);
+            }
+            break;
+        case 4:
+            if (!sNvBoxWantPause && (play->pauseCtx.state == 0)) { // the menu closed
+                sNvBoxState = 0;
+                sNvBoxAngle = 0;
+            }
+            break;
+    }
+    if (sNvBoxState != 0 || sNvBoxAngle != 0) {
+        NvObj_SetRotZ(sNvBoxLid, sNvBoxAngle);
+    } else {
+        NvObj_SetRotZ(sNvBoxLid, 0);
+    }
+}
+
+/** A new room: no box open. */
+void NvBox_Reset(void) {
+    sNvBoxState = 0;
+    sNvBoxAngle = 0;
+    sNvBoxWantPause = false;
 }
 
 /** Whether item id can be equipped: RE1's weapons, the knife to the rocket launcher. */

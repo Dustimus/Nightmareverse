@@ -448,16 +448,17 @@ def msg_blob(raw):
     return head + b"".join(struct.pack("<I", o) for o in offs) + b"".join(t + b"\0" for t in texts)
 
 
-def items_blob(room):
-    """The room's item models (RDT+0x54, cmd_item_model_set's modelIdx) for z_nv_items_draw.c:
-    "RITM", u16 count; per model u16 texture width, height in 64x32 cells, the cells (RGBA5551,
+def items_blob(room, which=3, magic=b"RITM"):
+    """The room's item models (RDT+0x54, cmd_item_model_set's modelIdx) for z_nv_items.c, or with
+    which=2 and magic "ROBJ" its object models (cmd_omodel_set's: furniture, statues, the item
+    box's lid...): magic, u16 count; per model u16 texture width, height in 64x32 cells, the cells (RGBA5551,
     big-endian; the PSX's 0x0000 transparent), u16 numBatches, per batch u16 cell, u16 numVerts
     and numVerts Vtx (s16 x, y, z, u16 flag, s16 s, t in the cell, u8 rgba), as soh_enemy.py's
     bones. RE1's units and axes (y down), the model's own origin."""
     import emd
     import soh_doors
-    models = rdt.room_models(room, 3)
-    out = bytearray(b"RITM" + struct.pack("<H", len(models)))
+    models = rdt.room_models(room, which)
+    out = bytearray(magic + struct.pack("<H", len(models)))
     for m in models:
         if m is None:
             out += struct.pack("<HHH", 0, 0, 0)
@@ -709,6 +710,9 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     # RE1's item models: "<name>_items" (z_nv_items_draw.c)
     blob = items_blob(room)
     open(os.path.join(d, name + "_items"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    # and its object models: "<name>_objs" (z_nv_items.c, placed by the scripts' omodel_set)
+    blob = items_blob(room, 2, b"ROBJ")
+    open(os.path.join(d, name + "_objs"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
     # RE1's messages: "<name>_msg" (z_nv_script.c's examine spots)
     blob = msg_blob(room.raw)
     open(os.path.join(d, name + "_msg"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)

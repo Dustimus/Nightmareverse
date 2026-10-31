@@ -28,7 +28,7 @@ const char* NvItems_Name(s32 id);
 s32 NvItems_Use(PlayState* play, s32 i);
 s32 NvItems_Combine(s32 a, s32 b);
 
-typedef enum { NV_ST_BROWSE, NV_ST_ACTIONS, NV_ST_COMBINE, NV_ST_FILES } NvStMode;
+typedef enum { NV_ST_BROWSE, NV_ST_ACTIONS, NV_ST_COMBINE, NV_ST_FILES, NV_ST_BOX } NvStMode;
 
 /** RE1's item icons ("re1/ui/icons", re1/tools/soh_ui.py): "RICN", u16 count, w, h, RGBA5551. */
 static const u8* NvSt_Icons(void) {
@@ -470,6 +470,133 @@ static void NvSt_DrawSlot(Gfx** gfxP, s32 i, s32 x, s32 y) {
     }
 }
 
+/* ---- the item box (z_nv_items.c): the box's list on the left, Jill's slots on the right ---- */
+
+s32 NvItems_BoxSlot(s32 i, s32* qty);
+s32 NvItems_BoxSize(void);
+s32 NvItems_BoxSwap(s32 a, s32 b);
+s32 NvBox_MenuOpen(void);
+
+#define NV_BOX_ROWS 4 // the box rows on screen
+#define NV_BOX_X 42
+#define NV_BOX_Y(r) (76 + (r) * 30)
+
+static s32 sNvBoxSide;   // 0 the box, 1 Jill's slots
+static s32 sNvBoxCursor; // the box's row (an index into the whole box)
+static s32 sNvBoxTop;    // the first box row on screen
+static s32 sNvBoxSelSide = -1; // the item chosen to exchange: its side and place
+static s32 sNvBoxSel;
+
+static void NvSt_BoxInput(PlayState* play) {
+    Input* input = &play->state.input[0];
+    s8 dir = NvSt_Dir(play);
+
+    if (CHECK_BTN_ALL(input->press.button, BTN_B)) { // done: the menu closes and the lid shuts
+        NvSt_Sfx(NA_SE_SY_DECIDE);
+        NvSt_ClosePause(play);
+        return;
+    }
+    if (sNvBoxSide == 0) {
+        if ((dir == 3) && (sNvBoxCursor > 0)) {
+            sNvBoxCursor--;
+            NvSt_Sfx(NA_SE_SY_CURSOR);
+        } else if ((dir == 4) && (sNvBoxCursor < NvItems_BoxSize() - 1)) {
+            sNvBoxCursor++;
+            NvSt_Sfx(NA_SE_SY_CURSOR);
+        } else if (dir == 2) {
+            sNvBoxSide = 1;
+            sNvStCursor = MIN(sNvStCursor, NV_ST_SLOTS - 1) & ~1;
+            NvSt_Sfx(NA_SE_SY_CURSOR);
+        }
+        sNvBoxTop = CLAMP(sNvBoxTop, sNvBoxCursor - NV_BOX_ROWS + 1, sNvBoxCursor);
+    } else if ((dir == 1) && ((sNvStCursor % NV_ST_COLS) == 0)) {
+        sNvBoxSide = 0;
+        NvSt_Sfx(NA_SE_SY_CURSOR);
+    } else {
+        NvSt_MoveCursor(dir, false);
+    }
+    if (!CHECK_BTN_ALL(input->press.button, BTN_A)) {
+        return;
+    }
+    printf("NVBOXUI A side %d box %d slot %d sel %d/%d\n", (int)sNvBoxSide, (int)sNvBoxCursor, (int)sNvStCursor,
+           (int)sNvBoxSelSide, (int)sNvBoxSel);
+    fflush(stdout);
+    if ((sNvBoxSelSide < 0) || (sNvBoxSelSide == sNvBoxSide)) { // choose this one
+        sNvBoxSelSide = sNvBoxSide;
+        sNvBoxSel = (sNvBoxSide == 0) ? sNvBoxCursor : sNvStCursor;
+        NvSt_Sfx(NA_SE_SY_DECIDE);
+        return;
+    }
+    // the other side: exchange the two
+    if (NvItems_BoxSwap((sNvBoxSide == 1) ? sNvStCursor : sNvBoxSel, (sNvBoxSide == 0) ? sNvBoxCursor : sNvBoxSel)) {
+        NvSt_Sfx(NA_SE_SY_DECIDE);
+    } else {
+        NvSt_Sfx(NA_SE_SY_ERROR);
+    }
+    sNvBoxSelSide = -1;
+}
+
+/** The box screen's pictures and names (inside NvStatus_Draw's display list). */
+static void NvSt_DrawBox(Gfx** gfxP, GfxPrint* printer, s32 phase) {
+    s32 r;
+
+    if (phase == 0) { // the pictures
+        for (r = 0; r < NV_BOX_ROWS; r++) {
+            s32 i = sNvBoxTop + r;
+            s32 qty = 0;
+            s32 id = NvItems_BoxSlot(i, &qty);
+            const u16* icon = NvSt_Icon(id);
+
+            NvSt_Pic(gfxP, NV_SPR_SLOT, 0, 0, 0, NV_BOX_X, NV_BOX_Y(r), 255, 255);
+            if (icon != NULL) {
+                NvSt_Icon16(gfxP, icon, NV_BOX_X, NV_BOX_Y(r));
+                NvSt_Count(gfxP, id, qty, NV_BOX_X, NV_BOX_Y(r));
+            }
+            if ((sNvBoxSelSide == 0) && (sNvBoxSel == i)) {
+                NvSt_Pic(gfxP, NV_SPR_SLOT_CUR2, 0, 0, 0, NV_BOX_X, NV_BOX_Y(r), 255, 255);
+            }
+            if ((sNvBoxSide == 0) && (sNvBoxCursor == i)) {
+                NvSt_Pic(gfxP, NV_SPR_SLOT_CUR, 0, 0, 0, NV_BOX_X, NV_BOX_Y(r), 255, 255);
+            }
+        }
+        for (r = 0; r < NV_ST_SLOTS; r++) {
+            NvSt_DrawSlot(gfxP, r, NV_ST_X(r), NV_ST_Y(r));
+        }
+        if (sNvBoxSelSide == 1) {
+            NvSt_Pic(gfxP, NV_SPR_SLOT_CUR2, 0, 0, 0, NV_ST_X(sNvBoxSel), NV_ST_Y(sNvBoxSel), 255, 255);
+        }
+        if (sNvBoxSide == 1) {
+            NvSt_Pic(gfxP, NV_SPR_SLOT_CUR, 0, 0, 0, NV_ST_X(sNvStCursor), NV_ST_Y(sNvStCursor), 255, 255);
+        }
+        return;
+    }
+    // the words: the title, the box's names, where the list goes on
+    GfxPrint_SetColor(printer, 200, 200, 210, 255);
+    GfxPrint_SetPos(printer, 5, 8);
+    GfxPrint_Printf(printer, "Item Box  %d/%d", (int)(sNvBoxCursor + 1), (int)NvItems_BoxSize());
+    for (r = 0; r < NV_BOX_ROWS; r++) {
+        s32 id = NvItems_BoxSlot(sNvBoxTop + r, NULL);
+
+        GfxPrint_SetPos(printer, (NV_BOX_X + 46) / 8, (NV_BOX_Y(r) + 11) / 8);
+        GfxPrint_SetColor(printer, (id != 0) ? 230 : 90, (id != 0) ? 230 : 90, (id != 0) ? 230 : 100, 255);
+        GfxPrint_Printf(printer, "%.12s", (id != 0) ? NvItems_Name(id) : "-");
+    }
+    GfxPrint_SetColor(printer, 150, 150, 160, 255);
+    if (sNvBoxTop > 0) {
+        GfxPrint_SetPos(printer, (NV_BOX_X + 16) / 8, (NV_BOX_Y(0) - 9) / 8);
+        GfxPrint_Printf(printer, "^");
+    }
+    if (sNvBoxTop + NV_BOX_ROWS < NvItems_BoxSize()) {
+        GfxPrint_SetPos(printer, (NV_BOX_X + 16) / 8, (NV_BOX_Y(NV_BOX_ROWS) + 1) / 8);
+        GfxPrint_Printf(printer, "v");
+    }
+}
+
+/** Whether B is the status screen's (a file open, the box): not the pause menu's save prompt. */
+s32 NvStatus_HoldsB(void) {
+    return NvFiles_Reading() || (sNvStMode == NV_ST_BOX);
+}
+
 /**
  * The page's content (z_kaleido_scope_PAL.c, in the map page's place). interactive: the page faces
  * the player and takes input; otherwise (turning past) nothing is drawn over it.
@@ -496,7 +623,11 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
         return;
     }
     if (pauseCtx->debugState == 0) {
-        NvSt_Input(play);
+        if (sNvStMode == NV_ST_BOX) {
+            NvSt_BoxInput(play);
+        } else {
+            NvSt_Input(play);
+        }
     }
     pics = NvSt_Pics() && (NvSt_Icons() != NULL);
 
@@ -510,8 +641,6 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
     NvSt_Rect(&gfx, NV_ST_PANEL_X, NV_ST_PANEL_Y, 248, 136, 0, 0, 0, 235);
 
     if (pics) {
-        s32 eq = NvItems_Equipped();
-
         // RE1's pictures, colour 0 clear (TEXEL0 alpha), tinted by the primitive colour
         gDPPipeSync(gfx++);
         gDPSetCombineLERP(gfx++, TEXEL0, 0, PRIMITIVE, 0, TEXEL0, 0, PRIMITIVE, 0, TEXEL0, 0, PRIMITIVE, 0, TEXEL0,
@@ -519,6 +648,11 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
         gDPSetTexturePersp(gfx++, G_TP_NONE);
         gDPSetTextureFilter(gfx++, G_TF_POINT);
         gDPSetTextureLUT(gfx++, G_TT_NONE);
+    }
+    if (pics && (sNvStMode == NV_ST_BOX)) {
+        NvSt_DrawBox(&gfx, NULL, 0);
+    } else if (pics) {
+        s32 eq = NvItems_Equipped();
 
         // the tabs, the one under the cursor lit (RE1's red cursor over it, see-through)
         for (i = 0; i < NV_TAB_COUNT; i++) {
@@ -560,6 +694,10 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
 
     GfxPrint_Init(&printer);
     GfxPrint_Open(&printer, gfx);
+    if (sNvStMode == NV_ST_BOX) {
+        NvSt_DrawBox(NULL, &printer, 1);
+        goto printed;
+    }
     if (!pics) {
         // without RE1's pictures (an older re1.o2r): the names as text
         for (i = 0; i < NV_ST_SLOTS; i++) {
@@ -602,6 +740,7 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
         GfxPrint_SetColor(&printer, 230, 230, 230, 255);
         GfxPrint_Printf(&printer, "%.19s", NvItems_Name(NvItems_Slot(sNvStCursor, NULL)));
     }
+printed:
     gfx = GfxPrint_Close(&printer);
     GfxPrint_Destroy(&printer);
     POLY_OPA_DISP = gfx;
@@ -610,6 +749,8 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
 
 /** As the pause menu opens in the mansion: open on this page (the map page's place). */
 void NvStatus_OnPause(PlayState* play) {
-    sNvStMode = NV_ST_BROWSE;
+    sNvStMode = NvBox_MenuOpen() ? NV_ST_BOX : NV_ST_BROWSE; // the item box just opened: its screen
     sNvStLine[0] = '\0';
+    sNvBoxSide = 0;
+    sNvBoxSelSide = -1;
 }

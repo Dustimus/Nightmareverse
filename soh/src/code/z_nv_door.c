@@ -114,7 +114,7 @@ static u8* NvDoor_Data(PlayState* play, u32* count) {
 // Whether Link may use a door or stairs now (standing, in control, nothing else going on; not
 // while an enemy holds him: RE1 checks doors only in the player's normal state)
 static s32 NvDoor_CanAct(PlayState* play, Player* player) {
-    return (player != NULL) && (play->transitionTrigger == TRANS_TRIGGER_OFF) &&
+    return (player != NULL) && (play->pauseCtx.state == 0) && (play->transitionTrigger == TRANS_TRIGGER_OFF) &&
            (play->transitionMode == TRANS_MODE_OFF) && !Player_InBlockingCsMode(play, player) &&
            (play->msgCtx.msgMode == MSGMODE_NONE) && (player->actor.bgCheckFlags & 1) &&
            (player->actor.parent == NULL) && !(player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) &&

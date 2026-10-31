@@ -237,6 +237,22 @@ PAK-packed 256 x 256 4 bpp TIMs, in RE1's g_filemPixNames order), shown whole sc
 pages, A on the last page or B closes. The File tab reads them again. Their list names are our own
 plain "File n" for now.
 
+Room objects (2026-10-31): each room's own object models (furniture, statues, push blocks, the
+item box's lid; RDT object models, `<name>_objs`, `tools/soh_scene.py` items_blob with which=2)
+are drawn as RE1 places them: the scripts' omodel_set (0x1F: position, y turn, flags, parent) and
+obj_flag_set (0x35: shown or hidden), drawn when bit 0 is set (render_room_objects), turned by
+RotMatrix's x, y, z, and carried by their parent object (InitScaMatrix). Items lying on a room
+object now draw on it too. Objects on the player or an enemy are placed in the room for now.
+`NV_NO_OBJS` hides them for comparisons.
+
+Item box (2026-10-31): A at a box (room action type 8, open_itembox) swings its lid (the object
+named by the entry's +4) open as RE1's check_itembox_state does, faster then easing to a stop,
+and then opens the pause menu on the box screen (`z_nv_status.c`): the box's 48 slots as a
+scrolling list on the left, Jill's 8 on the right. A chooses an item, A on the other side exchanges
+the two (Jill's slots stay packed; a weapon put away is unequipped); B closes it and the lid shuts.
+It's one box, shared by every box in the mansion. Its look is our own layout in RE1's pictures for
+now (RE1's own box screen, ITEMBOXN.TIM, could replace it). Not yet: Hyrule's side of the box.
+
 Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad); NV_GIVE="id,qty;..." gives
 items on the first room; NV_FILE=n takes file n there.
 
