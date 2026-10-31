@@ -295,7 +295,7 @@ static const s16 sNvJillSca[8] = { (s16)0x8000, 0, (s16)0xFABA, 0, 0x0546, 0x017
 static const s16 sNvChrisSca[8] = { (s16)0x8000, 0, (s16)0xFA06, 0, 0x05FA, 0x01A6, 0, 0 };
 
 #define NV_RE1_HANDGUN_DAMAGE 9 // RE1's handgun on a zombie; a point of OoT damage is one shot
-#define NV_BITE_HEARTS -8       // half a heart a bite (mod1's)
+#define NV_RE1_JILL_HEALTH 96.0f // Jill's maximum health in RE1 (GameStart.cpp: 140 - 44 for her)
 
 /** Link, as RE1's player: where he is (RE1's units), his facing, how he's pressing. */
 static void NvEnemy_PlayerToRe1(PlayState* play) {
@@ -434,9 +434,19 @@ static void NvEnemy_Grab(NvEnemy* this, PlayState* play) {
     player->actor.world.pos.z = -e->unk_c8 * NV_RE1_SCALE;
     player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw =
         (s16)(0x4000 - e->angle * 16) + ((e->attacking_direction & 1) ? 0 : 0x8000);
-    while (gNvRe1BiteDamage > 0) {
-        gNvRe1BiteDamage -= 10;
-        play->damagePlayer(play, NV_BITE_HEARTS);
+    // RE1's damage as the same share of Link's hearts as of Jill's 96, as the heals are (a herb
+    // undoes what it would in RE1, however many hearts he has); the remainder carries over
+    if (gNvRe1BiteDamage > 0) {
+        static f32 sOwed;
+        s32 whole;
+
+        sOwed += gNvRe1BiteDamage * gSaveContext.healthCapacity / NV_RE1_JILL_HEALTH;
+        gNvRe1BiteDamage = 0;
+        whole = (s32)sOwed;
+        if (whole > 0) {
+            sOwed -= whole;
+            play->damagePlayer(play, -whole);
+        }
         Rumble_Request(this->actor.xzDistToPlayer, 240, 1, 12);
         Player_PlaySfx(&player->actor, NA_SE_VO_LI_DAMAGE_S + player->ageProperties->unk_92);
     }

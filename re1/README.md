@@ -265,6 +265,9 @@ Later: the mansion's way in through a Lost Woods wrong turn instead of a replace
   a crossover puzzle: later). Other ideas noted in IDEAS.md.
 - Ink ribbons (2026-10-31): Jill needs them, the console (and PC second-run) rule, not the PC's
   first-run Jill who saves without; the ribbons lie in the rooms for her as for Chris.
+- Health (2026-10-31): RE1's heals and damage both work as shares of Link's maximum hearts, as of
+  Jill's 96 in RE1 (a herb heals a third of his hearts; a zombie bite of 10 takes 10/96 of them),
+  so the mansion is as hard whatever his heart containers.
 - Not on the grid: keys (RE1 slots only), the radio (a story flag in RE1; maybe a Quest screen
   icon), the pick axe (unused in RE1), the serum (a story item).
 
