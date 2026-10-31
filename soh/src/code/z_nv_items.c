@@ -27,6 +27,7 @@ typedef struct {
 static NvItemSlot sNvSlots[NV_SLOTS_MAX];
 static NvItemSlot sNvBox[NV_BOX_SLOTS];
 static u8 sNvMapsOwned; // bit n: map item 0x4E + n
+static s8 sNvEquipped;  // RE1's g_EquippedItemId: the equipped slot, one-based (0: none)
 
 // The items' plain names, by RE1's item id (Types.h ITEM_*)
 static const char* sNvItemNames[0x54] = {
@@ -268,6 +269,27 @@ s32 NvDoorScene_Covering(void);
  * The room's "<name>_items" (re1/tools/soh_scene.py items_blob) into sNvItModels, and the actor
  * that draws them. Called as the room loads (z_nv_script.c), before its scripts place the items.
  */
+/** Testing: NV_GIVE="id,qty;id,qty..." (RE1 item ids, decimal or 0x) given once, on the first room. */
+static void NvItems_DevGive(void) {
+    static s32 sDone;
+    const char* s = getenv("NV_GIVE");
+    unsigned int id, qty;
+    int used;
+
+    if (sDone || (s == NULL)) {
+        return;
+    }
+    sDone = true;
+    while (sscanf(s, "%i,%i%n", &id, &qty, &used) == 2) {
+        NvItems_Give(id, qty);
+        s += used;
+        if (*s != ';') {
+            break;
+        }
+        s++;
+    }
+}
+
 void NvItems_RoomLoad(PlayState* play) {
     char path[256];
     const char* file;
@@ -275,6 +297,8 @@ void NvItems_RoomLoad(PlayState* play) {
     const u8* d;
     u16 count;
     s32 i;
+
+    NvItems_DevGive();
 
     for (i = 0; i < sNvItCount; i++) {
         s32 b;
@@ -444,6 +468,34 @@ static void NvItems_TakeOne(s32 i) {
         sNvSlots[k] = sNvSlots[k + 1];
     }
     sNvSlots[NvItems_SlotCount() - 1].id = sNvSlots[NvItems_SlotCount() - 1].qty = 0;
+    // the equipped item moves up with the rest, or is gone
+    if (sNvEquipped == i + 1) {
+        sNvEquipped = 0;
+    } else if (sNvEquipped > i + 1) {
+        sNvEquipped--;
+    }
+}
+
+/** Whether item id can be equipped: RE1's weapons, the knife to the rocket launcher. */
+s32 NvItems_Equippable(s32 id) {
+    return (id > 0) && (id <= NV_ITEM_ROCKET_LAUNCHER);
+}
+
+/** The equipped slot (0-based), or -1. */
+s32 NvItems_Equipped(void) {
+    return sNvEquipped - 1;
+}
+
+/**
+ * Equip (or, already equipped, unequip) slot i's weapon, as RE1's menu_item_toggle_equip. Its use
+ * in the rooms comes with the weapons. True when the slot holds a weapon.
+ */
+s32 NvItems_ToggleEquip(s32 i) {
+    if (!NvItems_Equippable(NvItems_Slot(i, NULL))) {
+        return false;
+    }
+    sNvEquipped = (sNvEquipped == i + 1) ? 0 : i + 1;
+    return true;
 }
 
 /**
