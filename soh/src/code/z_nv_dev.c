@@ -6,7 +6,7 @@
  *   NV_WALK="x,z;x,z;wait:N"  steer Link through waypoints with the control stick (camera-
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
  *                             (default 200); "wait:N" stands still N frames, "a" presses A, "b" B,
- *                             "pos:x,z" puts Link there, "face:x,z" turns him to face a point,
+ *                             "start" Start, "pos:x,z" puts Link there, "face:x,z" turns him to face a point,
  *                             "facerect:x0,z0,x1,z1" turns him (16 ways) to put the point in
  *                             front of him deepest into a rectangle (as a player faces a door), "entr:N" warps to entrance N (the
  *                             script goes on in the new scene), "mark:N" logs "NVMARK N" with
@@ -29,7 +29,7 @@
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START } NvWaypointKind;
 
 typedef struct {
     s16 kind;
@@ -134,6 +134,9 @@ static void NvDev_ParsePath(void) {
             sNvPathLen++;
         } else if ((s[0] == 'b') && ((s[1] == ';') || (s[1] == '\0'))) {
             wp->kind = NV_WP_B;
+            sNvPathLen++;
+        } else if ((strncmp(s, "start", 5) == 0) && ((s[5] == ';') || (s[5] == '\0'))) {
+            wp->kind = NV_WP_START;
             sNvPathLen++;
         } else if (strncmp(s, "wait:", 5) == 0) {
             wp->kind = NV_WP_WAIT;
@@ -298,6 +301,10 @@ void NvDev_Update(PlayState* play) {
         } else if (wp->kind == NV_WP_B) {
             input->press.button |= BTN_B;
             input->cur.button |= BTN_B;
+            sNvPathIdx++;
+        } else if (wp->kind == NV_WP_START) {
+            input->press.button |= BTN_START;
+            input->cur.button |= BTN_START;
             sNvPathIdx++;
         } else if (wp->kind == NV_WP_A) {
             input->press.button |= BTN_A;

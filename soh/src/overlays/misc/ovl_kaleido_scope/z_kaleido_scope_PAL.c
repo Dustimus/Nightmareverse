@@ -1,4 +1,7 @@
 #include "z_kaleido_scope.h"
+
+s32 NvStatus_InMansion(PlayState* play);
+void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive);
 #include <stdlib.h>
 #include <string.h>
 
@@ -1668,6 +1671,8 @@ void KaleidoScope_DrawPages(PlayState* play, GraphicsContext* gfxCtx) {
                 if (CHECK_DUNGEON_ITEM(DUNGEON_COMPASS, gSaveContext.mapIndex)) {
                     PauseMapMark_Draw(play);
                 }
+            } else if (NvStatus_InMansion(play)) { // Nightmareverse: RE1's status screen (z_nv_status.c)
+                NvStatus_Draw(play, gfxCtx, false);
             } else {
                 KaleidoScope_DrawWorldMap(play, gfxCtx);
             }
@@ -1714,6 +1719,8 @@ void KaleidoScope_DrawPages(PlayState* play, GraphicsContext* gfxCtx) {
                     if (CHECK_DUNGEON_ITEM(DUNGEON_COMPASS, gSaveContext.mapIndex)) {
                         PauseMapMark_Draw(play);
                     }
+                } else if (NvStatus_InMansion(play)) { // Nightmareverse: RE1's status screen (z_nv_status.c)
+                    NvStatus_Draw(play, gfxCtx, true);
                 } else {
                     KaleidoScope_DrawWorldMap(play, gfxCtx);
                 }
@@ -2455,6 +2462,10 @@ void KaleidoScope_UpdateNamePanel(PlayState* play) {
               !CHECK_OWNED_EQUIP(pauseCtx->cursorY[PAUSE_EQUIP], pauseCtx->cursorX[PAUSE_EQUIP] - 1)) ||
              (pauseCtx->pageIndex == PAUSE_ITEM &&
               gSaveContext.inventory.items[pauseCtx->cursorPoint[PAUSE_ITEM]] == ITEM_NONE))) {
+            pauseCtx->namedItem = PAUSE_ITEM_NONE;
+        }
+        // Nightmareverse: RE1's status screen has no world map point to name (z_nv_status.c)
+        if ((pauseCtx->pageIndex == PAUSE_MAP) && NvStatus_InMansion(play)) {
             pauseCtx->namedItem = PAUSE_ITEM_NONE;
         }
 

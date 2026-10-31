@@ -1,5 +1,7 @@
 #include "global.h"
 
+s32 NvStatus_InMansion(PlayState* play);
+
 s16 sKaleidoSetupKscpPos0[] = { PAUSE_QUEST, PAUSE_EQUIP, PAUSE_ITEM, PAUSE_MAP };
 f32 sKaleidoSetupEyeX0[] = { 0.0f, 64.0f, 0.0f, -64.0f };
 f32 sKaleidoSetupEyeZ0[] = { -64.0f, 0.0f, 64.0f, 0.0f };
@@ -37,6 +39,12 @@ void KaleidoSetup_Update(PlayState* play) {
 
             pauseCtx->unk_1EA = 0;
             pauseCtx->unk_1E4 = 1;
+
+            // Nightmareverse: in RE1's mansion the pause menu opens on RE1's status screen, in the
+            // map page's place (z_nv_status.c): the page it last showed is the page it turns to
+            if (NvStatus_InMansion(play)) {
+                pauseCtx->pageIndex = PAUSE_MAP;
+            }
 
             if (ZREG(48) == 0) {
                 pauseCtx->eye.x = sKaleidoSetupEyeX0[pauseCtx->pageIndex];

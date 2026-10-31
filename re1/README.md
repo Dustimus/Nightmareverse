@@ -215,6 +215,12 @@ the end of Player_Update. The zombie's grab plays its three player animations pe
 (zombie_attack_player_anim_tbl) and holds Link until the last ends. Dev: `NV_LOG_LA=1` logs both
 skeletons per frame; `tools/linkanim_debug.py soh.log out.png` draws them side by side.
 
+Status screen (2026-10-31): in RE1's rooms the pause menu's map page is RE1's status screen
+(`soh/src/code/z_nv_status.c`, hooked into z_kaleido_scope_PAL.c where the world map is drawn) and
+the pause menu opens on it there (z_kaleido_setup.c). First version: Jill's 8 slots with the items'
+names, a cursor (stick or D-pad), and Check (A: name and count). Not yet: Use, Equip, Combine, item
+pictures, files, the map, and RE1's look. Dev: `start` in NV_WALK presses Start.
+
 Movies: RE1's own AVIs (Cinepak + PCM), copied into the mod unchanged for the movies the rooms'
 scripts can play (`re1/movies/<id>`), and played by `soh/src/code/z_nv_movie.c` (its own AVI
 reader and Cinepak decoder; the sound through SDL, `NvMovieAudio.cpp`). Any button skips. 104's
