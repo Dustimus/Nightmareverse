@@ -18,6 +18,7 @@
 #include <libultraship/bridge/resourcebridge.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define NV_LA_MAX_BONES 24
@@ -357,7 +358,7 @@ void NvLinkAnim_Apply(Player* player, PlayState* play) {
     static u8 sPhase;
     Vec3s* jt = player->skelAnime.jointTable;
     void** limbs = player->skelAnime.skeleton;
-    s32 n = player->skelAnime.limbCount;
+    s32 n = player->skelAnime.limbCount - 1; // (Link's count includes the root's translation slot)
     s32 parent[PLAYER_LIMB_MAX];
     NvMat3 ref[PLAYER_LIMB_MAX];
     NvMat3 world[PLAYER_LIMB_MAX];
@@ -491,5 +492,36 @@ void NvLinkAnim_Apply(Player* player, PlayState* play) {
 
             jt[i] = NvLa_ToZYX(&l);
         }
+    }
+
+    // dev: NV_LOG_LA=1 logs both skeletons each frame (Link's model space), for
+    // re1/tools/linkanim_debug.py to draw side by side
+    if (getenv("NV_LOG_LA") != NULL) {
+        f32 pos[PLAYER_LIMB_MAX][3];
+
+        printf("NVLA anim %d step %d frame %d jill", (int)sNvLaAnim, (int)sNvLaStep, (int)frame);
+        for (i = 0; i < sNvLa.numBones; i++) {
+            printf(" %d,%d,%d", (int)jill[i][0], (int)jill[i][1], (int)jill[i][2]);
+        }
+        printf(" link");
+        for (i = 1; i <= n; i++) {
+            s32 p = parent[i];
+
+            if (p < 0) {
+                pos[i][0] = pos[i][1] = pos[i][2] = 0.0f;
+            } else {
+                LodLimb* l = (LodLimb*)limbs[i - 1];
+                f32 jp[3] = { l->jointPos.x, l->jointPos.y, l->jointPos.z };
+                f32 off[3];
+
+                NvLa_Apply(&world[p], jp, off);
+                for (k = 0; k < 3; k++) {
+                    pos[i][k] = pos[p][k] + off[k];
+                }
+            }
+            printf(" %d:%d:%d,%d,%d", (int)i, (int)p, (int)pos[i][0], (int)pos[i][1], (int)pos[i][2]);
+        }
+        printf("\n");
+        fflush(stdout);
     }
 }

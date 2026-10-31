@@ -207,6 +207,14 @@ item_set's position, by one actor (`Nv_Items`, `z_nv_items.c`), and vanish when 
 the 14 items RE1 hangs on a room object or the player (scaParent other than 0xFF), the sparkle,
 documents, the item box's use, RE1's status screen.
 
+RE1's player animations on Link (2026-10-31): each enemy's EMD carries the player's side of its
+grabs (`re1/enemies/em<type>_pl`, `tools/soh_enemy.py`); `soh/src/code/z_nv_linkanim.c` poses
+Jill's 15-bone skeleton (0 torso root, 1 head, 2 pelvis, 3-5 / 6-8 legs, 9-11 / 12-14 arms) and turns
+Link's waist, thighs, shins, upper arms and forearms to her bone directions over his own pose, at
+the end of Player_Update. The zombie's grab plays its three player animations per direction
+(zombie_attack_player_anim_tbl) and holds Link until the last ends. Dev: `NV_LOG_LA=1` logs both
+skeletons per frame; `tools/linkanim_debug.py soh.log out.png` draws them side by side.
+
 Movies: RE1's own AVIs (Cinepak + PCM), copied into the mod unchanged for the movies the rooms'
 scripts can play (`re1/movies/<id>`), and played by `soh/src/code/z_nv_movie.c` (its own AVI
 reader and Cinepak decoder; the sound through SDL, `NvMovieAudio.cpp`). Any button skips. 104's
