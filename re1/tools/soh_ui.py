@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """RE1's status-screen pictures from the player's own files, for soh/src/code/z_nv_status.c.
 
-"re1/ui/icons": the item icons (Data/ITEM_ALL.PIX: 40 x 30, 8 bpp, one after another; RE1 loads
-icon n for item n + 1, GameStart.cpp LoadItemImage) in the status screen's colours (Data/STATUS.TIM,
-its third CLUT): "RICN", u16 count, u16 width, height, then each icon as RGBA5551, big-endian.
+"re1/ui/icons": the item icons (Data/ITEM_ALL.PIX: 40 x 30, 8 bpp, one after another; RE1 picks
+one by its item record's byte 1, GameStart.cpp LoadItemImage: z_nv_status.c keeps that index) in
+the status screen's colours (Data/STATUS.TIM, its third CLUT): "RICN", u16 count, u16 width,
+height, then each icon as RGBA5551, big-endian.
 """
 import os
 import struct
