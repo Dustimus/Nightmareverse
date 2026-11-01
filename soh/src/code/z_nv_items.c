@@ -619,8 +619,8 @@ s32 NvItems_BoxSwap(s32 a, s32 b) {
 
 /*
  * Opening the box in a room (RoomEvents.cpp check_itembox_state): the lid (a room object) swings
- * open, faster and faster, past -199, then eases to a stop; the box menu then opens. When the menu
- * closes the lid snaps shut.
+ * open, faster and faster, past -199, then eases to a stop; the box screen then opens (z_nv_box.c).
+ * When it closes the lid snaps shut.
  */
 void NvObj_SetRotZ(s32 i, s16 z);
 static s8 sNvBoxState;   // g_itembox_state: 0 idle, 1 start, 2 opening, 3 settling, 4 menu open
@@ -628,7 +628,6 @@ static s16 sNvBoxTimer;  // g_short_itembox_open_timer
 static s16 sNvBoxStep;   // g_counter_increase
 static s16 sNvBoxAngle;  // the lid's +0x76
 static s8 sNvBoxLid;     // the lid's object
-static s8 sNvBoxWantPause;
 
 /** open_itembox: start opening the box whose lid is room object lid. */
 void NvBox_Open(s32 lid) {
@@ -638,21 +637,16 @@ void NvBox_Open(s32 lid) {
     }
 }
 
-/** Whether the box menu is (to be) open: the status screen shows the box. */
+/** Whether the box screen is up (z_nv_box.c): the lid has settled. */
 s32 NvBox_MenuOpen(void) {
     return sNvBoxState == 4;
 }
 
-/** Whether the pause menu should open now on the box (once). */
-s32 NvBox_WantPause(void) {
-    s32 want = sNvBoxWantPause;
-
-    sNvBoxWantPause = false;
-    if (want) {
-        printf("NVBOX pause opens\n");
-        fflush(stdout);
-    }
-    return want;
+/** The box screen closed (check_itembox_state's state 4): the lid shuts. */
+void NvBox_Close(void) {
+    sNvBoxState = 0;
+    sNvBoxAngle = 0;
+    NvObj_SetRotZ(sNvBoxLid, 0);
 }
 
 /** Each frame (z_nv_script.c). */
@@ -676,31 +670,19 @@ void NvBox_Update(PlayState* play) {
             sNvBoxAngle -= sNvBoxTimer;
             sNvBoxTimer += sNvBoxStep;
             if (sNvBoxTimer < 1) {
-                sNvBoxState = 4; // settled: the box menu
-                sNvBoxWantPause = true;
+                sNvBoxState = 4; // settled: the box screen (z_nv_box.c)
                 printf("NVBOX lid open (%d), menu\n", sNvBoxAngle);
                 fflush(stdout);
             }
             break;
-        case 4:
-            if (!sNvBoxWantPause && (play->pauseCtx.state == 0)) { // the menu closed
-                sNvBoxState = 0;
-                sNvBoxAngle = 0;
-            }
-            break;
     }
-    if (sNvBoxState != 0 || sNvBoxAngle != 0) {
-        NvObj_SetRotZ(sNvBoxLid, sNvBoxAngle);
-    } else {
-        NvObj_SetRotZ(sNvBoxLid, 0);
-    }
+    NvObj_SetRotZ(sNvBoxLid, sNvBoxAngle);
 }
 
 /** A new room: no box open. */
 void NvBox_Reset(void) {
     sNvBoxState = 0;
     sNvBoxAngle = 0;
-    sNvBoxWantPause = false;
 }
 
 /** Whether item id can be equipped: RE1's weapons, the knife to the rocket launcher. */

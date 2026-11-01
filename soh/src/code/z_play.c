@@ -661,6 +661,8 @@ void NvDoorScene_Draw(PlayState* play);
 void NvScript_Update(PlayState* play);
 s32 NvMovie_Update(PlayState* play);
 void NvMovie_Draw(PlayState* play);
+s32 NvBoxUi_Update(PlayState* play);
+void NvBoxUi_Draw(PlayState* play);
 
 void Play_Update(PlayState* play) {
     Input* input = play->state.input;
@@ -703,6 +705,9 @@ void Play_Update(PlayState* play) {
         return;
     }
     NvDev_Update(play); // Nightmareverse dev: scripted walks for headless checks (z_nv_dev.c)
+    if (NvBoxUi_Update(play)) { // ...and RE1's item box screen holds it too (z_nv_box.c)
+        return;
+    }
     NvDoor_Update(play); // Nightmareverse: RE1 doors, A in front of them (z_nv_door.c)
     NvDoorScene_Update(play); // ...and RE1's door scenes between rooms (z_nv_doorscene.c)
     NvScript_Update(play);    // ...and the room's own scripts (z_nv_script.c)
@@ -1321,6 +1326,7 @@ void Play_DrawOverlayElements(PlayState* play) {
     }
 
     NvMovie_Draw(play); // Nightmareverse: an RE1 movie, over everything (z_nv_movie.c)
+    NvBoxUi_Draw(play); // ...and RE1's item box screen (z_nv_box.c)
 }
 
 void Play_Draw(PlayState* play) {

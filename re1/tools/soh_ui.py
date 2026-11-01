@@ -11,6 +11,10 @@ draws them from (MainMenu.cpp menu_draw_inventory, menu_draw_cursor, display_ite
 action box): "RSPR", u16 count, then per sprite u16 width, height and its RGBA5551 pixels
 (big-endian; RE1's colour 0 is clear). z_nv_status.c knows them by their order in STATUS_SPRITES.
 
+"re1/ui/sheets": whole pictures that z_nv_box.c draws pieces of at RE1's own coordinates (the
+decomp's menu tables): STATUS.TIM and ITEMBOXN.TIM, each in its first CLUT: "RSHT", u16 count,
+then per sheet u16 width, height and its RGBA5551 pixels (big-endian; colour 0 clear).
+
 "re1/ui/file<n>": file n's pages (z_nv_files.c), from the player's item_m2/filem_*.pix (RE1's
 g_filemPixNames order: l to z, then 00; each a table of u32 offsets to PAK-packed 4 bpp TIMs):
 "RFIL", u16 pages, width, height, then each page as RGBA5551, big-endian.
@@ -108,6 +112,34 @@ def write_status(re1, out):
     open(os.path.join(d, "status"), "wb").write(
         soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
     return len(STATUS_SPRITES)
+
+
+SHEETS = ["STATUS.TIM", "ITEMBOXN.TIM"]  # z_nv_box.c's NV_SHEET_* order
+
+
+def sheets_blob(re1):
+    data = rdt.find_file(re1, "DATA")
+    out = bytearray(b"RSHT" + struct.pack("<H", len(SHEETS)))
+    for name in SHEETS:
+        tim = emd.parse_tim(open(rdt.find_file(data, name), "rb").read(), 0)
+        w, h, rgba = emd.tim_to_rgba(tim, {0: 0, 1: 0, 2: 0, 3: 0})
+        out += struct.pack("<2H", w, h)
+        for k in range(w * h):
+            out += struct.pack(">H", _rgba5551(rgba[k * 4:k * 4 + 4]))
+    return bytes(out)
+
+
+def write_sheets(re1, out):
+    """Write the whole sheets; returns how many (0 when the files aren't there)."""
+    try:
+        blob = sheets_blob(re1)
+    except (OSError, IndexError):
+        return 0
+    d = os.path.join(out, "re1", "ui")
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, "sheets"), "wb").write(
+        soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    return len(SHEETS)
 
 
 FILE_PIX = ["filem_%s0.pix" % c for c in "lmnopqrstuvwxyz"] + ["filem_00.pix"]

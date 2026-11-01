@@ -245,13 +245,18 @@ RotMatrix's x, y, z, and carried by their parent object (InitScaMatrix). Items l
 object now draw on it too. Objects on the player or an enemy are placed in the room for now.
 `NV_NO_OBJS` hides them for comparisons.
 
-Item box (2026-10-31): A at a box (room action type 8, open_itembox) swings its lid (the object
-named by the entry's +4) open as RE1's check_itembox_state does, faster then easing to a stop,
-and then opens the pause menu on the box screen (`z_nv_status.c`): the box's 48 slots as a
-scrolling list on the left, Jill's 8 on the right. A chooses an item, A on the other side exchanges
-the two (Jill's slots stay packed; a weapon put away is unequipped); B closes it and the lid shuts.
-It's one box, shared by every box in the mansion. Its look is our own layout in RE1's pictures for
-now (RE1's own box screen, ITEMBOXN.TIM, could replace it). Not yet: Hyrule's side of the box.
+Item box (2026-11-01): A at a box (room action type 8, open_itembox) swings its lid (the object
+named by the entry's +4) open as RE1's check_itembox_state does, faster then easing to a stop.
+Then, as in RE1, the room holds and the box screen takes over (`soh/src/code/z_nv_box.c`, its own
+screen, not the pause menu): RE1's status layout drawn piece by piece at the decomp's coordinates
+(MenuData.cpp's frame tables, menu_draw_inventory) from the player's STATUS.TIM, with the box's
+panel from ITEMBOXN.TIM over its upper left (draw_itembox_menu: the list of three names, the
+preview slot, the scroll strip and its marker, the shadows and masks). Controls are RE1's
+(menu_itembox_interaction): choose one of Jill's slots (the box dimmed), A, then turn the box's
+list with up/down (48 places, wrapping) and A to exchange (Jill's slots stay packed; a weapon put
+away is unequipped); B steps back, and B on Jill's side (or START) closes it and the lid shuts.
+One box, shared by every box in the mansion. Names are our own plain wording in OoT's small font
+for now (RE1's 8x14 font is a later step). Not yet: the list's sliding animation, Hyrule's side.
 
 Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad); NV_GIVE="id,qty;..." gives
 items on the first room; NV_FILE=n takes file n there.

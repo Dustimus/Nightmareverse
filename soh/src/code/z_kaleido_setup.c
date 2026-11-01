@@ -3,7 +3,6 @@
 s32 NvStatus_InMansion(PlayState* play);
 void NvStatus_OnPause(PlayState* play);
 s32 NvFiles_WantPause(void);
-s32 NvBox_WantPause(void);
 
 s16 sKaleidoSetupKscpPos0[] = { PAUSE_QUEST, PAUSE_EQUIP, PAUSE_ITEM, PAUSE_MAP };
 f32 sKaleidoSetupEyeX0[] = { 0.0f, 64.0f, 0.0f, -64.0f };
@@ -28,9 +27,8 @@ void KaleidoSetup_Update(PlayState* play) {
             if (BREG(0)) {
                 pauseCtx->debugState = 3;
             }
-        } else if (CHECK_BTN_ALL(input->press.button, BTN_START) || NvFiles_WantPause() || NvBox_WantPause()) {
-            // (Nightmareverse: or a document just taken, read in the status screen, z_nv_files.c,
-            // or the item box just opened, z_nv_items.c)
+        } else if (CHECK_BTN_ALL(input->press.button, BTN_START) || NvFiles_WantPause()) {
+            // (Nightmareverse: or a document just taken, read in the status screen, z_nv_files.c)
 
             gSaveContext.prevHudVisibilityMode = gSaveContext.hudVisibilityMode;
 
