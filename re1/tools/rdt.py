@@ -472,6 +472,21 @@ def parse_tmd(d, tmd, tim):
 
 
 
+def background_file(stage, room_id, cam):
+    """A room's background for camera cam (RC<room><cam>.pak). RE1's later mansion stages (6, 7:
+    the mansion on the way back) have no backgrounds of their own: they use the first visit's
+    (stage 1, 2) for the same room, so look there when the stage has none."""
+    path = find_file(stage, "RC%s%d.pak" % (room_id, cam))
+    if os.path.exists(path):
+        return path
+    first = {"6": "1", "7": "2"}.get(room_id[0])
+    if first is not None:
+        parent = os.path.dirname(stage.rstrip("/"))
+        other = find_file(parent, "STAGE" + first)
+        return find_file(other, "RC%s%s%d.pak" % (first, room_id[1:], cam))
+    return path
+
+
 def find_file(directory, name):
     """directory/name, matching the name in any case (RE1's releases differ: RC1060.pak in the
     Japanese PC files, RC1060.PAK in the English ones)."""

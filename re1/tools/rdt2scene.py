@@ -331,7 +331,7 @@ def jpeg_for(stage, room_id, cam_index, path):
     instead (see integrate.py, Mod1_BgSource)."""
     import io
 
-    w, h, rgba = rdt.load_background(rdt.find_file(stage, "RC%s%d.pak" % (room_id, cam_index)))
+    w, h, rgba = rdt.load_background(rdt.background_file(stage, room_id, cam_index))
     buf = io.BytesIO()
     Image.frombytes("RGBA", (w, h), rgba).convert("RGB").save(buf, "JPEG", quality=90, subsampling=2)
     data = buf.getvalue()
@@ -927,7 +927,7 @@ def write_scene(room, grid, stage, room_id, name, out, spawns, exits=(), cell_ex
              "static u64 sCanvas[(SCREEN_WIDTH * SCREEN_HEIGHT * G_IM_SIZ_16b_BYTES + 8) / sizeof(u64)] = { 1 };\n\n")
     mask_dls = []
     for c in range(ncam):
-        bg = rdt.load_background(rdt.find_file(stage, "RC%s%d.pak" % (room_id, c)))
+        bg = rdt.load_background(rdt.background_file(stage, room_id, c))
         dl, code = mask_c(room, c, "sMask%d" % c, bg, [tuple(m["rect"]) + (m["depth"],) for m in extra_masks
                                                       if m["camera"] == c])
         mask_dls.append(dl)
@@ -1499,9 +1499,16 @@ def main():
                     dd = by_id[src][1].doors[di]
                     ny = dd.next_pos[1] - 0x10000 if dd.next_pos[1] >= 0x8000 else dd.next_pos[1]
                     arr.append((dd.next_pos[0], dd.next_pos[2], ny))
-            print("  soh: %s" % soh_scene.write_room(room, grid, stage_dir(a.stage, rid), rid, name, a.soh,
-                                                     soh_spawns[rid], doors=soh_doors, bias_tables=bias_tables,
-                                                     arrivals=arr, aots=soh_scene.room_aots(room.raw)))
+            try:
+                print("  soh: %s" % soh_scene.write_room(room, grid, stage_dir(a.stage, rid), rid, name, a.soh,
+                                                         soh_spawns[rid], doors=soh_doors, bias_tables=bias_tables,
+                                                         arrivals=arr, aots=soh_scene.room_aots(room.raw)))
+            except ValueError as e:
+                # a room with no floor this converter can find (no collision to build): left out, so
+                # its doors say it isn't built rather than the build stopping
+                import shutil
+                shutil.rmtree(os.path.join(a.soh, "scenes", "shared", name + "_scene"), ignore_errors=True)
+                print("  soh: %s left out (%s)" % (name, e))
         camset = os.path.join(a.out, name, "camset.json")
         for cs in (story.load_camera_sets(a.story) if a.story else []):
             if cs["room"].upper() == rid:

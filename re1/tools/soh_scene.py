@@ -66,7 +66,7 @@ def _el(tag, **attrs):
 
 def background_jpeg(stage, room_id, cam_index, quality=95):
     """Camera background as a baseline JPEG for SoH (ResourceMgr_LoadJPEG: stb_image, 320x240)."""
-    w, h, rgba = rdt.load_background(rdt.find_file(stage, "RC%s%d.pak" % (room_id, cam_index)))
+    w, h, rgba = rdt.load_background(rdt.background_file(stage, room_id, cam_index))
     buf = io.BytesIO()
     Image.frombytes("RGBA", (w, h), rgba).convert("RGB").save(buf, "JPEG", quality=quality, subsampling=0)
     return buf.getvalue()
@@ -76,7 +76,7 @@ def background_raw(stage, room_id, cam_index):
     """Camera background as raw RGBA5551, big-endian, 320x240: RE1's own 15-bit pixels, bit for
     bit (lossless). SoH draws a Background's data directly as RGBA16 unless it starts with a
     JPEG header (z_room.c swapAndConvertJPEG), so no decoding happens at all."""
-    with open(rdt.find_file(stage, "RC%s%d.pak" % (room_id, cam_index)), "rb") as f:
+    with open(rdt.background_file(stage, room_id, cam_index), "rb") as f:
         tim = rdt.emd.parse_tim(rdt.pak_depack(f.read()), 0)
     assert tim.bpp == 16 and tim.width == 320 and tim.height == 240, (room_id, cam_index, tim.bpp)
     out = bytearray(320 * 240 * 2)

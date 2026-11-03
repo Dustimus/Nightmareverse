@@ -690,6 +690,16 @@ static const char* NvMsg_Get(s32 n) {
 }
 
 /** The text NvMessages.cpp shows for NV_TEXT_ID. */
+/** Our own line in OoT's text box (Navi's blue), e.g. a door to a room not built yet (z_nv_door.c). */
+void NvMsg_Show(PlayState* play, const char* text) {
+    static char sLine[160];
+
+    snprintf(sLine, sizeof(sLine), "%s", text);
+    sNvMsgText = sLine;
+    NvMsg_EnsureHook();
+    Message_StartTextbox(play, NV_TEXT_ID, NULL);
+}
+
 const char* NvMsg_PendingText(void) {
     return sNvMsgText;
 }

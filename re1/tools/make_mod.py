@@ -29,7 +29,8 @@ PLAYER = "1"  # Jill
 
 def rooms(re1):
     out = []
-    for stage in ("1", "2"):
+    # the mansion (stages 1, 2), and the mansion on the way back (6, 7: RE1's third part)
+    for stage in ("1", "2", "6", "7"):
         d = rdt2scene.stage_dir(re1, stage + "00")
         for fn in sorted(os.listdir(d)):
             u = fn.upper()

@@ -230,6 +230,15 @@ void NvDoor_Update(PlayState* play) {
     printf("NVDOOR %d -> %s spawn %d entrance 0x%X\n", (int)i, door.target, (int)door.spawn, (int)entrance);
     fflush(stdout);
     if (entrance < 0) {
+        // a room this build doesn't have yet: say so, so it doesn't look like a broken door
+        void NvMsg_Show(PlayState * play, const char* text);
+        char line[96];
+
+        input->press.button &= ~BTN_A;
+        input->cur.button &= ~BTN_A;
+        snprintf(line, sizeof(line), "This door leads to room %.3s, which isn't in the build yet.",
+                 (strncmp(door.target, "re1_", 4) == 0) ? door.target + 4 : door.target);
+        NvMsg_Show(play, line);
         return;
     }
     // the press is the door's, not Link's
