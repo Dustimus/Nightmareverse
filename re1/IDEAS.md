@@ -106,9 +106,9 @@ here is agreed or scheduled.
   - The big one (Link holds it up, OoT's chest jingle, RE1's item-viewer model turning above him,
     a short line in OoT's text box): each new gun (shotgun, Colt Python, grenade launcher, rocket
     launcher), each map (its line also says it's on the pause screen now), the lockpick (Barry
-    hands it over), the crests.
+    hands it over).
   - The small one (the quick jingle and one short tutorial line, like a first Deku Nut): the first
     green, red and blue herb, first aid spray, ink ribbon.
   - None: the mansion keys (all or none: none, unless this ever replaces RE1's Check viewer), the
-    medals, puzzle items, files, ammo, repeats. RE1's own Check viewer stays.
+    crests (treated as keys), the medals, puzzle items, files, ammo, repeats. RE1's own Check viewer stays.
   - Seen-it flags kept with the save system. Our own wording for the lines.
