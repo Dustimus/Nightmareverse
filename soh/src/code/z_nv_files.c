@@ -3,14 +3,16 @@
  * screen's File tab (z_nv_status.c).
  *
  * A document lies in a room as an item (item id 0x5F + its file number, RE1's
- * file_set_collected_flag); taking it records it and opens it, as RE1 does. The pages are the
- * player's own (re1/tools/soh_ui.py: "re1/ui/file<n>", RE1's item_m2/filem_*.pix), shown whole
- * screen, a page at a time: left and right turn the pages, A or B on the last page closes it.
+ * file_set_collected_flag); taking it records it and opens it on its own screen over the held
+ * room, as RE1 does. The pages are the player's own (re1/tools/soh_ui.py: "re1/ui/file<n>", RE1's
+ * item_m2/filem_*.pix), shown whole screen, a page at a time: left and right turn the pages, A on
+ * the last page or B closes it.
  */
 #include "global.h"
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/resourcebridge.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define NV_FILES_MAX 32
@@ -22,7 +24,7 @@ static s32 sNvFileCount;
 static const u8* sNvReadPages; // the open file's "RFIL" blob, or NULL
 static s32 sNvReadPage;
 static s8 sNvReadHeld;
-static s8 sNvWantPause; // a document just taken: open the pause menu on it
+static s8 sNvReadAlone; // a document just taken: read on its own screen, the room held
 
 /** Files found so far. */
 s32 NvFiles_Count(void) {
@@ -84,24 +86,16 @@ void NvFiles_Open(PlayState* play, s32 k) {
 }
 
 /**
- * Taking a document (item id) in a room: record it and, as RE1 reads it at once, open the pause
- * menu on it (z_kaleido_setup.c). True if its pages are there to read.
+ * Taking a document (item id) in a room: record it and, as RE1 reads it at once, open it on its
+ * own screen over the held room (NvFilesUi_*). True if its pages are there to read.
  */
 s32 NvFiles_Take(s32 id) {
     NvFiles_Add(id - NV_FILE_FIRST_ITEM);
     if (!NvFiles_OpenNumber(id - NV_FILE_FIRST_ITEM)) {
         return false;
     }
-    sNvWantPause = true;
+    sNvReadAlone = true;
     return true;
-}
-
-/** Whether the pause menu should open now for a document just taken (once). */
-s32 NvFiles_WantPause(void) {
-    s32 want = sNvWantPause;
-
-    sNvWantPause = false;
-    return want;
 }
 
 s32 NvFiles_Reading(void) {
@@ -199,4 +193,54 @@ Gfx* NvFiles_Draw(Gfx* gfx) {
     }
     gDPPipeSync(gfx++);
     return gfx;
+}
+
+/**
+ * The reader on its own screen (a document just taken), from z_play.c as the box screen: it takes
+ * the input and holds the room while it's open. True while it holds.
+ */
+s32 NvFilesUi_Update(PlayState* play) {
+    Input* input = &play->state.input[0];
+
+    // testing: NV_FILE_AT="n,frame" takes file n that many frames in, as if found there
+    static s32 sDevDone;
+
+    if ((getenv("NV_FILE_AT") != NULL) && !sDevDone) {
+        int n, at;
+
+        if ((sscanf(getenv("NV_FILE_AT"), "%d,%d", &n, &at) == 2) && (play->gameplayFrames >= (u32)at)) {
+            sDevDone = true;
+            NvFiles_Take(NV_FILE_FIRST_ITEM + n);
+        }
+    }
+    if (!sNvReadAlone) {
+        return false;
+    }
+    if (sNvReadPages == NULL) {
+        sNvReadAlone = false;
+        return false;
+    }
+    if (!NvFiles_Update(input, input->rel.stick_x)) {
+        sNvReadAlone = false;
+    }
+    return true;
+}
+
+void NvFilesUi_Draw(PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+
+    if (!sNvReadAlone || (sNvReadPages == NULL)) {
+        return;
+    }
+    OPEN_DISPS(gfxCtx);
+    // the whole screen black first, past the 4:3 picture too
+    gDPPipeSync(OVERLAY_DISP++);
+    gDPSetCycleType(OVERLAY_DISP++, G_CYC_FILL);
+    gDPSetRenderMode(OVERLAY_DISP++, G_RM_NOOP, G_RM_NOOP2);
+    gDPSetFillColor(OVERLAY_DISP++, GPACK_RGBA5551(0, 0, 0, 1) << 16 | GPACK_RGBA5551(0, 0, 0, 1));
+    gDPFillWideRectangle(OVERLAY_DISP++, OTRGetRectDimensionFromLeftEdge(0), 0,
+                         OTRGetRectDimensionFromRightEdge(SCREEN_WIDTH), SCREEN_HEIGHT);
+    gDPPipeSync(OVERLAY_DISP++);
+    OVERLAY_DISP = NvFiles_Draw(OVERLAY_DISP);
+    CLOSE_DISPS(gfxCtx);
 }

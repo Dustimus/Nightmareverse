@@ -663,6 +663,8 @@ s32 NvMovie_Update(PlayState* play);
 void NvMovie_Draw(PlayState* play);
 s32 NvBoxUi_Update(PlayState* play);
 void NvBoxUi_Draw(PlayState* play);
+s32 NvFilesUi_Update(PlayState* play);
+void NvFilesUi_Draw(PlayState* play);
 
 void Play_Update(PlayState* play) {
     Input* input = play->state.input;
@@ -706,6 +708,9 @@ void Play_Update(PlayState* play) {
     }
     NvDev_Update(play); // Nightmareverse dev: scripted walks for headless checks (z_nv_dev.c)
     if (NvBoxUi_Update(play)) { // ...and RE1's item box screen holds it too (z_nv_box.c)
+        return;
+    }
+    if (NvFilesUi_Update(play)) { // ...and a document being read where it was found (z_nv_files.c)
         return;
     }
     NvDoor_Update(play); // Nightmareverse: RE1 doors, A in front of them (z_nv_door.c)
@@ -1327,6 +1332,7 @@ void Play_DrawOverlayElements(PlayState* play) {
 
     NvMovie_Draw(play); // Nightmareverse: an RE1 movie, over everything (z_nv_movie.c)
     NvBoxUi_Draw(play); // ...and RE1's item box screen (z_nv_box.c)
+    NvFilesUi_Draw(play); // ...and a document being read where it was found (z_nv_files.c)
 }
 
 void Play_Draw(PlayState* play) {

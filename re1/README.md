@@ -230,12 +230,14 @@ all of Link's hearts; an item that would do nothing isn't used up), Check, Combi
 item: RE1's herb mixes). Up from the top slots reaches the tabs: Exit closes the pause menu, File
 lists the files found, Map says there's no map yet.
 
-Files (2026-10-31): a document lying in a room (item 0x5F + its file number, handler 0x0D) is taken
-with A and, as in RE1, read at once: the pause menu opens on its pages (`soh/src/code/z_nv_files.c`).
-The pages are the player's own (`re1/ui/file<n>`, from item_m2/filem_*.pix: a table of offsets to
-PAK-packed 256 x 256 4 bpp TIMs, in RE1's g_filemPixNames order), shown whole screen; left/right turn
-pages, A on the last page or B closes. The File tab reads them again. Their list names are our own
-plain "File n" for now.
+Files (2026-11-03): a document lying in a room (item 0x5F + its file number, handler 0x0D) is
+taken with A and, as in RE1, read at once on its own screen: the room holds and the pages show over
+it (`soh/src/code/z_nv_files.c`, NvFilesUi_*, from z_play.c as the box screen), not the pause
+menu. The pages are the player's own (`re1/ui/file<n>`, from item_m2/filem_*.pix: a table of offsets
+to PAK-packed 256 x 256 4 bpp TIMs, in RE1's g_filemPixNames order), shown whole screen; left/right
+turn pages, A on the last page or B closes. The status screen's File tab lists them and reads them
+again there. Their list names are our own plain "File n" for now. Dev: `NV_FILE_AT="n,frame"`
+takes file n that many frames into the room (as if found there).
 
 Room objects (2026-10-31): each room's own object models (furniture, statues, push blocks, the
 item box's lid; RDT object models, `<name>_objs`, `tools/soh_scene.py` items_blob with which=2)
