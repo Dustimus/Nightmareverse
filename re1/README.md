@@ -30,6 +30,13 @@ where the data folder is the one holding Stage1..Stage7 ("USA" in the GOG releas
 `re1.o2r` in Ship of Harkinian's `mods` folder. Until the mansion has its way in (the Lost
 Woods), a file `nv_boot.txt` holding `re1_106` in the SoH folder starts the game in the foyer.
 
+The mansion on the way back (RE1's stages 6 and 7: the return trip's own rooms, scripts and
+enemies on the first visit's backgrounds) is its own set of rooms, as in RE1. Its doors to the
+other floor stay in it (RE1's room_transition_load adds 5 to stages 1 and 2 once the return flag
+is set). Until the courtyard and guardhouse are built, the courtyard door in the east wing's
+back corridor (11B) is a test switch: it takes you to the return mansion's 61B, and 61B's
+courtyard door brings you back to 11B.
+
 Before converting, `make_mod.py` checks the copy (`tools/re1_verify.py`): each room file's
 fingerprint against the releases we know (`tools/re1_known.json`: hashes only, no game data) and
 the language of its text. It prints which release and language it found, and warns about room

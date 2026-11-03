@@ -1014,6 +1014,42 @@ def lock_pair(rid, door):
     return tuple(sorted((a, b)))
 
 
+def mansion_return_doors(rooms, stage, player):
+    """The mansion on the way back (stages 6, 7: the return trip's own rooms on the first visit's
+    backgrounds). RE1's room_transition_load (DoorSystem.cpp) sends a door that changes stage to
+    stage 1 or 2 to 6 or 7 instead once the return flag is set, and inside 6 and 7 it always is:
+    their doors to the other floor say 1 or 2 and mean 7 or 6. So they're pointed there here.
+
+    Test switch until the courtyard and guardhouse are built: the courtyard door of 11B (to 300)
+    goes to 61B instead, and 61B's back to 11B, arriving where 300's door to 11B puts you. That
+    one door swaps mansions both ways."""
+    ids = {rid for rid, _, _ in rooms}
+    arrive = None
+    for rid, _, room in rooms:
+        for door in room.doors:
+            if rid[0] in "67" and door.next_stage in (1, 2):
+                door.next_stage += 5
+    if "300" in ids:
+        return
+    try:
+        courtyard = load_rdt(stage_dir(stage, "300"), "300", player)
+    except SystemExit:
+        return
+    for door in courtyard.doors:
+        if door.next_stage == 1 and door.next_room == 0x1B:
+            arrive = (door.next_pos, door.next_dir)
+    if arrive is None:
+        return
+    swap = {"11B": 6, "61B": 1}
+    for rid, _, room in rooms:
+        if rid in swap and ("%d1B" % swap[rid]) in ids:
+            for door in room.doors:
+                if door.next_stage == 3 and door.next_room == 0:
+                    door.next_stage, door.next_room = swap[rid], 0x1B
+                    door.next_pos, door.next_dir = arrive
+                    print("  test switch: %s's courtyard door -> %d1B" % (rid, swap[rid]))
+
+
 def load_rdt(stage, room_id, player):
     for fn in os.listdir(stage):
         if fn.upper() == ("ROOM%s%s.RDT" % (room_id, player)).upper():
@@ -1083,6 +1119,7 @@ def main():
         room_id, name = item.split(":")
         rooms.append((room_id.upper(), name, load_rdt(stage_dir(a.stage, room_id), room_id, a.player)))
         apply_trims(rooms[-1][2], room_id.upper())
+    mansion_return_doors(rooms, a.stage, a.player)
     by_id = {rid: (name, room) for rid, name, room in rooms}
 
     # floor levels: the non-zero heights RE1's doors arrive at (ROOM_LEVELS)
