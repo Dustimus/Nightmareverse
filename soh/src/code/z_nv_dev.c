@@ -6,7 +6,8 @@
  *   NV_WALK="x,z;x,z;wait:N"  steer Link through waypoints with the control stick (camera-
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
  *                             (default 200); "wait:N" stands still N frames, "a" presses A, "b" B,
- *                             "start" Start, "left"/"right"/"up"/"down" the D-pad,
+ *                             "start" Start, "left"/"right"/"up"/"down" the D-pad, "cl:N" holds
+ *                             C-Left N frames (RE1's gun's aim; letting go fires),
  *                             "pos:x,z" puts Link there, "face:x,z" turns him to face a point,
  *                             "facerect:x0,z0,x1,z1" turns him (16 ways) to put the point in
  *                             front of him deepest into a rectangle (as a player faces a door), "entr:N" warps to entrance N (the
@@ -30,7 +31,7 @@
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL } NvWaypointKind;
 
 typedef struct {
     s16 kind;
@@ -143,6 +144,10 @@ static void NvDev_ParsePath(void) {
                    (strncmp(s, "down", 4) == 0)) {
             wp->kind = NV_WP_DPAD;
             wp->wait = (s[0] == 'l') ? BTN_DLEFT : (s[0] == 'r') ? BTN_DRIGHT : (s[0] == 'u') ? BTN_DUP : BTN_DDOWN;
+            sNvPathLen++;
+        } else if (strncmp(s, "cl:", 3) == 0) { // hold C-Left that many frames, then let go
+            wp->kind = NV_WP_HOLDCL;
+            wp->wait = (s16)atoi(s + 3);
             sNvPathLen++;
         } else if (strncmp(s, "wait:", 5) == 0) {
             wp->kind = NV_WP_WAIT;
@@ -322,6 +327,16 @@ void NvDev_Update(PlayState* play) {
             printf("NVWALK A pos=%d,%d yaw=%d f=%d\n", (int)player->actor.world.pos.x,
                    (int)player->actor.world.pos.z, (u16)player->actor.shape.rot.y, (int)play->gameplayFrames);
             sNvPathIdx++;
+        } else if (wp->kind == NV_WP_HOLDCL) {
+            if (sNvTimer == 0) {
+                input->press.button |= BTN_CLEFT;
+            }
+            if (++sNvTimer > wp->wait) {
+                sNvPathIdx++;
+                sNvTimer = 0;
+            } else {
+                input->cur.button |= BTN_CLEFT;
+            }
         } else if (wp->kind == NV_WP_WAIT) {
             if (++sNvTimer > wp->wait) {
                 sNvPathIdx++;

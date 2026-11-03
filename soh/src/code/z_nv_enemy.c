@@ -381,6 +381,48 @@ static void NvEnemy_Hits(NvEnemy* this, PlayState* play) {
     fflush(stdout);
 }
 
+/*
+ * RE1's guns on an enemy (WeaponDamage.cpp apply_weapon_damage, for z_nv_weapon.c): the
+ * zombies' hit records (g_weaponHitRecordsFirstRun's zombie rows, first playthrough), by the
+ * weapon's item id less one: the damage and the hit state.
+ */
+static const s16 sNvGunDamage[10] = { 8, 9, 53, 50, 130, 20, 201, 95, 95, 900 };
+static const u8 sNvGunHitState[10] = { 1, 1, 2, 2, 2, 1, 2, 1, 1, 2 };
+
+static s32 NvEnemy_Parked(const NvRe1Entity* e);
+
+/**
+ * Whether actor a is one of RE1's enemies a gun can hit now (alive, out, not already reacting:
+ * apply_weapon_damage takes only hit_state 0), and where it is (RE1's units) and how wide.
+ */
+s32 NvEnemy_GunTarget(Actor* a, s32* x, s32* z, s32* radius) {
+    NvEnemy* this = (NvEnemy*)a;
+    NvRe1Entity* e;
+
+    if ((a == NULL) || (a->id != NvActor_EnemyId())) {
+        return false;
+    }
+    e = &this->e;
+    if ((e->health < 0) || (e->status_flags & 2) || NvEnemy_Parked(e) || (e->hit_state != 0)) {
+        return false;
+    }
+    *x = e->t[0];
+    *z = e->t[2];
+    *radius = ((e->sca != NULL) && (e->sca[5] > 0)) ? e->sca[5] : 400;
+    return true;
+}
+
+/** A round from weapon item (RE1's item id) hits it. */
+void NvEnemy_GunHit(Actor* a, s32 item) {
+    NvEnemy* this = (NvEnemy*)a;
+    s32 k = CLAMP(item - 1, 0, 9);
+
+    Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 8);
+    NvZombie_Hit(&this->e, sNvGunDamage[k], sNvGunHitState[k], (u8)item);
+    printf("NVENEMY shot (weapon %d): %d damage, health %d\n", (int)item, sNvGunDamage[k], this->e.health);
+    fflush(stdout);
+}
+
 /** RE1's grab, as OoT's: held while RE1's attack lasts, let go when it ends. */
 static void NvEnemy_Grab(NvEnemy* this, PlayState* play) {
     Player* player = GET_PLAYER(play);

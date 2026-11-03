@@ -2539,6 +2539,9 @@ void Player_ProcessItemButtons(Player* this, PlayState* play) {
                 break;
             }
         }
+        if ((i == 1) && NvWeapon_OwnsCLeft(play)) { // Nightmareverse: C-Left is RE1's gun (z_nv_weapon.c)
+            i = ARRAY_COUNT(sItemButtons);
+        }
 
         item = Player_GetItemOnButton(play, i);
         GameInteractor_Should(VB_OVERRIDE_BUTTON_ITEM_USED, true, &i, this, &item);
@@ -2548,6 +2551,9 @@ void Player_ProcessItemButtons(Player* this, PlayState* play) {
                 if (CHECK_BTN_ALL(sControlInput->cur.button, sItemButtons[i])) {
                     break;
                 }
+            }
+            if ((i == 1) && NvWeapon_OwnsCLeft(play)) {
+                i = ARRAY_COUNT(sItemButtons);
             }
 
             item = Player_GetItemOnButton(play, i);
@@ -12201,6 +12207,10 @@ static Vec3f sDogSpawnOffset = { 0.0f, 0.0f, -30.0f };
 
 s32 Player_UpdateNoclip(Player* this, PlayState* play);
 s32 NvClimb_UpdatePlayer(Player* player, PlayState* play); // Nightmareverse: RE1 stairs (z_nv_climb.c)
+void NvWeapon_PreUpdate(Player* player, PlayState* play, Input* input);
+s32 NvWeapon_Holding(void);
+s32 NvWeapon_OwnsCLeft(PlayState* play);
+void NvWeapon_Draw(PlayState* play, Player* player);
 void NvLinkAnim_Apply(Player* player, PlayState* play);
 
 void Player_Update(Actor* thisx, PlayState* play) {
@@ -12264,6 +12274,11 @@ void Player_Update(Actor* thisx, PlayState* play) {
             }
         }
 
+        // Nightmareverse: RE1's gun on C-Left in the mansion, squared up while it's raised (z_nv_weapon.c)
+        NvWeapon_PreUpdate(this, play, &input);
+        if (NvWeapon_Holding() && (this->heldItemAction != PLAYER_IA_NONE)) {
+            Player_UseItem(play, this, ITEM_NONE); // (the sword or item in hand goes away for it)
+        }
         Player_UpdateCommon(this, play, &input);
     }
 
@@ -12564,6 +12579,7 @@ void Player_Draw(Actor* thisx, PlayState* play2) {
             Player_DrawGetItem(play, this);
         }
     }
+    NvWeapon_Draw(play, this); // Nightmareverse: RE1's gun in his left fist (z_nv_weapon.c)
 
     CLOSE_DISPS(play->state.gfxCtx);
 }

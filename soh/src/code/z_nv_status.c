@@ -472,6 +472,11 @@ static void NvSt_DrawSlot(Gfx** gfxP, s32 i, s32 x, s32 y) {
 
 /* ---- for the box screen (z_nv_box.c): the same pictures ---- */
 
+/** Item id's RE1 icon (40 x 30, RGBA5551), or NULL (z_nv_weapon.c's C button). */
+const u16* NvStatus_IconFor(s32 id) {
+    return NvSt_Icon(id);
+}
+
 /** Whether RE1's status pictures and icons are there. */
 s32 NvStatus_PicsReady(void) {
     return NvSt_Pics() && (NvSt_Icons() != NULL);

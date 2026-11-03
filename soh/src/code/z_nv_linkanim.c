@@ -10,6 +10,9 @@
  * matching bone. Link's own pose this frame supplies everything else (twist, hands, feet, head),
  * so it overrides only what RE1 animates.
  *
+ * The same plays Jill's moves with a weapon (re1/tools/soh_weapons.py: "re1/weapons/w<id>"),
+ * mirrored, as Link is left-handed.
+ *
  * Jill's skeleton (as the EMD has it): 0 chest (the root), 1 head, 2 pelvis; 3-5 and 6-8 the legs
  * (hip, knee, ankle); 9-11 and 12-14 the arms (shoulder, elbow, wrist).
  */
@@ -43,7 +46,8 @@ typedef struct {
 } NvLaSource;
 
 static NvLaSource sNvLa;
-static s32 sNvLaType = -1;
+static char sNvLaPath[64]; // the source loaded
+static s32 sNvLaMirror;    // left for right (Link is left-handed: RE1's right-handed moves, mirrored)
 static s32 sNvLaActive;
 static s32 sNvLaAnim;
 static s32 sNvLaStep;
@@ -203,25 +207,28 @@ static NvMat3 NvLa_Frame(const f32* up, const f32* right, const f32* up2, const 
 
 /* ---- the source: an enemy's player animations ---- */
 
-static s32 NvLa_Load(s32 type) {
-    char path[64];
+/** A source of player animations: "RPLA" at offset skip of the resource at path. */
+static s32 NvLa_LoadPath(const char* path, s32 skip) {
     const u8* d;
     u16 n;
     u16 nf;
     u16 na;
     s32 i;
 
-    if (type == sNvLaType) {
+    if (strcmp(path, sNvLaPath) == 0) {
         return sNvLa.blob != NULL;
     }
-    sNvLaType = type;
+    snprintf(sNvLaPath, sizeof(sNvLaPath), "%s", path);
     memset(&sNvLa, 0, sizeof(sNvLa));
-    snprintf(path, sizeof(path), "re1/enemies/em%d_pl", (int)type);
     if (!ResourceMgr_FileExists(path)) {
         return false;
     }
     d = (const u8*)ResourceGetDataByName(path);
-    if ((d == NULL) || (memcmp(d, "RPLA", 4) != 0)) {
+    if (d == NULL) {
+        return false;
+    }
+    d += skip;
+    if (memcmp(d, "RPLA", 4) != 0) {
         return false;
     }
     memcpy(&n, d + 4, 2);
@@ -255,6 +262,14 @@ static s32 NvLa_Load(s32 type) {
     }
     sNvLa.blob = d;
     return true;
+}
+
+/** An enemy's player animations (its grabs: "re1/enemies/em<type>_pl", soh_enemy.py). */
+static s32 NvLa_Load(s32 type) {
+    char path[64];
+
+    snprintf(path, sizeof(path), "re1/enemies/em%d_pl", (int)type);
+    return NvLa_LoadPath(path, 0);
 }
 
 /**
@@ -299,13 +314,30 @@ static void NvLa_Pose(s32 frame, f32 pos[NV_LA_MAX_BONES][3]) {
         pos[i][1] = -re1[i][1];
         pos[i][2] = re1[i][0];
     }
+    if (sNvLaMirror && (sNvLa.numBones >= 15)) {
+        // her left for her right: across the body (x), and each leg and arm for the other one
+        static const u8 sSwap[][2] = { { 3, 6 }, { 4, 7 }, { 5, 8 }, { 9, 12 }, { 10, 13 }, { 11, 14 } };
+
+        for (i = 0; i < sNvLa.numBones; i++) {
+            pos[i][0] = -pos[i][0];
+        }
+        for (i = 0; i < (s32)ARRAY_COUNT(sSwap); i++) {
+            s32 k;
+
+            for (k = 0; k < 3; k++) {
+                f32 t = pos[sSwap[i][0]][k];
+
+                pos[sSwap[i][0]][k] = pos[sSwap[i][1]][k];
+                pos[sSwap[i][1]][k] = t;
+            }
+        }
+    }
 }
 
 /* ---- playing ---- */
 
-/** Start (or switch to) an enemy type's player animation anim; hold: stop at its end. */
-s32 NvLinkAnim_Play(s32 type, s32 anim, s32 hold) {
-    if (!NvLa_Load(type) || (anim < 0) || (anim >= sNvLa.numAnims)) {
+static s32 NvLa_Start(s32 anim, s32 hold) {
+    if ((anim < 0) || (anim >= sNvLa.numAnims)) {
         sNvLaActive = false;
         return false;
     }
@@ -316,6 +348,37 @@ s32 NvLinkAnim_Play(s32 type, s32 anim, s32 hold) {
     sNvLaAnim = anim;
     sNvLaHold = hold;
     return true;
+}
+
+/** Start (or switch to) an enemy type's player animation anim; hold: stop at its end. */
+s32 NvLinkAnim_Play(s32 type, s32 anim, s32 hold) {
+    sNvLaMirror = false;
+    if (!NvLa_Load(type)) {
+        sNvLaActive = false;
+        return false;
+    }
+    return NvLa_Start(anim, hold);
+}
+
+/**
+ * The same from another source (a weapon's: "re1/weapons/w<id>", its "RPLA" skip bytes in), and
+ * mirrored: Link holds in his left what Jill holds in her right.
+ */
+s32 NvLinkAnim_PlayFrom(const char* path, s32 skip, s32 anim, s32 hold, s32 mirror) {
+    sNvLaMirror = mirror;
+    if (!NvLa_LoadPath(path, skip)) {
+        sNvLaActive = false;
+        return false;
+    }
+    return NvLa_Start(anim, hold);
+}
+
+/** The step the playing animation is on (RE1's 30 Hz steps), and how many it has. */
+s32 NvLinkAnim_Step(s32* numSteps) {
+    if (numSteps != NULL) {
+        *numSteps = sNvLaActive ? sNvLa.numSteps[sNvLaAnim] : 0;
+    }
+    return sNvLaStep;
 }
 
 void NvLinkAnim_Stop(void) {

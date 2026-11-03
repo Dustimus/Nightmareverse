@@ -295,6 +295,20 @@ static void NvItems_DevGive(void) {
     if (s == NULL) {
         return;
     }
+    if (getenv("NV_EQUIP") != NULL) { // NV_EQUIP=n: equip slot n once given (testing)
+        s32 NvItems_ToggleEquip(s32 i);
+
+        while (sscanf(s, "%i,%i%n", &id, &qty, &used) == 2) {
+            NvItems_Give(id, qty);
+            s += used;
+            if (*s != ';') {
+                break;
+            }
+            s++;
+        }
+        NvItems_ToggleEquip(atoi(getenv("NV_EQUIP")));
+        return;
+    }
     while (sscanf(s, "%i,%i%n", &id, &qty, &used) == 2) {
         NvItems_Give(id, qty);
         s += used;
@@ -320,6 +334,63 @@ static void NvIt_FreeSet(NvItModel* models, s32* count) {
     *count = 0;
 }
 
+/** One model as soh_scene.py model_bytes packs it, at *pd (moved past it): the cells are read in place. */
+static void NvIt_ParseModel(const u8** pd, NvItModel* m) {
+    const u8* d = *pd;
+    u16 cw;
+    u16 ch;
+    u16 nb;
+    s32 b;
+
+    memcpy(&cw, d, 2);
+    memcpy(&ch, d + 2, 2);
+    d += 4;
+    m->cells = (u16*)d;
+    d += cw * ch * NV_IT_CELL_W * NV_IT_CELL_H * 2;
+    memcpy(&nb, d, 2);
+    d += 2;
+    m->numBatches = nb;
+    m->batches = calloc(MAX(nb, 1), sizeof(NvItBatch));
+    for (b = 0; b < nb; b++) {
+        NvItBatch* batch = &m->batches[b];
+
+        memcpy(&batch->cell, d, 2);
+        memcpy(&batch->numVerts, d + 2, 2);
+        d += 4;
+        batch->vtx = malloc(batch->numVerts * sizeof(Vtx));
+        memcpy(batch->vtx, d, batch->numVerts * sizeof(Vtx));
+        d += batch->numVerts * sizeof(Vtx);
+    }
+    *pd = d;
+}
+
+/** For z_nv_weapon.c: a model at d (soh_scene.py model_bytes), kept until freed. */
+void* NvModel_Parse(const u8* d) {
+    NvItModel* m = calloc(1, sizeof(NvItModel));
+
+    NvIt_ParseModel(&d, m);
+    return m;
+}
+
+/** The model's extent: its vertices' bounds (the model's own units). */
+void NvModel_Bounds(void* model, s16 mn[3], s16 mx[3]) {
+    NvItModel* m = model;
+    s32 b, v, k;
+
+    for (k = 0; k < 3; k++) {
+        mn[k] = 0x7FFF, mx[k] = -0x7FFF;
+    }
+    for (b = 0; b < m->numBatches; b++) {
+        for (v = 0; v < m->batches[b].numVerts; v++) {
+            for (k = 0; k < 3; k++) {
+                s16 c = m->batches[b].vtx[v].v.ob[k];
+
+                mn[k] = MIN(mn[k], c), mx[k] = MAX(mx[k], c);
+            }
+        }
+    }
+}
+
 /** One of the room's model sets ("<name>_items" / "<name>_objs", soh_scene.py items_blob). */
 static s32 NvIt_LoadSet(const char* path, const char* magic, NvItModel* models, s32 max) {
     const u8* d;
@@ -336,31 +407,7 @@ static s32 NvIt_LoadSet(const char* path, const char* magic, NvItModel* models, 
     memcpy(&count, d + 4, 2);
     d += 6;
     for (i = 0; (i < count) && (i < max); i++) {
-        NvItModel* m = &models[i];
-        u16 cw;
-        u16 ch;
-        u16 nb;
-        s32 b;
-
-        memcpy(&cw, d, 2);
-        memcpy(&ch, d + 2, 2);
-        d += 4;
-        m->cells = (u16*)d;
-        d += cw * ch * NV_IT_CELL_W * NV_IT_CELL_H * 2;
-        memcpy(&nb, d, 2);
-        d += 2;
-        m->numBatches = nb;
-        m->batches = calloc(MAX(nb, 1), sizeof(NvItBatch));
-        for (b = 0; b < nb; b++) {
-            NvItBatch* batch = &m->batches[b];
-
-            memcpy(&batch->cell, d, 2);
-            memcpy(&batch->numVerts, d + 2, 2);
-            d += 4;
-            batch->vtx = malloc(batch->numVerts * sizeof(Vtx));
-            memcpy(batch->vtx, d, batch->numVerts * sizeof(Vtx));
-            d += batch->numVerts * sizeof(Vtx);
-        }
+        NvIt_ParseModel(&d, &models[i]);
     }
     return MIN(count, max);
 }
@@ -424,6 +471,30 @@ static void NvIt_DrawModel(GraphicsContext* gfxCtx, NvItModel* m) {
         }
     }
     CLOSE_DISPS(gfxCtx);
+}
+
+/** The render state RE1's models draw with (textured, z-buffered, the masks in front). */
+static void NvIt_Setup(GraphicsContext* gfxCtx) {
+    OPEN_DISPS(gfxCtx);
+    gDPPipeSync(POLY_OPA_DISP++);
+    gDPSetCycleType(POLY_OPA_DISP++, G_CYC_1CYCLE);
+    gDPSetDepthSource(POLY_OPA_DISP++, G_ZS_PIXEL);
+    gDPSetRenderMode(POLY_OPA_DISP++, G_RM_AA_ZB_TEX_EDGE, G_RM_AA_ZB_TEX_EDGE2);
+    gDPSetTextureFilter(POLY_OPA_DISP++, G_TF_POINT);
+    gDPSetTexturePersp(POLY_OPA_DISP++, G_TP_PERSP);
+    gDPSetTextureLUT(POLY_OPA_DISP++, G_TT_NONE);
+    gDPSetCombineMode(POLY_OPA_DISP++, G_CC_MODULATEIA_PRIM, G_CC_MODULATEIA_PRIM);
+    gDPSetPrimColor(POLY_OPA_DISP++, 0, 0, 255, 255, 255, 255);
+    gSPClearGeometryMode(POLY_OPA_DISP++, G_LIGHTING | G_FOG | G_CULL_BOTH | G_TEXTURE_GEN);
+    gSPSetGeometryMode(POLY_OPA_DISP++, G_ZBUFFER | G_SHADE | G_SHADING_SMOOTH);
+    gSPTexture(POLY_OPA_DISP++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
+    CLOSE_DISPS(gfxCtx);
+}
+
+/** For z_nv_weapon.c: draw a model with the current matrix. */
+void NvModel_Draw(GraphicsContext* gfxCtx, void* model) {
+    NvIt_Setup(gfxCtx);
+    NvIt_DrawModel(gfxCtx, (NvItModel*)model);
 }
 
 #define NV_PSX_ANGLE(a) ((a) * (2.0f * M_PI / 4096.0f))
@@ -683,6 +754,13 @@ void NvBox_Update(PlayState* play) {
 void NvBox_Reset(void) {
     sNvBoxState = 0;
     sNvBoxAngle = 0;
+}
+
+/** A round fired from slot i's weapon (z_nv_weapon.c): its count goes down, the gun stays. */
+void NvItems_SpendRound(s32 i) {
+    if ((i >= 0) && (i < NvItems_SlotCount()) && (sNvSlots[i].qty > 0)) {
+        sNvSlots[i].qty--;
+    }
 }
 
 /** Whether item id can be equipped: RE1's weapons, the knife to the rocket launcher. */

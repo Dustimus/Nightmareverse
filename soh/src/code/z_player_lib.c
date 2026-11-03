@@ -1392,6 +1392,10 @@ s32 Player_OverrideLimbDrawGameplayDefault(PlayState* play, s32 limbIndex, Gfx**
                 dLists = &gPlayerLeftHandClosedDLs[gSaveContext.linkAge];
                 sLeftHandType = PLAYER_MODELTYPE_LH_CLOSED;
             }
+            if (NvWeapon_Holding()) { // Nightmareverse: a fist round RE1's gun (z_nv_weapon.c)
+                dLists = &gPlayerLeftHandClosedDLs[gSaveContext.linkAge];
+                sLeftHandType = PLAYER_MODELTYPE_LH_CLOSED;
+            }
 
             *dList = ResourceMgr_LoadGfxByName(dLists[sDListsLodOffset]);
         } else if (limbIndex == PLAYER_LIMB_R_HAND) {
@@ -1786,6 +1790,9 @@ Vec3f sLeftRightFootLimbModelFootPos[] = {
     { 200.0f, 200.0f, 0.0f },
 };
 
+void NvWeapon_NoteHand(void);
+s32 NvWeapon_Holding(void);
+
 void Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     Player* this = (Player*)thisx;
 
@@ -1798,6 +1805,7 @@ void Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList, Ve
         Actor* hookedActor;
 
         Math_Vec3f_Copy(&this->leftHandPos, D_80160000);
+        NvWeapon_NoteHand(); // Nightmareverse: where RE1's gun goes (z_nv_weapon.c)
 
         if (this->itemAction == PLAYER_IA_DEKU_STICK) {
             Vec3f sp124[3];

@@ -260,6 +260,24 @@ away is unequipped); B steps back, and B on Jill's side (or START) closes it and
 One box, shared by every box in the mansion. Names are our own plain wording in OoT's small font
 for now (RE1's 8x14 font is a later step). Not yet: the list's sliding animation, Hyrule's side.
 
+Weapons (2026-11-03, first pass): in RE1's rooms the weapon equipped on the status screen takes
+C-Left (RE1's icon on the button; the OoT item there is back outside the mansion), in
+`soh/src/code/z_nv_weapon.c`. Holding C-Left squares Link up as RE1's aim does: he stops, the stick
+turns him, up/down aims high or low, and Jill's raise and hold for that weapon and direction play
+on him (`re1/weapons/w<id>`, `tools/soh_weapons.py`: her PLAYERS/W1x.EMW, mirrored, as Link is
+left-handed; through z_nv_linkanim.c). Releasing C-Left fires (B fires too and keeps the aim): a
+round from the slot (the knife none; an empty gun clicks), Jill's fire animation, and RE1's hit
+(an enemy ahead within the weapon's range, her half of weapons_ranges, and its radius + 200 to the
+side) and damage (the zombies' hit records: the Beretta 9, the shotgun 53, ...). The aim follows the
+Z-target when it's one of RE1's enemies, else RE1's auto-aim: the nearest enemy ahead in reach.
+The gun is RE1's item-viewer model (ITEM_M2/I<nn>V.IVM by the item record's model byte) in Link's
+left fist, which closes round it; it's drawn only while the gun is up, so another item (the
+ocarina) replaces it, and another C button puts it down. Not yet: RE1's gunshot sounds and muzzle
+flash (OoT placeholders), the line of sight through walls, aiming down only hitting crawlers, the
+shotgun's spread and the launcher's rounds, ammo loading by Combine. Dev: `NV_EQUIP=n` equips slot n
+of NV_GIVE's items; NV_WALK `cl:N` holds C-Left N frames; `NV_GUN_FIT="x,y,z,rx,ry,rz,size%"` moves
+the gun in the fist.
+
 Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad); NV_GIVE="id,qty;..." gives
 items on the first room; NV_FILE=n takes file n there.
 
