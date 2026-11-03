@@ -101,3 +101,14 @@ here is agreed or scheduled.
 - Status screen background (user, 2026-10-31): the RE1 page now sits at the right size inside the
   map page's border; later, give it its own custom background in place of OoT's map page art, and
   tune the scaling.
+
+- Get-item moments (decided with the user, 2026-11-03): two tiers, each only the first time.
+  - The big one (Link holds it up, OoT's chest jingle, RE1's item-viewer model turning above him,
+    a short line in OoT's text box): each new gun (shotgun, Colt Python, grenade launcher, rocket
+    launcher), each map (its line also says it's on the pause screen now), the lockpick (Barry
+    hands it over), the crests.
+  - The small one (the quick jingle and one short tutorial line, like a first Deku Nut): the first
+    green, red and blue herb, first aid spray, ink ribbon.
+  - None: the mansion keys (all or none: none, unless this ever replaces RE1's Check viewer), the
+    medals, puzzle items, files, ammo, repeats. RE1's own Check viewer stays.
+  - Seen-it flags kept with the save system. Our own wording for the lines.
