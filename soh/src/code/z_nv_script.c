@@ -300,6 +300,18 @@ static s32 NvScd_Cmd(void) {
             }
             sNvIp = p + 4;
             return 1;
+        case 0x15: // cmd_bgm_play: a music channel starts (z_nv_sound.c)
+            NvBgm_ScdPlay(p[1]);
+            sNvIp = p + 2;
+            return 1;
+        case 0x16: // cmd_bgm_stop
+            NvBgm_ScdStop(p[1]);
+            sNvIp = p + 2;
+            return 1;
+        case 0x37: // cmd_room_bgm_state_set: a room's music state (stage p[1] & 7, room p[2])
+            NvBgm_ScdState(p[1] & 7, p[2], p[3]);
+            sNvIp = p + 4;
+            return 1;
         case 0x1F: // cmd_omodel_set: a room object (CmdFunctions.cpp 0x00461ac0)
             {
                 NvObj* o = &sNvObj[p[1] & 0x3F];
@@ -887,8 +899,17 @@ s32 NvAot_Act(PlayState* play, Player* player) {
     return true;
 }
 
+void NvBgm_RoomEnter(s32 stage, s32 room);
+void NvBgm_Leave(void);
+void NvBgm_ScdPlay(s32 ch);
+void NvBgm_ScdStop(s32 ch);
+void NvBgm_ScdState(s32 stage, s32 room, u8 state);
+
 void NvScript_RoomInit(PlayState* play) {
     NvFlags_NewGame();
+    if (play->sceneNum < SCENE_RE1_100) {
+        NvBgm_Leave(); // out of the mansion: RE1's sounds stop
+    }
     char path[256];
     const char* file;
     size_t len;
@@ -981,6 +1002,7 @@ void NvScript_RoomInit(PlayState* play) {
             sNvInitRun = false;
         }
     }
+    NvBgm_RoomEnter(sNvStage, sNvRoom); // RE1's room music (z_nv_sound.c), after the init chain set its state
     printf("NVSCRIPT %s init: stage %d room %d camera %d\n", file, sNvStage, sNvRoom, sNvCamera);
     fflush(stdout);
 }

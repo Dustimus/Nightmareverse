@@ -279,6 +279,19 @@ shotgun's spread and the launcher's rounds, ammo loading by Combine. Dev: `NV_EQ
 of NV_GIVE's items; NV_WALK `cl:N` holds C-Left N frames; `NV_GUN_FIT="x,y,z,rx,ry,rz,size%"` and
 `NV_GUN_MIRROR=x|y|z|none` move the gun in the fist.
 
+Sound (2026-11-03, first pass): RE1's WAVs from the player's SOUND and VOICE folders, copied
+unchanged into the mod (`re1/sound/<name>`, `re1/voice/<name>`, `tools/soh_sound.py`), mixed on an
+SDL device of our own (`soh/soh/Enhancements/Nightmareverse/NvSound.cpp`: a pool of effect voices
+and RE1's three music channels). Room music as RE1's (`soh/src/code/z_nv_sound.c`, tables in
+`z_nv_sound_tables.c` from the decomp's SoundTables.cpp): each room's music state (all clear at a
+new game; set by the scripts' opcode 0x37) picks its group and which channels start
+(update_room_bgm), and the scripts start and stop channels (0x15, 0x16); most rooms stay quiet
+until their script starts the music, as RE1's mansion does. Leaving the mansion stops it. Effects so
+far: the guns' shots (each weapon's fire sound: gun01, shot01, magnum01, grbomb02 ...), and the
+status, box and file screens' cursor, decide and cancel. Not yet: doors, pickups, the box lid,
+footsteps, enemies' sounds (RE1's per-room enemy banks), and the voices (in the mod for the
+cutscenes to come). OoT's own music is already silent in RE1's rooms (their scene sets no sequence).
+
 Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad); NV_GIVE="id,qty;..." gives
 items on the first room; NV_FILE=n takes file n there.
 

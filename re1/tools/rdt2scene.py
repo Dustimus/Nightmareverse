@@ -1035,6 +1035,8 @@ def _pack_soh(folder, re1, anims):
     print("soh: files %d" % soh_ui.write_files(re1, folder))
     print("soh: sheets %d" % soh_ui.write_sheets(re1, folder))
     print("soh: weapons %s" % soh_weapons.write(re1, folder))
+    import soh_sound
+    print("soh: sounds, voices %s" % (soh_sound.write(re1, folder),))
     soh_scene.pack_o2r(folder, folder.rstrip("/") + ".o2r")
     print("soh: packed %s.o2r" % folder.rstrip("/"))
 

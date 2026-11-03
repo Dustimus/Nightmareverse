@@ -232,9 +232,10 @@ static void NvSt_Rect(Gfx** gfxP, s32 x, s32 y, s32 w, s32 h, u8 r, u8 g, u8 b, 
     *gfxP = gfx;
 }
 
+void NvSound_Menu(u16 sfx);
+
 static void NvSt_Sfx(u16 sfx) {
-    Audio_PlaySfxGeneral(sfx, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale,
-                         &gSfxDefaultReverb);
+    NvSound_Menu(sfx); // RE1's own (z_nv_sound.c)
 }
 
 /** One push of the stick or D-pad: 1 left, 2 right, 3 up, 4 down, 0 none. */

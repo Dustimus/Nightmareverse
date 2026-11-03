@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+void NvSound_Menu(u16 sfx);
+
 #define NV_FILES_MAX 32
 #define NV_FILE_FIRST_ITEM 0x5F
 
@@ -144,8 +146,7 @@ s32 NvFiles_Update(Input* input, s32 stickX) {
     }
     if ((dir != 0) && (sNvReadPage + dir >= 0) && (sNvReadPage + dir < pages)) {
         sNvReadPage += dir;
-        Audio_PlaySfxGeneral(NA_SE_SY_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                             &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        NvSound_Menu(NA_SE_SY_CURSOR); // RE1's own (z_nv_sound.c)
     }
     return true;
 }

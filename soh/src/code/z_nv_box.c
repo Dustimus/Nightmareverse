@@ -187,9 +187,10 @@ static s32 sNvBxBox;     // DAT_00ae9f24: the box slot in the preview
 static s8 sNvBxHeld;     // the stick's last direction
 static s8 sNvBxOpen;
 
+void NvSound_Menu(u16 sfx);
+
 static void NvBx_Sfx(u16 sfx) {
-    Audio_PlaySfxGeneral(sfx, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale,
-                         &gSfxDefaultReverb);
+    NvSound_Menu(sfx); // RE1's own (z_nv_sound.c)
 }
 
 /** One push: 1 left, 2 right, 3 up, 4 down, 0 none. */

@@ -43,6 +43,8 @@ void* NvModel_Parse(const u8* d);
 void NvModel_Bounds(void* model, s16 mn[3], s16 mx[3]);
 void NvModel_Draw(GraphicsContext* gfxCtx, void* model);
 s32 NvClimb_Active(void);
+void NvSound_Menu(u16 sfx);
+void NvSound_Shot(s32 item);
 s32 NvDoorScene_Covering(void);
 
 typedef enum { NV_GUN_NONE, NV_GUN_RAISE, NV_GUN_AIM, NV_GUN_FIRE } NvGunState;
@@ -235,8 +237,7 @@ static void NvGun_Fire(PlayState* play, Player* player) {
 
     NvItems_Slot(slot, &qty);
     if ((item != 1) && (qty <= 0)) { // empty: the click, no shot
-        Audio_PlaySfxGeneral(NA_SE_SY_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                             &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        NvSound_Menu(NA_SE_SY_ERROR);
         printf("NVGUN click (empty)\n");
         fflush(stdout);
         return;
@@ -247,7 +248,7 @@ static void NvGun_Fire(PlayState* play, Player* player) {
     NvGun_Anims(item, sNvGunDir, &raise, &fire, &hold);
     NvGun_Play(fire);
     sNvGunState = NV_GUN_FIRE;
-    Audio_PlayActorSound2(&player->actor, (item == 1) ? NA_SE_IT_SWORD_SWING : NA_SE_IT_SLING_SHOT);
+    NvSound_Shot(item); // RE1's shot for the weapon (z_nv_sound.c)
     hit = NvGun_Target(play, player, sNvGunRange[CLAMP(item - 1, 0, 9)], false);
     printf("NVGUN fire weapon %d dir %d rounds %d -> %s\n", (int)item, (int)sNvGunDir, (int)(qty - 1),
            (hit != NULL) ? "hit" : "miss");
