@@ -97,6 +97,7 @@ s32 NvFlags_Test(s32 bank, s32 bit); // z_nv_script.c
 void NvFlags_Op(s32 bank, s32 bit, s32 mode);
 
 s32 NvActor_EnemyId(void); // NvActors.cpp
+static u8 sNvEnemySpawnSndGroup; // the sound group of the enemy being placed (NvEnemy_ScdSet)
 
 static ColliderCylinderInit sNvEnemyCylinder = {
     {
@@ -504,6 +505,8 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
     this->model = NvEnemy_Model(this->type);
     memset(e, 0, sizeof(*e));
     e->id = this->type;
+    e->snd_group = sNvEnemySpawnSndGroup;
+    sNvEnemySpawnSndGroup = 0;
     e->behavior_flags = thisx->home.rot.x & 0xFF;
     e->death_event_id = thisx->home.rot.z & 0xFF;
     e->angle = thisx->home.rot.y & 0xFFF;
@@ -804,6 +807,7 @@ void NvEnemy_ScdSet(PlayState* play, const u8* e) {
     memcpy(&y, e + 14, 2);
     memcpy(&z, e + 16, 2);
     // (RE1's x and z are unsigned: rooms run past 32767) rot: behaviour, angle, death flag
+    sNvEnemySpawnSndGroup = (e[0x15] >> 4) & 7; // its sound group (cmd_enemy_set), for NvEnemy_Init
     sNvEnemySlots[slot] = Actor_Spawn(&play->actorCtx, play, NvActor_EnemyId(), x * NV_RE1_SCALE, -y * NV_RE1_SCALE,
                                       -z * NV_RE1_SCALE, e[2], angle & 0xFFF, e[3], e[1]);
 }

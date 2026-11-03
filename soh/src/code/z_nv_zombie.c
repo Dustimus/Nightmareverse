@@ -47,6 +47,15 @@ NvRe1Player gNvRe1Player;
 /* ---- RE1's shared scratch, as the original shares it between these routines ---- */
 
 static NvRe1Entity* E; // ENTITY
+
+void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
+
+/** Snd_em: the room bank's sound for this enemy (its group's ten), heard from where it is. */
+static void Snd_em(u8 id) {
+    if (id < 10) {
+        NvSnd_At(id + E->snd_group * 10, E->t[0], E->t[2], gNvRe1Player.t[0], gNvRe1Player.t[2]);
+    }
+}
 #define P (&gNvRe1Player)
 static s32 sDisp;           // g_playerDisplacement
 static s32 sEntityBkp;      // g_entity_bkp
@@ -1352,6 +1361,12 @@ static void zombie_idle(void) {
 }
 
 static void zombie_slow_walk(void) {
+    if (E->animation_frame_id == 13) {
+        Snd_em(1); // RE1's sound: a step (decomp line 2414)
+    }
+    if (E->animation_frame_id == 0x15) {
+        Snd_em(2); // RE1's sound: the dragged leg (decomp line 2416)
+    }
     if (E->action_state == 0) {
         s32 x;
         s32 z;
@@ -1377,6 +1392,8 @@ static void zombie_slow_walk(void) {
 }
 
 static void zombie_chase_walk(void) {
+    if (E->animation_frame_id == 29) { Snd_em(1); } // RE1's sound (decomp line 961)
+    if (E->animation_frame_id == 8) { Snd_em(1); } // RE1's sound (decomp line 960)
     switch (E->action_state) {
         case 0:
             E->action_state = 1;
@@ -1461,6 +1478,9 @@ static void benddown_and_eat(void) {
     }
     if (st == 1) {
         Joint_move(0, 0x400);
+        if ((E->animation_frame_id & 7) == 0) {
+            Snd_em(3); // RE1's sound: eating (decomp line 2868)
+        }
         if (--E->action_ticks_counter == 0) {
             E->action_state++;
         }
@@ -1506,6 +1526,8 @@ static void benddown_and_eat(void) {
 
 static void turn_towards_player(void) {
     s16 ticks;
+    if (E->animation_frame_id == 0x1D) { Snd_em(1); } // RE1's sound (decomp line 2924)
+    if (E->animation_frame_id == 8) { Snd_em(1); } // RE1's sound (decomp line 2923)
 
     if (E->action_state == 0) {
         E->action_state = 1;
@@ -1532,7 +1554,8 @@ static void zombie_vomiting(void) {
     switch (E->action_state) {
         case 0:
             E->action_state = 1;
-            SetAnim(5, E->blend_counter); // (vomit billboard and sound: effects not ported)
+            SetAnim(5, E->blend_counter); // (the vomit billboard: effects not ported)
+            Snd_em(7); // RE1's sound: the vomit (decomp line 2971)
             // fall through
         case 1:
             E->action_state += (u8)Joint_move(0, 0x400);
@@ -1558,11 +1581,13 @@ static void zombie_falldown(void) {
             E->action_state = 1;
             SetAnim(8, 7);
             E->move_speed_current = 20;
+            Snd_em(5); // RE1's sound (decomp line 3107)
             E->t[1] = 1;
             break;
         case 1:
             E->behavior_step &= ~0x04;
             E->hit_state = 1;
+            Snd_em(5); // RE1's sound (decomp line 3148)
             E->action_speed |= 0x80;
             if (E->animation_frame_id < 4) {
                 E->action_speed &= ~0x80;
@@ -1865,7 +1890,8 @@ static void short_push_back(void) {
         E->timing_control = 0;
         E->blend_counter = 3;
         if (E->internal_timer == 0) {
-            E->internal_timer = 150; // (the moan: sounds not ported)
+            E->internal_timer = 150;
+            Snd_em(9); // RE1's sound: the moan (decomp line 3244)
         }
     }
     if (Joint_move(0, 1024)) {
@@ -1908,6 +1934,7 @@ static void push_and_stagger(void) {
         E->blend_counter = 3;
         E->animationId = 6;
         if (E->internal_timer == 0) {
+            Snd_em(9); // RE1's sound (decomp line 3321)
             E->internal_timer = 150;
         }
     }
@@ -1937,6 +1964,7 @@ static void push_and_drop(void) {
         E->timing_control = 0;
         E->animationId = 15;
         if (E->internal_timer == 0) {
+            Snd_em(9); // RE1's sound (decomp line 685)
             E->internal_timer = 150;
         }
     }
@@ -1954,6 +1982,8 @@ static void push_and_drop(void) {
 }
 
 static void explode_leg_and_drop(void) {
+    if (E->animation_frame_id == 0x1A) { Snd_em(0); } // RE1's sound (decomp line 773)
+    if (E->animation_frame_id == 8) { Snd_em(1); } // RE1's sound (decomp line 772)
     switch (E->action_state) {
         case 0:
             E->action_state = 1;
@@ -1961,6 +1991,7 @@ static void explode_leg_and_drop(void) {
             SetAnim(8, 3);
             E->move_speed_current = 0x14;
             if (E->internal_timer == 0) {
+                Snd_em(9); // RE1's sound (decomp line 757)
                 E->internal_timer = 150;
             }
             if (E->health < 0) {
@@ -2113,6 +2144,9 @@ static void zombie_damaged(void) {
             SetState(ZST_IDLE, 1, 7, 3);
             E->blend_counter = 0;
             E->hit_state = 1;
+            if ((E->behavior_step & 1) == 0) {
+                Snd_em(9); // RE1's sound: the moan as it falls (decomp line 1153)
+            }
             return;
         }
         if ((E->hit_state & 0x78) == 0x08) {
@@ -2148,6 +2182,9 @@ static void zombie_damaged(void) {
 static void zombie_dead_animation(void) {
     switch (E->action_state) {
         case 0:
+            if ((E->behavior_step & 1) == 0) {
+                Snd_em(5); // RE1's sound: the death moan (decomp line 1342; not for a blown-apart head)
+            }
             E->action_state = 1;
             E->animation_frame_id = 0;
             E->timing_control = 0;
@@ -2211,6 +2248,8 @@ static void zombie_dead_animation(void) {
 }
 
 static void magnum_shot_pushback(void) {
+    if (E->animation_frame_id == 29) { Snd_em(1); } // RE1's sound (decomp line 3073)
+    if (E->animation_frame_id == 8) { Snd_em(1); } // RE1's sound (decomp line 3072)
     if (E->action_state == 0) {
         E->behavior_step |= 0x01;
         E->move_speed_current = 45;
@@ -2228,6 +2267,8 @@ static void magnum_shot_pushback(void) {
 }
 
 static void zombie_die(void) {
+    if (E->animation_frame_id == 0x1a) { Snd_em(0); } // RE1's sound (decomp line 1273)
+    if (E->animation_frame_id == 8) { Snd_em(1); } // RE1's sound (decomp line 1272)
     void NvFlags_Op(s32 bank, s32 bit, s32 mode);
 
     if (E->ignore_player_flag == 0) {
@@ -2289,12 +2330,16 @@ static void zombie_attack_head_bite(void) {
     if (sAttackAnim[E->attacking_direction * 3 + 2] == E->animation_frame_id) {
         E->action_state = 10;
         E->headless = true; // the head bursts (z_nv_enemy.c draws it gone, with the burst)
+        Snd_em(6); // RE1's sound: the head bursting (decomp line 1572)
     }
 }
 
 static void zombie_attack_vomit(void) {
     entity_apply_anim_vertex();
     E->action_state += (u8)Joint_move(0, 0x400);
+    if (E->animation_frame_id == 6) { // (RE1 times it by the player's frame 6: the vomit)
+        Snd_em(7); // RE1's sound (decomp line 1616)
+    }
 }
 
 static void zombie_attack_headless_death(void) {
@@ -2349,6 +2394,7 @@ static void zombie_attack(void) {
                 u8 damage = sDamageNormal[E->behavior_flags & 0x0F];
 
                 P->health -= damage;
+                Snd_em(3); // RE1's sound: the bite (decomp line 1723)
                 gNvRe1BiteDamage += damage;
                 if ((P->health < 0) && (E->attacking_direction & 2)) {
                     P->health = 1;
@@ -2601,11 +2647,14 @@ static void zombie_state_check(void) {
 /* the SCD-driven actions (state 8) */
 
 static void zombie_aggresive_roar(void) {
+    if (E->animation_frame_id == 0x1D) { Snd_em(1); } // RE1's sound (decomp line 1889)
+    if (E->animation_frame_id == 8) { Snd_em(1); } // RE1's sound (decomp line 1888)
     switch ((s8)E->action_state) {
         case 0:
             E->action_state++;
             E->move_speed_current = 0;
             SetAnim(2, 3);
+            Snd_em(4); // RE1's sound: the roar (decomp line 1869)
             // fall through
         case 1:
             if (Joint_move(0, 1024)) {

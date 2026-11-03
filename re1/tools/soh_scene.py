@@ -485,6 +485,18 @@ def model_bytes(objects, tim):
     return bytes(out)
 
 
+def ftzones_blob(room):
+    """The room's footstep zones as RE1 keeps them (RDT header +0x5C: u16 count, then 5 u16 a zone):
+    "RFTZ" and the table copied. The last zone always matches (RE1 relies on it)."""
+    d = room.raw
+    o = room.offsets[5]
+    if not o or o + 2 > len(d):
+        return b"RFTZ" + struct.pack("<H", 0)
+    n = struct.unpack_from("<H", d, o)[0]
+    n = min(n, (len(d) - o - 2) // 10)
+    return b"RFTZ" + struct.pack("<H", n) + d[o + 2:o + 2 + 10 * n]
+
+
 def items_blob(room, which=3, magic=b"RITM"):
     """The room's item models (RDT+0x54, cmd_item_model_set's modelIdx) for z_nv_items.c, or with
     which=2 and magic "ROBJ" its object models (cmd_omodel_set's: furniture, statues, the item
@@ -719,6 +731,10 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     # RE1's item models: "<name>_items" (z_nv_items_draw.c)
     blob = items_blob(room)
     open(os.path.join(d, name + "_items"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    # RE1's footstep zones (RDT+0x5C, LookupFootstepZone): "<name>_ftzones" (z_nv_sound.c), u16 count, then
+    # per zone u16 x, z, width, depth (its high byte too) and the sound byte (the room bank's slot)
+    blob = ftzones_blob(room)
+    open(os.path.join(d, name + "_ftzones"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
     # and its object models: "<name>_objs" (z_nv_items.c, placed by the scripts' omodel_set)
     blob = items_blob(room, 2, b"ROBJ")
     open(os.path.join(d, name + "_objs"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)

@@ -1759,9 +1759,14 @@ void Player_PlayFloorSfxByAge(Player* this, u16 sfxId) {
     Player_PlaySfx(this, Player_ApplyFloorAndAgeSfxOffsets(this, sfxId));
 }
 
+s32 NvSnd_LinkStep(Player* player);
+
 void Player_PlaySteppingSfx(Player* this, f32 pitchAdjustment) {
     s32 sfxId;
 
+    if (NvSnd_LinkStep(this)) { // Nightmareverse: RE1's footsteps in the mansion (z_nv_sound.c)
+        return;
+    }
     if (this->currentBoots == PLAYER_BOOTS_IRON) {
         sfxId = NA_SE_PL_WALK_HEAVYBOOTS;
     } else {

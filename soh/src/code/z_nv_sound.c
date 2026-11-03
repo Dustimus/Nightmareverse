@@ -14,6 +14,7 @@
  * Effects: RE1's names, played where our ports of RE1's code make RE1's sounds (NvSound_Effect).
  */
 #include "global.h"
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -25,6 +26,7 @@ void NvSound_StopAll(void);
 extern const char* const gNvBgmNames[57][3];
 extern const u8 gNvBgmLoop[57][3];
 extern const u8 gNvBgmRoom[7][32][4];
+extern const char* const gNvRoomSnd[203][48];
 
 static u8 sNvRoomBgmState[7 * 32]; // g_roomBgmState: all clear at a new game
 static u8 sNvBgmState = 0xFF;      // g_BGM_STATE: what's playing
@@ -177,5 +179,84 @@ void NvSound_Shot(s32 item) {
 
     if ((item > 0) && (item < 11) && (sShot[item] != NULL)) {
         NvSound_Play(sShot[item], 128);
+    }
+}
+
+/**
+ * Slot of the room's sound bank (Room_LoadEnemySoundBanks' 48: an enemy's sounds by its group,
+ * doors, items, the floors' footsteps), heard from (x, z) in RE1's units: quieter with distance from
+ * Link, as Calc3DSndPan / CalcPanVolume make RE1's. (lx, lz): Link, RE1's units.
+ */
+void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz) {
+    s32 row = sNvBgmStage * 29 + sNvBgmRoom;
+    const char* name;
+    f32 d;
+    s32 vol;
+
+    if ((sNvBgmStage < 0) || (row < 0) || (row >= 203) || (slot < 0) || (slot >= 48)) {
+        return;
+    }
+    name = gNvRoomSnd[row][slot];
+    if (name == NULL) {
+        return;
+    }
+    d = sqrtf((f32)(x - lx) * (x - lx) + (f32)(z - lz) * (z - lz));
+    vol = 128 - (s32)(d / 120.0f);
+    if (vol < 24) {
+        vol = 24;
+    }
+    NvSound_Play(name, vol);
+}
+
+/* ---- Link's footsteps: RE1's for the floor (PlayEntitySnd 0 at the walk's footfalls) ---- */
+
+static const u8* sNvFtZones; // the room's "RFTZ" (re1/tools/soh_scene.py ftzones_blob), or NULL
+
+void NvSnd_SetFootstepZones(const u8* d) {
+    sNvFtZones = ((d != NULL) && (memcmp(d, "RFTZ", 4) == 0)) ? d : NULL;
+}
+
+/**
+ * Link's step (z_player.c Player_PlaySteppingSfx) in RE1's rooms: the room bank's footstep for the
+ * zone he's in (LookupFootstepZone: the first zone holding him), alternating its two sounds. False
+ * outside the mansion (OoT's own step then).
+ */
+s32 NvSnd_LinkStep(Player* player) {
+    static u8 sAlt;
+    u16 n;
+    s32 x, z, k;
+
+    if ((sNvBgmStage < 0) || (sNvFtZones == NULL)) {
+        return false;
+    }
+    memcpy(&n, sNvFtZones + 4, 2);
+    x = (s32)(player->actor.world.pos.x / 0.0217f);
+    z = (s32)(-player->actor.world.pos.z / 0.0217f);
+    for (k = 0; k < n; k++) {
+        u16 e[5];
+
+        memcpy(e, sNvFtZones + 6 + k * 10, 10);
+        if (((u32)(x - e[0]) < e[2]) && ((u32)(z - e[1]) < e[3])) {
+            sAlt ^= 1;
+            NvSnd_At((e[4] & 0xFF) + sAlt, x, z, x, z);
+            return true;
+        }
+    }
+    return true; // (no zone: RE1 plays nothing)
+}
+
+/* ---- doors: RE1's room sounds (load_room_sfx: the door's record byte 9 picks the pair) ---- */
+
+static const char* const sNvDoorSnd[15][2] = {
+    { "dr_wd01", "dr_wd02" },  { "dr_mtl01", "dr_mtl02" }, { NULL, "dr_brk01" },        { "dr_reb01", "dr_reb02" },
+    { "st_wcp01", NULL },      { "st_wd01", NULL },        { "ev_mv", NULL },           { "ev_new01", "ev_new02" },
+    { "dr_gat01", "dr_gat02" }, { "st_mtl01", NULL },      { "ev_old01", "ev_old02" },  { "ladder01", NULL },
+    { "dr_air01", "dr_air02" }, { "ev_lab01", NULL },      { "ev_ftn01", "ev_ftn02" },
+};
+
+/** A door's sound (z_nv_doorscene.c): which = 0 as it opens, 1 as it closes behind (play_sfx(0, 1)). */
+void NvSnd_Door(s32 set, s32 which) {
+    if ((set >= 0) && (set < 15) && (which >= 0) && (which < 2) && (sNvDoorSnd[set][which] != NULL)) {
+        NvSound_Play(sNvDoorSnd[set][which], 128);
     }
 }

@@ -5,6 +5,8 @@
 
 extern "C" {
 #include "z64.h"
+
+extern PlayState* gPlayState;
 void NvEnemy_Init(Actor* thisx, PlayState* play);
 void NvEnemy_Destroy(Actor* thisx, PlayState* play);
 void NvEnemy_Update(Actor* thisx, PlayState* play);
@@ -44,7 +46,9 @@ extern "C" s32 NvActor_EnemyId(void) {
                 va_copy(args, originalArgs);
                 Actor* actor = va_arg(args, Actor*);
                 va_end(args);
-                if ((actor != nullptr) && (actor->id == id)) {
+                // (and nothing in RE1's rooms starts it: the mansion's music is RE1's, z_nv_sound.c)
+                if (((actor != nullptr) && (actor->id == id)) ||
+                    ((gPlayState != nullptr) && (gPlayState->sceneNum >= SCENE_RE1_100))) {
                     *should = false;
                 }
             });

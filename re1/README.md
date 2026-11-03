@@ -286,11 +286,15 @@ and RE1's three music channels). Room music as RE1's (`soh/src/code/z_nv_sound.c
 `z_nv_sound_tables.c` from the decomp's SoundTables.cpp): each room's music state (all clear at a
 new game; set by the scripts' opcode 0x37) picks its group and which channels start
 (update_room_bgm), and the scripts start and stop channels (0x15, 0x16); most rooms stay quiet
-until their script starts the music, as RE1's mansion does. Leaving the mansion stops it. Effects so
-far: the guns' shots (each weapon's fire sound: gun01, shot01, magnum01, grbomb02 ...), and the
-status, box and file screens' cursor, decide and cancel. Not yet: doors, pickups, the box lid,
-footsteps, enemies' sounds (RE1's per-room enemy banks), and the voices (in the mod for the
-cutscenes to come). OoT's own music is already silent in RE1's rooms (their scene sets no sequence).
+until their script starts the music, as RE1's mansion does. Leaving the mansion stops it. Effects: the guns' shots (each weapon's fire sound: gun01, shot01, magnum01, grbomb02 ...); the
+status, box and file screens' cursor, decide and cancel; the room's sound bank (RE1's per-room 48
+names, `z_nv_sound_rooms.c` from the decomp's g_RoomSndData): the zombies' Snd_em (moans, steps,
+the dragged leg, roars, bites, eating, vomit, deaths, by the enemy record's sound group), Link's
+footsteps (the room's footstep zones, RDT+0x5C, `<name>_ftzones`: the floor's two steps, alternating,
+in place of OoT's), the box lid (slot 0x20); and the doors (load_room_sfx: the door record's byte 9
+picks the pair, opening as the door scene starts and closing as it ends). Louder the nearer to Link.
+OoT's battle music never starts in RE1's rooms (and their scenes set no sequence). Not yet: the
+voices (in the mod for the cutscenes), other enemies' sounds as they're ported, stereo panning.
 
 Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad); NV_GIVE="id,qty;..." gives
 items on the first room; NV_FILE=n takes file n there.

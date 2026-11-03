@@ -864,8 +864,11 @@ s32 NvAot_Act(PlayState* play, Player* player) {
     if (sNvAot[i].handler == 8) { // the item box: open_itembox (its lid: the entry's +4, param 1)
         printf("NVBOX spot %d: lid object %d\n", (int)i, sNvAot[i].param[1]);
         fflush(stdout);
-        Audio_PlaySfxGeneral(NA_SE_EV_TBOX_OPEN, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
-                             &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        {
+            void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
+
+            NvSnd_At(0x20, 0, 0, 0, 0); // RE1's lid (open_itembox: play_sfx(2, 0x20), the room bank)
+        }
         NvBox_Open(sNvAot[i].param[1]);
         return true;
     }
@@ -1001,6 +1004,12 @@ void NvScript_RoomInit(PlayState* play) {
             NvEnemy_ScdSet(play, rec);
             sNvInitRun = false;
         }
+    }
+    {
+        void NvSnd_SetFootstepZones(const u8* d);
+
+        snprintf(path, sizeof(path), "scenes/shared/%s/%.*s_ftzones", file, (int)(len - 6), file);
+        NvSnd_SetFootstepZones(ResourceMgr_FileExists(path) ? (const u8*)ResourceGetDataByName(path) : NULL);
     }
     NvBgm_RoomEnter(sNvStage, sNvRoom); // RE1's room music (z_nv_sound.c), after the init chain set its state
     printf("NVSCRIPT %s init: stage %d room %d camera %d\n", file, sNvStage, sNvRoom, sNvCamera);

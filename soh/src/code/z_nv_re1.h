@@ -75,6 +75,7 @@ typedef struct NvRe1Entity {
     const NvRe1Anim* anim;
     s16 rootT[3];
     s16 rot[NV_RE1_JOINTS][3];
+    u8 snd_group; // its sound group (Snd_em's id + group * 10): the SCD record's byte 0x15 >> 4 & 7
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */

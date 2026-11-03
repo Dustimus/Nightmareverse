@@ -106,6 +106,8 @@ s32 NvDoorScene_Exists(s32 anim) {
  * 0 byte 10, 1 byte 11, 2 the scene's number (byte 12), 3 byte 13's low 6 bits, 4 byte 15 (the
  * target stage and room), 7 byte 10 again; 5 and 6 are game state (taken as 0).
  */
+void NvSnd_Door(s32 set, s32 which);
+
 void NvDoorScene_Queue(s32 anim, s32 b10, s32 b11, s32 b13, s32 b15) {
     memset(sNvDs.vars, 0, sizeof(sNvDs.vars));
     sNvDs.anim = anim;
@@ -408,6 +410,7 @@ static s32 NvDoorScene_Tick(void) {
 
 static void NvDoorScene_End(PlayState* play) {
     sNvDs.active = false;
+    NvSnd_Door(sNvDs.vars[1], 1); // RE1's door closing behind, in the new room (z_nv_sound.c)
     Player_SetCsActionWithHaltedActors(play, NULL, 7);
     Interface_ChangeHudVisibilityMode(HUD_VISIBILITY_ALL);
     printf("NVDOORSCENE end ticks=%d\n", (int)sNvDs.ticks);
@@ -435,6 +438,7 @@ void NvDoorScene_Update(PlayState* play) {
             sNvDs.threads[0].pc = sNvDs.routines[0];
             sNvDs.active = true;
             sNvDs.startFrames = 0;
+            NvSnd_Door(sNvDs.vars[1], 0); // RE1's door opening (z_nv_sound.c)
             printf("NVDOORSCENE start anim=%d vars=%d,%d,%d,%d,%d\n", (int)sNvDs.anim, (int)sNvDs.vars[0],
                    (int)sNvDs.vars[1], (int)sNvDs.vars[2], (int)sNvDs.vars[3], (int)sNvDs.vars[4]);
             fflush(stdout);
