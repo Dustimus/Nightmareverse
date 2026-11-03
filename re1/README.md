@@ -271,12 +271,13 @@ round from the slot (the knife none; an empty gun clicks), Jill's fire animation
 side) and damage (the zombies' hit records: the Beretta 9, the shotgun 53, ...). The aim follows the
 Z-target when it's one of RE1's enemies, else RE1's auto-aim: the nearest enemy ahead in reach.
 The gun is RE1's item-viewer model (ITEM_M2/I<nn>V.IVM by the item record's model byte) in Link's
-left fist, which closes round it; it's drawn only while the gun is up, so another item (the
+left fist, which closes round it, placed as Mod1 placed its Beretta in his right hand (that looked
+right in play), mirrored across the hand; it's drawn only while the gun is up, so another item (the
 ocarina) replaces it, and another C button puts it down. Not yet: RE1's gunshot sounds and muzzle
 flash (OoT placeholders), the line of sight through walls, aiming down only hitting crawlers, the
 shotgun's spread and the launcher's rounds, ammo loading by Combine. Dev: `NV_EQUIP=n` equips slot n
-of NV_GIVE's items; NV_WALK `cl:N` holds C-Left N frames; `NV_GUN_FIT="x,y,z,rx,ry,rz,size%"` moves
-the gun in the fist.
+of NV_GIVE's items; NV_WALK `cl:N` holds C-Left N frames; `NV_GUN_FIT="x,y,z,rx,ry,rz,size%"` and
+`NV_GUN_MIRROR=x|y|z|none` move the gun in the fist.
 
 Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad); NV_GIVE="id,qty;..." gives
 items on the first room; NV_FILE=n takes file n there.

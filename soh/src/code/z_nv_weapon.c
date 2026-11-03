@@ -370,12 +370,17 @@ void NvWeapon_NoteHand(void) {
 }
 
 /**
- * After Link has drawn (z_player.c Player_Draw): the gun in his left fist. Its place in the fist
- * is set by eye; NV_GUN_FIT="x,y,z,rx,ry,rz,size%" (hand units, binary angles) moves it for checks.
+ * After Link has drawn (z_player.c Player_Draw): the gun in his left fist, placed as Mod1 placed
+ * its Beretta in his right (set by eye there, and it looked right in play: the model's own origin,
+ * its y turned up, scale 0.28 for the Beretta, moved (276, 614, 50) and turned (0x4000, 0x4000, 0)
+ * in the hand limb's space), mirrored across the hand for the left one. NV_GUN_FIT=
+ * "x,y,z,rx,ry,rz,size%" and NV_GUN_MIRROR=x|y|z|none change it for checks.
  */
 void NvWeapon_Draw(PlayState* play, Player* player) {
-    static s32 sFit[7] = { 600, 300, 0, 0, 0, 0, 100 }; // ..., size in percent
+    static s32 sFit[7] = { 276, 614, 50, 0x4000, 0x4000, 0, 100 };
+    static char sMirror = 'y';
     static s32 sFitRead;
+    f32 sc;
 
     if (!sNvGunHandSet || (sNvGunState == NV_GUN_NONE) || (sNvGun.model == NULL)) {
         sNvGunHandSet = false;
@@ -388,19 +393,19 @@ void NvWeapon_Draw(PlayState* play, Player* player) {
             sscanf(getenv("NV_GUN_FIT"), "%d,%d,%d,%d,%d,%d,%d", &sFit[0], &sFit[1], &sFit[2], &sFit[3], &sFit[4],
                    &sFit[5], &sFit[6]);
         }
+        if (getenv("NV_GUN_MIRROR") != NULL) {
+            sMirror = getenv("NV_GUN_MIRROR")[0];
+        }
     }
-    if (getenv("NV_LOG_GUN") != NULL) {
-        printf("NVGUN draw hand %.1f %.1f %.1f scale %.4f\n", sNvGunHand.xw, sNvGunHand.yw, sNvGunHand.zw,
-               sNvGun.scale);
-        fflush(stdout);
-    }
+    // the Beretta's 0.28, the others by their length against its
+    sc = 0.28f * sNvGunLength[CLAMP(sNvGun.item - 1, 0, 9)] / sNvGunLength[1] * sFit[6] / 100.0f;
     Matrix_Push();
     Matrix_Put(&sNvGunHand);
+    Matrix_Scale((sMirror == 'x') ? -1.0f : 1.0f, (sMirror == 'y') ? -1.0f : 1.0f, (sMirror == 'z') ? -1.0f : 1.0f,
+                 MTXMODE_APPLY); // the left hand: the right's place, mirrored
     Matrix_Translate(sFit[0], sFit[1], sFit[2], MTXMODE_APPLY);
     Matrix_RotateZYX(sFit[3], sFit[4], sFit[5], MTXMODE_APPLY);
-    Matrix_Scale(sNvGun.scale * sFit[6] / 100.0f, sNvGun.scale * sFit[6] / 100.0f, sNvGun.scale * sFit[6] / 100.0f,
-                 MTXMODE_APPLY);
-    Matrix_Translate(-sNvGun.center[0], -sNvGun.center[1], -sNvGun.center[2], MTXMODE_APPLY);
+    Matrix_Scale(sc, -sc, sc, MTXMODE_APPLY); // (Mod1's model had RE1's y turned up)
     NvModel_Draw(play->state.gfxCtx, sNvGun.model);
     Matrix_Pop();
 }
