@@ -2796,3 +2796,6 @@ void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId) {
         e->state = ZST_DAMAGED;
     }
 }
+
+/* the dog: the same helpers, its own behaviour */
+#include "z_nv_cerberus.inc"

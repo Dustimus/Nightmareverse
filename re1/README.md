@@ -37,6 +37,11 @@ is set). Until the courtyard and guardhouse are built, the courtyard door in the
 back corridor (11B) is a test switch: it takes you to the return mansion's 61B, and 61B's
 courtyard door brings you back to 11B.
 
+RE1's elevator car (700, between 713 and 71C) has no doors to walk to: its script runs the
+ride. Here a room whose doors are all 1x1 points rides for a few seconds and then takes the door
+that doesn't lead back where Link came from. Its arrival points lie in the car's walls (RE1's
+script places Jill), so the converter moves an arrival in a wall to the nearest open floor.
+
 Before converting, `make_mod.py` checks the copy (`tools/re1_verify.py`): each room file's
 fingerprint against the releases we know (`tools/re1_known.json`: hashes only, no game data) and
 the language of its text. It prints which release and language it found, and warns about room
@@ -172,6 +177,16 @@ are stepped over at their RE1 length and other tests are false. Flags last for t
 
 Enemies (2026-10-25: "port them over as accurately as possible and then reverse engineer some
 Zelda logic on to them"): RE1's zombie is a port, kept apart from the OoT side.
+
+The dog (Cerberus, type 2) is the second port, `soh/src/code/z_nv_cerberus.inc`, included at the
+end of `z_nv_zombie.c` to share its helpers: its states (behave, hit, death) and behaviours
+(patrol, chase with its skid and wall following, the leap and bite, strafe, alert, close snap,
+stalk), steering by probing 500 units ahead. Its bite takes 12 of RE1's health (the same share of
+Link's hearts) and knocks Link back; RE1's player flinch is a second's gate on the next bite.
+Left out for now: the maul (RE1's kill of a badly hurt player facing away), blood, the shadow.
+A dog its room's script still holds (behaviour 0x80, 108's two behind the windows) isn't drawn
+or hit until the script lets it go. Dev: `NV_TEST_ENEMY="type,x,z,behaviour,slot"` (slot 15,
+the default, has no hit collider; another slot can be fought).
 `soh/src/code/z_nv_zombie.c` is RE1's own code on an RE1 entity (`z_nv_re1.h`, the decomp's
 Entity fields) in RE1's units and 30 Hz ticks: `zombie_update` and all its states, the action,
 move and damage tables, the attack (grab, bite, push back), the knock-down and getting back up,

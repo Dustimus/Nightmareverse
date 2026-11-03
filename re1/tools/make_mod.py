@@ -66,7 +66,7 @@ def main():
         for r in ids:
             args += ["--room", "%s:re1_%s" % (r, r.lower())]
         print("converting %d rooms (a few minutes)..." % len(ids))
-        subprocess.run(args, check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(args, check=True, stdout=None if os.environ.get("NV_VERBOSE") else subprocess.DEVNULL)
         shutil.copyfile(soh + ".o2r", target)
         print("wrote %s: put it in Ship of Harkinian's mods folder" % target)
     finally:

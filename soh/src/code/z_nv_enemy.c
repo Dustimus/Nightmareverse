@@ -166,6 +166,15 @@ static s32 NvEnemy_IsZombie(s32 type) {
     return (type == 0) || (type == 1) || (type == 17);
 }
 
+static s32 NvEnemy_IsDog(s32 type) {
+    return type == 2;
+}
+
+/** The enemies whose behaviour is ported (RE1 runs them; the rest stand in their first pose). */
+static s32 NvEnemy_Acts(s32 type) {
+    return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type);
+}
+
 static s32 NvEnemy_IsCorpse(s32 type) {
     return (type == 37) || (type == 38) || (type == 41);
 }
@@ -290,6 +299,8 @@ static NvEmModel* NvEnemy_Model(s32 type) {
 
 /* ---- the Zelda layer ---- */
 
+static u32 sNvDogFlinchUntil;
+
 // Jill's collision volume (g_scaJillData): radius 372, half height 1350
 static const s16 sNvJillSca[8] = { (s16)0x8000, 0, (s16)0xFABA, 0, 0x0546, 0x0174, 0, 0 };
 // what cmd_enemy_set gives every entity before its own init: Chris's (g_scaDataTable[0]), r 422
@@ -314,6 +325,8 @@ static void NvEnemy_PlayerToRe1(PlayState* play) {
     p->sca = sNvJillSca;
     p->health = (gSaveContext.health > 0) ? 0x7FFF : -1;
     p->attackTimer = (player->meleeWeaponState != 0) ? 1 : 0;
+    gNvRe1DogFlinch = play->gameplayFrames < sNvDogFlinchUntil;
+    p->speed = (s16)((player->actor.speedXZ >= 5.0f) ? 230 : (player->actor.speedXZ / NV_RE1_SCALE * 2.0f / 3.0f));
     p->padHeld = 0;
     if ((ABS(input->rel.stick_x) > 30) || (ABS(input->rel.stick_y) > 30)) {
         p->padHeld |= 1;
@@ -495,6 +508,34 @@ static void NvEnemy_Grab(NvEnemy* this, PlayState* play) {
     }
 }
 
+/**
+ * A dog's bite (z_nv_cerberus.inc): RE1's damage as the same share of Link's hearts as of Jill's
+ * 96, and a knock back from the dog, as OoT's enemies hit.
+ */
+// sNvDogFlinchUntil: the frame Link's flinch from a bite ends (RE1 holds a dog off until then)
+static void NvEnemy_DogBite(NvEnemy* this, PlayState* play) {
+    static f32 sOwed;
+    Player* player = GET_PLAYER(play);
+    s32 whole;
+
+    if (gNvRe1DogBite <= 0) {
+        return;
+    }
+    sOwed += gNvRe1DogBite * gSaveContext.healthCapacity / NV_RE1_JILL_HEALTH;
+    gNvRe1DogBite = 0;
+    sNvDogFlinchUntil = play->gameplayFrames + 30;
+    whole = (s32)sOwed;
+    if (whole > 0) {
+        sOwed -= whole;
+        play->damagePlayer(play, -whole);
+    }
+    Actor_SetPlayerKnockbackLargeNoDamage(play, &this->actor, 6.0f, this->actor.yawTowardsPlayer, 4.0f);
+    Rumble_Request(this->actor.xzDistToPlayer, 180, 1, 10);
+    Player_PlaySfx(&player->actor, NA_SE_VO_LI_DAMAGE_S + player->ageProperties->unk_92);
+    printf("NVENEMY dog bite\n");
+    fflush(stdout);
+}
+
 /* ---- the actor ---- */
 
 void NvEnemy_Init(Actor* thisx, PlayState* play) {
@@ -528,6 +569,12 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x2A; // (a ReDead's)
         NvRe1_TickBegin();
         NvZombie_Init(e);
+    } else if (NvEnemy_IsDog(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        thisx->naviEnemyId = 0x1E; // (a Wolfos's)
+        NvRe1_TickBegin();
+        NvCerberus_Init(e);
     } else {
         thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
         e->animationId = 0;
@@ -562,6 +609,11 @@ s32 NvDoorScene_Covering(void);
 s32 NvMovie_Playing(void);
 
 static s32 NvEnemy_Parked(const NvRe1Entity* e) {
+    // a dog the script holds (behaviour 0x80) waits outside, off the room (108's two, behind the
+    // windows they come in through): not drawn, not hit, until its event lets it go
+    if ((e->id == 2) && (e->behavior_flags == 0x80)) {
+        return true;
+    }
     return (e->behavior_flags & 0x80) && (e->t[0] == 0) && (e->t[1] == 0) && (e->t[2] == 0);
 }
 
@@ -601,6 +653,14 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvZombie_Update(e);
             NvEnemy_Grab(this, play);
         }
+    } else if (NvEnemy_IsDog(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvCerberus_Update(e);
+            NvEnemy_DogBite(this, play);
+        }
     } else {
         for (t = 0; t < ticks; t++) {
             NvRe1_JointMove(e, 0, 0x400);
@@ -632,17 +692,17 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
     // a placeholder: held for its script (behaviour bit 7) and still at the room's origin, where
     // the script parks an enemy until its event moves it in (105's zombie that follows Jill back)
     alive = (e->health >= 0) && !(e->status_flags & 2) && !NvEnemy_Parked(e);
-    if (NvEnemy_IsZombie(this->type)) {
+    if (NvEnemy_Acts(this->type)) {
         if (alive) {
             thisx->flags |= ACTOR_FLAG_ATTENTION_ENABLED;
         } else {
             thisx->flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
         }
     }
-    if ((alive || (!NvEnemy_IsZombie(this->type) && !NvEnemy_Parked(e))) && (thisx != sNvEnemySlots[15])) { // (15: the dev test one)
+    if ((alive || (!NvEnemy_Acts(this->type) && !NvEnemy_Parked(e))) && (thisx != sNvEnemySlots[15])) { // (15: the dev test one)
         Collider_UpdateCylinder(thisx, &this->collider);
         CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-        if (NvEnemy_IsZombie(this->type) && (e->state != NV_ZST_ATTACK)) {
+        if ((NvEnemy_IsZombie(this->type) && (e->state != NV_ZST_ATTACK)) || NvEnemy_IsDog(this->type)) {
             CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
@@ -799,7 +859,7 @@ void NvEnemy_ScdSet(PlayState* play, const u8* e) {
     if (((e[3] != 0xFF) && NvFlags_Test(3, e[3])) || (sNvEnemySlots[slot] != NULL)) {
         return;
     }
-    if (!(NvEnemy_IsZombie(e[1]) || NvEnemy_IsCorpse(e[1]))) {
+    if (!(NvEnemy_Acts(e[1]) || NvEnemy_IsCorpse(e[1]))) {
         return; // (the other types aren't ported)
     }
     memcpy(&angle, e + 8, 2);

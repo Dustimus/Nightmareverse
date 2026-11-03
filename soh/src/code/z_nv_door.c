@@ -197,15 +197,69 @@ s32 NvDoor_DoAction(PlayState* play, Player* player) {
     return NvAot_DoAction(play, player); // what else RE1 would act on: an examine spot (z_nv_script.c)
 }
 
+static void NvDoor_Take(PlayState* play, Input* input, NvDoor* doorp, s32 i);
+
+static char sNvFromScene[32]; // the room the last door was taken from
+
+// RE1's ride rooms: the elevator car (700) has no doors to walk to, only 1x1 ones at (0, 0) that
+// its script takes: from 713 the car goes to 71C, from 71C to 713 (ROOM700's init: the room it
+// was entered from picks the ride's event, which ends in the other door). So in a room where
+// every door is such a point, the car rides for a while and then takes the door that doesn't
+// lead back where Link came from.
+#define NV_RIDE_FRAMES 100
+static s32 NvDoor_Ride(PlayState* play, Input* input) {
+    static s32 sScene = -1;
+    static s32 sTimer;
+    u8* data;
+    u32 count;
+    u32 k;
+    s32 pick = -1;
+    NvDoor door;
+
+    data = NvDoor_Data(play, &count);
+    if ((data == NULL) || (count == 0)) {
+        return false;
+    }
+    for (k = 0; k < count; k++) {
+        NvDoor d;
+
+        memcpy(&d, data + k * sizeof(NvDoor), sizeof(NvDoor));
+        if (((d.x1 - d.x0) > 1.0f) || ((d.z1 - d.z0) > 1.0f)) {
+            return false; // a room with a door to walk to
+        }
+        d.target[sizeof(d.target) - 1] = '\0';
+        // the first door not back where Link came from (else the first)
+        if ((pick < 0) || ((strcmp(door.target, sNvFromScene) == 0) && (strcmp(d.target, sNvFromScene) != 0))) {
+            door = d;
+            pick = k;
+        }
+    }
+    if (sScene != play->sceneNum) {
+        sScene = play->sceneNum;
+        sTimer = 0;
+    }
+    if ((play->transitionTrigger != TRANS_TRIGGER_OFF) || (play->transitionMode != TRANS_MODE_OFF)) {
+        return true;
+    }
+    if (++sTimer >= NV_RIDE_FRAMES) {
+        sTimer = 0;
+        sScene = -1;
+        NvDoor_Take(play, input, &door, pick);
+    }
+    return true;
+}
+
 void NvDoor_Update(PlayState* play) {
     Player* player = GET_PLAYER(play);
     Input* input = &play->state.input[0];
     NvDoor door;
     s32 i;
-    s16 entrance;
 
     s32 pressA = CHECK_BTN_ALL(input->press.button, BTN_A);
 
+    if ((player != NULL) && NvDoor_Ride(play, input)) {
+        return;
+    }
     if (!NvDoor_CanAct(play, player)) {
         return;
     }
@@ -224,6 +278,21 @@ void NvDoor_Update(PlayState* play) {
             input->cur.button &= ~BTN_A;
         }
         return;
+    }
+    NvDoor_Take(play, input, &door, i);
+}
+
+/**
+ * Take a door: to its room's start position, through its door scene or a fade. A room this build
+ * doesn't have yet says so instead.
+ */
+static void NvDoor_Take(PlayState* play, Input* input, NvDoor* doorp, s32 i) {
+    NvDoor door = *doorp;
+    s16 entrance;
+
+    sNvFromScene[0] = '\0';
+    if ((play->loadedScene != NULL) && (play->loadedScene->sceneFile.fileName != NULL)) {
+        snprintf(sNvFromScene, sizeof(sNvFromScene), "%s", play->loadedScene->sceneFile.fileName);
     }
     door.target[sizeof(door.target) - 1] = '\0';
     entrance = NvDoor_Entrance(door.target, door.spawn);

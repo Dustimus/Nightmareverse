@@ -76,6 +76,24 @@ typedef struct NvRe1Entity {
     s16 rootT[3];
     s16 rot[NV_RE1_JOINTS][3];
     u8 snd_group; // its sound group (Snd_em's id + group * 10): the SCD record's byte 0x15 >> 4 & 7
+    s16 reaction_timer; // +0x176 (the dog: gravity in a leap, the turn it holds while swerving)
+    // the dog's own (Cerberus.cpp's offsets 0x16C-0x18A)
+    struct {
+        s32 dist;      // |dx| + |dz| to the player
+        s16 launchVy;  // a leap's starting rise
+        s16 turnDelta;
+        s16 turnStep;
+        s16 probe;     // wall probes: bit 0 this tick, 1-3 the ticks before, 4 didn't move
+        u8 path;       // entity_pathfind_update's answer
+        s16 aggro;
+        s16 phase;
+        s16 swerve;    // also the head's turn
+        s16 blood;
+        u8 alert;
+        s16 behFlags;  // bit 0 runs, bit 1 hunting, bit 2 gave up
+        s16 aiFlags;
+        s16 repause;
+    } cb;
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */
@@ -90,6 +108,7 @@ typedef struct NvRe1Player {
     const s16* sca;
     s16 scaWorld[3];
     u8 padHeld;     // RE1's mash test: 1 directions, 2 buttons
+    s16 speed;      // how fast she's going (RE1's units a tick: walking ~70, running ~230)
 } NvRe1Player;
 
 extern NvRe1Player gNvRe1Player;
@@ -100,5 +119,9 @@ void NvZombie_Init(NvRe1Entity* e);
 void NvZombie_Update(NvRe1Entity* e);
 void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId);
 s32 NvRe1_JointMove(NvRe1Entity* e, s32 reverse, s16 blendStep);
+void NvCerberus_Init(NvRe1Entity* e);
+void NvCerberus_Update(NvRe1Entity* e);
+extern s16 gNvRe1DogBite;
+extern s32 gNvRe1DogFlinch; // Link is still reeling from a bite (RE1's isBeingAttackedFlag for the dog) // a dog's bite this tick: RE1's damage (z_nv_enemy.c hurts Link)
 
 #endif

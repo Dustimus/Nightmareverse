@@ -1050,6 +1050,46 @@ def mansion_return_doors(rooms, stage, player):
                     print("  test switch: %s's courtyard door -> %d1B" % (rid, swap[rid]))
 
 
+def arrivals_out_of_walls(rooms):
+    """A door's arrival point that lies in a wall of the room it leads to moves to the nearest
+    open spot. RE1's elevator car (700) is the case: 713's door puts the player at (0, 0, 0) and
+    71C's inside the car's east wall, and the car's own script places her on the floor. Our
+    floor is flooded from the arrivals, so one in a wall finds no floor at all."""
+    import re1_floor
+    by = {rid: room for rid, _, room in rooms}
+    for rid, _, room in rooms:
+        for door in room.doors:
+            target = "%d%02X" % (door.next_stage or int(rid[0]), door.next_room)
+            if target not in by:
+                continue
+            solid = [r for r in re1_floor.collision_records(by[target].raw) if re1_floor.pushes(r)]
+            x, y, z = door.next_pos
+            if not solid or not any(re1_floor.inside(r, x, z) for r in solid):
+                continue
+            x0 = min(r[0] for r in solid)
+            z0 = min(r[1] for r in solid)
+            x1 = max(r[2] for r in solid)
+            z1 = max(r[3] for r in solid)
+            step = re1_floor.CELL
+            best = None
+            for gx in range(int(x0), int(x1) + 1, step):
+                for gz in range(int(z0), int(z1) + 1, step):
+                    px, pz = gx + step / 2, gz + step / 2
+                    if any(re1_floor.inside(r, px, pz) for r in solid):
+                        continue
+                    # a step further in, so Link isn't against the wall
+                    if any(re1_floor.inside(r, px + dx, pz + dz) for r in solid
+                           for dx, dz in ((300, 0), (-300, 0), (0, 300), (0, -300))):
+                        continue
+                    dd = (px - x) ** 2 + (pz - z) ** 2
+                    if best is None or dd < best[0]:
+                        best = (dd, int(px), int(pz))
+            if best is not None:
+                print("  %s door to %s: arrival (%d, %d) is in a wall, moved to (%d, %d)"
+                      % (rid, target, x, z, best[1], best[2]))
+                door.next_pos = (best[1], y, best[2])
+
+
 def load_rdt(stage, room_id, player):
     for fn in os.listdir(stage):
         if fn.upper() == ("ROOM%s%s.RDT" % (room_id, player)).upper():
@@ -1120,6 +1160,7 @@ def main():
         rooms.append((room_id.upper(), name, load_rdt(stage_dir(a.stage, room_id), room_id, a.player)))
         apply_trims(rooms[-1][2], room_id.upper())
     mansion_return_doors(rooms, a.stage, a.player)
+    arrivals_out_of_walls(rooms)
     by_id = {rid: (name, room) for rid, name, room in rooms}
 
     # floor levels: the non-zero heights RE1's doors arrive at (ROOM_LEVELS)
