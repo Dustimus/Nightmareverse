@@ -1029,10 +1029,12 @@ def _pack_soh(folder, re1, anims):
     print("soh: enemies %s" % soh_enemy.write(re1, folder, soh_scene.ENEMY_TYPES))
     print("soh: movies %s" % soh_scene.write_movies(re1, folder, soh_scene.MOVIES))
     import soh_ui
+    import soh_weapons
     print("soh: item icons %d" % soh_ui.write_icons(re1, folder))
     print("soh: status sprites %d" % soh_ui.write_status(re1, folder))
     print("soh: files %d" % soh_ui.write_files(re1, folder))
     print("soh: sheets %d" % soh_ui.write_sheets(re1, folder))
+    print("soh: weapons %s" % soh_weapons.write(re1, folder))
     soh_scene.pack_o2r(folder, folder.rstrip("/") + ".o2r")
     print("soh: packed %s.o2r" % folder.rstrip("/"))
 

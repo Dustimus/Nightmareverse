@@ -448,6 +448,43 @@ def msg_blob(raw):
     return head + b"".join(struct.pack("<I", o) for o in offs) + b"".join(t + b"\0" for t in texts)
 
 
+def model_bytes(objects, tim):
+    """One model as items_blob packs it: u16 cells across, down (64 x 32 each, RGBA5551), the
+    cells, u16 numBatches, per batch u16 cell, u16 numVerts and its Vtx."""
+    import emd
+    import soh_doors
+    out = bytearray()
+    pc = {}
+    for obj in objects:
+        for tri in obj.triangles:
+            pc.setdefault(tri.uvs[0][0] // (128 if tim.bpp == 8 else 256), tri.clut)
+    w, h, rgba = emd.tim_to_rgba(tim, pc)
+    cw, ch = (w + soh_doors.CELL_W - 1) // soh_doors.CELL_W, (h + soh_doors.CELL_H - 1) // soh_doors.CELL_H
+    out += struct.pack("<HH", cw, ch)
+    for cy in range(ch):
+        for cx in range(cw):
+            for y in range(soh_doors.CELL_H):
+                for x in range(soh_doors.CELL_W):
+                    px, py = cx * soh_doors.CELL_W + x, cy * soh_doors.CELL_H + y
+                    c = 0
+                    if px < w and py < h:
+                        r, g, b, a = rgba[(py * w + px) * 4:(py * w + px) * 4 + 4]
+                        c = ((r >> 3) << 11) | ((g >> 3) << 6) | ((b >> 3) << 1) | (1 if a else 0)
+                    out += struct.pack(">H", c)
+    cells = {}
+    for obj in objects:
+        for cell, tris in soh_doors.model_cells(obj, cw, ch).items():
+            cells.setdefault(cell, []).extend(tris)
+    out += struct.pack("<H", len(cells))
+    for cell, tris in sorted(cells.items()):
+        out += struct.pack("<HH", cell, 3 * len(tris))
+        for tri in tris:
+            for x, y, z, s, tt in tri:
+                out += struct.pack("<3hH2h4B", round(x), round(y), round(z), 0,
+                                   round(s * 32), round(tt * 32), 255, 255, 255, 255)
+    return bytes(out)
+
+
 def items_blob(room, which=3, magic=b"RITM"):
     """The room's item models (RDT+0x54, cmd_item_model_set's modelIdx) for z_nv_items.c, or with
     which=2 and magic "ROBJ" its object models (cmd_omodel_set's: furniture, statues, the item
@@ -463,35 +500,7 @@ def items_blob(room, which=3, magic=b"RITM"):
         if m is None:
             out += struct.pack("<HHH", 0, 0, 0)
             continue
-        objects, tim = m
-        pc = {}
-        for obj in objects:
-            for tri in obj.triangles:
-                pc.setdefault(tri.uvs[0][0] // (128 if tim.bpp == 8 else 256), tri.clut)
-        w, h, rgba = emd.tim_to_rgba(tim, pc)
-        cw, ch = (w + soh_doors.CELL_W - 1) // soh_doors.CELL_W, (h + soh_doors.CELL_H - 1) // soh_doors.CELL_H
-        out += struct.pack("<HH", cw, ch)
-        for cy in range(ch):
-            for cx in range(cw):
-                for y in range(soh_doors.CELL_H):
-                    for x in range(soh_doors.CELL_W):
-                        px, py = cx * soh_doors.CELL_W + x, cy * soh_doors.CELL_H + y
-                        c = 0
-                        if px < w and py < h:
-                            r, g, b, a = rgba[(py * w + px) * 4:(py * w + px) * 4 + 4]
-                            c = ((r >> 3) << 11) | ((g >> 3) << 6) | ((b >> 3) << 1) | (1 if a else 0)
-                        out += struct.pack(">H", c)
-        cells = {}
-        for obj in objects:
-            for cell, tris in soh_doors.model_cells(obj, cw, ch).items():
-                cells.setdefault(cell, []).extend(tris)
-        out += struct.pack("<H", len(cells))
-        for cell, tris in sorted(cells.items()):
-            out += struct.pack("<HH", cell, 3 * len(tris))
-            for tri in tris:
-                for x, y, z, s, tt in tri:
-                    out += struct.pack("<3hH2h4B", round(x), round(y), round(z), 0,
-                                       round(s * 32), round(tt * 32), 255, 255, 255, 255)
+        out += model_bytes(*m)
     return bytes(out)
 
 

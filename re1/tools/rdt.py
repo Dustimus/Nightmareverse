@@ -442,27 +442,34 @@ def room_models(room, which=2):
             out.append(None)
             continue
         tim = emd.parse_tim(d, tim_off)
-        _magic, _flags, nobj = struct.unpack_from("<3I", d, tmd)
-        objects = []
-        for oi in range(nobj):
-            base = tmd + 12
-            vt, nv, nt, nn, pt, npr, _scale = struct.unpack_from("<7I", d, base + 28 * oi)
-            verts = [struct.unpack_from("<3h", d, base + vt + 8 * i) for i in range(nv)]
-            norms = [struct.unpack_from("<3h", d, base + nt + 8 * i) for i in range(nn)]
-            tris = []
-            q = base + pt
-            for _ in range(npr):
-                _olen, ilen, _flag, mode = struct.unpack_from("<4B", d, q)
-                if mode == 0x34:
-                    u0, v0, clut, u1, v1, page, u2, v2 = struct.unpack_from("<BBHBBHBB", d, q + 4)
-                    n0, i0, n1, i1, n2, i2 = struct.unpack_from("<6H", d, q + 16)
-                    px = (page & 0xF) * 128 - tim.x * 2  # 8 bpp: a texture page is 128 px
-                    tris.append(emd.Triangle((i0, i1, i2), (n0, n1, n2),
-                                             ((u0 + px, v0), (u1 + px, v1), (u2 + px, v2)), (clut >> 6) - tim.clut_y))
-                q += 4 + ilen * 4
-            objects.append(emd.MeshObject(verts, norms, tris))
-        out.append((objects, tim))
+        out.append((parse_tmd(d, tmd, tim), tim))
     return out
+
+
+def parse_tmd(d, tmd, tim):
+    """A TMD's objects (emd.MeshObject list) at d[tmd:], its textured triangles (mode 0x34) with
+    texture coordinates relative to tim's left edge (8 bpp: a texture page is 128 px)."""
+    _magic, _flags, nobj = struct.unpack_from("<3I", d, tmd)
+    objects = []
+    for oi in range(nobj):
+        base = tmd + 12
+        vt, nv, nt, nn, pt, npr, _scale = struct.unpack_from("<7I", d, base + 28 * oi)
+        verts = [struct.unpack_from("<3h", d, base + vt + 8 * i) for i in range(nv)]
+        norms = [struct.unpack_from("<3h", d, base + nt + 8 * i) for i in range(nn)]
+        tris = []
+        q = base + pt
+        for _ in range(npr):
+            _olen, ilen, _flag, mode = struct.unpack_from("<4B", d, q)
+            if mode == 0x34:
+                u0, v0, clut, u1, v1, page, u2, v2 = struct.unpack_from("<BBHBBHBB", d, q + 4)
+                n0, i0, n1, i1, n2, i2 = struct.unpack_from("<6H", d, q + 16)
+                px = (page & 0xF) * 128 - tim.x * 2
+                tris.append(emd.Triangle((i0, i1, i2), (n0, n1, n2),
+                                         ((u0 + px, v0), (u1 + px, v1), (u2 + px, v2)), (clut >> 6) - tim.clut_y))
+            q += 4 + ilen * 4
+        objects.append(emd.MeshObject(verts, norms, tris))
+    return objects
+
 
 
 def find_file(directory, name):
