@@ -187,9 +187,13 @@ static s32 NvEnemy_IsYawn(s32 type) {
     return (type == 13) || (type == 18);
 }
 
+static s32 NvEnemy_IsSpider(s32 type) {
+    return type == 3;
+}
+
 static s32 NvEnemy_Acts(s32 type) {
     return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type) || NvEnemy_IsHunter(type) || NvEnemy_IsCrow(type) ||
-           NvEnemy_IsPlant(type) || NvEnemy_IsYawn(type);
+           NvEnemy_IsPlant(type) || NvEnemy_IsYawn(type) || NvEnemy_IsSpider(type);
 }
 
 static s32 NvEnemy_IsCorpse(s32 type) {
@@ -683,6 +687,12 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x40; // (a Dodongo's: a big one)
         NvRe1_TickBegin();
         NvYawn_Init(e);
+    } else if (NvEnemy_IsSpider(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        thisx->naviEnemyId = 0x1F; // (a Skulltula's)
+        NvRe1_TickBegin();
+        NvSpider_Init(e);
     } else {
         thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
         e->animationId = 0;
@@ -813,6 +823,14 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvEnemy_DogBite(this, play); // (its bite)
             NvEnemy_Hold(this, play);     // (the swallow)
         }
+    } else if (NvEnemy_IsSpider(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvSpider_Update(e);
+            NvEnemy_DogBite(this, play); // (its bite and its venom)
+        }
     } else {
         for (t = 0; t < ticks; t++) {
             NvRe1_JointMove(e, 0, 0x400);
@@ -892,6 +910,19 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
     base[2][0] = sa * NV_RE1_SCALE; // -(-sa)
     base[2][1] = 0.0f;
     base[2][2] = -ca * NV_RE1_SCALE;
+    if (this->e.pitch != 0) { // RotMatrix's x turn under the facing: base * Rx(pitch)
+        f32 cp = cosf(this->e.pitch * (NV_PI / 2048.0f));
+        f32 sp = sinf(this->e.pitch * (NV_PI / 2048.0f));
+        s32 r;
+
+        for (r = 0; r < 3; r++) {
+            f32 b1 = base[r][1];
+            f32 b2 = base[r][2];
+
+            base[r][1] = b1 * cp + b2 * sp;
+            base[r][2] = b2 * cp - b1 * sp;
+        }
+    }
 
     for (n = 0; n < m->numBones; n++) {
         s32 i = m->order[n];

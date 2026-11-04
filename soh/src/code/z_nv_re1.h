@@ -78,6 +78,7 @@ typedef struct NvRe1Entity {
     s16 yawExtra[NV_RE1_JOINTS]; // drawn on top of the animation's turn (Yawn's body trailing its head)
     u8 holding;   // it holds the player (z_nv_enemy.c grabs Link with OoT's grab, at unk_c6/c8)
     u8 snd_group; // its sound group (Snd_em's id + group * 10): the SCD record's byte 0x15 >> 4 & 7
+    s16 pitch;    // its turn about x, drawn under the facing (a spider on the ceiling: 0x800)
     s16 reaction_timer; // +0x176 (the dog: gravity in a leap, the turn it holds while swerving)
     // the dog's own (Cerberus.cpp's offsets 0x16C-0x18A)
     struct {
@@ -153,6 +154,17 @@ typedef struct NvRe1Entity {
         s16 heading[64]; // its facing, tick by tick (the body follows where the head went)
         u8 headingAt;
     } yw;
+    // the Web Spinner's own
+    struct {
+        s32 dist;      // |dx| + |dz| to the player
+        s16 turn;      // a circle's or a sidle's turn
+        s16 pitch;     // upside down on the ceiling (0x800) until it drops
+        u8 sees;       // the path finder sees her
+        u8 cooldown;   // ticks before it may lunge or spit again
+        u8 stuck;      // ticks against walls
+        u8 touch;      // it bumped into her this tick
+        u8 coll;       // it hit a wall this tick
+    } ws;
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */
@@ -188,6 +200,8 @@ void NvPlant_Init(NvRe1Entity* e);
 void NvPlant_Update(NvRe1Entity* e);
 void NvYawn_Init(NvRe1Entity* e);
 void NvYawn_Update(NvRe1Entity* e);
+void NvSpider_Init(NvRe1Entity* e);
+void NvSpider_Update(NvRe1Entity* e);
 extern s16 gNvRe1Drain;
 extern s32 gNvRe1Kill; // an enemy's kill move landed (the maul, the decapitation, the swallow): Link dies // a plant's drain this tick: RE1's health, no knock back (z_nv_enemy.c)
 extern s16 gNvRe1DogBite;

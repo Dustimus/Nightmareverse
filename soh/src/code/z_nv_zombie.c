@@ -2811,3 +2811,6 @@ void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId) {
 
 /* Yawn */
 #include "z_nv_yawn.inc"
+
+/* the Web Spinner */
+#include "z_nv_spider.inc"
