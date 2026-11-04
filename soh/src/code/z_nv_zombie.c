@@ -2808,3 +2808,6 @@ void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId) {
 
 /* the greenhouse plants */
 #include "z_nv_plant.inc"
+
+/* Yawn */
+#include "z_nv_yawn.inc"

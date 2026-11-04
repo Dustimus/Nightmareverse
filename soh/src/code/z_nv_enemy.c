@@ -183,9 +183,13 @@ static s32 NvEnemy_IsPlant(s32 type) {
     return type == 15;
 }
 
+static s32 NvEnemy_IsYawn(s32 type) {
+    return (type == 13) || (type == 18);
+}
+
 static s32 NvEnemy_Acts(s32 type) {
     return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type) || NvEnemy_IsHunter(type) || NvEnemy_IsCrow(type) ||
-           NvEnemy_IsPlant(type);
+           NvEnemy_IsPlant(type) || NvEnemy_IsYawn(type);
 }
 
 static s32 NvEnemy_IsCorpse(s32 type) {
@@ -661,6 +665,12 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x2E; // (a Deku Baba's)
         NvRe1_TickBegin();
         NvPlant_Init(e);
+    } else if (NvEnemy_IsYawn(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        thisx->naviEnemyId = 0x40; // (a Dodongo's: a big one)
+        NvRe1_TickBegin();
+        NvYawn_Init(e);
     } else {
         thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
         e->animationId = 0;
@@ -702,6 +712,10 @@ static s32 NvEnemy_Parked(const NvRe1Entity* e) {
     }
     // a Hunter the script holds for its entrance (behaviour flag 0x40) waits the same way
     if ((e->id == 6) && (e->behavior_flags & 0x40)) {
+        return true;
+    }
+    // Yawn waiting for its entrance (behaviour 0x80), or gone out of the room after fleeing
+    if (((e->id == 13) || (e->id == 18)) && (e->behavior_flags & 0x80)) {
         return true;
     }
     return (e->behavior_flags & 0x80) && (e->t[0] == 0) && (e->t[1] == 0) && (e->t[2] == 0);
@@ -776,6 +790,14 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvEnemy_DogBite(this, play); // (a lasher's whip)
             NvEnemy_PlantHold(this, play);
         }
+    } else if (NvEnemy_IsYawn(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvYawn_Update(e);
+            NvEnemy_DogBite(this, play); // (its bite)
+        }
     } else {
         for (t = 0; t < ticks; t++) {
             NvRe1_JointMove(e, 0, 0x400);
@@ -818,7 +840,7 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
         Collider_UpdateCylinder(thisx, &this->collider);
         CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         if ((NvEnemy_IsZombie(this->type) && (e->state != NV_ZST_ATTACK)) || NvEnemy_IsDog(this->type) || NvEnemy_IsHunter(this->type) ||
-            NvEnemy_IsCrow(this->type) || (NvEnemy_IsPlant(this->type) && (e->health >= 0))) {
+            NvEnemy_IsCrow(this->type) || NvEnemy_IsYawn(this->type) || (NvEnemy_IsPlant(this->type) && (e->health >= 0))) {
             CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }

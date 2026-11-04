@@ -130,6 +130,20 @@ typedef struct NvRe1Entity {
         u8 holding;    // it holds the player (z_nv_enemy.c grabs Link with OoT's grab)
         u8 saved[4];   // state, behaviour, step, sub-step before a hit
     } mp;
+    // Yawn's own
+    struct {
+        s8 turnAcc;   // the swim's sway: doubles until 0x40, then flips
+        u8 form;      // 0 the juvenile (first fight), 1 grown (reared up, the rematch)
+        u8 bites;     // bites in a row (five force a rear-up)
+        s16 sway;     // the sideways part of the swim
+        s8 turnDir;   // 1 while biting; -1 right after a bite landed
+        u8 recover;   // after a bite (bit 7: interrupted)
+        u8 waypoint;  // into the entry / flee / reposition paths
+        u8 nearlyDead; // the player is nearly dead: rear up
+        u8 stuck;     // ticks against walls (150 send it elsewhere)
+        u8 hiss;
+        u8 saved[4];  // state, flag, behaviour, step before a hit
+    } yw;
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */
@@ -163,6 +177,8 @@ void NvCrow_Init(NvRe1Entity* e);
 void NvCrow_Update(NvRe1Entity* e);
 void NvPlant_Init(NvRe1Entity* e);
 void NvPlant_Update(NvRe1Entity* e);
+void NvYawn_Init(NvRe1Entity* e);
+void NvYawn_Update(NvRe1Entity* e);
 extern s16 gNvRe1Drain; // a plant's drain this tick: RE1's health, no knock back (z_nv_enemy.c)
 extern s16 gNvRe1DogBite;
 extern s32 gNvRe1DogFlinch; // Link is still reeling from a bite (RE1's isBeingAttackedFlag for the dog) // a dog's bite this tick: RE1's damage (z_nv_enemy.c hurts Link)
