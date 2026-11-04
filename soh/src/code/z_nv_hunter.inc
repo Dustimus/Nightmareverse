@@ -50,6 +50,15 @@ static u8 hn_reaches(s16 ahead, s16 reach) {
     return (CbAbs(P->t[0] - (E->t[0] + x)) <= reach) && (CbAbs(P->t[2] - (E->t[2] + z)) <= reach);
 }
 
+/** How far the animation's lunge has the body out ahead of the Hunter's position (its root). */
+static s16 hn_lunge(void) {
+    s32 vx;
+    s32 vz;
+
+    ExtractAnimVertex(&vx, &vz);
+    return (s16)vx;
+}
+
 /** A claw lands: RE1's damage on its health (z_nv_enemy.c turns it into hearts and a knock back). */
 static void hn_claw(s16 damage, u8 snd) {
     gNvRe1DogBite = damage;
@@ -189,7 +198,7 @@ static void hn_swipe(void) {
         case 1:
             if (!Joint_move(0, 0x200)) {
                 if (((u8)(E->animation_frame_id - 4) < 8) && (P->isBeingAttackedFlag == 0) && !gNvRe1DogFlinch &&
-                    hn_reaches(700, 800)) {
+                    hn_reaches(700 + hn_lunge(), 800)) {
                     hn_claw(10, 5);
                     E->action_state = 2;
                 }

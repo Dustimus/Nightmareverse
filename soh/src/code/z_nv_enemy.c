@@ -692,9 +692,9 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
         }
     }
     if (getenv("NV_LOG") && ((play->gameplayFrames % 20) == 0)) {
-        printf("NVENEMY f=%d state %d %d/%d/%d anim %d at %d,%d angle %d health %d hit 0x%02x\n",
+        printf("NVENEMY f=%d state %d %d/%d/%d anim %d.%d.%d at %d,%d angle %d health %d hit 0x%02x\n",
                (int)play->gameplayFrames, e->state, e->ignore_player_flag, e->action_behavior, e->action_state,
-               e->animationId, (int)e->t[0], (int)e->t[2], e->angle, e->health, e->hit_state);
+               e->animationId, e->animation_frame_id, e->timing_control, (int)e->t[0], (int)e->t[2], e->angle, e->health, e->hit_state);
         fflush(stdout);
     }
 
