@@ -4,7 +4,26 @@ Our baseline is the USA PC release (GOG), the files `make_mod.py` converts. This
 track of what the other releases have that it doesn't, for the parts worth bringing over (as
 options, from the player's own copy of that release, like everything else here).
 
-Each line says where it comes from: **checked** (seen in the decomp's code or docs, or in the
+## How it would come in
+
+Everything stays the USA PC game by default; each addition is an option, converted from the
+player's own copy of that release (never committed), and off when that copy isn't given.
+
+1. **Art and sound, no gameplay change:** the Japanese document backdrops (first pick: a small
+   job in the file reader), the other releases' outfits (Link's tunic colours are the natural
+   place for these), the Dual Shock and Saturn sound sets, the Saturn models and textures.
+2. **Gameplay options:** auto-aim, the Japanese balancing and Beginner mode as difficulty
+   settings; the Director's Cut's fast zombies, custom Beretta and infinite Python; the Saturn's
+   Tick (stage 3), second Tyrant (the lab), and the Battle Game with Zombie Wesker and the Golden
+   Tyrant as a mode of its own.
+3. **The Arrange campaign:** the Director's Cut's moved items and enemies, extra events and
+   new cameras, as a second set of room data on the same mansion (the camera system takes another
+   set of camera records; the redrawn rooms need their pictures). The biggest of these; each room's
+   change checked against the Director's Cut's own room data, not taken from descriptions.
+4. **Extras, outside the campaign:** the Japanese vocal songs and death-montage credits, the
+   unused Japanese voices, the console menus and demos.
+
+Each line below says where it comes from: **checked** (seen in the decomp's code or docs, or in the
 files themselves) or **reported** (from a summary the user had GPT write, 2026-11-04: plausible,
 not checked yet; check before building on it).
 
