@@ -58,5 +58,23 @@ From the decomp's `docs/SATURN_VERSION_ANALYSIS.md` (checked) and the disc itsel
 - Extra room props (`ENEMY/A_*.DAT`): two Tyrant capsules, more plants, a kitchen machine.
 - Extra camera pictures in a few rooms (105's plaque close-up, the heliport's views), and
   a redrawn lab Tyrant room.
-- Two more wardrobe outfits (the Saturn offers them in 11C / 61C).
-- The GPT summary was cut off before its Saturn section; anything it adds can go here.
+- Two more wardrobe outfits (the Saturn offers them in 11C / 61C). Reported: Chris in a dark
+  blue shirt and body armour, Jill in a light blue top, green trousers and beret, also pickable
+  by button combination at the start.
+- **A second Tyrant in Chris's game** (checked: §4g/§4h): in the same room as the first (stage 5
+  room 13, the main lab), the first one's entity raised again by the Tyrant's own code, not a new
+  room script.
+- **The Golden Tyrant** (checked): the Battle Game's arena 15 tints the Tyrant gold (its palette
+  red +4, green +3, blue -5) and makes it stronger. No new model.
+- Its own models (checked: the Saturn EMDs carry a Saturn mesh and textures beside the PS1
+  data, `tools/saturn_emd.py`); reported: visible differences in the players, Hunters, the snakes,
+  Plant 42, zombies (Enrico's darker hair, for one).
+- Redrawn backgrounds (checked: 115 of 655 camera pictures differ from the PC's noticeably, the
+  lab Tyrant room re-drawn; most are the Saturn's dimmer palettes).
+- Gore (reported): blood shown differently, some dismemberment staying visible, severed zombie
+  heads persisting (more so in the Japanese Saturn release). Checked: Zombie Wesker can't lose
+  his head, a hit there only flashes.
+- Sounds (reported): different crow and zombie sounds, some music in other keys or arranged
+  slightly differently. Checked: its music is a sound-driver format of its own (the decomp's
+  `tools/saturn_snd.py` renders it).
+- Platform matters (reported): saves, loading, door timing, video, transparency. Nothing to bring.
