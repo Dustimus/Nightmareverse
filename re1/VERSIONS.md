@@ -108,6 +108,24 @@ From the decomp's `docs/SATURN_VERSION_ANALYSIS.md` (checked) and the disc itsel
   disc (checked: the decomp's `tools/saturn_ranking_logo.py`).
 - Its own Battle Game questions for the wardrobe (checked: `tools/saturn_wardrobe_rdt.py --jpn`).
 
+## Deadly Silence (Nintendo DS, 2006)
+
+An enhanced port of the original game (not the remake). All reported, not checked; it'd need
+the user's DS copy, and the decomp doesn't cover it.
+
+- Two campaigns: Classic (the original) and Rebirth, its own remix (not the Director's Cut's
+  Arrange): moved enemies and items, new and redesigned puzzles (many around the touch screen),
+  more scares, some Hunters swapped for Chimeras, Forest rising as a zombie.
+- First-person knife fights against zombies, dogs, crows and a Yawn encounter (touch screen).
+- New outfits for Chris, Jill and Rebecca.
+- Control updates: the quick turn, a knife button (the knife out of the inventory), reloading
+  without the menu, shaking off grabs, skippable text. Link has most of this already (his sword is
+  the knife button; mashing out of grabs is OoT's).
+- A multiplayer mode (co-op and versus, mansion, guardhouse and lab maps) with seven more
+  playable characters: Barry, Rebecca, Wesker, Forest, Kenneth, Richard, Enrico. A possible
+  source of models for the cast, or bonus play.
+- The map always on screen, ammo and health shown without the menu.
+
 ## Japanese Dual Shock bonus disc
 
 - Japanese voice recordings for the game's scenes that were never used (reported). Interesting
