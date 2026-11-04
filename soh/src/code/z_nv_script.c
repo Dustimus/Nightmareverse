@@ -115,9 +115,9 @@ static s32 sNvContinue;
 /* ---- flags ---- */
 
 /**
- * RE1's flags as a new game of Jill's starts them (GameStart.cpp, game_init): bank 0 bit 0 is the
- * character (SCENARIO_FLAG_STAGE_VARIANT: 0 Chris, 1 Jill), which the rooms' scripts branch on;
- * bank 7 is the room items' flags (set: the item still lies there), all set but items 1 and 172.
+ * RE1's flags as a new game of Jill's starts them (GameStart.cpp, game_init): all clear (bank 0
+ * bit 0, the return flag, too), but bank 7, the room items' flags (set: the item still lies
+ * there), all set but items 1 and 172.
  */
 static void NvFlags_NewGame(void) {
     static s32 sDone = false;
@@ -130,7 +130,10 @@ static void NvFlags_NewGame(void) {
     memset(sNvFlags[7], 0xFF, sizeof(sNvFlags[7]));
     sNvFlags[7][1 >> 5] &= ~(0x80000000u >> (1 & 31));
     sNvFlags[7][172 >> 5] &= ~(0x80000000u >> (172 & 31));
-    sNvFlags[0][0] |= 0x80000000u; // bit 0: Jill
+    // bank 0 bit 0 stays clear: it's the return flag (set once back from the guardhouse:
+    // SCENARIO_FLAG_STAGE_VARIANT, which also sends doors to stages 6 and 7), not the character.
+    // The first visit's rooms test it clear (210 only brings Yawn in while it is); the character
+    // is state byte 9 (NvScd_StateByte)
 }
 
 s32 NvFlags_Test(s32 bank, s32 bit) {
@@ -204,6 +207,8 @@ static u8 NvScd_StateByte(s32 field) {
         case 2:
         case 3:
             return sNvCamera;
+        case 9: // characterModelId: Jill (0 Chris, 1 Jill; +8 her other outfit)
+            return 1;
         default:
             return 0;
     }

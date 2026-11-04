@@ -882,7 +882,7 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
         s32 i = m->order[n];
         s16 p = m->bones[i * 4 + 3];
         f32 a = this->e.rot[i][0] * (NV_PI / 2048.0f);
-        f32 b = this->e.rot[i][1] * (NV_PI / 2048.0f);
+        f32 b = (s16)(this->e.rot[i][1] + this->e.yawExtra[i]) * (NV_PI / 2048.0f);
         f32 c = this->e.rot[i][2] * (NV_PI / 2048.0f);
         f32 sx = sinf(a), cx = cosf(a), sy = sinf(b), cy = cosf(b), sz = sinf(c), cz = cosf(c);
         f32 L[3][3];

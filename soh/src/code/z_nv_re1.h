@@ -75,6 +75,7 @@ typedef struct NvRe1Entity {
     const NvRe1Anim* anim;
     s16 rootT[3];
     s16 rot[NV_RE1_JOINTS][3];
+    s16 yawExtra[NV_RE1_JOINTS]; // drawn on top of the animation's turn (Yawn's body trailing its head)
     u8 snd_group; // its sound group (Snd_em's id + group * 10): the SCD record's byte 0x15 >> 4 & 7
     s16 reaction_timer; // +0x176 (the dog: gravity in a leap, the turn it holds while swerving)
     // the dog's own (Cerberus.cpp's offsets 0x16C-0x18A)
@@ -143,6 +144,8 @@ typedef struct NvRe1Entity {
         u8 stuck;     // ticks against walls (150 send it elsewhere)
         u8 hiss;
         u8 saved[4];  // state, flag, behaviour, step before a hit
+        s16 heading[64]; // its facing, tick by tick (the body follows where the head went)
+        u8 headingAt;
     } yw;
 } NvRe1Entity;
 

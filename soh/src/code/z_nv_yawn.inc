@@ -368,13 +368,16 @@ static void yw_flee(void) {
                 YW->waypoint = 2;
             }
             YW->sway = 0;
+            if (YW->waypoint >= 6) { // into the gap it leaves by: past the walls from here
+                E->status_flags |= 4;
+            }
             if (YW->waypoint == 9) { // through the far end: gone
                 E->behavior_flags |= 0x80;
                 E->status_flags |= 2;
             }
         }
     }
-    if (YW->stuck > 0x96) {
+    if ((YW->stuck > 0x96) && (YW->waypoint < 6)) {
         E->ignore_player_flag = 1;
         yw_act(8);
     }
@@ -637,8 +640,43 @@ void NvYawn_Init(NvRe1Entity* e) {
     }
 }
 
+/**
+ * The body trails the head (RE1's chain: yawn_chain_follow drags each segment after the one ahead
+ * of it). Each body joint (3-14, back from the head) points where the head pointed a few ticks
+ * earlier: its turn against the joint ahead is the difference of those two old headings.
+ */
+#define YW_TRAIL_TICKS 4
+static void yw_trail(void) {
+    s32 k;
+
+    YW->heading[YW->headingAt++ & 63] = E->angle;
+    for (k = 0; k < NV_RE1_JOINTS; k++) {
+        E->yawExtra[k] = 0;
+    }
+    if (E->status_flags & 8) { // (dead: the body lies as it fell)
+        return;
+    }
+    for (k = 3; k <= 14; k++) {
+        s32 newer = (k - 3) * YW_TRAIL_TICKS + 1;
+        s32 older = newer + YW_TRAIL_TICKS;
+        s16 hNewer = YW->heading[(u8)(YW->headingAt - newer) & 63];
+        s16 hOlder = YW->heading[(u8)(YW->headingAt - older) & 63];
+        s16 d = (s16)(((hOlder - hNewer + 0x800) & 0xFFF) - 0x800); // the short way round
+
+        E->yawExtra[k] = (s16)CLAMP(d, -0x200, 0x200);
+    }
+}
+
 void NvYawn_Update(NvRe1Entity* e) {
     E = e;
+    if (YW->headingAt == 0) { // first tick: it has always faced this way
+        s32 k;
+
+        for (k = 0; k < 64; k++) {
+            YW->heading[k] = E->angle;
+        }
+        YW->headingAt = 1;
+    }
     E->pos[0] = (s16)E->t[0];
     E->pos[1] = (s16)E->t[1];
     E->pos[2] = (s16)E->t[2];
@@ -697,6 +735,7 @@ void NvYawn_Update(NvRe1Entity* e) {
         default:
             break;
     }
+    yw_trail();
     SetScaWorld(E->sca, E->angle, E->scaWorld);
     SetScaWorld(P->sca, P->angle, P->scaWorld);
     if (!(E->status_flags & 2)) {
