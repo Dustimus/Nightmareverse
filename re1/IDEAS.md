@@ -112,3 +112,13 @@ here is agreed or scheduled.
   - None: the mansion keys (all or none: none, unless this ever replaces RE1's Check viewer), the
     crests (treated as keys), the medals, puzzle items, files, ammo, repeats. RE1's own Check viewer stays.
   - Seen-it flags kept with the save system. Our own wording for the lines.
+
+## Remixed dungeons (from the user, 2026-11-04)
+
+- Eventually, remix OoT's dungeons with RE1's enemies: Hunters in the Forest Temple's halls,
+  crows over Death Mountain, Cerberus in the Shadow Temple, and so on. The ported enemies already
+  run on their own RE1 entity and room collision, so placing them in an OoT room would mostly
+  mean giving them its floor and walls and a spawn list.
+- The same goes for other games, if the larger project takes in more of them: their enemies
+  mixed into OoT's dungeons (or each other's rooms) as a remix mode, separate from the faithful
+  playthrough.
