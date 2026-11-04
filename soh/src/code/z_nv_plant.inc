@@ -22,6 +22,7 @@
 static const s16 sMpSca[8] = { (s16)0x8000, 0, 0, 0, 0, 400, 0, 0 };
 
 s16 gNvRe1Drain;
+s32 gNvRe1Kill;
 
 static void mp_anim(u8 id, u8 blend) {
     E->animationId = id;
@@ -122,6 +123,7 @@ static void mp_grabber(void) {
             E->action_behavior = 2;
             E->status_flags |= 2;
             MP->holding = 1;
+            E->holding = 1;
             P->isBeingAttackedFlag = 1;
             snap_player_to_grab_position();
             Snd_em(2);
@@ -156,6 +158,7 @@ static void mp_grabber(void) {
             break;
         case 4: // let go
             MP->holding = 0;
+            E->holding = 0;
             if (MP->animEnd) {
                 P->isBeingAttackedFlag = 0;
                 mp_become(0);

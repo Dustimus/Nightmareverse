@@ -8,8 +8,7 @@
  * behaviour byte: patrol, chase, leap, strafe, alert, maul, close bite, held by the script, stalk.
  * The dog steers by probing: a step 500 units ahead, tested against the room and taken back.
  *
- * Left out, each noted where it would be: the maul (RE1's kill of a badly hurt Jill facing away;
- * Link's health isn't RE1's, so the dog bites instead), blood billboards, the shadow and its
+ * Left out, each noted where it would be: blood billboards, the shadow and its
  * fade, the player's flinch animations, and the poison and second-playthrough variants.
  */
 
@@ -396,12 +395,17 @@ static void cb_patrol(void) {
     }
 }
 
-/** Inside 5000 and lined up: leap (RE1 strafes for a kill lunge on a badly hurt player). */
+/** Inside 5000 and lined up: leap, or, on a badly hurt player facing it, strafe for the kill lunge. */
 static void cb_consider_attack(void) {
     if ((CB->dist >= 5000) || (P->isBeingAttackedFlag != 0) || gNvRe1DogFlinch) {
         return;
     }
     if (turn_toward_target(P->t[0], P->t[2], 0x100) == 0) {
+        if ((P->health < 13) && is_facing_toward_entity() && ((CbRand() & 0x7F) < 126)) {
+            cb_chase_again(9);
+            Joint_move(0, 0x100);
+            return;
+        }
         cb_chase_again(5);
         CB->aiFlags |= CB_AI_ACTIVE;
         CB->swerve = 0;
@@ -552,9 +556,21 @@ static void cb_chase(void) {
     }
 }
 
-/** The bite lands: 12 of RE1's health, and the dog tumbles away. */
+/**
+ * The bite lands: 12 of RE1's health, and the dog tumbles away. On a player under 13 facing away,
+ * the maul instead: it brings her down (aggro 2 sends the leap to the maul at its top).
+ */
 static void cb_bite_player(void) {
     E->hit_state = 0;
+    if ((P->health < 13) && !is_facing_toward_entity()) {
+        E->status_flags |= 2;
+        E->move_speed_current = 0;
+        CB->aggro = 2;
+        E->hit_state = 1;
+        P->isBeingAttackedFlag = 1;
+        E->status_flags &= ~4;
+        return;
+    }
     E->unk_c6 = (s16)P->t[0];
     E->unk_c8 = (s16)P->t[2];
     if (E->behavior_flags != 6) {
@@ -596,17 +612,25 @@ static void cb_leap(void) {
 
             E->status_flags |= 0x40;
             cb_ballistic(E->move_speed_current, CB->launchVy, E->reaction_timer);
-            if ((CB->aggro == 0) && cb_jaw_reaches(1000)) {
+            if ((CB->aggro == 0) && cb_jaw_reaches((P->health > 12) ? 1000 : 800)) {
                 CB->aggro = 1;
                 if ((P->isBeingAttackedFlag == 0) && !gNvRe1DogFlinch && (E->t[1] > -0x708)) {
                     cb_bite_player();
-                    if (E->animation_frame_id != 0) {
-                        Joint_move(0, 0x100);
+                    if (CB->aggro != 2) {
+                        if (E->animation_frame_id != 0) {
+                            Joint_move(0, 0x100);
+                        }
+                        return;
                     }
-                    return;
                 }
             }
             if ((air + 1) * gravity + vy0 < 1) { // past the top
+                if (CB->aggro == 2) { // the maul
+                    E->ignore_player_flag = 6;
+                    E->action_behavior = 0;
+                    E->status_flags |= 2;
+                    break;
+                }
                 E->action_behavior++;
                 if (E->animationId == 6) {
                     E->animationId = 7;
@@ -761,6 +785,44 @@ static void cb_alert(void) {
         if (--E->action_ticks_counter == 0) {
             cb_chase_again(12);
         }
+    }
+}
+
+/** The maul: it holds her down; frame 42 is the kill. */
+static void cb_maul(void) {
+    if (E->action_behavior > 1) {
+        return;
+    }
+    if (E->action_behavior == 0) {
+        E->action_behavior = 1;
+        E->animationId = 8;
+        E->animation_frame_id = 0;
+        E->timing_control = 0;
+        E->blend_counter = 0;
+        CB->blood = 0;
+        CB->swerve = 0;
+        snap_player_to_grab_position();
+        E->holding = 1;
+        P->isBeingAttackedFlag = 1;
+        E->move_speed_current = 0;
+        return;
+    }
+    E->t[1] = 0;
+    if (E->animation_frame_id < 0x14) {
+        snap_player_to_grab_position();
+    }
+    entity_apply_anim_vertex();
+    if (Joint_move(0, 0x100)) {
+        E->action_behavior = 2;
+    }
+    if (E->animation_frame_id == 0x2A) {
+        gNvRe1Kill = 1;
+    }
+    if (E->animation_frame_id == 0x28) {
+        Snd_em(3);
+    }
+    if (E->animation_frame_id == 0x5E) {
+        Snd_em(7);
     }
 }
 
@@ -980,8 +1042,8 @@ static void cb_behave(void) {
         case 5:
             cb_alert();
             break;
-        case 6: // the maul (left out: see the top)
-            cb_chase_again(4);
+        case 6:
+            cb_maul();
             break;
         case 7:
             cb_bite();

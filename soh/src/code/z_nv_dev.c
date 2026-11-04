@@ -214,6 +214,14 @@ void NvDev_Update(PlayState* play) {
     Player* player = GET_PLAYER(play);
     Input* input = &play->state.input[0];
     const char* pos;
+    static s32 sHealthSet;
+
+    // dev: NV_HEALTH=n sets Link's health (in sixteenths of a heart) once, e.g. to see the enemies'
+    // low-health kill moves
+    if (!sHealthSet && (getenv("NV_HEALTH") != NULL) && (play->gameplayFrames > 2)) {
+        sHealthSet = true;
+        gSaveContext.health = (s16)atoi(getenv("NV_HEALTH"));
+    }
 
     if ((player != NULL) && CHECK_BTN_ALL(input->cur.button, BTN_L) &&
         CHECK_BTN_ALL(input->press.button, BTN_DDOWN)) {

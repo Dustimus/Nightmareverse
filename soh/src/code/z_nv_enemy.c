@@ -343,7 +343,12 @@ static void NvEnemy_PlayerToRe1(PlayState* play) {
     p->t[2] = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
     p->angle = (0x400 - player->actor.shape.rot.y / 16) & 0xFFF; // (OoT yaw = 0x4000 - 16 angle)
     p->sca = sNvJillSca;
-    p->health = (gSaveContext.health > 0) ? 0x7FFF : -1;
+    // RE1's health as the same share of Jill's 96 as Link's hearts are of his (as the damage
+    // goes the other way): the enemies' low-health moves (the dog's maul, the Hunter's
+    // decapitation, Yawn's swallow) open when he's as hurt as she'd be
+    p->health = (gSaveContext.health > 0)
+                    ? (s16)MAX(1, (s32)lroundf(gSaveContext.health * NV_RE1_JILL_HEALTH / MAX(gSaveContext.healthCapacity, 1)))
+                    : -1;
     p->attackTimer = (player->meleeWeaponState != 0) ? 1 : 0;
     gNvRe1DogFlinch = play->gameplayFrames < sNvDogFlinchUntil;
     {
@@ -563,10 +568,11 @@ static void NvEnemy_DogBite(NvEnemy* this, PlayState* play) {
 }
 
 /**
- * A plant holding Link (z_nv_plant.inc): OoT's grab while RE1's hold lasts, at the spot it
- * pulled him to, and its drain as hearts (the same share of his as of Jill's 96), no knock back.
+ * An enemy holding Link (the plant's drain, the dog's maul, the Hunter's and Yawn's kills): OoT's
+ * grab while RE1's hold lasts, at the spot it pulled him to; a drain as hearts (the same share of
+ * his as of Jill's 96), no knock back; a kill move's end, all of them.
  */
-static void NvEnemy_PlantHold(NvEnemy* this, PlayState* play) {
+static void NvEnemy_Hold(NvEnemy* this, PlayState* play) {
     static f32 sOwed;
     Player* player = GET_PLAYER(play);
     NvRe1Entity* e = &this->e;
@@ -583,19 +589,25 @@ static void NvEnemy_PlantHold(NvEnemy* this, PlayState* play) {
             Player_PlaySfx(&player->actor, NA_SE_VO_LI_DAMAGE_S + player->ageProperties->unk_92);
         }
     }
-    if (e->mp.holding && !this->grabbing) {
+    if (gNvRe1Kill) { // a kill move: all of his hearts
+        gNvRe1Kill = 0;
+        if (gSaveContext.health > 0) {
+            play->damagePlayer(play, -gSaveContext.health);
+        }
+    }
+    if (e->holding && !this->grabbing) {
         if (!(player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) && play->grabPlayer(play, player)) {
             this->grabbing = true;
-            printf("NVENEMY plant grab\n");
+            printf("NVENEMY hold (type %d)\n", (int)this->type);
             fflush(stdout);
         } else {
-            e->mp.holding = 0; // OoT won't hand him over: let go
+            e->holding = 0; // OoT won't hand him over: let go
         }
     }
     if (!this->grabbing) {
         return;
     }
-    if (!e->mp.holding) {
+    if (!e->holding) {
         if (player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) {
             player->av2.actionVar2 = 101; // let him go
         }
@@ -764,6 +776,7 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvRe1_TickBegin();
             NvCerberus_Update(e);
             NvEnemy_DogBite(this, play);
+            NvEnemy_Hold(this, play); // (the maul)
         }
     } else if (NvEnemy_IsHunter(this->type)) {
         NvEnemy_Hits(this, play);
@@ -772,6 +785,7 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvRe1_TickBegin();
             NvHunter_Update(e);
             NvEnemy_DogBite(this, play); // (its claws: the same hurt and knock back)
+            NvEnemy_Hold(this, play);     // (the decapitation)
         }
     } else if (NvEnemy_IsCrow(this->type)) {
         NvEnemy_Hits(this, play);
@@ -788,7 +802,7 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvRe1_TickBegin();
             NvPlant_Update(e);
             NvEnemy_DogBite(this, play); // (a lasher's whip)
-            NvEnemy_PlantHold(this, play);
+            NvEnemy_Hold(this, play);
         }
     } else if (NvEnemy_IsYawn(this->type)) {
         NvEnemy_Hits(this, play);
@@ -797,6 +811,7 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvRe1_TickBegin();
             NvYawn_Update(e);
             NvEnemy_DogBite(this, play); // (its bite)
+            NvEnemy_Hold(this, play);     // (the swallow)
         }
     } else {
         for (t = 0; t < ticks; t++) {

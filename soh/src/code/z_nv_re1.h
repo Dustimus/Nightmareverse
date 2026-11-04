@@ -76,6 +76,7 @@ typedef struct NvRe1Entity {
     s16 rootT[3];
     s16 rot[NV_RE1_JOINTS][3];
     s16 yawExtra[NV_RE1_JOINTS]; // drawn on top of the animation's turn (Yawn's body trailing its head)
+    u8 holding;   // it holds the player (z_nv_enemy.c grabs Link with OoT's grab, at unk_c6/c8)
     u8 snd_group; // its sound group (Snd_em's id + group * 10): the SCD record's byte 0x15 >> 4 & 7
     s16 reaction_timer; // +0x176 (the dog: gravity in a leap, the turn it holds while swerving)
     // the dog's own (Cerberus.cpp's offsets 0x16C-0x18A)
@@ -182,7 +183,8 @@ void NvPlant_Init(NvRe1Entity* e);
 void NvPlant_Update(NvRe1Entity* e);
 void NvYawn_Init(NvRe1Entity* e);
 void NvYawn_Update(NvRe1Entity* e);
-extern s16 gNvRe1Drain; // a plant's drain this tick: RE1's health, no knock back (z_nv_enemy.c)
+extern s16 gNvRe1Drain;
+extern s32 gNvRe1Kill; // an enemy's kill move landed (the maul, the decapitation, the swallow): Link dies // a plant's drain this tick: RE1's health, no knock back (z_nv_enemy.c)
 extern s16 gNvRe1DogBite;
 extern s32 gNvRe1DogFlinch; // Link is still reeling from a bite (RE1's isBeingAttackedFlag for the dog) // a dog's bite this tick: RE1's damage (z_nv_enemy.c hurts Link)
 
