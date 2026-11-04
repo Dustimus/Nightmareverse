@@ -94,6 +94,16 @@ typedef struct NvRe1Entity {
         s16 aiFlags;
         s16 repause;
     } cb;
+    // the Hunter's own
+    struct {
+        s16 ticks;
+        s16 pathFound;  // the path finder has reached the player once (arms the slow approach)
+        u8 roomHit;     // walls met while moving (the wander steering's)
+        u8 hits;        // hits taken in the last stretch (two quick ones: a side-step)
+        u8 hitTimer;
+        u8 approach;    // ticks into the slow approach
+        u8 repause;
+    } hn;
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */
@@ -121,6 +131,8 @@ void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId);
 s32 NvRe1_JointMove(NvRe1Entity* e, s32 reverse, s16 blendStep);
 void NvCerberus_Init(NvRe1Entity* e);
 void NvCerberus_Update(NvRe1Entity* e);
+void NvHunter_Init(NvRe1Entity* e);
+void NvHunter_Update(NvRe1Entity* e);
 extern s16 gNvRe1DogBite;
 extern s32 gNvRe1DogFlinch; // Link is still reeling from a bite (RE1's isBeingAttackedFlag for the dog) // a dog's bite this tick: RE1's damage (z_nv_enemy.c hurts Link)
 

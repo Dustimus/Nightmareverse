@@ -3,10 +3,11 @@
 
 Each enemy type used by the converted rooms becomes "re1/enemies/em<type>", a binary blob:
 
-    "RENM", u16 numBones, u16 numBanks
+    "REN2", u16 numBones, u16 numBanks
     per bone: s16 x, y, z (offset from its parent), s16 parent (-1: the root)
     per bank (RE1's two animation sets: 0 the model's main one, 1 its extra one):
-        u16 numFrames, then per frame s16 rootOffset[3], rootSpeed[3], angles[3 * numBones]
+        u16 numJoints (its frames' angles: the Hunter's extra bank has one fewer than its bones),
+        u16 numFrames, then per frame s16 rootOffset[3], rootSpeed[3], angles[3 * numJoints]
         (4096 = 360 degrees, rotated X then Y then Z: the GTE's RotMatrix)
         u16 numAnims, then per anim u16 numSteps and its steps as u16 frame, u16 flags
     u16 texture width, height in 64x32 cells, then the cells (RGBA5551, big-endian; the
@@ -29,7 +30,7 @@ import rdt  # noqa: E402
 import soh_doors  # noqa: E402
 import soh_scene  # noqa: E402
 
-MAGIC = b"RENM"
+MAGIC = b"REN2"
 
 
 def enemy_file(re1, enemy_type):
@@ -58,9 +59,10 @@ def enemy_blob(path):
     out = bytearray(MAGIC + struct.pack("<HH", n, 2 if e.extra_skeleton else 1))
     for i in range(n):
         out += struct.pack("<4h", *sk.relpos[i], sk.parents[i])
-    out += bank(sk, e.animations)
+    out += struct.pack("<H", len(sk.frames[0].angles) if sk.frames else n) + bank(sk, e.animations)
     if e.extra_skeleton:
-        out += bank(e.extra_skeleton, e.extra_animations)
+        x = e.extra_skeleton
+        out += struct.pack("<H", len(x.frames[0].angles) if x.frames else n) + bank(x, e.extra_animations)
 
     w, h, rgba = emd.tim_to_rgba(e.tim, emd.page_cluts(e))
     cw, ch = (w + soh_doors.CELL_W - 1) // soh_doors.CELL_W, (h + soh_doors.CELL_H - 1) // soh_doors.CELL_H

@@ -171,8 +171,12 @@ static s32 NvEnemy_IsDog(s32 type) {
 }
 
 /** The enemies whose behaviour is ported (RE1 runs them; the rest stand in their first pose). */
+static s32 NvEnemy_IsHunter(s32 type) {
+    return type == 6;
+}
+
 static s32 NvEnemy_Acts(s32 type) {
-    return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type);
+    return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type) || NvEnemy_IsHunter(type);
 }
 
 static s32 NvEnemy_IsCorpse(s32 type) {
@@ -213,7 +217,7 @@ static NvEmModel* NvEnemy_Model(s32 type) {
         return NULL;
     }
     d = (u8*)ResourceGetDataByName(path);
-    if ((d == NULL) || (memcmp(d, "RENM", 4) != 0)) {
+    if ((d == NULL) || (memcmp(d, "REN2", 4) != 0)) {
         return NULL;
     }
     memset(m, 0, sizeof(*m));
@@ -223,16 +227,19 @@ static NvEmModel* NvEnemy_Model(s32 type) {
     m->bones = (s16*)(d + 8);
     d += 8 + 8 * m->numBonesAll;
     for (b = 0; b < numBanks; b++) {
-        s32 frameSize = 2 * (6 + 3 * m->numBonesAll);
-        s32 numFrames = *(u16*)d;
+        s32 joints = *(u16*)d; // the bank's own (the Hunter's extra one has a joint fewer)
+        s32 frameSize = 2 * (6 + 3 * joints);
+        s32 numFrames;
         s32 numAnims;
         s32 a;
 
+        d += 2;
+        numFrames = *(u16*)d;
         if (b == 0) {
             m->bank.numFrames = numFrames;
             m->bank.frames = (s16*)(d + 2);
-            m->bank.frameShorts = 6 + 3 * m->numBonesAll;
-            m->bank.numJoints = m->numBones;
+            m->bank.frameShorts = 6 + 3 * joints;
+            m->bank.numJoints = MIN(joints, m->numBones);
         }
         d += 2 + numFrames * frameSize;
         numAnims = *(u16*)d;
@@ -575,6 +582,12 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x1E; // (a Wolfos's)
         NvRe1_TickBegin();
         NvCerberus_Init(e);
+    } else if (NvEnemy_IsHunter(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        thisx->naviEnemyId = 0x22; // (a Lizalfos's)
+        NvRe1_TickBegin();
+        NvHunter_Init(e);
     } else {
         thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
         e->animationId = 0;
@@ -612,6 +625,10 @@ static s32 NvEnemy_Parked(const NvRe1Entity* e) {
     // a dog the script holds (behaviour 0x80) waits outside, off the room (108's two, behind the
     // windows they come in through): not drawn, not hit, until its event lets it go
     if ((e->id == 2) && (e->behavior_flags == 0x80)) {
+        return true;
+    }
+    // a Hunter the script holds for its entrance (behaviour flag 0x40) waits the same way
+    if ((e->id == 6) && (e->behavior_flags & 0x40)) {
         return true;
     }
     return (e->behavior_flags & 0x80) && (e->t[0] == 0) && (e->t[1] == 0) && (e->t[2] == 0);
@@ -661,6 +678,14 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvCerberus_Update(e);
             NvEnemy_DogBite(this, play);
         }
+    } else if (NvEnemy_IsHunter(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvHunter_Update(e);
+            NvEnemy_DogBite(this, play); // (its claws: the same hurt and knock back)
+        }
     } else {
         for (t = 0; t < ticks; t++) {
             NvRe1_JointMove(e, 0, 0x400);
@@ -702,7 +727,7 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
     if ((alive || (!NvEnemy_Acts(this->type) && !NvEnemy_Parked(e))) && (thisx != sNvEnemySlots[15])) { // (15: the dev test one)
         Collider_UpdateCylinder(thisx, &this->collider);
         CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-        if ((NvEnemy_IsZombie(this->type) && (e->state != NV_ZST_ATTACK)) || NvEnemy_IsDog(this->type)) {
+        if ((NvEnemy_IsZombie(this->type) && (e->state != NV_ZST_ATTACK)) || NvEnemy_IsDog(this->type) || NvEnemy_IsHunter(this->type)) {
             CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }

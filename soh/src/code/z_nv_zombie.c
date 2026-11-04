@@ -2799,3 +2799,6 @@ void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId) {
 
 /* the dog: the same helpers, its own behaviour */
 #include "z_nv_cerberus.inc"
+
+/* the Hunter */
+#include "z_nv_hunter.inc"
