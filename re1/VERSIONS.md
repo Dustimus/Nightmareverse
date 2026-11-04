@@ -125,10 +125,12 @@ the user's DS copy, and the decomp doesn't cover it.
   playable characters: Barry, Rebecca, Wesker, Forest, Kenneth, Richard, Enrico. A possible
   source of models for the cast, or bonus play.
 - The map always on screen, ammo and health shown without the menu.
-- **An extra mansion room** (from the user): the Closet, a room the 2002 remake added, backported
-  into Deadly Silence (https://residentevil.fandom.com/wiki/Spencer_Mansion/Closet). The one new
-  room in any version of the original game. Details (where it connects, what's in it) to fill in
-  from the DS data or the page.
+- **An extra mansion room** (from the user): the Closet, also in the 2002 remake
+  (https://residentevil.fandom.com/wiki/Spencer_Mansion/Closet), on the 1F east side, toward the
+  south-east corner of the map. It's in the Director's Cut's Arrange mode too (checked: the DC's
+  item names have a CLOSET KEY, `src/game/dc/ItemNames.cpp`), so the DC's Arrange room data
+  (STAGE8-E, the decomp's `docs/PSX_DIRECTORS_CUT_ANALYSIS.md` 4.1) should hold it; what's in it
+  and how it connects, to read from there.
 
 ## Japanese Dual Shock bonus disc
 
