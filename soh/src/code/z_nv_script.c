@@ -38,6 +38,8 @@ void NvEnemy_ScdSet(PlayState* play, const u8* rec);
 void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param);
 void NvEnemy_ScdPos(s32 slot, s16 angle, s16 x, s16 y, s16 z);
 #include "z_nv_re1.h"
+
+#define NV_RE1_SCALE 0.0217f // OoT units per RE1 unit (re1/tools/rdt2scene.py SCALE)
 s32 NvItems_InRoom(s32 n);
 void NvItems_SetTaken(s32 n);
 s32 NvItems_Give(s32 id, s32 qty);
@@ -391,6 +393,38 @@ static s32 NvScd_Cmd(void) {
             sNvIp = p + 14;
             return 1;
         }
+        case 0x17: { // cmd_sfx_3d_play: bank p[1], sound p[2], from (x, z) (position type 0) or the player
+            void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
+            s16 x;
+            s16 z;
+
+            memcpy(&x, p + 6, 2);
+            memcpy(&z, p + 8, 2);
+            if (p[4] != 0) {
+                x = (s16)gNvRe1Player.t[0];
+                z = (s16)gNvRe1Player.t[2];
+            }
+            if (p[1] == 2) { // the room's bank (doors, glass, its enemies): Play3DSnd's type 2
+                NvSnd_At(p[2], (u16)x, (u16)z, gNvRe1Player.t[0], gNvRe1Player.t[2]);
+            }
+            sNvIp = p + NvScd_Len(p);
+            return 1;
+        }
+        case 0x2A: { // cmd_effect_spawn: kind p[1] at (x, y, z). A stand-in for RE1's billboards
+            // (its glass shards, 0x15 and 0x21): one of OoT's white bursts, a little scattered
+            Vec3f at;
+            s16 v[3];
+
+            memcpy(v, p + 4, sizeof(v));
+            at.x = (u16)v[0] * NV_RE1_SCALE + Rand_CenteredFloat(20.0f);
+            at.y = -v[1] * NV_RE1_SCALE + Rand_CenteredFloat(20.0f);
+            at.z = -(u16)v[2] * NV_RE1_SCALE + Rand_CenteredFloat(20.0f);
+            if ((sNvPlay != NULL) && ((p[1] == 0x15) || (p[1] == 0x21))) {
+                EffectSsHitMark_SpawnCustomScale(sNvPlay, 0, 300, &at);
+            }
+            sNvIp = p + NvScd_Len(p);
+            return 1;
+        }
         case 0x29: // cmd_fmv_set
             NvMovie_Start(p[1]);
             sNvIp = p + 2;
@@ -668,7 +702,6 @@ static void NvEvt_Step(NvEvt* e) {
 /** Play_Init, once the room is in: RE1's room_set / room_init. */
 /* ---- examine spots: the room action table's message entries ---- */
 
-#define NV_RE1_SCALE 0.0217f // OoT units per RE1 unit (re1/tools/rdt2scene.py SCALE)
 #define NV_TEXT_ID 0xA1E0    // the text box RE1's messages are shown in (NvMessages.cpp)
 
 static const char* sNvMsgText;
@@ -1028,6 +1061,48 @@ void NvScript_RoomInit(PlayState* play) {
 }
 
 /** Play_Update: the main chain and the events, at RE1's tick rate. */
+/**
+ * The room actions the player sets off by being there (check_room_actions, each frame): every
+ * entry flagged 0x01 but not 0x80 (the action press's), tested at the player's position (0x40)
+ * or 600 in front of him. Handler 9 (create_room_event) starts event param[1] in slot param[0]:
+ * 108's windows, the dogs coming in. (The other walk-in handlers aren't run yet.)
+ */
+static void NvAot_WalkIn(PlayState* play) {
+    Player* player = GET_PLAYER(play);
+    s32 px;
+    s32 pz;
+    s32 fx;
+    s32 fz;
+    f32 a;
+    s32 i;
+
+    if (player == NULL) {
+        return;
+    }
+    px = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
+    pz = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
+    a = ((0x400 - player->actor.shape.rot.y / 16) & 0xFFF) * (3.14159265f / 2048.0f);
+    fx = px + (s32)lroundf(600.0f * cosf(a));
+    fz = pz - (s32)lroundf(600.0f * sinf(a));
+    for (i = 0; i < sNvAotCount; i++) {
+        NvAot* e = &sNvAot[i];
+        s32 x = (e->flags & 0x40) ? px : fx;
+        s32 z = (e->flags & 0x40) ? pz : fz;
+
+        if ((e->handler == 0) || !(e->flags & 0x01) || (e->flags & 0x80)) {
+            continue;
+        }
+        if (((u32)(x - e->zone[0]) > e->zone[2]) || ((u32)(z - e->zone[1]) > e->zone[3])) {
+            continue;
+        }
+        if (e->handler == 9) {
+            printf("NVEVT walk-in %d: event %d in slot %d\n", (int)i, e->param[1] & 0xFF, e->param[0] & 0xFF);
+            fflush(stdout);
+            NvEvt_Create(e->param[0] & 0xFF, e->param[1] & 0xFF);
+        }
+    }
+}
+
 void NvScript_Update(PlayState* play) {
     extern s32 gNvSunSongSeen;
     s32 ticks;
@@ -1055,6 +1130,7 @@ void NvScript_Update(PlayState* play) {
             NvFlags_Op(5, NV_MSF_CAMERA_REDRAW, 0);
             sNvLastCamera = cam;
         }
+        NvAot_WalkIn(play);
         NvScd_Run(sNvMain);
         NvFlags_Op(5, NV_MSF_CAMERA_REDRAW, 1);
         for (i = 0; i < NV_EVT_SLOTS; i++) {
