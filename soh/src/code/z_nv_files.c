@@ -9,6 +9,7 @@
  * the last page or B closes it.
  */
 #include "global.h"
+#include "soh/OTRGlobals.h"
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/resourcebridge.h>
 #include <stdio.h>

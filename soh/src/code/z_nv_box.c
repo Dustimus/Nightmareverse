@@ -12,6 +12,7 @@
  * ITEMBOXN.TIM, plus the status screen's icons and face); the names are our own plain wording.
  */
 #include "global.h"
+#include "soh/OTRGlobals.h"
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/resourcebridge.h>
 #include <stdio.h>

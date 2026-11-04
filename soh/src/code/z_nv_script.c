@@ -47,6 +47,10 @@ const char* NvItems_Name(s32 id);
 void NvItems_Log(void);
 void NvItems_RoomLoad(PlayState* play);
 void NvMovie_Start(s32 id);
+void NvMsg_EnsureHook(void);
+void NvBgm_ScdPlay(s32 ch);
+void NvBgm_ScdStop(s32 ch);
+void NvBgm_ScdState(s32 stage, s32 room, u8 state);
 s32 NvMovie_Playing(void);
 s32 NvDoorScene_Covering(void);
 
@@ -742,7 +746,6 @@ const char* NvMsg_PendingText(void) {
     return sNvMsgText;
 }
 
-void NvMsg_EnsureHook(void);
 
 /**
  * check_action_object (0x0041c150): the action press probes the point 600 units in front of the

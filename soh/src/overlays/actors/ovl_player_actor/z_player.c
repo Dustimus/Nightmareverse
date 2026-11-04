@@ -2501,6 +2501,8 @@ s32 Player_GetItemOnButton(PlayState* play, s32 index) {
  *    - Use an item on the B button or any C button if the corresponding button is pressed
  *    - Keep track of the current item button being held down
  */
+s32 NvWeapon_OwnsCLeft(PlayState* play); // Nightmareverse (z_nv_weapon.c)
+
 void Player_ProcessItemButtons(Player* this, PlayState* play) {
     s32 maskItemAction;
     s32 item;
