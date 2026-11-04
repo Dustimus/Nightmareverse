@@ -117,6 +117,19 @@ typedef struct NvRe1Entity {
         u8 coll;       // it hit a wall this tick
         u8 pathFound;
     } cr;
+    // the greenhouse plant's own
+    struct {
+        s32 dist;      // |dx| + |dz| to the player
+        s16 holdoff;   // ticks before it can strike again
+        s16 timer;     // the drain's beat / the miss count
+        s16 fidget;    // ticks to the next sway
+        s16 alerted;   // 1 until it first struck
+        s16 angleBack; // its own facing, put back after a strike
+        u16 hits;
+        u8 animEnd;
+        u8 holding;    // it holds the player (z_nv_enemy.c grabs Link with OoT's grab)
+        u8 saved[4];   // state, behaviour, step, sub-step before a hit
+    } mp;
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */
@@ -148,6 +161,9 @@ void NvHunter_Init(NvRe1Entity* e);
 void NvHunter_Update(NvRe1Entity* e);
 void NvCrow_Init(NvRe1Entity* e);
 void NvCrow_Update(NvRe1Entity* e);
+void NvPlant_Init(NvRe1Entity* e);
+void NvPlant_Update(NvRe1Entity* e);
+extern s16 gNvRe1Drain; // a plant's drain this tick: RE1's health, no knock back (z_nv_enemy.c)
 extern s16 gNvRe1DogBite;
 extern s32 gNvRe1DogFlinch; // Link is still reeling from a bite (RE1's isBeingAttackedFlag for the dog) // a dog's bite this tick: RE1's damage (z_nv_enemy.c hurts Link)
 

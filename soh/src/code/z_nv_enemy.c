@@ -179,8 +179,13 @@ static s32 NvEnemy_IsCrow(s32 type) {
     return type == 5;
 }
 
+static s32 NvEnemy_IsPlant(s32 type) {
+    return type == 15;
+}
+
 static s32 NvEnemy_Acts(s32 type) {
-    return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type) || NvEnemy_IsHunter(type) || NvEnemy_IsCrow(type);
+    return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type) || NvEnemy_IsHunter(type) || NvEnemy_IsCrow(type) ||
+           NvEnemy_IsPlant(type);
 }
 
 static s32 NvEnemy_IsCorpse(s32 type) {
@@ -553,6 +558,52 @@ static void NvEnemy_DogBite(NvEnemy* this, PlayState* play) {
     fflush(stdout);
 }
 
+/**
+ * A plant holding Link (z_nv_plant.inc): OoT's grab while RE1's hold lasts, at the spot it
+ * pulled him to, and its drain as hearts (the same share of his as of Jill's 96), no knock back.
+ */
+static void NvEnemy_PlantHold(NvEnemy* this, PlayState* play) {
+    static f32 sOwed;
+    Player* player = GET_PLAYER(play);
+    NvRe1Entity* e = &this->e;
+
+    if (gNvRe1Drain > 0) {
+        s32 whole;
+
+        sOwed += gNvRe1Drain * gSaveContext.healthCapacity / NV_RE1_JILL_HEALTH;
+        gNvRe1Drain = 0;
+        whole = (s32)sOwed;
+        if (whole > 0) {
+            sOwed -= whole;
+            play->damagePlayer(play, -whole);
+            Player_PlaySfx(&player->actor, NA_SE_VO_LI_DAMAGE_S + player->ageProperties->unk_92);
+        }
+    }
+    if (e->mp.holding && !this->grabbing) {
+        if (!(player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) && play->grabPlayer(play, player)) {
+            this->grabbing = true;
+            printf("NVENEMY plant grab\n");
+            fflush(stdout);
+        } else {
+            e->mp.holding = 0; // OoT won't hand him over: let go
+        }
+    }
+    if (!this->grabbing) {
+        return;
+    }
+    if (!e->mp.holding) {
+        if (player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) {
+            player->av2.actionVar2 = 101; // let him go
+        }
+        this->grabbing = false;
+        gNvRe1Player.isBeingAttackedFlag = 0;
+        return;
+    }
+    player->av2.actionVar2 = 0; // RE1 decides when it ends (mashing counts there)
+    player->actor.world.pos.x = e->unk_c6 * NV_RE1_SCALE;
+    player->actor.world.pos.z = -e->unk_c8 * NV_RE1_SCALE;
+}
+
 /* ---- the actor ---- */
 
 void NvEnemy_Init(Actor* thisx, PlayState* play) {
@@ -604,6 +655,12 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x3B; // (a Guay's)
         NvRe1_TickBegin();
         NvCrow_Init(e);
+    } else if (NvEnemy_IsPlant(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        thisx->naviEnemyId = 0x2E; // (a Deku Baba's)
+        NvRe1_TickBegin();
+        NvPlant_Init(e);
     } else {
         thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
         e->animationId = 0;
@@ -710,6 +767,15 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvCrow_Update(e);
             NvEnemy_DogBite(this, play); // (its peck)
         }
+    } else if (NvEnemy_IsPlant(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvPlant_Update(e);
+            NvEnemy_DogBite(this, play); // (a lasher's whip)
+            NvEnemy_PlantHold(this, play);
+        }
     } else {
         for (t = 0; t < ticks; t++) {
             NvRe1_JointMove(e, 0, 0x400);
@@ -752,7 +818,7 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
         Collider_UpdateCylinder(thisx, &this->collider);
         CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
         if ((NvEnemy_IsZombie(this->type) && (e->state != NV_ZST_ATTACK)) || NvEnemy_IsDog(this->type) || NvEnemy_IsHunter(this->type) ||
-            NvEnemy_IsCrow(this->type)) {
+            NvEnemy_IsCrow(this->type) || (NvEnemy_IsPlant(this->type) && (e->health >= 0))) {
             CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
