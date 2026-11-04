@@ -9,10 +9,11 @@
  * when she's nearly dead, and, once hurt enough (health under 2800 of its 3050), flee along its
  * escape path out of the room. Hits stagger it; the rematch Yawn can die.
  *
- * Left out, each a note where it would be: the swallow (the grown Yawn's kill of a nearly dead
- * player), its own chained skeleton (RE1 drags each body segment after the head; here the
- * animation plays on the whole body as for the other enemies, and the body doesn't trail through
- * turns), the dust and blood, the death shrink.
+ * The grown Yawn swallows a nearly dead player (under 10 of RE1's health) whole. Its body trails
+ * its head (yw_trail), as RE1's chained skeleton does.
+ *
+ * Left out, each a note where it would be: the player's body hidden piece by piece inside it, the
+ * dust and blood, the death shrink.
  */
 
 #define YW (&E->yw)
@@ -188,6 +189,80 @@ static void yw_bite(void) {
 }
 
 /** Rear up (and, juvenile, grow into the reared form for a while). */
+/**
+ * The swallow: it seizes her in its jaws (holding her at its head), and if she hasn't got clear by
+ * frame 20 swallows her whole; she's dead when it's done. Got clear, it lets her go.
+ */
+static void yw_head_point(void) {
+    s32 x;
+    s32 z;
+
+    RotY(E->angle, 1200, 0, &x, &z); // its jaws, ahead of it
+    E->unk_c6 = (s16)(E->t[0] + x);
+    E->unk_c8 = (s16)(E->t[2] + z);
+}
+
+static void yw_swallow(void) {
+    s32 d = CbAbs(P->t[0] - E->t[0]) + CbAbs(P->t[2] - E->t[2]);
+
+    switch (E->action_state) {
+        case 0:
+            E->action_state = 1;
+            yw_anim(0x0E, 7);
+            YW->bites++;
+            E->status_flags |= 2;
+            P->isBeingAttackedFlag = 1;
+            YW->swallowCool = 0x1E;
+            // fallthrough
+        case 1:
+            Joint_move(0, 0x200);
+            E->move_speed_current = (d < 0x9C4) ? 0 : 0xA0;
+            entity_rotate_toward_target(P->t[0], P->t[2], 0x30);
+            if (E->animation_frame_id == 10) {
+                Snd_em(3);
+                yw_head_point();
+                E->holding = 1;
+            }
+            if (E->holding) {
+                yw_head_point();
+            }
+            if (E->animation_frame_id == 0x14) {
+                if (!E->holding && (d > 2000)) { // she got clear
+                    P->isBeingAttackedFlag = 0;
+                    E->status_flags &= ~2;
+                    yw_decide_again();
+                    break;
+                }
+                E->holding = 1;
+                E->action_state = 3;
+            }
+            Add_speedXZ(0);
+            break;
+        case 3: // swallowing
+            yw_head_point();
+            E->action_state += (u8)Joint_move(0, 0x200);
+            if (E->animation_frame_id == 0x43) {
+                Snd_em(6);
+            }
+            if (E->animation_frame_id == 0x4A) {
+                Snd_em(7);
+                Snd_em(4);
+            }
+            break;
+        case 4: // gone: she's dead, it rears back
+            gNvRe1Kill = 1;
+            E->action_state = 5;
+            yw_anim(4, 7);
+            E->move_speed_current = 0;
+            // fallthrough
+        default:
+            if (E->action_state == 5) {
+                E->action_state += (u8)Joint_move(1, 0x200);
+            }
+            break;
+    }
+}
+
 static void yw_rear(void) {
     switch (E->action_state) {
         case 0:
@@ -431,22 +506,30 @@ static void yw_decide(void) {
     s32 d = CbAbs(P->t[0] - E->t[0]) + CbAbs(P->t[2] - E->t[2]);
     s32 scripted = (E->behavior_flags & 7) >= 4;
     s32 seen;
-    s32 hurtPlayer = 0; // (RE1's player under 10 health: Link's health isn't RE1's, so never)
+    s32 hurtPlayer = (P->health < 10); // (RE1's player under 10 of Jill's 96)
 
     entity_rotate_toward_target(P->t[0], P->t[2], 0x30);
     if ((P->isBeingAttackedFlag == 0) && !gNvRe1DogFlinch) {
         seen = !check_line_of_sight(P->t[0], P->t[2]);
-        if (seen && (d < 2000)) {
+        // the bite only on a player with more than 9 left (nearly dead, it's the swallow or a rear-up)
+        if (seen && (d < 2000) && (P->health > 9)) {
             E->ignore_player_flag = 1;
             yw_act(2);
         }
-        if (seen && (d < (s32)((YW->form * 5 + 0x19) * 200)) && (turn_toward_target(P->t[0], P->t[2], 0x200) == 0)) {
+        if (seen && (d < (s32)((YW->form * 5 + 0x19) * 200)) && (P->health > 9) &&
+            (turn_toward_target(P->t[0], P->t[2], 0x200) == 0)) {
             E->ignore_player_flag = 1;
             yw_act(2);
         }
         if ((d < 7000) && (YW->bites > 4)) {
             E->ignore_player_flag = 1;
             yw_act(3);
+        }
+        // the grown one, lined up close on a player nearly dead: the swallow
+        if ((d < 4000) && YW->form && seen && (turn_toward_target(P->t[0], P->t[2], 0x40) == 0) && hurtPlayer &&
+            (YW->swallowCool == 0)) {
+            E->ignore_player_flag = 1;
+            yw_act(4);
         }
         if (hurtPlayer && (YW->form == 0)) {
             YW->nearlyDead = 1;
@@ -498,8 +581,10 @@ static void yw_run_action(void) {
         case 8:
             yw_reposition();
             break;
-        default: // 4, the swallow: see the top
-            yw_decide_again();
+        case 4:
+            yw_swallow();
+            break;
+        default:
             break;
     }
 }
@@ -719,6 +804,9 @@ void NvYawn_Update(NvRe1Entity* e) {
             YW->saved[3] = E->action_state;
             if (YW->hiss != 0) {
                 YW->hiss--;
+            }
+            if (YW->swallowCool != 0) {
+                YW->swallowCool--;
             }
             break;
         case 2: // (hit_state stays set through the stagger: no new hits land until it ends)

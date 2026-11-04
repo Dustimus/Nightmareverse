@@ -8,8 +8,9 @@
  * found him, the claw swipe up close, and the leaping swipe from further off. A hit staggers it
  * (two quick hits make it side-step away); death is its fall and last howl.
  *
- * Left out, each a note where it would be: the decapitation (RE1's leap and grab on a badly hurt
- * player: Link's health isn't RE1's, so its gate never opens), pairs hunting together (a lone
+ * The hard kinds (variants 2 and 7) also roll RE1's decapitation leap on a hurt player.
+ *
+ * Left out, each a note where it would be: pairs hunting together (a lone
  * Hunter acts as one whose partner is gone, as RE1's does), the scripted intros and formation
  * jumps (behaviour flags 0x08 and 0x40: held, as the dogs are, until their script lets them go),
  * blood and joint tints.
@@ -20,6 +21,10 @@
 static const s16 sHnScaA[8] = { (s16)0x8000, 0, -180, 0, 180, 900, 0, 0 };
 static const s16 sHnScaB[8] = { (s16)0x8000, 0, -180, 0, 180, 500, 0, 0 }; // flag 0x20
 static const u8 sHnHealth[16] = { 95, 95, 95, 95, 79, 95, 79, 111, 95, 95, 79, 95, 95, 79, 95, 95 };
+// the decapitation leap's roll, by the Hunter's own health (under 40, then under 79: checked in
+// that order, the later one winning), when the player is under Jill's gate (105)
+static const u8 sHnPounceLow[16] = { 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1 };
+static const u8 sHnPounceMid[16] = { 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1 };
 
 enum { HN_IDLE, HN_CHASE, HN_APPROACH, HN_NONE, HN_SWIPE, HN_POUNCE, HN_JUMP, HN_HOLD, HN_FORM, HN_HOWL,
        HN_BACKSTEP, HN_INTRO };
@@ -83,6 +88,37 @@ static void hn_decide(void) {
             E->behavior_flags -= 4;
         }
         return;
+    }
+    // the hard kinds (2, 7) roll the decapitation leap on a hurt player: lined up within 6400
+    if ((variant == 2) || (variant == 7)) {
+        HN->pounce = 0;
+        if ((P->health < 105) && (P->health > 0)) {
+            if (E->health < 0x28) {
+                HN->pounce = sHnPounceLow[CbRand() & 0xF];
+            }
+            if (E->health < 0x4F) {
+                HN->pounce = sHnPounceMid[CbRand() & 0xF];
+            }
+            if ((P->health > 0xF) && ((d < 0x157C) || (P->isBeingAttackedFlag != 0))) {
+                HN->pounce = 0;
+            }
+        }
+        if (HN->repause != 0) {
+            HN->pounce = 0;
+        }
+        if (HN->pounce && (turn_toward_target(P->t[0], P->t[2], 0x2C8) == 0) && (d < 0x1900)) {
+            s32 x;
+            s32 z;
+            s32 yaw = (CbRand() & 1) * 300 - 0x96; // a little to one side of her
+
+            RotY(yaw, P->t[0] - E->t[0], P->t[2] - E->t[2], &x, &z);
+            HN->jointSel = (u8)(((yaw + 0x96) / 100) + 6);
+            HN->targetX = (s16)(E->t[0] + x);
+            HN->targetZ = (s16)(E->t[2] + z);
+            E->angle += (s16)(HN->jointSel * -0x14 + 0x98);
+            hn_do(HN_POUNCE);
+            return;
+        }
     }
     // once the path finder has reached the player, close in slowly (6000 for the hard kinds)
     if ((HN->pathFound != 0) && (d < ((variant == 0) ? 4000 : 6000))) {
@@ -198,7 +234,7 @@ static void hn_swipe(void) {
         case 1:
             if (!Joint_move(0, 0x200)) {
                 if (((u8)(E->animation_frame_id - 4) < 8) && (P->isBeingAttackedFlag == 0) && !gNvRe1DogFlinch &&
-                    hn_reaches(700 + hn_lunge(), 800)) {
+                    hn_reaches(1400 + hn_lunge(), 800)) { // (RE1 tests its hand joint: the arm's length ahead)
                     hn_claw(10, 5);
                     E->action_state = 2;
                 }
@@ -299,6 +335,98 @@ static void hn_jump(void) {
     }
 }
 
+/**
+ * The decapitation leap: a crouch, the spring at its point past her, the bite on frames 7-14 (700
+ * around its mouth, ahead of it). Caught, she's held (behaviour 7) and the hold ends in the kill.
+ */
+static void hn_pounce(void) {
+    HN->pounce = 0;
+    switch (E->action_state) {
+        case 0:
+            E->action_state = 1;
+            hn_anim((u8)(0x12 - HN->jointSel), 7);
+            E->move_speed_current = 300;
+            Snd_em(2);
+            break;
+        case 1:
+            if ((P->health > 0) && ((u8)(E->animation_frame_id - 7) < 8) && hn_reaches(900, 700)) {
+                P->isBeingAttackedFlag = 1;
+                E->action_state = 3;
+                HN->ticks = 4;
+                snap_player_to_grab_position();
+                E->holding = 1;
+                Snd_em(5);
+                break;
+            }
+            E->action_state += (u8)Joint_move(0, 0x200);
+            break;
+        case 2: // missed: run again
+            E->state = 1;
+            E->ignore_player_flag = 0;
+            E->action_behavior = HN_CHASE;
+            E->action_state = 0;
+            HN->jointSel = 0;
+            return;
+        case 3: // dragging her down
+            E->action_state += (u8)Joint_move(0, 0x400);
+            snap_player_to_grab_position();
+            return;
+        default:
+            E->action_behavior = HN_HOLD;
+            E->action_state = 0;
+            return;
+    }
+    if (E->animation_frame_id < 0x17) {
+        E->angle += (s16)turn_toward_target(HN->targetX, HN->targetZ, 0x18);
+        Add_speedXZ(0);
+    } else if (E->animation_frame_id < 0x1F) {
+        E->move_speed_current = 0x32;
+        Add_speedXZ(0x800);
+    }
+}
+
+/** Holding her: bite down, hold, the shake (the kill), then let go and run again. */
+static void hn_hold(void) {
+    switch (E->action_state) {
+        case 0:
+            E->action_state = 1;
+            E->animation_frame_id = 0;
+            E->timing_control = 0;
+            E->blend_counter = 7;
+            E->animationId++;
+            E->move_speed_current = 0;
+            // fallthrough
+        case 1:
+            E->action_state += (u8)Joint_move(0, 0x200);
+            snap_player_to_grab_position();
+            break;
+        case 2:
+            E->action_state = 3;
+            E->animation_frame_id = 0;
+            E->timing_control = 0;
+            E->animationId++;
+            HN->ticks = 5;
+            gNvRe1Kill = 1; // the decapitation
+            Snd_em(5);
+            // fallthrough
+        case 3:
+            HN->ticks -= (s16)Joint_move(0, 0x400);
+            if (HN->ticks == 0) {
+                E->action_state = 4;
+            }
+            snap_player_to_grab_position();
+            break;
+        default:
+            E->holding = 0;
+            P->isBeingAttackedFlag = 0;
+            E->state = 1;
+            E->ignore_player_flag = 0;
+            E->action_behavior = HN_CHASE;
+            E->action_state = 0;
+            break;
+    }
+}
+
 /** Side-step away after two quick hits, then run again. */
 static void hn_backstep(void) {
     if (E->action_state == 0) {
@@ -341,7 +469,13 @@ static void hn_behave(void) {
         case HN_BACKSTEP:
             hn_backstep();
             break;
-        default: // the pounce and its hold, the formation jump, the howl, the intro: see the top
+        case HN_POUNCE:
+            hn_pounce();
+            break;
+        case HN_HOLD:
+            hn_hold();
+            break;
+        default: // the formation jump, the howl, the intro: see the top
             E->ignore_player_flag = 0;
             E->action_behavior = HN_CHASE;
             E->action_state = 0;
@@ -461,6 +595,9 @@ void NvHunter_Init(NvRe1Entity* e) {
     E->hit_state = 0;
     memset(&E->hn, 0, sizeof(E->hn));
     E->health = sHnHealth[CbRand() & 0xF];
+    if (getenv("NV_HUNTER_HEALTH") != NULL) { // dev: a hurt Hunter (its pounce rolls under 79)
+        E->health = (s16)atoi(getenv("NV_HUNTER_HEALTH"));
+    }
     E->sca = (E->behavior_flags & 0x20) ? sHnScaB : sHnScaA;
     if ((E->behavior_flags & 0xF) < 2) {
         E->behavior_flags = (E->behavior_flags & 0xF0) | 2; // no partner here: hunts alone

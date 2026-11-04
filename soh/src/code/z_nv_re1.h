@@ -105,6 +105,10 @@ typedef struct NvRe1Entity {
         u8 hitTimer;
         u8 approach;    // ticks into the slow approach
         u8 repause;
+        u8 pounce;      // the decapitation leap is rolled (a hurt player within reach)
+        u8 jointSel;    // which side it leaps from (6 or 9: the crouch animation 0x12 - it)
+        s16 targetX;    // the point past the player it leaps at
+        s16 targetZ;
     } hn;
     // the crow's own
     struct {
@@ -144,6 +148,7 @@ typedef struct NvRe1Entity {
         u8 nearlyDead; // the player is nearly dead: rear up
         u8 stuck;     // ticks against walls (150 send it elsewhere)
         u8 hiss;
+        u8 swallowCool; // ticks before it may try the swallow again
         u8 saved[4];  // state, flag, behaviour, step before a hit
         s16 heading[64]; // its facing, tick by tick (the body follows where the head went)
         u8 headingAt;
