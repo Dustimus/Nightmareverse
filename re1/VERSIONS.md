@@ -78,3 +78,18 @@ From the decomp's `docs/SATURN_VERSION_ANALYSIS.md` (checked) and the disc itsel
   slightly differently. Checked: its music is a sound-driver format of its own (the decomp's
   `tools/saturn_snd.py` renders it).
 - Platform matters (reported): saves, loading, door timing, video, transparency. Nothing to bring.
+
+## Japanese Saturn (Bio Hazard)
+
+- The same Saturn additions as the USA disc (the Tick, the second Tyrant, the Battle Game,
+  Zombie Wesker, the Golden Tyrant, its outfits and models) (reported). The user's copy is the
+  USA one, which has all of them.
+- Japanese text, uncut movies, more gore and longer-lasting dismemberment (reported).
+- A rotating "BIO HAZARD" logo on the Battle Game's results screen, drawn only by the Japanese
+  disc (checked: the decomp's `tools/saturn_ranking_logo.py`).
+- Its own Battle Game questions for the wardrobe (checked: `tools/saturn_wardrobe_rdt.py --jpn`).
+
+## Japanese Dual Shock bonus disc
+
+- Japanese voice recordings for the game's scenes that were never used (reported). Interesting
+  for later, alongside the voice acting the user wants for the cutscenes.
