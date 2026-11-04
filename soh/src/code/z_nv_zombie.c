@@ -2802,3 +2802,6 @@ void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId) {
 
 /* the Hunter */
 #include "z_nv_hunter.inc"
+
+/* the crows */
+#include "z_nv_crow.inc"

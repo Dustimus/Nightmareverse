@@ -104,6 +104,19 @@ typedef struct NvRe1Entity {
         u8 approach;    // ticks into the slow approach
         u8 repause;
     } hn;
+    // the crow's own
+    struct {
+        s16 vy;        // climb or sink speed
+        s16 lowLimit;  // the altitudes it turns at (RE1's y: negative is up)
+        s16 highLimit;
+        s16 turnRate;
+        s16 altBias;   // -400 for the low-flying kind (behaviour bit 0)
+        u16 dist;      // |dx| + |dz| to the player
+        u16 stuck;     // ticks against a wall
+        u8 touch;      // it bumped into the player this tick
+        u8 coll;       // it hit a wall this tick
+        u8 pathFound;
+    } cr;
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */
@@ -133,6 +146,8 @@ void NvCerberus_Init(NvRe1Entity* e);
 void NvCerberus_Update(NvRe1Entity* e);
 void NvHunter_Init(NvRe1Entity* e);
 void NvHunter_Update(NvRe1Entity* e);
+void NvCrow_Init(NvRe1Entity* e);
+void NvCrow_Update(NvRe1Entity* e);
 extern s16 gNvRe1DogBite;
 extern s32 gNvRe1DogFlinch; // Link is still reeling from a bite (RE1's isBeingAttackedFlag for the dog) // a dog's bite this tick: RE1's damage (z_nv_enemy.c hurts Link)
 

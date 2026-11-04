@@ -175,8 +175,12 @@ static s32 NvEnemy_IsHunter(s32 type) {
     return type == 6;
 }
 
+static s32 NvEnemy_IsCrow(s32 type) {
+    return type == 5;
+}
+
 static s32 NvEnemy_Acts(s32 type) {
-    return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type) || NvEnemy_IsHunter(type);
+    return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type) || NvEnemy_IsHunter(type) || NvEnemy_IsCrow(type);
 }
 
 static s32 NvEnemy_IsCorpse(s32 type) {
@@ -333,6 +337,12 @@ static void NvEnemy_PlayerToRe1(PlayState* play) {
     p->health = (gSaveContext.health > 0) ? 0x7FFF : -1;
     p->attackTimer = (player->meleeWeaponState != 0) ? 1 : 0;
     gNvRe1DogFlinch = play->gameplayFrames < sNvDogFlinchUntil;
+    {
+        s32 NvWeapon_Holding(void);
+
+        // aiming a gun (z_nv_weapon.c): RE1's player behaviour 0x14, which its enemies watch for
+        p->flags = (p->flags & ~0xE0) | (NvWeapon_Holding() ? 0x20 : 0);
+    }
     p->speed = (s16)((player->actor.speedXZ >= 5.0f) ? 230 : (player->actor.speedXZ / NV_RE1_SCALE * 2.0f / 3.0f));
     p->padHeld = 0;
     if ((ABS(input->rel.stick_x) > 30) || (ABS(input->rel.stick_y) > 30)) {
@@ -588,6 +598,12 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x22; // (a Lizalfos's)
         NvRe1_TickBegin();
         NvHunter_Init(e);
+    } else if (NvEnemy_IsCrow(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        thisx->naviEnemyId = 0x3B; // (a Guay's)
+        NvRe1_TickBegin();
+        NvCrow_Init(e);
     } else {
         thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
         e->animationId = 0;
@@ -686,15 +702,23 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvHunter_Update(e);
             NvEnemy_DogBite(this, play); // (its claws: the same hurt and knock back)
         }
+    } else if (NvEnemy_IsCrow(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvCrow_Update(e);
+            NvEnemy_DogBite(this, play); // (its peck)
+        }
     } else {
         for (t = 0; t < ticks; t++) {
             NvRe1_JointMove(e, 0, 0x400);
         }
     }
     if (getenv("NV_LOG") && ((play->gameplayFrames % 20) == 0)) {
-        printf("NVENEMY f=%d state %d %d/%d/%d anim %d.%d.%d at %d,%d angle %d health %d hit 0x%02x\n",
+        printf("NVENEMY f=%d state %d %d/%d/%d anim %d.%d.%d at %d,%d,%d angle %d health %d hit 0x%02x\n",
                (int)play->gameplayFrames, e->state, e->ignore_player_flag, e->action_behavior, e->action_state,
-               e->animationId, e->animation_frame_id, e->timing_control, (int)e->t[0], (int)e->t[2], e->angle, e->health, e->hit_state);
+               e->animationId, e->animation_frame_id, e->timing_control, (int)e->t[0], (int)e->t[1], (int)e->t[2], e->angle, e->health, e->hit_state);
         fflush(stdout);
     }
 
@@ -727,7 +751,8 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
     if ((alive || (!NvEnemy_Acts(this->type) && !NvEnemy_Parked(e))) && (thisx != sNvEnemySlots[15])) { // (15: the dev test one)
         Collider_UpdateCylinder(thisx, &this->collider);
         CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
-        if ((NvEnemy_IsZombie(this->type) && (e->state != NV_ZST_ATTACK)) || NvEnemy_IsDog(this->type) || NvEnemy_IsHunter(this->type)) {
+        if ((NvEnemy_IsZombie(this->type) && (e->state != NV_ZST_ATTACK)) || NvEnemy_IsDog(this->type) || NvEnemy_IsHunter(this->type) ||
+            NvEnemy_IsCrow(this->type)) {
             CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
         }
     }
