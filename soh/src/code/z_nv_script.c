@@ -834,6 +834,7 @@ s32 NvAot_DoAction(PlayState* play, Player* player) {
         case 4:    // an item
         case 0x0F: // a map
         case 0x0D: // a document
+        case 9:    // a room event (something to look at that sets one off)
             return DO_ACTION_CHECK;
         case 8: // the item box
             return DO_ACTION_OPEN;
@@ -907,6 +908,12 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         fflush(stdout);
         NvMsg_EnsureHook();
         Message_StartTextbox(play, NV_TEXT_ID, NULL);
+        return true;
+    }
+    if (sNvAot[i].handler == 9) { // create_room_event: the entry's event (70C's rematch, 210's hole)
+        printf("NVEVT spot %d: event %d in slot %d\n", (int)i, sNvAot[i].param[1] & 0xFF, sNvAot[i].param[0] & 0xFF);
+        fflush(stdout);
+        NvEvt_Create(sNvAot[i].param[0] & 0xFF, sNvAot[i].param[1] & 0xFF);
         return true;
     }
     if (sNvAot[i].handler == 8) { // the item box: open_itembox (its lid: the entry's +4, param 1)
@@ -1136,6 +1143,21 @@ void NvScript_Update(PlayState* play) {
             sNvLastCamera = cam;
         }
         NvAot_WalkIn(play);
+        {
+            // dev: NV_EVT_AT="slot,script,frame" starts that event once (as its room action would)
+            static s32 sEvtDone;
+            int es;
+            int en;
+            int ef;
+
+            if (!sEvtDone && (getenv("NV_EVT_AT") != NULL) &&
+                (sscanf(getenv("NV_EVT_AT"), "%d,%d,%d", &es, &en, &ef) == 3) && (play->gameplayFrames >= (u32)ef)) {
+                sEvtDone = true;
+                printf("NVEVT dev: event %d in slot %d\n", en, es);
+                fflush(stdout);
+                NvEvt_Create(es, en);
+            }
+        }
         NvScd_Run(sNvMain);
         NvFlags_Op(5, NV_MSF_CAMERA_REDRAW, 1);
         for (i = 0; i < NV_EVT_SLOTS; i++) {
