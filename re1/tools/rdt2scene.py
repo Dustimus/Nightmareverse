@@ -1097,7 +1097,7 @@ def load_rdt(stage, room_id, player):
     raise SystemExit("no RDT for room %s" % room_id)
 
 
-def _pack_soh(folder, re1, anims):
+def _pack_soh(folder, re1, anims, jpn=None):
     import soh_doors
     import soh_scene
     import soh_enemy
@@ -1108,7 +1108,7 @@ def _pack_soh(folder, re1, anims):
     import soh_weapons
     print("soh: item icons %d" % soh_ui.write_icons(re1, folder))
     print("soh: status sprites %d" % soh_ui.write_status(re1, folder))
-    print("soh: files %d" % soh_ui.write_files(re1, folder))
+    print("soh: files %d%s" % (soh_ui.write_files(re1, folder, jpn), " (with the Japanese backdrops)" if jpn else ""))
     print("soh: sheets %d" % soh_ui.write_sheets(re1, folder))
     print("soh: weapons %s" % soh_weapons.write(re1, folder))
     import soh_sound
@@ -1120,6 +1120,8 @@ def _pack_soh(folder, re1, anims):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--stage", required=True, help="RE1 JPN directory (or one of its STAGEn directories)")
+    ap.add_argument("--jpn", default=None, help="the Japanese PC release's data folder (optional): its file "
+                    "backdrops go behind the files' pages")
     ap.add_argument("--exe", default=None, help="RE1's PC executable (Bio.exe / the GOG one): its per-camera "
                     "mask depth corrections (re1_masks.py); without it those 29 cameras sort uncorrected")
     ap.add_argument("--soh", default=None, help="also write each room as Ship of Harkinian resources into this folder "
@@ -1604,7 +1606,7 @@ def main():
         base = os.path.dirname(a.stage.rstrip("/")) if os.path.basename(a.stage.rstrip("/")).upper().startswith(
             "STAGE") else a.stage
         _pack_soh(a.soh, base, [d.anim for rid, _, room in rooms for di, d in enumerate(room.doors)
-                                if (rid, di) in arrivals])
+                                if (rid, di) in arrivals], a.jpn)
 
 
 if __name__ == "__main__":

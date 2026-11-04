@@ -162,8 +162,43 @@ def file_blob(re1, n):
     return bytes(out)
 
 
-def write_files(re1, out):
-    """Write each file's pages; returns how many files (0 when the files aren't there)."""
+# The Japanese PC release's file backdrops (Biohazard.exe's reader: the decomp's MainMenu.cpp,
+# jpn_file_screen_render): a scanned-paper picture behind each file's pages. Its 14 sheets, and
+# which one each of the 16 files shows (0x004af1d8)
+FILEI_NAMES = ["filei%02d.tim" % n for n in (3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17)]
+FILEI_FOR_FILE = [1, 0, 2, 3, 8, 12, 3, 5, 7, 0, 4, 11, 6, 9, 10, 13]
+# a sheet is 256x120: the picture's top 208x120 on the left, and its bottom strip cut into the
+# right-hand column (0x004af478: four 48x24 slices and one 16x24, one under the other); put
+# together, a 208x144 picture the reader draws at (48, 48)
+BACKDROP_W, BACKDROP_H = 208, 144
+_BACKDROP_STRIP = [(208, 0, 48), (208, 24, 48), (208, 48, 48), (208, 72, 48), (208, 96, 16)]
+
+
+def backdrop_blob(jpn, n):
+    """File n's Japanese backdrop: "RFIB", u16 width, height, then RGBA5551 (big-endian)."""
+    sheet = open(rdt.find_file(rdt.find_file(jpn, "ITEM_M2"), FILEI_NAMES[FILEI_FOR_FILE[n]]), "rb").read()
+    w, h, rgba = emd.tim_to_rgba(emd.parse_tim(sheet, 0))
+
+    def px(x, y):
+        k = (y * w + x) * 4
+        return rgba[k:k + 4] if (0 <= x < w and 0 <= y < h) else b"\0\0\0\0"
+
+    out = bytearray(b"RFIB" + struct.pack("<2H", BACKDROP_W, BACKDROP_H))
+    for y in range(BACKDROP_H):
+        for x in range(BACKDROP_W):
+            if y < 120:
+                c = px(x, y)
+            else:
+                k, sx = min(x // 48, 4), x % 48
+                ux, uy, uw = _BACKDROP_STRIP[k]
+                c = px(ux + sx, uy + (y - 120)) if sx < uw else b"\0\0\0\0"
+            out += struct.pack(">H", _rgba5551(c))
+    return bytes(out)
+
+
+def write_files(re1, out, jpn=None):
+    """Write each file's pages (and, given the Japanese PC release's folder, each file's backdrop);
+    returns how many files (0 when the files aren't there)."""
     d = os.path.join(out, "re1", "ui")
     done = 0
     for n in range(len(FILE_PIX)):
@@ -175,6 +210,13 @@ def write_files(re1, out):
         open(os.path.join(d, "file%d" % n), "wb").write(
             soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
         done += 1
+        if jpn:
+            try:
+                blob = backdrop_blob(jpn, n)
+            except (OSError, IndexError, ValueError):
+                continue
+            open(os.path.join(d, "fileb%d" % n), "wb").write(
+                soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
     return done
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Make the RE1 mod for Ship of Harkinian from your own RE1 PC files, in one go.
 
-    python re1/tools/make_mod.py <RE1 data folder> <output .o2r> [<RE1 executable>]
+    python re1/tools/make_mod.py <RE1 data folder> <output .o2r> [<RE1 executable>] [--jpn <JPN folder>]
 
 The RE1 data folder is the one holding Stage1..Stage7 (and Item_m1): "USA" in the GOG release,
 "JPN" in the Japanese PC one. Put the .o2r in SoH's "mods" folder. The executable (optional, the
@@ -41,6 +41,11 @@ def rooms(re1):
 
 
 def main():
+    jpn = None
+    if "--jpn" in sys.argv: # the Japanese PC release's folder: its file backdrops (optional)
+        k = sys.argv.index("--jpn")
+        jpn = sys.argv[k + 1]
+        del sys.argv[k:k + 2]
     if len(sys.argv) not in (3, 4):
         sys.exit(__doc__)
     re1, target = sys.argv[1], sys.argv[2]
@@ -63,6 +68,8 @@ def main():
                 "--spawn", FIRST_SPAWN, "--out", os.path.join(work, "n64"), "--soh", soh]
         if exe:
             args += ["--exe", exe]
+        if jpn:
+            args += ["--jpn", jpn]
         for r in ids:
             args += ["--room", "%s:re1_%s" % (r, r.lower())]
         print("converting %d rooms (a few minutes)..." % len(ids))

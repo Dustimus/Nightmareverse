@@ -24,6 +24,10 @@ static u8 sNvFiles[NV_FILES_MAX];
 static s32 sNvFileCount;
 
 static const u8* sNvReadPages; // the open file's "RFIL" blob, or NULL
+// its backdrop from the Japanese PC release ("RFIB", re1/tools/soh_ui.py backdrop_blob: u16 width,
+// height, then RGBA5551), or NULL: a scanned paper picture behind the pages, as the Japanese
+// reader shows (Biohazard.exe's jpn_file_screen_render), only when the converter was given it
+static const u8* sNvReadBackdrop;
 static s32 sNvReadPage;
 static s8 sNvReadHeld;
 static s8 sNvReadAlone; // a document just taken: read on its own screen, the room held
@@ -77,6 +81,14 @@ static s32 NvFiles_OpenNumber(s32 n) {
     sNvReadPages = d;
     sNvReadPage = 0;
     sNvReadHeld = 0;
+    sNvReadBackdrop = NULL;
+    snprintf(path, sizeof(path), "re1/ui/fileb%d", (int)n);
+    if (ResourceMgr_FileExists(path)) {
+        d = (const u8*)ResourceGetDataByName(path);
+        if ((d != NULL) && (memcmp(d, "RFIB", 4) == 0)) {
+            sNvReadBackdrop = d;
+        }
+    }
     return true;
 }
 
@@ -181,6 +193,27 @@ Gfx* NvFiles_Draw(Gfx* gfx) {
     gDPSetTexturePersp(gfx++, G_TP_NONE);
     gDPSetTextureFilter(gfx++, G_TF_POINT);
     gDPSetTextureLUT(gfx++, G_TT_NONE);
+    // the Japanese backdrop, behind the page, where its reader puts it (48, 48)
+    if (sNvReadBackdrop != NULL) {
+        u16 bw;
+        u16 bh;
+        const u16* bp = (const u16*)(sNvReadBackdrop + 8);
+        s32 bs;
+        s32 by;
+
+        memcpy(&bw, sNvReadBackdrop + 4, 2);
+        memcpy(&bh, sNvReadBackdrop + 6, 2);
+        bs = MAX(1, 2048 / bw);
+        for (by = 0; by < bh; by += bs) {
+            s32 rows = MIN(bs, bh - by);
+
+            gDPLoadTextureBlock(gfx++, bp + by * bw, G_IM_FMT_RGBA, G_IM_SIZ_16b, bw, rows, 0,
+                                G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
+                                G_TX_NOLOD, G_TX_NOLOD);
+            gSPTextureRectangle(gfx++, 48 << 2, (48 + by) << 2, (48 + bw) << 2, (48 + by + rows) << 2,
+                                G_TX_RENDERTILE, 0, 0, 1 << 10, 1 << 10);
+        }
+    }
     // RE1's pages are 256 tall: the screen shows the middle 240
     for (y = MAX(0, (h - SCREEN_HEIGHT) / 2); y < MIN(h, (h + SCREEN_HEIGHT) / 2); y += strip) {
         s32 rows = MIN(strip, MIN(h, (h + SCREEN_HEIGHT) / 2) - y);
