@@ -125,6 +125,10 @@ the user's DS copy, and the decomp doesn't cover it.
   playable characters: Barry, Rebecca, Wesker, Forest, Kenneth, Richard, Enrico. A possible
   source of models for the cast, or bonus play.
 - The map always on screen, ammo and health shown without the menu.
+- **An extra mansion room** (from the user): the Closet, a room the 2002 remake added, backported
+  into Deadly Silence (https://residentevil.fandom.com/wiki/Spencer_Mansion/Closet). The one new
+  room in any version of the original game. Details (where it connects, what's in it) to fill in
+  from the DS data or the page.
 
 ## Japanese Dual Shock bonus disc
 
