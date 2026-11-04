@@ -122,3 +122,10 @@ here is agreed or scheduled.
 - The same goes for other games, if the larger project takes in more of them: their enemies
   mixed into OoT's dungeons (or each other's rooms) as a remix mode, separate from the faithful
   playthrough.
+
+## Costumes on Link (from the user, 2026-11-04)
+
+- Look at the other releases' outfits (PS1, Director's Cut, Saturn: re1/VERSIONS.md) for how
+  well they'd suit Link: as tunic colours, or further.
+- Maybe: Link's head on an RE1 character's body (or the other way round) for the costumes. A
+  headache (the skeletons and proportions differ), so a maybe.
