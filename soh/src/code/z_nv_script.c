@@ -963,8 +963,48 @@ void NvBgm_ScdPlay(s32 ch);
 void NvBgm_ScdStop(s32 ch);
 void NvBgm_ScdState(s32 stage, s32 room, u8 state);
 
+/*
+ * The way in (a placeholder): Nocturne of Shadow warps into the foyer instead of the graveyard,
+ * until the mansion has a song of its own. The first time, RE1's opening movie plays on the way
+ * in (then the foyer's own opening scene, from its scripts); after that it's just the warp.
+ * "Seen it" is a save flag (an event flag OoT and the randomizer leave unused).
+ */
+#define NV_WARP_SONG OCARINA_SONG_NOCTURNE
+#define NV_WARP_SEEN_INDEX (0xD5 >> 4)
+#define NV_WARP_SEEN_MASK (1 << (0xD5 & 15))
+
+s16 NvDoor_Entrance(const char* sceneFile, s32 spawn);
+static s32 sNvWarpIn; // a warp song into the mansion is on its way
+
+s16 NvWarp_SongEntrance(s32 song, s16 entrance) {
+    s16 foyer;
+
+    if (song != NV_WARP_SONG) {
+        return entrance;
+    }
+    foyer = NvDoor_Entrance("re1_106_scene", 0);
+    if (foyer < 0) { // no mansion in the mod files: the song does what it always did
+        return entrance;
+    }
+    sNvWarpIn = true;
+    return foyer;
+}
+
+static void NvWarp_Arrive(PlayState* play) {
+    if (!sNvWarpIn) {
+        return;
+    }
+    sNvWarpIn = false;
+    if ((play->sceneNum != SCENE_RE1_106) || (gSaveContext.eventChkInf[NV_WARP_SEEN_INDEX] & NV_WARP_SEEN_MASK)) {
+        return;
+    }
+    gSaveContext.eventChkInf[NV_WARP_SEEN_INDEX] |= NV_WARP_SEEN_MASK;
+    NvMovie_Start(0); // RE1's opening
+}
+
 void NvScript_RoomInit(PlayState* play) {
     NvFlags_NewGame();
+    NvWarp_Arrive(play);
     if (play->sceneNum < SCENE_RE1_100) {
         NvBgm_Leave(); // out of the mansion: RE1's sounds stop
     }

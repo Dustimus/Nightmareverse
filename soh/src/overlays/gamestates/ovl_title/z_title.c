@@ -150,7 +150,11 @@ static s32 Title_NvDevBoot(TitleContext* this) {
         fclose(f);
         entr = sLine;
     }
-    if ((entr[0] >= '0') && (entr[0] <= '9')) {
+    if (strcmp(entr, "warp") == 0) { // as the mansion's warp song arrives (z_nv_script.c)
+        s16 NvWarp_SongEntrance(s32 song, s16 entrance);
+
+        entrance = NvWarp_SongEntrance(OCARINA_SONG_NOCTURNE, -1);
+    } else if ((entr[0] >= '0') && (entr[0] <= '9')) {
         entrance = (s32)strtol(entr, NULL, 0);
     } else {
         char scene[80];

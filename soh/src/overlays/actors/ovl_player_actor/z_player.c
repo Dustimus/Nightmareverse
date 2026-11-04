@@ -14208,6 +14208,8 @@ static s16 sWarpSongEntrances[] = {
     ENTR_TEMPLE_OF_TIME_WARP_PAD,
 };
 
+s16 NvWarp_SongEntrance(s32 song, s16 entrance); // Nightmareverse (z_nv_script.c)
+
 void Player_Action_8084E3C4(Player* this, PlayState* play) {
     if (LinkAnimation_Update(play, &this->skelAnime)) {
         Player_AnimPlayLoopAdjusted(play, this, &gPlayerAnim_link_normal_okarina_swing);
@@ -14241,7 +14243,8 @@ void Player_Action_8084E3C4(Player* this, PlayState* play) {
             ~(PLAYER_STATE2_NEAR_OCARINA_ACTOR | PLAYER_STATE2_ATTEMPT_PLAY_FOR_ACTOR | PLAYER_STATE2_PLAY_FOR_ACTOR);
         this->unk_6A8 = NULL;
     } else if (play->msgCtx.ocarinaMode == OCARINA_MODE_02) {
-        gSaveContext.respawn[RESPAWN_MODE_RETURN].entranceIndex = sWarpSongEntrances[play->msgCtx.lastPlayedSong];
+        gSaveContext.respawn[RESPAWN_MODE_RETURN].entranceIndex =
+            NvWarp_SongEntrance(play->msgCtx.lastPlayedSong, sWarpSongEntrances[play->msgCtx.lastPlayedSong]);
         gSaveContext.respawn[RESPAWN_MODE_RETURN].playerParams = 0x5FF;
         gSaveContext.respawn[RESPAWN_MODE_RETURN].data = play->msgCtx.lastPlayedSong;
 
