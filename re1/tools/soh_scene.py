@@ -78,14 +78,22 @@ def background_raw(stage, room_id, cam_index):
     JPEG header (z_room.c swapAndConvertJPEG), so no decoding happens at all."""
     with open(rdt.background_file(stage, room_id, cam_index), "rb") as f:
         tim = rdt.emd.parse_tim(rdt.pak_depack(f.read()), 0)
-    assert tim.bpp == 16 and tim.width == 320 and tim.height == 240, (room_id, cam_index, tim.bpp)
+    assert tim.bpp == 16, (room_id, cam_index, tim.bpp)
+    # one picture in the game is 316 x 236 (306's third camera, RC3062): placed at the top
+    # left, its last column and row repeated out to the frame's edges
+    w, h = tim.width, tim.height
     out = bytearray(320 * 240 * 2)
-    for i in range(320 * 240):
-        c = tim.pixels[2 * i] | (tim.pixels[2 * i + 1] << 8)  # PSX BGR555 (little-endian)
-        r, g, b = c & 31, (c >> 5) & 31, (c >> 10) & 31
-        v = (r << 11) | (g << 6) | (b << 1) | 1  # opaque everywhere (backgrounds have no holes)
-        out[2 * i] = v >> 8
-        out[2 * i + 1] = v & 0xFF
+    for y in range(240):
+        sy = min(y, h - 1)
+        for x in range(320):
+            sx = min(x, w - 1)
+            i = sy * w + sx
+            c = tim.pixels[2 * i] | (tim.pixels[2 * i + 1] << 8)  # PSX BGR555 (little-endian)
+            r, g, b = c & 31, (c >> 5) & 31, (c >> 10) & 31
+            v = (r << 11) | (g << 6) | (b << 1) | 1  # opaque everywhere (backgrounds have no holes)
+            o = 2 * (y * 320 + x)
+            out[o] = v >> 8
+            out[o + 1] = v & 0xFF
     return bytes(out)
 
 
