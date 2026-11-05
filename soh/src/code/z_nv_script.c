@@ -201,8 +201,18 @@ static s32 NvScd_Len(const u8* p) {
 }
 
 static void NvEvt_Create(s32 slot, s32 script);
+static void NvScd_Message(s32 id);
+
+// the rest of RE1's state block as the scripts write it (cmd_state_byte_set 0x08, cmd_state_word_set
+// 0x31): what a room's script sets for later ones to test (the stage, room and camera are live)
+static u8 sNvStateSet[256];
+static u8 sNvStateVal[256];
+static u16 sNvStateWord[128];
 
 static u8 NvScd_StateByte(s32 field) {
+    if ((field > 3) && (field != 9) && sNvStateSet[field & 0xFF]) {
+        return sNvStateVal[field & 0xFF];
+    }
     switch (field) {
         case 0:
             return sNvStage;
@@ -394,6 +404,38 @@ static s32 NvScd_Cmd(void) {
             NvEnemy_ScdProp(p[2], p[3], p[4] | (p[5] << 8));
             sNvIp = p + n;
             return 1;
+        case 0x08: // cmd_state_byte_set: one byte of the state block
+            sNvStateSet[p[1]] = 1;
+            sNvStateVal[p[1]] = p[2];
+            sNvIp = p + 4;
+            return 1;
+        case 0x31: { // cmd_state_word_set: one word of it (the lab countdown, 411's emergency light)
+            u16 v;
+
+            memcpy(&v, p + 2, 2);
+            sNvStateWord[p[1] & 0x7F] = v;
+            sNvIp = p + 4;
+            return 1;
+        }
+        case 0x0B: // cmd_message_set: a room message, shown now (RE1 also pauses for p[2..3])
+            NvScd_Message(p[1]);
+            sNvIp = p + 4;
+            return 1;
+        case 0x20: { // cmd_player_pos_set: the player put at (x, y, z) facing an angle
+            s16 v[6];
+            Player* player = (sNvPlay != NULL) ? GET_PLAYER(sNvPlay) : NULL;
+
+            memcpy(v, p + 2, sizeof(v)); // (pad), angle, (speed), x, y, z
+            if (player != NULL) {
+                player->actor.world.pos.x = player->actor.home.pos.x = v[3] * NV_RE1_SCALE;
+                player->actor.world.pos.y = player->actor.home.pos.y = -v[4] * NV_RE1_SCALE;
+                player->actor.world.pos.z = player->actor.home.pos.z = -v[5] * NV_RE1_SCALE;
+                player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = (s16)(0x4000 - v[1] * 16);
+                player->linearVelocity = 0.0f;
+            }
+            sNvIp = p + 14;
+            return 1;
+        }
         case 0x21: { // cmd_enemy_pos_set
             s16 v[5];
 
@@ -968,6 +1010,19 @@ s32 NvAot_Act(PlayState* play, Player* player) {
     NvMsg_EnsureHook();
     Message_StartTextbox(play, NV_TEXT_ID, NULL);
     return true;
+}
+
+/** cmd_message_set: room message id in OoT's box (as an examine spot's). */
+static void NvScd_Message(s32 id) {
+    if ((sNvPlay == NULL) || (Message_GetState(&sNvPlay->msgCtx) != TEXT_STATE_NONE)) {
+        return;
+    }
+    sNvMsgText = NvMsg_Get(id & 0x3F);
+    if (sNvMsgText[0] == '\0') {
+        return;
+    }
+    NvMsg_EnsureHook();
+    Message_StartTextbox(sNvPlay, NV_TEXT_ID, NULL);
 }
 
 void NvBgm_RoomEnter(s32 stage, s32 room);
