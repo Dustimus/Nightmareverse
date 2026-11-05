@@ -2,6 +2,7 @@
 """Make the RE1 mod for Ship of Harkinian from your own RE1 PC files, in one go.
 
     python re1/tools/make_mod.py <RE1 data folder> <output .o2r> [<RE1 executable>] [--jpn <JPN folder>]
+        [--song <MIDI>]  (the mansion song's fanfare, from your own MIDI: re1/tools/midi2seq.py)
 
 The RE1 data folder is the one holding Stage1..Stage7 (and Item_m1): "USA" in the GOG release,
 "JPN" in the Japanese PC one. Put the .o2r in SoH's "mods" folder. The executable (optional, the
@@ -47,6 +48,11 @@ def main():
         k = sys.argv.index("--jpn")
         jpn = sys.argv[k + 1]
         del sys.argv[k:k + 2]
+    song = None
+    if "--song" in sys.argv:  # the player's own MIDI for the mansion song's fanfare (optional, midi2seq.py)
+        k = sys.argv.index("--song")
+        song = sys.argv[k + 1]
+        del sys.argv[k:k + 2]
     if len(sys.argv) not in (3, 4):
         sys.exit(__doc__)
     re1, target = sys.argv[1], sys.argv[2]
@@ -76,6 +82,14 @@ def main():
         print("converting %d rooms (a few minutes)..." % len(ids))
         subprocess.run(args, check=True, stdout=None if os.environ.get("NV_VERBOSE") else subprocess.DEVNULL)
         shutil.copyfile(soh + ".o2r", target)
+        if song:
+            import zipfile
+            import midi2seq
+
+            seq, bpm, beats = midi2seq.build(song, 6)  # the orchestra's trombone
+            with zipfile.ZipFile(target, "a") as z:
+                z.writestr("custom/music/nightmareverse/clowns_farting_in_basement", midi2seq.soh_resource(seq, 3))
+            print("the mansion song's fanfare: %s (%d BPM, %.0f beats)" % (song, bpm, beats / midi2seq.TICKS))
         print("wrote %s: put it in Ship of Harkinian's mods folder" % target)
     finally:
         shutil.rmtree(work, ignore_errors=True)

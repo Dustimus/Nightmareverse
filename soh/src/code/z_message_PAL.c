@@ -21,6 +21,7 @@ s32 NvSong_Note(PlayState* play, u8 button);
 s32 NvSong_Pending(void);
 void NvSong_PlayClip(void);
 void NvSong_Playback(void);
+void NvSong_Fanfare(void);
 
 // #region SOH [NTSC] - Allows custom messages to work on japanese
 static bool sDisplayNextMessageAsEnglish = false;
@@ -3680,6 +3681,10 @@ void Message_DrawMain(PlayState* play, Gfx** p) {
                 }
                 if ((msgCtx->lastPlayedSong != OCARINA_SONG_SCARECROW_SPAWN) && !NvSong_Pending()) {
                     Audio_PlayFanfare(sOcarinaSongFanfares[msgCtx->lastPlayedSong]);
+                    Audio_SetSfxBanksMute(0x20);
+                }
+                if (NvSong_Pending()) { // Nightmareverse: its own fanfare, the player's arrangement
+                    NvSong_Fanfare();
                     Audio_SetSfxBanksMute(0x20);
                 }
                 play->msgCtx.ocarinaMode = OCARINA_MODE_01;

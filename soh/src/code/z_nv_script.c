@@ -1091,6 +1091,40 @@ void NvSong_Playback(void) {
     AudioOcarina_SetPlaybackSong(NV_WARP_SONG + 1, 1);
 }
 
+/*
+ * Its fanfare: the player's own arrangement (their MIDI, made into an OoT sequence by
+ * re1/tools/midi2seq.py and packed in the mod as custom/music/.../clowns_farting_in_basement),
+ * in place of Nocturne's, from the second time the song is played (the first, the opening movie
+ * plays on arrival). Nothing when the mod has no arrangement.
+ */
+extern char** sequenceMap;
+extern size_t sequenceMapSize;
+
+static s32 NvSong_FanfareId(void) {
+    size_t i;
+
+    for (i = 0; i < sequenceMapSize + 0xF; i++) {
+        if ((sequenceMap[i] != NULL) && (strstr(sequenceMap[i], "clowns_farting_in_basement") != NULL)) {
+            return (s32)i;
+        }
+    }
+    return -1;
+}
+
+void NvSong_Fanfare(void) {
+    s32 id;
+
+    if (!(gSaveContext.eventChkInf[NV_WARP_SEEN_INDEX] & NV_WARP_SEEN_MASK) && !getenv("NV_SONG_SEEN")) {
+        return; // the first time: the opening movie on arrival instead (dev: NV_SONG_SEEN as if seen)
+    }
+    id = NvSong_FanfareId();
+    if (id >= 0) {
+        Audio_PlayFanfare((u16)id);
+        printf("NVSONG fanfare %d\n", (int)id);
+        fflush(stdout);
+    }
+}
+
 /** Its sound in the warp, after the playback (the opening movie's stretch, until the arrangement). */
 void NvSong_PlayClip(void) {
     void NvMovie_SoundClip(s32 id, u32 startMs, u32 lengthMs);
