@@ -2826,3 +2826,6 @@ void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId) {
 
 /* the Black Tiger */
 #include "z_nv_blacktiger.inc"
+
+/* the Chimeras */
+#include "z_nv_chimera.inc"

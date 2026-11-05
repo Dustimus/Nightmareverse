@@ -207,11 +207,15 @@ static s32 NvEnemy_IsBlackTiger(s32 type) {
     return type == 4;
 }
 
+static s32 NvEnemy_IsChimera(s32 type) {
+    return type == 9;
+}
+
 static s32 NvEnemy_Acts(s32 type) {
     return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type) || NvEnemy_IsHunter(type) || NvEnemy_IsCrow(type) ||
            NvEnemy_IsPlant(type) || NvEnemy_IsYawn(type) || NvEnemy_IsSpider(type) ||
            NvEnemy_IsWasp(type) || NvEnemy_IsAdder(type) || NvEnemy_IsNeptune(type) ||
-           NvEnemy_IsBlackTiger(type);
+           NvEnemy_IsBlackTiger(type) || NvEnemy_IsChimera(type);
 }
 
 static s32 NvEnemy_IsCorpse(s32 type) {
@@ -735,6 +739,12 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x1F; // (a Skulltula's, as the Web Spinners)
         NvRe1_TickBegin();
         NvBlackTiger_Init(e);
+    } else if (NvEnemy_IsChimera(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        thisx->naviEnemyId = 0x22; // (a Lizalfos's, as the Hunters)
+        NvRe1_TickBegin();
+        NvChimera_Init(e);
     } else {
         thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
         e->animationId = 0;
@@ -905,6 +915,15 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvRe1_TickBegin();
             NvBlackTiger_Update(e);
             NvEnemy_DogBite(this, play); // (its bite and its venom)
+        }
+    } else if (NvEnemy_IsChimera(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvChimera_Update(e);
+            NvEnemy_DogBite(this, play); // (its claws)
+            NvEnemy_Hold(this, play);     // (the grab)
         }
     } else {
         for (t = 0; t < ticks; t++) {

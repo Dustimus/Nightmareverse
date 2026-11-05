@@ -206,6 +206,18 @@ typedef struct NvRe1Entity {
         u8 delay;      // ticks before it may spit again
         u8 cooldown;   // ticks after it comes in before it picks a move
     } bt;
+    // the Chimera's own
+    struct {
+        s32 dist;      // |dx| + |dz| to the player
+        s16 turnStep;  // a turn's rate
+        s16 repause;   // ticks before the next strike
+        u16 wallTicks; // ticks against walls
+        u8 sees;       // the path finder sees her
+        u8 far;        // it started far off (the fast walk)
+        u8 hard;       // a hard one (spawn kind 3)
+        u8 touch;      // it touched her this tick
+        u8 coll;       // it hit a wall this tick
+    } cm;
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */
@@ -252,6 +264,8 @@ void NvNeptune_Init(NvRe1Entity* e);
 void NvNeptune_Update(NvRe1Entity* e);
 void NvBlackTiger_Init(NvRe1Entity* e);
 void NvBlackTiger_Update(NvRe1Entity* e);
+void NvChimera_Init(NvRe1Entity* e);
+void NvChimera_Update(NvRe1Entity* e);
 extern s16 gNvRe1Drain;
 extern s32 gNvRe1Kill; // an enemy's kill move landed (the maul, the decapitation, the swallow): Link dies // a plant's drain this tick: RE1's health, no knock back (z_nv_enemy.c)
 extern s16 gNvRe1DogBite;
