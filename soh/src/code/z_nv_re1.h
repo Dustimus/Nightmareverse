@@ -196,6 +196,16 @@ typedef struct NvRe1Entity {
         s8 cue;        // the swim sound's beat
         u8 wallAhead;  // walls met 800 ahead (the steering's)
     } ne;
+    // the Black Tiger's own
+    struct {
+        s32 dist;      // |dx| + |dz| to the player
+        s16 turn;      // a strafe's or a circle's turn
+        u16 stuck;     // ticks against walls, or without seeing her
+        u8 sees;       // the path finder sees her
+        u8 coll;       // it hit a wall this tick
+        u8 delay;      // ticks before it may spit again
+        u8 cooldown;   // ticks after it comes in before it picks a move
+    } bt;
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */
@@ -240,6 +250,8 @@ void NvAdder_Init(NvRe1Entity* e);
 void NvAdder_Update(NvRe1Entity* e);
 void NvNeptune_Init(NvRe1Entity* e);
 void NvNeptune_Update(NvRe1Entity* e);
+void NvBlackTiger_Init(NvRe1Entity* e);
+void NvBlackTiger_Update(NvRe1Entity* e);
 extern s16 gNvRe1Drain;
 extern s32 gNvRe1Kill; // an enemy's kill move landed (the maul, the decapitation, the swallow): Link dies // a plant's drain this tick: RE1's health, no knock back (z_nv_enemy.c)
 extern s16 gNvRe1DogBite;
