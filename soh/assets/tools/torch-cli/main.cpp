@@ -4,6 +4,9 @@
 // soh links torch as a static library (USE_STANDALONE=OFF), which compiles out torch's own
 // CLI, so this supplies the entry point. It calls the same SohTorch::Extract the game does.
 
+#include <fstream>
+#include <iterator>
+#include <vector>
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -98,7 +101,14 @@ int main(int argc, char** argv) {
 
     for (const auto& rom : roms) {
         // A fresh extraction per ROM; torch names the archive from config.yml.
-        const std::string archive = SohTorch::Extract(rom, src, dest, version, nullptr);
+        // Extract takes the ROM's bytes, big-endian (.z64 order) as the game's own extractor passes them
+        std::ifstream in(rom, std::ios::binary);
+        std::vector<uint8_t> data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        if (data.empty()) {
+            fprintf(stderr, "could not read %s\n", rom.c_str());
+            return 1;
+        }
+        const std::string archive = SohTorch::Extract(std::move(data), src, dest, version, nullptr);
         if (archive.empty()) {
             fprintf(stderr, "failed to extract %s\n", rom.c_str());
             return 1;
