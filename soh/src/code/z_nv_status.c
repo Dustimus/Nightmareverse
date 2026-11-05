@@ -450,11 +450,20 @@ static void NvSt_Input(PlayState* play) {
     }
 }
 
+// the condition sheet's "Poison" row (RE1 draws it in place of the others while she's poisoned,
+// menu_draw_health_bar's case 4). Not yet checked against the player's STATUS.TIM: look when the
+// files are back, and correct it here if the word shown is wrong.
+#define NV_ST_COND_POISON 10
+
 /** RE1's condition (menu_draw_health_bar): Link's hearts in quarters, as Jill's health. */
 static s32 NvSt_ConditionRow(void) {
+    extern u8 gNvRe1Poison;
     s32 cap = MAX(gSaveContext.healthCapacity, 4);
     s32 q = (gSaveContext.health <= 0) ? 0 : (gSaveContext.health - 1) / (cap / 4);
 
+    if (gNvRe1Poison & 0x22) {
+        return NV_ST_COND_POISON;
+    }
     return (q >= 3) ? 0 : (q >= 1) ? 4 : 7; // Fine, Caution, Danger!
 }
 

@@ -11,7 +11,7 @@
  * moment and can be stepped on; dead, a nest wasp comes back out of the nest (the tenth time
  * as the last one).
  *
- * Left out, each a note where it would be: the sting's poison (none in our port yet), the wing
+ * Left out, each a note where it would be: the wing
  * blur (RE1 flags the wings for one frame in seven), the shadow, and the big wasp's blood.
  * The wasp has no wall collision in RE1 either (its radius is 0): it flies through walls.
  */
@@ -209,6 +209,7 @@ static void wa_pin(void) {
         default:
             E->holding = 0;
             gNvRe1DogBite = 8;
+            NvPoison_Give(CbRand() & 1); // RE1: one in two
             E->health = -44;
             E->state = 3;
             E->ignore_player_flag = 0;

@@ -256,6 +256,8 @@ void NvYawn_Update(NvRe1Entity* e);
 void NvSpider_Init(NvRe1Entity* e);
 void NvSpider_Update(NvRe1Entity* e);
 s32 NvScript_RoomNum(void); // z_nv_script.c
+extern u8 gNvRe1Poison;          // z_nv_items.c: RE1's poison bits (0x02 venom, 0x20 Yawn's)
+void NvPoison_Give(s32 rolledIn); // a venomous hit landed: poisoned when rolledIn
 void NvWasp_Init(NvRe1Entity* e);
 void NvWasp_Update(NvRe1Entity* e);
 void NvAdder_Init(NvRe1Entity* e);

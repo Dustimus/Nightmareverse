@@ -1176,6 +1176,11 @@ void NvScript_Update(PlayState* play) {
     }
     gNvSunSongSeen = false;
     NvPickup_Update(play); // an item prompt's answer
+    if (!NvDoorScene_Covering() && !NvMovie_Playing() && (play->pauseCtx.state == 0) && (play->sceneNum >= SCENE_RE1_100)) {
+        void NvPoison_Update(PlayState* play);
+
+        NvPoison_Update(play); // RE1's poison wearing her down (z_nv_items.c)
+    }
     NvBox_Update(play);    // the item box's lid
     if ((sNvMain == NULL) || (sNvPlay != play) || NvDoorScene_Covering() || NvMovie_Playing() ||
         (play->transitionTrigger != TRANS_TRIGGER_OFF) || (getenv("NV_NO_ENEMIES") != NULL)) {

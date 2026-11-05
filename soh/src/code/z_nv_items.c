@@ -594,6 +594,8 @@ static u8 NvItems_Heal(s32 id) {
     switch (id) {
         case 0x41: // first aid spray
             return 0x03;
+        case 0x42: // serum (Yawn's poison)
+            return 0x10;
         case 0x44: // green herb
             return 0x01;
         case 0x45: // blue herb
@@ -785,9 +787,60 @@ s32 NvItems_ToggleEquip(s32 i) {
     return true;
 }
 
+/* ---- poison (RE1's player status: the snakes', the wasps', the spiders' and the first Yawn's) ---- */
+
+// RE1's poison bits (the player's healthStatusFlags): 0x02 a creature's venom (the blue herb
+// cures it), 0x20 the first Yawn's (only the serum does)
+u8 gNvRe1Poison;
+
+#ifndef NV_RE1_JILL_HEALTH
+#define NV_RE1_JILL_HEALTH 96.0f // Jill's maximum health in RE1
+#endif
+
+/** A venomous hit lands: poisoned when the roll says so (RE1 rolls it per creature). */
+void NvPoison_Give(s32 rolledIn) {
+    if (rolledIn) {
+        gNvRe1Poison |= 0x02;
+    }
+}
+
 /**
- * Use slot i's item (menu_item_use_heal): a heal fills Link's hearts by RE1's thirds; a cure has
- * nothing to cure in Hyrule (no poison). As RE1, an item that would do nothing isn't used up.
+ * Each frame in the mansion (z_nv_script.c): Yawn's poison follows its story flag (RE1 raises it
+ * at the bite, bank 1 bit 0x43); poisoned, Link loses 2 of RE1's 96 every 120 of RE1's ticks
+ * (four seconds), as Jill does, and it never kills: it stops at the last bit of a heart.
+ */
+void NvPoison_Update(PlayState* play) {
+    static s32 sTimer;
+    static f32 sOwed;
+    s32 NvFlags_Test(s32 bank, s32 bit);
+    s32 whole;
+
+    if (NvFlags_Test(1, 0x43)) {
+        gNvRe1Poison |= 0x20;
+    }
+    if (!(gNvRe1Poison & 0x22) || (gSaveContext.health <= 1)) {
+        sTimer = 0;
+        return;
+    }
+    if (++sTimer < 80) { // four seconds at OoT's 20 a second
+        return;
+    }
+    sTimer = 0;
+    sOwed += 2.0f * gSaveContext.healthCapacity / NV_RE1_JILL_HEALTH;
+    whole = (s32)sOwed;
+    if (whole > 0) {
+        sOwed -= whole;
+        whole = MIN(whole, gSaveContext.health - 1);
+        if (whole > 0) {
+            Health_ChangeBy(play, -whole);
+        }
+    }
+}
+
+/**
+ * Use slot i's item (menu_item_use_heal): a heal fills Link's hearts by RE1's thirds; the blue
+ * herb's cure (0x20) ends a creature's poison, the serum's (0x10) Yawn's. As RE1, an item that
+ * would do nothing isn't used up.
  * Returns 1 used, 0 nothing happened, -1 not usable here.
  */
 s32 NvItems_Use(PlayState* play, s32 i) {
@@ -796,14 +849,30 @@ s32 NvItems_Use(PlayState* play, s32 i) {
     s32 cap = gSaveContext.healthCapacity;
     s32 amount;
 
+    s32 used = false;
+
     if (heal == 0) {
         return -1;
     }
-    if (((heal & 0x0F) == 0) || (gSaveContext.health >= cap)) {
+    if (((heal & 0x0F) != 0) && (gSaveContext.health < cap)) {
+        amount = ((heal & 0x0F) == 1) ? cap / 3 : ((heal & 0x0F) == 2) ? cap * 2 / 3 : cap;
+        Health_ChangeBy(play, amount);
+        used = true;
+    }
+    if ((heal & 0x20) && (gNvRe1Poison & 0x02)) { // the blue herb
+        gNvRe1Poison &= ~0x02;
+        used = true;
+    }
+    if ((heal & 0x10) && (gNvRe1Poison & 0x20)) { // the serum
+        void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+
+        gNvRe1Poison &= ~0x20;
+        NvFlags_Op(1, 0x43, 1);
+        used = true;
+    }
+    if (!used) {
         return 0;
     }
-    amount = ((heal & 0x0F) == 1) ? cap / 3 : ((heal & 0x0F) == 2) ? cap * 2 / 3 : cap;
-    Health_ChangeBy(play, amount);
     NvItems_TakeOne(i);
     return 1;
 }

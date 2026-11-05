@@ -10,8 +10,8 @@
  *
  * Left out, each a note where it would be: the walk's speed from its feet (RE1 measures how far
  * the planted leg pair moved; here the walk's extra speed alone), the venom's glob as a flying
- * effect and its poison (here the spit lands when she's lined up within its range at the spit's
- * frame, poison not yet a thing in our port), the webs, and the small spiders a dead one bursts
+ * effect (here the spit lands when she's lined up within its range at the spit's
+ * frame, poisoning her one time in four), the webs, and the small spiders a dead one bursts
  * into (RE1's clones, chasing and biting 2: noted for when they're wanted).
  */
 
@@ -295,6 +295,7 @@ static void ws_spit(void) {
         if ((WS->dist < 6000) && ws_facing(0x100) && WS->sees && (P->isBeingAttackedFlag == 0) &&
             !gNvRe1DogFlinch) {
             ws_bite(10);
+            NvPoison_Give((CbRand() & 1) && (CbRand() & 1)); // the venom: RE1's splash, one in four
         }
     }
     if (E->action_state == 2) {

@@ -9,7 +9,7 @@
  * strafes or rushes. Hit, it rears and comes on; it has 204 health and dies on its back.
  *
  * Left out, each a note where it would be: the walk's speed from its feet (as the Web
- * Spinner's), the venom as a flying effect and its poison, the bite's reach (RE1 measures two
+ * Spinner's), the venom as a flying effect, the bite's reach (RE1 measures two
  * of its leg joints to her, 1300; here within 3000 and in front at the strike frame), and the
  * web threads and small spiders it bursts into when it dies.
  */
@@ -238,6 +238,7 @@ static void bt_spit(void) {
         if ((BT->dist < 7000) && (turn_toward_target(P->t[0], P->t[2], 0x200) == 0) && BT->sees &&
             (P->isBeingAttackedFlag == 0) && !gNvRe1DogFlinch) {
             gNvRe1DogBite = 7;
+            NvPoison_Give((CbRand() & 1) && (CbRand() & 1)); // the venom: RE1's splash, one in four
         }
     } else if (E->action_state == 2) {
         bt_take(BT_BITE); // and after it, the bite

@@ -10,7 +10,7 @@
  * gets stuck turns away. Shot it flinches; killed it writhes and lies still, and one killed by
  * a strong hit pulls back up into the ceiling and drops again later.
  *
- * Left out, each a note where it would be: the bite's poison (none in our port yet), the head's
+ * Left out, each a note where it would be: the head's
  * reach (RE1 measures its head joint to her; here the strike frame lands within 1000 in front),
  * and the shadow.
  */
@@ -178,6 +178,7 @@ static void ad_bite(void) {
         (AD->dist < 1000) && (P->isBeingAttackedFlag == 0) && !gNvRe1DogFlinch && AD->sees) {
         Snd_em(1);
         gNvRe1DogBite = 6;
+        NvPoison_Give((CbRand() & 1) && (CbRand() & 1)); // RE1: one in four
     }
     Add_speedXZ(0);
 }
