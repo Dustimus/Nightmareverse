@@ -1005,6 +1005,11 @@ static void NvWarp_Arrive(PlayState* play) {
     NvMovie_Start(0); // RE1's opening
 }
 
+/** The RE1 room loaded now (its number in its stage: RE1's g_roomId), for the enemies. */
+s32 NvScript_RoomNum(void) {
+    return sNvRoom;
+}
+
 void NvScript_RoomInit(PlayState* play) {
     NvFlags_NewGame();
     NvWarp_Arrive(play);

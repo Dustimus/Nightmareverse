@@ -191,9 +191,22 @@ static s32 NvEnemy_IsSpider(s32 type) {
     return type == 3;
 }
 
+static s32 NvEnemy_IsWasp(s32 type) {
+    return type == 7;
+}
+
+static s32 NvEnemy_IsAdder(s32 type) {
+    return type == 10;
+}
+
+static s32 NvEnemy_IsNeptune(s32 type) {
+    return type == 11;
+}
+
 static s32 NvEnemy_Acts(s32 type) {
     return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type) || NvEnemy_IsHunter(type) || NvEnemy_IsCrow(type) ||
-           NvEnemy_IsPlant(type) || NvEnemy_IsYawn(type) || NvEnemy_IsSpider(type);
+           NvEnemy_IsPlant(type) || NvEnemy_IsYawn(type) || NvEnemy_IsSpider(type) ||
+           NvEnemy_IsWasp(type) || NvEnemy_IsAdder(type) || NvEnemy_IsNeptune(type);
 }
 
 static s32 NvEnemy_IsCorpse(s32 type) {
@@ -693,6 +706,24 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x1F; // (a Skulltula's)
         NvRe1_TickBegin();
         NvSpider_Init(e);
+    } else if (NvEnemy_IsWasp(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        thisx->naviEnemyId = 0x3B; // (a Guay's, as the crows: a flier)
+        NvRe1_TickBegin();
+        NvWasp_Init(e);
+    } else if (NvEnemy_IsAdder(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        thisx->naviEnemyId = 0x2E; // (a Deku Baba's, as the plants: a striker from the ground)
+        NvRe1_TickBegin();
+        NvAdder_Init(e);
+    } else if (NvEnemy_IsNeptune(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        thisx->naviEnemyId = 0x40; // (a Dodongo's, as Yawn: a big one)
+        NvRe1_TickBegin();
+        NvNeptune_Init(e);
     } else {
         thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
         e->animationId = 0;
@@ -830,6 +861,31 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvRe1_TickBegin();
             NvSpider_Update(e);
             NvEnemy_DogBite(this, play); // (its bite and its venom)
+        }
+    } else if (NvEnemy_IsWasp(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvWasp_Update(e);
+            NvEnemy_DogBite(this, play); // (its sting)
+            NvEnemy_Hold(this, play);     // (the pin)
+        }
+    } else if (NvEnemy_IsAdder(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvAdder_Update(e);
+            NvEnemy_DogBite(this, play); // (its strike)
+        }
+    } else if (NvEnemy_IsNeptune(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvNeptune_Update(e);
+            NvEnemy_Hold(this, play); // (the bite's hold, the chewing, the kill)
         }
     } else {
         for (t = 0; t < ticks; t++) {

@@ -2814,3 +2814,12 @@ void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId) {
 
 /* the Web Spinner */
 #include "z_nv_spider.inc"
+
+/* the wasps */
+#include "z_nv_wasp.inc"
+
+/* the snakes */
+#include "z_nv_adder.inc"
+
+/* the sharks */
+#include "z_nv_neptune.inc"

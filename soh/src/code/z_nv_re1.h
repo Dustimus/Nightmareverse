@@ -165,6 +165,37 @@ typedef struct NvRe1Entity {
         u8 touch;      // it bumped into her this tick
         u8 coll;       // it hit a wall this tick
     } ws;
+    // the wasp's own
+    struct {
+        u16 dist;      // |dx| + |dz| to the player
+        s16 bob;       // the climb or sink step, 0x23 to 0x96
+        s16 drift;     // ticks cruising since the last turn toward her
+        s16 timer;
+        u8 climb;      // 1 climbing, 0 sinking
+        u8 sees;       // the path finder sees her
+        u8 touch;      // it touched her this tick
+        u8 coll;       // it hit a wall this tick
+        u8 animDone;   // the animation came round this tick
+        u8 big;        // the big wasp (behaviour bit 1): twice the health and sting, no pin
+        u8 respawns;   // a nest wasp's returns (the tenth is the last)
+        u8 cried;      // its death cry played
+    } wa;
+    // the snake's own
+    struct {
+        u16 dist;      // |dx| + |dz| to the player (4999 while she's off the floor)
+        u16 stuck;     // ticks against walls
+        u8 sees;       // the path finder sees her
+        u8 touch;      // it touched her this tick
+        u8 coll;       // it hit a wall this tick
+        u8 active;     // out (a hidden one isn't until it emerges)
+    } ad;
+    // the shark's own
+    struct {
+        s32 dist;      // |dx| + |dz| to the player
+        s16 struggle;  // the bite's hold left (her mashing wears it down)
+        s8 cue;        // the swim sound's beat
+        u8 wallAhead;  // walls met 800 ahead (the steering's)
+    } ne;
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */
@@ -202,6 +233,13 @@ void NvYawn_Init(NvRe1Entity* e);
 void NvYawn_Update(NvRe1Entity* e);
 void NvSpider_Init(NvRe1Entity* e);
 void NvSpider_Update(NvRe1Entity* e);
+s32 NvScript_RoomNum(void); // z_nv_script.c
+void NvWasp_Init(NvRe1Entity* e);
+void NvWasp_Update(NvRe1Entity* e);
+void NvAdder_Init(NvRe1Entity* e);
+void NvAdder_Update(NvRe1Entity* e);
+void NvNeptune_Init(NvRe1Entity* e);
+void NvNeptune_Update(NvRe1Entity* e);
 extern s16 gNvRe1Drain;
 extern s32 gNvRe1Kill; // an enemy's kill move landed (the maul, the decapitation, the swallow): Link dies // a plant's drain this tick: RE1's health, no knock back (z_nv_enemy.c)
 extern s16 gNvRe1DogBite;
