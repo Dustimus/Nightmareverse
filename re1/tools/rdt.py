@@ -436,11 +436,18 @@ def room_models(room, which=2):
     room's item models instead (header byte 3, offsets[3]: the same pairs)."""
     d = room.raw
     out = []
+    last_tim = 0
     for k in range(d[which]):
         tmd, tim_off = struct.unpack_from("<2I", d, room.offsets[which] + 8 * k)
         if not tmd:  # an object with no model of its own (e.g. room 10F's third: collision only)
             out.append(None)
             continue
+        if not tim_off:  # no texture of its own (406's second item): the one loaded before it
+            tim_off = last_tim
+        if not tim_off:
+            out.append(None)
+            continue
+        last_tim = tim_off
         tim = emd.parse_tim(d, tim_off)
         out.append((parse_tmd(d, tmd, tim), tim))
     return out
