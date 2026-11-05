@@ -235,7 +235,7 @@ static void bt_spit(void) {
         bt_anim(0xC);
         Snd_em(7);
         BT->dist = CbAbs(P->t[0] - E->t[0]) + CbAbs(P->t[2] - E->t[2]);
-        if ((BT->dist < 7000) && (turn_toward_target(P->t[0], P->t[2], 0x200) == 0) && BT->sees &&
+        if ((BT->dist < 10000) && (turn_toward_target(P->t[0], P->t[2], 0x200) == 0) && BT->sees && // (its glob flies far)
             (P->isBeingAttackedFlag == 0) && !gNvRe1DogFlinch) {
             gNvRe1DogBite = 7;
             NvPoison_Give((CbRand() & 1) && (CbRand() & 1)); // the venom: RE1's splash, one in four
