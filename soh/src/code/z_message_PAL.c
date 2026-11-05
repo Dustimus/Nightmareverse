@@ -16,6 +16,11 @@
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/savestate_serialize.h"
 
+// Nightmareverse: the mansion's warp song (z_nv_script.c)
+s32 NvSong_Note(PlayState* play, u8 button);
+s32 NvSong_Pending(void);
+void NvSong_PlayClip(void);
+
 // #region SOH [NTSC] - Allows custom messages to work on japanese
 static bool sDisplayNextMessageAsEnglish = false;
 static u8 sLastLanguage = LANGUAGE_ENG;
@@ -3427,11 +3432,15 @@ void Message_DrawMain(PlayState* play, Gfx** p) {
                             msgCtx->ocarinaStaff->buttonIndex;
                         sOcarinaButtonIndexBuf[msgCtx->ocarinaStaff->pos] = OCARINA_BTN_INVALID;
                         sOcarinaButtonIndexBufPos++;
+                        // Nightmareverse: the mansion's warp song (z_nv_script.c) rides Nocturne's slot
+                        if (NvSong_Note(play, msgCtx->ocarinaStaff->buttonIndex)) {
+                            msgCtx->ocarinaStaff->state = OCARINA_SONG_NOCTURNE;
+                        }
                     }
                 }
                 msgCtx->lastPlayedSong = msgCtx->ocarinaStaff->state;
                 if (msgCtx->ocarinaStaff->state < OCARINA_SONG_MEMORY_GAME) {
-                    if (msgCtx->ocarinaStaff->state == OCARINA_SONG_SCARECROW_SPAWN ||
+                    if (msgCtx->ocarinaStaff->state == OCARINA_SONG_SCARECROW_SPAWN || NvSong_Pending() ||
                         CHECK_QUEST_ITEM(QUEST_SONG_MINUET + gOcarinaSongItemMap[msgCtx->ocarinaStaff->state])) {
                         sLastPlayedSong = msgCtx->unk_E3F2 = msgCtx->lastPlayedSong = msgCtx->ocarinaStaff->state;
                         msgCtx->msgMode = MSGMODE_OCARINA_CORRECT_PLAYBACK;
@@ -3656,12 +3665,19 @@ void Message_DrawMain(PlayState* play, Gfx** p) {
                     }
                     AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_DEFAULT);
                     AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_DEFAULT);
-                    AudioOcarina_SetPlaybackSong(msgCtx->lastPlayedSong + 1, 1);
+                    if (NvSong_Pending()) { // Nightmareverse: RE1's sound, not Nocturne's melody
+                        NvSong_PlayClip();
+                    } else {
+                        AudioOcarina_SetPlaybackSong(msgCtx->lastPlayedSong + 1, 1);
+                    }
                 } else {
                     AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_DEFAULT);
                     AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_DEFAULT);
+                    if (NvSong_Pending()) {
+                        NvSong_PlayClip();
+                    }
                 }
-                if (msgCtx->lastPlayedSong != OCARINA_SONG_SCARECROW_SPAWN) {
+                if ((msgCtx->lastPlayedSong != OCARINA_SONG_SCARECROW_SPAWN) && !NvSong_Pending()) {
                     Audio_PlayFanfare(sOcarinaSongFanfares[msgCtx->lastPlayedSong]);
                     Audio_SetSfxBanksMute(0x20);
                 }

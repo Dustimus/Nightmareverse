@@ -967,26 +967,83 @@ void NvBgm_ScdStop(s32 ch);
 void NvBgm_ScdState(s32 stage, s32 room, u8 state);
 
 /*
- * The way in (a placeholder): Nocturne of Shadow warps into the foyer instead of the graveyard,
- * until the mansion has a song of its own. The first time, RE1's opening movie plays on the way
- * in (then the foyer's own opening scene, from its scripts); after that it's just the warp.
- * "Seen it" is a save flag (an event flag OoT and the randomizer leave unused).
+ * The way in: the mansion's own warp song (placeholder notes for now), played anywhere in free
+ * play, warps into the foyer. It rides OoT's warp-song sequence under Nocturne of Shadow's slot
+ * (the warp light, the fade), but only this song goes to the mansion: Nocturne itself warps to
+ * the graveyard as ever. In place of a melody it plays a stretch of RE1's opening movie's sound
+ * (the cast roll), from the player's own files. The first arrival plays the whole opening movie,
+ * as before; "seen it" is a save flag (an event flag OoT and the randomizer leave unused).
  */
-#define NV_WARP_SONG OCARINA_SONG_NOCTURNE
+#define NV_WARP_SONG OCARINA_SONG_NOCTURNE // the slot it rides
 #define NV_WARP_SEEN_INDEX (0xD5 >> 4)
 #define NV_WARP_SEEN_MASK (1 << (0xD5 & 15))
 
+// the notes: C-Down, C-Left, C-Down, C-Left, C-Up, A (none of OoT's songs is in it)
+static const u8 sNvSongNotes[] = { OCARINA_BTN_C_DOWN, OCARINA_BTN_C_LEFT, OCARINA_BTN_C_DOWN,
+                                   OCARINA_BTN_C_LEFT, OCARINA_BTN_C_UP,   OCARINA_BTN_A };
+
+// the sound it plays: movie NV_SONG_CLIP_MOVIE (0, the opening) from NV_SONG_CLIP_START_MS for
+// NV_SONG_CLIP_LENGTH_MS. Placeholder times: set them to the cast roll once it's been timed.
+#define NV_SONG_CLIP_MOVIE 0
+#define NV_SONG_CLIP_START_MS 0
+#define NV_SONG_CLIP_LENGTH_MS 8000
+
 s16 NvDoor_Entrance(const char* sceneFile, s32 spawn);
-static s32 sNvWarpIn; // a warp song into the mansion is on its way
+static s32 sNvWarpIn;     // a warp song into the mansion is on its way
+static s32 sNvSongPlayed; // the mansion's song was just played (the warp sequence is running)
+static u8 sNvSongHeard[8]; // the last notes played in free play, newest last
+
+/** A note played in free play (z_message_PAL.c): true when it completes the mansion's song. */
+s32 NvSong_Note(PlayState* play, u8 button) {
+    s32 n = ARRAY_COUNT(sNvSongNotes);
+    s32 k;
+
+    sNvSongPlayed = false; // (a song played where OoT won't warp leaves nothing pending)
+    memmove(sNvSongHeard, sNvSongHeard + 1, sizeof(sNvSongHeard) - 1);
+    sNvSongHeard[sizeof(sNvSongHeard) - 1] = button;
+    if (play->msgCtx.ocarinaAction != OCARINA_ACTION_FREE_PLAY) {
+        return false;
+    }
+    for (k = 0; k < n; k++) {
+        if (sNvSongHeard[sizeof(sNvSongHeard) - n + k] != sNvSongNotes[k]) {
+            return false;
+        }
+    }
+    if (NvDoor_Entrance("re1_106_scene", 0) < 0) { // no mansion in the mod files
+        return false;
+    }
+    memset(sNvSongHeard, 0xFF, sizeof(sNvSongHeard));
+    sNvSongPlayed = true;
+    printf("NVSONG the mansion's song\n");
+    fflush(stdout);
+    return true;
+}
+
+/** The warp sequence is the mansion's song's (z_message_PAL.c plays its clip, not a melody). */
+s32 NvSong_Pending(void) {
+    return sNvSongPlayed;
+}
+
+/** Its sound, in place of OoT's playback of the song (z_message_PAL.c). */
+void NvSong_PlayClip(void) {
+    void NvMovie_SoundClip(s32 id, u32 startMs, u32 lengthMs);
+
+    NvMovie_SoundClip(NV_SONG_CLIP_MOVIE, NV_SONG_CLIP_START_MS, NV_SONG_CLIP_LENGTH_MS);
+}
 
 s16 NvWarp_SongEntrance(s32 song, s16 entrance) {
     s16 foyer;
 
-    if (song != NV_WARP_SONG) {
+    if (song == -1) { // the dev boot's (NV_BOOT_ENTRANCE=warp): as if the song were played
+        sNvSongPlayed = true;
+        song = NV_WARP_SONG;
+    }
+    if ((song != NV_WARP_SONG) || !sNvSongPlayed) {
         return entrance;
     }
+    sNvSongPlayed = false;
     foyer = NvDoor_Entrance("re1_106_scene", 0);
-    if (foyer < 0) { // no mansion in the mod files: the song does what it always did
+    if (foyer < 0) {
         return entrance;
     }
     sNvWarpIn = true;

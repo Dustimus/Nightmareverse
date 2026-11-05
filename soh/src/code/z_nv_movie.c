@@ -381,6 +381,82 @@ void NvMovie_Start(s32 id) {
     sNvMovieActive = true;
 }
 
+/**
+ * Play only part of movie `id`'s sound, from startMs for lengthMs, over the game (the mansion's
+ * warp song plays the opening's cast roll this way). The movie's picture isn't shown and the game
+ * doesn't hold. Quietly nothing if the mod has no such movie or one is already playing.
+ */
+void NvMovie_SoundClip(s32 id, u32 startMs, u32 lengthMs) {
+    char path[32];
+    const u8* d;
+    const u8* p;
+    const u8* end;
+    u8* sound = NULL;
+    u32 soundLen = 0;
+    u32 soundCap = 0;
+    s32 rate = 22050;
+    s32 channels = 2;
+    s32 audioStream = -1;
+    s32 stream = 0;
+    u32 frameBytes;
+    u32 from;
+    u32 len;
+
+    if (sNvMovieActive) {
+        return;
+    }
+    snprintf(path, sizeof(path), "re1/movies/%d", (int)id);
+    if (!ResourceMgr_FileExists(path)) {
+        printf("NVMOVIE %d: not in the mod (the song's clip)\n", (int)id);
+        fflush(stdout);
+        return;
+    }
+    d = (const u8*)ResourceGetDataByName(path);
+    if ((d == NULL) || (memcmp(d, "RIFF", 4) != 0) || (memcmp(d + 8, "AVI ", 4) != 0)) {
+        return;
+    }
+    end = d + 8 + NvMovie_Le32(d + 4);
+    p = d + 12;
+    while (p + 8 <= end) { // the sound chunks only (as NvMovie_Open walks them)
+        u32 size = NvMovie_Le32(p + 4);
+        const u8* body = p + 8;
+
+        if ((memcmp(p, "LIST", 4) == 0) && ((memcmp(body, "hdrl", 4) == 0) || (memcmp(body, "strl", 4) == 0) ||
+                                           (memcmp(body, "movi", 4) == 0) || (memcmp(body, "rec ", 4) == 0))) {
+            p = body + 4;
+            continue;
+        }
+        if (memcmp(p, "strh", 4) == 0) {
+            if (memcmp(body, "auds", 4) == 0) {
+                audioStream = stream;
+            }
+            stream++;
+        } else if ((memcmp(p, "strf", 4) == 0) && (audioStream == stream - 1)) {
+            channels = body[2] | (body[3] << 8);
+            rate = NvMovie_Le32(body + 4);
+        } else if ((p[2] == 'w') && (p[3] == 'b')) {
+            if (soundLen + size > soundCap) {
+                soundCap = MAX(soundCap * 2, soundLen + size + 65536);
+                sound = realloc(sound, soundCap);
+            }
+            memcpy(sound + soundLen, body, size);
+            soundLen += size;
+        }
+        p = body + size + (size & 1);
+    }
+    frameBytes = 2 * MAX(channels, 1);
+    from = (u32)((u64)startMs * rate / 1000) * frameBytes;
+    len = (u32)((u64)lengthMs * rate / 1000) * frameBytes;
+    if ((sound != NULL) && (from < soundLen)) {
+        len = MIN(len, soundLen - from);
+        NvMovieAudio_Stop();
+        NvMovieAudio_Play(sound + from, len, rate, channels); // (SDL keeps its own copy)
+        printf("NVMOVIE %d: clip %u ms from %u ms\n", (int)id, lengthMs, startMs);
+        fflush(stdout);
+    }
+    free(sound);
+}
+
 /** Play_Update, first: while a movie plays, step it and hold the game (true). */
 s32 NvMovie_Update(PlayState* play) {
     Input* input = &play->state.input[0];
