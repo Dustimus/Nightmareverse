@@ -462,6 +462,16 @@ static s32 NvScd_Cmd(void) {
             return 0;
         default:
             n = NvScd_Len(p);
+            if (getenv("NV_LOG")) { // (the room sweep counts these: commands not run yet)
+                static u8 sSeen[256];
+
+                if (!sSeen[p[0]]) {
+                    sSeen[p[0]] = 1;
+                    printf("NVSCD %s op 0x%02X (room %d.%02X)\n", (n <= 0) ? "unknown, the script stops at" : "skipped",
+                           p[0], sNvStage + 1, sNvRoom);
+                    fflush(stdout);
+                }
+            }
             if (n <= 0) {
                 return 0;
             }

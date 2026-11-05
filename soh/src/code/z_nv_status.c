@@ -450,10 +450,10 @@ static void NvSt_Input(PlayState* play) {
     }
 }
 
-// the condition sheet's "Poison" row (RE1 draws it in place of the others while she's poisoned,
-// menu_draw_health_bar's case 4). Not yet checked against the player's STATUS.TIM: look when the
-// files are back, and correct it here if the word shown is wrong.
-#define NV_ST_COND_POISON 10
+// the condition sheet's "Poison!" row (RE1 draws it in place of the others while she's poisoned,
+// menu_draw_health_bar's case 4). The sheet's rows, 8 px each: Fine 0-1, Good! 2-3, Caution 4-6,
+// Danger! 7-8, Poison! 9-10 (the bright one first, the dimmer ones its flashing)
+#define NV_ST_COND_POISON 9
 
 /** RE1's condition (menu_draw_health_bar): Link's hearts in quarters, as Jill's health. */
 static s32 NvSt_ConditionRow(void) {
