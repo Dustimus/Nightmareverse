@@ -25,6 +25,7 @@ import dataclasses
 import json
 import math
 import os
+import struct
 import sys
 
 from PIL import Image
@@ -1018,36 +1019,63 @@ def mansion_return_doors(rooms, stage, player):
     """The mansion on the way back (stages 6, 7: the return trip's own rooms on the first visit's
     backgrounds). RE1's room_transition_load (DoorSystem.cpp) sends a door that changes stage to
     stage 1 or 2 to 6 or 7 instead once the return flag is set, and inside 6 and 7 it always is:
-    their doors to the other floor say 1 or 2 and mean 7 or 6. So they're pointed there here.
-
-    Test switch until the courtyard and guardhouse are built: the courtyard door of 11B (to 300)
-    goes to 61B instead, and 61B's back to 11B, arriving where 300's door to 11B puts you. That
-    one door swaps mansions both ways."""
-    ids = {rid for rid, _, _ in rooms}
-    arrive = None
+    their doors to the other floor say 1 or 2 and mean 7 or 6. So they're pointed there here."""
     for rid, _, room in rooms:
         for door in room.doors:
             if rid[0] in "67" and door.next_stage in (1, 2):
                 door.next_stage += 5
-    if "300" in ids:
+    front_door_switch(rooms)
+
+
+# RE1's game start (GameStart.cpp): Jill in the foyer at (17000, 5000), facing 3072, the front
+# door at her back
+FOYER_START = (17000, 5000, 3072)
+
+
+def front_door_switch(rooms):
+    """A test switch between the two mansions until the story's flags carry the player across:
+    the foyer's front door (shut for the whole game in RE1, so no door of its own) opens onto the
+    other visit's foyer, 106 <-> 606, arriving where the game starts. Found by stepping back
+    from the start point until RE1's collision meets the wall; the trigger is a strip just
+    inside it, as wide as the double door."""
+    import dataclasses
+    import math
+    import re1_floor
+
+    by = {rid: room for rid, _, room in rooms}
+    if "106" not in by or "606" not in by:
         return
-    try:
-        courtyard = load_rdt(stage_dir(stage, "300"), "300", player)
-    except SystemExit:
-        return
-    for door in courtyard.doors:
-        if door.next_stage == 1 and door.next_room == 0x1B:
-            arrive = (door.next_pos, door.next_dir)
-    if arrive is None:
-        return
-    swap = {"11B": 6, "61B": 1}
-    for rid, _, room in rooms:
-        if rid in swap and ("%d1B" % swap[rid]) in ids:
-            for door in room.doors:
-                if door.next_stage == 3 and door.next_room == 0:
-                    door.next_stage, door.next_room = swap[rid], 0x1B
-                    door.next_pos, door.next_dir = arrive
-                    print("  test switch: %s's courtyard door -> %d1B" % (rid, swap[rid]))
+    sx, sz, sdir = FOYER_START
+    # facing (cos a, -sin a), RE1's RotY; behind her is the other way
+    a = sdir * 2 * math.pi / 4096
+    bx, bz = -math.cos(a), math.sin(a)
+    for rid, other in (("106", 6), ("606", 1)):
+        room = by[rid]
+        solid = [r for r in re1_floor.collision_records(room.raw) if re1_floor.pushes(r)]
+        wall = None
+        for step in range(100, 6000, 100):
+            x, z = sx + bx * step, sz + bz * step
+            if any(r[0] <= x <= r[2] and r[1] <= z <= r[3] for r in solid):
+                wall = step
+                break
+        if wall is None or not room.doors:
+            print("  front door switch: no wall behind %s's start, left out" % rid)
+            continue
+        inner = max(wall - 700, 200)  # the strip's near edge, 600 deep against the wall
+        cx, cz = sx + bx * (inner + 300), sz + bz * (inner + 300)
+        half_w, half_d = (300, 900) if abs(bz) < abs(bx) else (900, 300)
+        x0, z0 = int(cx - half_w), int(cz - half_d)
+        tmpl = room.doors[0]
+        raw = bytearray(tmpl.raw)
+        struct.pack_into("<4H", raw, 2, x0 & 0xFFFF, z0 & 0xFFFF, half_w * 2, half_d * 2)
+        raw[15] = (other << 5) | 0x06  # stage, room 06
+        struct.pack_into("<4H", raw, 16, sx, 0, sz, sdir)
+        raw[24] = 0  # not locked
+        door = dataclasses.replace(tmpl, id=0xFE, x=x0, z=z0, w=half_w * 2, d=half_d * 2,
+                                   next_stage=other, next_room=0x06, next_pos=(sx, 0, sz),
+                                   next_dir=sdir, raw=bytes(raw))
+        room.doors.append(door)
+        print("  front door switch: %s's front door -> %d06 (wall %d behind the start)" % (rid, other, wall))
 
 
 def arrivals_out_of_walls(rooms):
