@@ -1479,6 +1479,11 @@ void AudioOcarina_ReadControllerInput(void) {
 
     PadMgr_RequestPadData(&gPadMgr, inputs, false);
     sOcarinaInputButtonCur = input->cur.button;
+    {
+        extern u32 gNvDevHeld; // Nightmareverse dev (z_nv_dev.c): NV_WALK's notes
+
+        sOcarinaInputButtonCur |= gNvDevHeld;
+    }
     sOcarinaInputButtonPrev = ocarinaInputButtonPrev;
     sOcarinaInputStickAdj.x = input->rel.stick_x;
     sOcarinaInputStickAdj.y = input->rel.stick_y;

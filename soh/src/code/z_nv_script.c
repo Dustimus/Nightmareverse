@@ -994,6 +994,7 @@ s16 NvDoor_Entrance(const char* sceneFile, s32 spawn);
 static s32 sNvWarpIn;     // a warp song into the mansion is on its way
 static s32 sNvSongPlayed; // the mansion's song was just played (the warp sequence is running)
 static u8 sNvSongHeard[8]; // the last notes played in free play, newest last
+static void NvSong_Restore(void);
 
 /** A note played in free play (z_message_PAL.c): true when it completes the mansion's song. */
 s32 NvSong_Note(PlayState* play, u8 button) {
@@ -1001,8 +1002,13 @@ s32 NvSong_Note(PlayState* play, u8 button) {
     s32 k;
 
     sNvSongPlayed = false; // (a song played where OoT won't warp leaves nothing pending)
+    NvSong_Restore();
     memmove(sNvSongHeard, sNvSongHeard + 1, sizeof(sNvSongHeard) - 1);
     sNvSongHeard[sizeof(sNvSongHeard) - 1] = button;
+    if (getenv("NV_LOG")) {
+        printf("NVSONG note %d (action %d)\n", (int)button, (int)play->msgCtx.ocarinaAction);
+        fflush(stdout);
+    }
     if (play->msgCtx.ocarinaAction != OCARINA_ACTION_FREE_PLAY) {
         return false;
     }
@@ -1016,6 +1022,7 @@ s32 NvSong_Note(PlayState* play, u8 button) {
     }
     memset(sNvSongHeard, 0xFF, sizeof(sNvSongHeard));
     sNvSongPlayed = true;
+    NvMsg_EnsureHook(); // its warp question (NvMessages.cpp), wherever it's played
     printf("NVSONG the mansion's song\n");
     fflush(stdout);
     return true;
@@ -1026,7 +1033,65 @@ s32 NvSong_Pending(void) {
     return sNvSongPlayed;
 }
 
-/** Its sound, in place of OoT's playback of the song (z_message_PAL.c). */
+/*
+ * Its playback: OoT plays a correct song back from its note table (sOcarinaSongNotes), so while
+ * the warp sequence runs ours stands in for Nocturne's there (the same feel as Nocturne's quick
+ * run: 18 frames a note, the last held), and Nocturne's own notes go back once the warp starts.
+ */
+extern OcarinaNote sOcarinaSongNotes[OCARINA_SONG_MAX][20];
+static OcarinaNote sNvSongSaved[20];
+static s32 sNvSongSwapped;
+
+static void NvSong_Restore(void) {
+    if (sNvSongSwapped) {
+        memcpy(sOcarinaSongNotes[NV_WARP_SONG], sNvSongSaved, sizeof(sNvSongSaved));
+        sNvSongSwapped = false;
+    }
+}
+
+static u8 NvSong_Pitch(u8 button) {
+    switch (button) {
+        case OCARINA_BTN_A:
+            return OCARINA_PITCH_D4;
+        case OCARINA_BTN_C_DOWN:
+            return OCARINA_PITCH_F4;
+        case OCARINA_BTN_C_RIGHT:
+            return OCARINA_PITCH_A4;
+        case OCARINA_BTN_C_LEFT:
+            return OCARINA_PITCH_B4;
+        default:
+            return OCARINA_PITCH_D5;
+    }
+}
+
+/** OoT's playback of the song, ours in Nocturne's slot (z_message_PAL.c, in place of its call). */
+void NvSong_Playback(void) {
+    OcarinaNote* n = sOcarinaSongNotes[NV_WARP_SONG];
+    s32 count = ARRAY_COUNT(sNvSongNotes);
+    s32 k;
+
+    if (!sNvSongSwapped) {
+        memcpy(sNvSongSaved, n, sizeof(sNvSongSaved));
+        sNvSongSwapped = true;
+    }
+    for (k = 0; k < count; k++) {
+        n[k].pitch = NvSong_Pitch(sNvSongNotes[k]);
+        n[k].length = (k == count - 1) ? 90 : 18;
+        n[k].volume = 86;
+        n[k].vibrato = 0;
+        n[k].bend = 0;
+        n[k].bFlat4Flag = 0;
+    }
+    n[count].pitch = OCARINA_PITCH_NONE; // the end
+    n[count].length = 0;
+    n[count].volume = 86;
+    n[count].vibrato = 0;
+    n[count].bend = 0;
+    n[count].bFlat4Flag = 0;
+    AudioOcarina_SetPlaybackSong(NV_WARP_SONG + 1, 1);
+}
+
+/** Its sound in the warp, after the playback (the opening movie's stretch, until the arrangement). */
 void NvSong_PlayClip(void) {
     void NvMovie_SoundClip(s32 id, u32 startMs, u32 lengthMs);
 
@@ -1044,6 +1109,7 @@ s16 NvWarp_SongEntrance(s32 song, s16 entrance) {
         return entrance;
     }
     sNvSongPlayed = false;
+    NvSong_Restore(); // the playback's done: Nocturne's notes back
     foyer = NvDoor_Entrance("re1_106_scene", 0);
     if (foyer < 0) {
         return entrance;

@@ -20,6 +20,7 @@
 s32 NvSong_Note(PlayState* play, u8 button);
 s32 NvSong_Pending(void);
 void NvSong_PlayClip(void);
+void NvSong_Playback(void);
 
 // #region SOH [NTSC] - Allows custom messages to work on japanese
 static bool sDisplayNextMessageAsEnglish = false;
@@ -3665,8 +3666,8 @@ void Message_DrawMain(PlayState* play, Gfx** p) {
                     }
                     AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_DEFAULT);
                     AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_DEFAULT);
-                    if (NvSong_Pending()) { // Nightmareverse: RE1's sound, not Nocturne's melody
-                        NvSong_PlayClip();
+                    if (NvSong_Pending()) { // Nightmareverse: the mansion's song's own notes
+                        NvSong_Playback();
                     } else {
                         AudioOcarina_SetPlaybackSong(msgCtx->lastPlayedSong + 1, 1);
                     }

@@ -6,6 +6,7 @@
  *   NV_WALK="x,z;x,z;wait:N"  steer Link through waypoints with the control stick (camera-
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
  *                             (default 200); "wait:N" stands still N frames, "a" presses A, "b" B,
+ *                             "press:cu" (cd, cl, cr, a) holds a button 8 frames (an ocarina note),
  *                             "start" Start, "left"/"right"/"up"/"down" the D-pad, "cl:N" holds
  *                             C-Left N frames (RE1's gun's aim; letting go fires),
  *                             "pos:x,z" puts Link there, "face:x,z" turns him to face a point,
@@ -31,7 +32,7 @@
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD } NvWaypointKind;
 
 typedef struct {
     s16 kind;
@@ -41,6 +42,8 @@ typedef struct {
     s16 x1; // NV_WP_FACERECT: the rectangle's far corner
     s16 z1;
 } NvWaypoint;
+
+u32 gNvDevHeld; // a held button the ocarina's own pad read adds (NV_WALK's press:, 0 otherwise)
 
 static NvWaypoint sNvPath[NV_MAX_WAYPOINTS];
 static s32 sNvPathLen = -1; // -1: not parsed yet
@@ -144,6 +147,12 @@ static void NvDev_ParsePath(void) {
                    (strncmp(s, "down", 4) == 0)) {
             wp->kind = NV_WP_DPAD;
             wp->wait = (s[0] == 'l') ? BTN_DLEFT : (s[0] == 'r') ? BTN_DRIGHT : (s[0] == 'u') ? BTN_DUP : BTN_DDOWN;
+            sNvPathLen++;
+        } else if (strncmp(s, "press:", 6) == 0) { // a note's press: press:cu / cd / cl / cr / a, held 8 frames
+            wp->kind = NV_WP_HOLD;
+            wp->x = (s[6] == 'a') ? BTN_A
+                    : (s[7] == 'u') ? BTN_CUP : (s[7] == 'd') ? BTN_CDOWN : (s[7] == 'l') ? BTN_CLEFT : BTN_CRIGHT;
+            wp->wait = 8;
             sNvPathLen++;
         } else if (strncmp(s, "cl:", 3) == 0) { // hold C-Left that many frames, then let go
             wp->kind = NV_WP_HOLDCL;
@@ -344,6 +353,18 @@ void NvDev_Update(PlayState* play) {
                 sNvTimer = 0;
             } else {
                 input->cur.button |= BTN_CLEFT;
+            }
+        } else if (wp->kind == NV_WP_HOLD) {
+            if (sNvTimer == 0) {
+                input->press.button |= (u16)wp->x;
+            }
+            if (++sNvTimer > wp->wait) {
+                sNvPathIdx++;
+                sNvTimer = 0;
+                gNvDevHeld = 0;
+            } else {
+                input->cur.button |= (u16)wp->x;
+                gNvDevHeld = (u16)wp->x; // the ocarina reads the pad itself (code_800EC960.c)
             }
         } else if (wp->kind == NV_WP_WAIT) {
             if (++sNvTimer > wp->wait) {
