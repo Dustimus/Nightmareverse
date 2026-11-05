@@ -967,7 +967,7 @@ void NvBgm_ScdStop(s32 ch);
 void NvBgm_ScdState(s32 stage, s32 room, u8 state);
 
 /*
- * The way in: the mansion's own warp song (placeholder notes for now), played anywhere in free
+ * The way in: the mansion's own warp song (its notes from the basement theme's shape), played anywhere in free
  * play, warps into the foyer. It rides OoT's warp-song sequence under Nocturne of Shadow's slot
  * (the warp light, the fade), but only this song goes to the mansion: Nocturne itself warps to
  * the graveyard as ever. In place of a melody it plays a stretch of RE1's opening movie's sound
@@ -978,9 +978,11 @@ void NvBgm_ScdState(s32 stage, s32 room, u8 state);
 #define NV_WARP_SEEN_INDEX (0xD5 >> 4)
 #define NV_WARP_SEEN_MASK (1 << (0xD5 & 15))
 
-// the notes: C-Down, C-Left, C-Down, C-Left, C-Up, A (none of OoT's songs is in it)
-static const u8 sNvSongNotes[] = { OCARINA_BTN_C_DOWN, OCARINA_BTN_C_LEFT, OCARINA_BTN_C_DOWN,
-                                   OCARINA_BTN_C_LEFT, OCARINA_BTN_C_UP,   OCARINA_BTN_A };
+// the notes: the opening phrase of the user's MIDI of the Dual Shock basement theme, its shape
+// (a chromatic crawl, a dip, the crawl back, the leap) on the ocarina's five notes:
+// C-Down, C-Right, A, C-Right, C-Left, A, C-Left, C-Up (none of OoT's songs is in it)
+static const u8 sNvSongNotes[] = { OCARINA_BTN_C_DOWN, OCARINA_BTN_C_RIGHT, OCARINA_BTN_A,    OCARINA_BTN_C_RIGHT,
+                                   OCARINA_BTN_C_LEFT, OCARINA_BTN_A,       OCARINA_BTN_C_LEFT, OCARINA_BTN_C_UP };
 
 // the sound it plays: movie NV_SONG_CLIP_MOVIE (0, the opening) from NV_SONG_CLIP_START_MS for
 // NV_SONG_CLIP_LENGTH_MS. Placeholder times: set them to the cast roll once it's been timed.
