@@ -129,3 +129,14 @@ here is agreed or scheduled.
   well they'd suit Link: as tunic colours, or further.
 - Maybe: Link's head on an RE1 character's body (or the other way round) for the costumes. A
   headache (the skeletons and proportions differ), so a maybe.
+
+## Jill as Navi (from the user, 2026-11-05)
+
+- Navi speaks Jill's lines in the mansion: the scenes' and the examine text's voice lines
+  played as Navi's, with Navi's text box (it's blue already). Link stays Link on screen.
+- The bigger joke: Navi is Jill for the whole mod, her name and her voice triggers changed
+  (not her model). Every Navi line in OoT would need a Jill reading.
+- The voice: RE1's own Jill lines come from the player's files and need no new recording; new
+  lines (all of Navi's) would need a voice. Cloning the original actress's voice without her
+  consent is the uncomfortable route, even for friends only; a sound-alike performer who agrees
+  to it (with a similar filter on top) is the clean one, and the only one for a wider release.
