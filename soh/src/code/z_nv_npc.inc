@@ -288,9 +288,17 @@ static void npc_scd_08(void) {
             }
             // fall through
         case 1:
-        case 3: // (the muzzle flash, the shell and the second flash would spawn on their frames here)
+        case 3: {
+            // the muzzle flash on its weapon's frame (kFireFxMuzzle's, by behaviour - 2; the shell
+            // and the second flash left out)
+            static const u8 sFlashFrame[14] = { 1, 1, 1, 1, 0xFF, 2, 2, 2, 1, 1, 1, 1, 1, 1 };
+
+            if ((E->action_state == 1) && (weapon < 14) && (E->animation_frame_id == sFlashFrame[weapon])) {
+                E->fx = 1;
+            }
             E->action_state += (u8)npc_play(0, 0x400);
             break;
+        }
         case 2:
             npc_done();
             break;
@@ -300,7 +308,10 @@ static void npc_scd_08(void) {
             E->animationId = 0x14;
             E->blend_counter = 3;
             // fall through
-        case 5: // the flamethrower's sweep (its fire and sound left out)
+        case 5: // the flamethrower's sweep (its sound left out)
+            if ((E->animation_frame_id % 6) == 0) {
+                E->fx = 2;
+            }
             npc_play(0, 0x400);
             E->angle += (s16)E->scd_timer;
             break;

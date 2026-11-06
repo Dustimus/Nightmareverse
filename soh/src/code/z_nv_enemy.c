@@ -1008,6 +1008,24 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
         at.z += Rand_CenteredFloat(30.0f);
         EffectSsBomb2_SpawnLayered(play, &at, &zero, &zero, 100, 19);
     }
+    if (NvEnemy_IsNpc(this->type) && e->fx && (e->numJoints > 0)) { // its weapon's flash, its flame
+        s32 j = MIN(14, e->numJoints - 1); // (the weapon hand: RE1 spawns them in joint 14's space)
+        Vec3f at = { e->joint[j][0] * NV_RE1_SCALE, -e->joint[j][1] * NV_RE1_SCALE, -e->joint[j][2] * NV_RE1_SCALE };
+
+        if (e->fx == 1) {
+            EffectSsHitMark_SpawnFixedScale(play, 0, &at);
+        } else {
+            f32 s = Math_SinS(thisx->shape.rot.y);
+            f32 c = Math_CosS(thisx->shape.rot.y);
+            Vec3f vel = { s * 6.0f, 0.5f, c * 6.0f };
+            Vec3f accel = { 0.0f, 0.1f, 0.0f };
+
+            at.x += s * 15.0f;
+            at.z += c * 15.0f;
+            EffectSsKFire_Spawn(play, &at, &vel, &accel, 30, 100); // (100: the orange fire)
+        }
+        e->fx = 0;
+    }
     NvEnemy_JointsWorld(this); // its joints where the logic can reach with them, for the next frame
     if (getenv("NV_LOG") && ((play->gameplayFrames % 20) == 0)) {
         printf("NVENEMY f=%d state %d %d/%d/%d anim %d.%d.%d at %d,%d,%d angle %d health %d hit 0x%02x\n",

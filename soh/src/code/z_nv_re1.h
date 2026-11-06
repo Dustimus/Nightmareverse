@@ -66,6 +66,7 @@ typedef struct NvRe1Entity {
     u8 scd_anim_param;
     u16 scd_entity_flags;
     u16 scd_timer;  // +0xDE: the event script's turn step / timer
+    u8 fx;          // an effect from its hand this tick (a character's: 1 a muzzle flash, 2 flame)
     s16 frame_hold; // +0xC4: a held frame's count (npc_scd_01); the stand-in's animation ticks
     s16 unk_c6; // grab / SCD target point
     s16 unk_c8;
