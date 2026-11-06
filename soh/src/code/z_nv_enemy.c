@@ -461,6 +461,7 @@ static const s16 sNvGunDamage[10] = { 8, 9, 53, 50, 130, 20, 201, 95, 95, 900 };
 static const u8 sNvGunHitState[10] = { 1, 1, 2, 2, 2, 1, 2, 1, 1, 2 };
 
 static s32 NvEnemy_Parked(const NvRe1Entity* e);
+static void NvEnemy_JointsWorld(NvEnemy* this);
 
 /**
  * Whether actor a is one of RE1's enemies a gun can hit now (alive, out, not already reacting:
@@ -930,6 +931,7 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvRe1_JointMove(e, 0, 0x400);
         }
     }
+    NvEnemy_JointsWorld(this); // its joints where the logic can reach with them, for the next frame
     if (getenv("NV_LOG") && ((play->gameplayFrames % 20) == 0)) {
         printf("NVENEMY f=%d state %d %d/%d/%d anim %d.%d.%d at %d,%d,%d angle %d health %d hit 0x%02x\n",
                (int)play->gameplayFrames, e->state, e->ignore_player_flag, e->action_behavior, e->action_state,
@@ -973,73 +975,37 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
     }
 }
 
-void NvEnemy_Draw(Actor* thisx, PlayState* play) {
-    NvEnemy* this = (NvEnemy*)thisx;
+/** RotMatrix (Rz * Ry * Rx) of RE1 angles (4096 a turn), rows. */
+static void NvEnemy_RotMatrix(s16 ax, s16 ay, s16 az, f32 L[3][3]) {
+    f32 a = ax * (NV_PI / 2048.0f);
+    f32 b = ay * (NV_PI / 2048.0f);
+    f32 c = az * (NV_PI / 2048.0f);
+    f32 sx = sinf(a), cx = cosf(a), sy = sinf(b), cy = cosf(b), sz = sinf(c), cz = cosf(c);
+
+    L[0][0] = cz * cy;
+    L[0][1] = cz * sy * sx - sz * cx;
+    L[0][2] = cz * sy * cx + sz * sx;
+    L[1][0] = sz * cy;
+    L[1][1] = sz * sy * sx + cz * cx;
+    L[1][2] = sz * sy * cx - cz * sx;
+    L[2][0] = -sy;
+    L[2][1] = cy * sx;
+    L[2][2] = cy * cx;
+}
+
+/** The skeleton posed (Joint_move's angles): per bone its rotation and translation in the entity's space. */
+static void NvEnemy_Pose(NvEnemy* this, f32 R[][3][3], f32 T[][3]) {
     NvEmModel* m = this->model;
-    GraphicsContext* gfxCtx = play->state.gfxCtx;
-    // per bone, in RE1's space: rotation (3x3, column vectors) and translation
-    f32 R[NV_EM_MAX_BONES][3][3];
-    f32 T[NV_EM_MAX_BONES][3];
-    f32 base[3][3];
-    f32 ca;
-    f32 sa;
     s32 n;
-    u8 tint = 255;
-
-    if ((m == NULL) || NvDoorScene_Covering() || NvEnemy_Parked(&this->e)) {
-        return;
-    }
-    if (thisx->colorFilterTimer != 0) {
-        tint = 80;
-    }
-    // the entity: RotMatrixY(angle), then to OoT's axes and scale (x, -y, -z)
-    ca = cosf(this->e.angle * (NV_PI / 2048.0f));
-    sa = sinf(this->e.angle * (NV_PI / 2048.0f));
-    base[0][0] = ca * NV_RE1_SCALE;
-    base[0][1] = 0.0f;
-    base[0][2] = sa * NV_RE1_SCALE;
-    base[1][0] = 0.0f;
-    base[1][1] = -NV_RE1_SCALE;
-    base[1][2] = 0.0f;
-    base[2][0] = sa * NV_RE1_SCALE; // -(-sa)
-    base[2][1] = 0.0f;
-    base[2][2] = -ca * NV_RE1_SCALE;
-    if (this->e.pitch != 0) { // RotMatrix's x turn under the facing: base * Rx(pitch)
-        f32 cp = cosf(this->e.pitch * (NV_PI / 2048.0f));
-        f32 sp = sinf(this->e.pitch * (NV_PI / 2048.0f));
-        s32 r;
-
-        for (r = 0; r < 3; r++) {
-            f32 b1 = base[r][1];
-            f32 b2 = base[r][2];
-
-            base[r][1] = b1 * cp + b2 * sp;
-            base[r][2] = b2 * cp - b1 * sp;
-        }
-    }
 
     for (n = 0; n < m->numBones; n++) {
         s32 i = m->order[n];
         s16 p = m->bones[i * 4 + 3];
-        f32 a = this->e.rot[i][0] * (NV_PI / 2048.0f);
-        f32 b = (s16)(this->e.rot[i][1] + this->e.yawExtra[i]) * (NV_PI / 2048.0f);
-        f32 c = this->e.rot[i][2] * (NV_PI / 2048.0f);
-        f32 sx = sinf(a), cx = cosf(a), sy = sinf(b), cy = cosf(b), sz = sinf(c), cz = cosf(c);
         f32 L[3][3];
         s32 r;
         s32 k;
 
-        // RotMatrix: Rz * Ry * Rx
-        L[0][0] = cz * cy;
-        L[0][1] = cz * sy * sx - sz * cx;
-        L[0][2] = cz * sy * cx + sz * sx;
-        L[1][0] = sz * cy;
-        L[1][1] = sz * sy * sx + cz * cx;
-        L[1][2] = sz * sy * cx - cz * sx;
-        L[2][0] = -sy;
-        L[2][1] = cy * sx;
-        L[2][2] = cy * cx;
-
+        NvEnemy_RotMatrix(this->e.rot[i][0], (s16)(this->e.rot[i][1] + this->e.yawExtra[i]), this->e.rot[i][2], L);
         if ((p < 0) || (p >= m->numBones)) {
             for (r = 0; r < 3; r++) {
                 for (k = 0; k < 3; k++) {
@@ -1057,6 +1023,61 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
             }
         }
     }
+}
+
+/**
+ * Where its joints are now, in RE1's world (e->joint: the entity's place plus its turn, RotMatrix of
+ * pitch, facing and roll, applied to each posed joint), for the logic that reaches with a hand, a
+ * jaw or a vine's tip (RE1 reads its joints' world matrices the same way).
+ */
+static void NvEnemy_JointsWorld(NvEnemy* this) {
+    NvEmModel* m = this->model;
+    f32 R[NV_EM_MAX_BONES][3][3];
+    f32 T[NV_EM_MAX_BONES][3];
+    f32 M[3][3];
+    s32 i;
+
+    if (m == NULL) {
+        return;
+    }
+    NvEnemy_Pose(this, R, T);
+    NvEnemy_RotMatrix(this->e.pitch, this->e.angle, this->e.roll, M);
+    for (i = 0; (i < m->numBones) && (i < NV_RE1_JOINTS); i++) {
+        s32 r;
+
+        for (r = 0; r < 3; r++) {
+            this->e.joint[i][r] = this->e.t[r] + (s32)(M[r][0] * T[i][0] + M[r][1] * T[i][1] + M[r][2] * T[i][2]);
+        }
+    }
+    this->e.numJoints = (u8)MIN(m->numBones, NV_RE1_JOINTS);
+}
+
+void NvEnemy_Draw(Actor* thisx, PlayState* play) {
+    NvEnemy* this = (NvEnemy*)thisx;
+    NvEmModel* m = this->model;
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    // per bone, in RE1's space: rotation (3x3, column vectors) and translation
+    f32 R[NV_EM_MAX_BONES][3][3];
+    f32 T[NV_EM_MAX_BONES][3];
+    f32 base[3][3];
+    f32 M[3][3];
+    s32 n;
+    u8 tint = 255;
+
+    if ((m == NULL) || NvDoorScene_Covering() || NvEnemy_Parked(&this->e)) {
+        return;
+    }
+    if (thisx->colorFilterTimer != 0) {
+        tint = 80;
+    }
+    // the entity: RotMatrix(pitch, facing, roll), then to OoT's axes and scale (x, -y, -z)
+    NvEnemy_RotMatrix(this->e.pitch, this->e.angle, this->e.roll, M);
+    for (n = 0; n < 3; n++) {
+        base[0][n] = M[0][n] * NV_RE1_SCALE;
+        base[1][n] = -M[1][n] * NV_RE1_SCALE;
+        base[2][n] = -M[2][n] * NV_RE1_SCALE;
+    }
+    NvEnemy_Pose(this, R, T);
 
     OPEN_DISPS(gfxCtx);
     // point sampled and unlit, as RE1's door scenes are here; colour 0 (alpha 0) is see-through

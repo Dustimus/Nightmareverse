@@ -79,6 +79,9 @@ typedef struct NvRe1Entity {
     u8 holding;   // it holds the player (z_nv_enemy.c grabs Link with OoT's grab, at unk_c6/c8)
     u8 snd_group; // its sound group (Snd_em's id + group * 10): the SCD record's byte 0x15 >> 4 & 7
     s16 pitch;    // its turn about x, drawn under the facing (a spider on the ceiling: 0x800)
+    s16 roll;     // its turn about z (RE1's rotation.z: Plant 42's vines swinging sideways)
+    s32 joint[NV_RE1_JOINTS][3]; // its joints in RE1's world, last frame (z_nv_enemy.c NvEnemy_JointsWorld)
+    u8 numJoints;
     s16 reaction_timer; // +0x176 (the dog: gravity in a leap, the turn it holds while swerving)
     // the dog's own (Cerberus.cpp's offsets 0x16C-0x18A)
     struct {
