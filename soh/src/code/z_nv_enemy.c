@@ -98,6 +98,8 @@ void NvFlags_Op(s32 bank, s32 bit, s32 mode);
 
 s32 NvActor_EnemyId(void); // NvActors.cpp
 static u8 sNvEnemySpawnSndGroup; // the sound group of the enemy being placed (NvEnemy_ScdSet)
+static u8 sNvEnemySpawnAnim;  // its starting animation and frame (cmd_enemy_set bytes 0x13, 0x14)
+static u8 sNvEnemySpawnFrame;
 
 static ColliderCylinderInit sNvEnemyCylinder = {
     {
@@ -229,6 +231,11 @@ static s32 NvEnemy_Acts(s32 type) {
 
 static s32 NvEnemy_IsCorpse(s32 type) {
     return (type == 37) || (type == 38) || (type == 41);
+}
+
+/** RE1's characters (Chris 32 ... Enrico 40, and the variants up to 46): z_nv_npc.inc. */
+static s32 NvEnemy_IsNpc(s32 type) {
+    return (type >= 32) && (type <= 46) && !NvEnemy_IsCorpse(type);
 }
 
 /* ---- models ---- */
@@ -767,6 +774,14 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x40; // (a Dodongo's, as the big ones)
         NvRe1_TickBegin();
         NvTyrant_Init(e);
+    } else if (NvEnemy_IsNpc(this->type) && (this->model != NULL)) {
+        thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
+        e->sca = sNvJillSca; // (a person's)
+        e->animationId = sNvEnemySpawnAnim;
+        e->animation_frame_id = sNvEnemySpawnFrame;
+        e->timing_control = 1;
+        NvRe1_TickBegin();
+        NvNpc_Init(e);
     } else {
         thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
         e->animationId = 0;
@@ -965,6 +980,12 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvTyrant_Update(e);
             NvEnemy_DogBite(this, play); // (its claw)
             NvEnemy_Hold(this, play);     // (the impale)
+        }
+    } else if (NvEnemy_IsNpc(this->type)) {
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvNpc_Update(e); // (what the room's event scripts have it do)
         }
     } else {
         for (t = 0; t < ticks; t++) {
@@ -1198,7 +1219,7 @@ void NvEnemy_ScdSet(PlayState* play, const u8* e) {
     if (((e[3] != 0xFF) && NvFlags_Test(3, e[3])) || (sNvEnemySlots[slot] != NULL)) {
         return;
     }
-    if (!(NvEnemy_Acts(e[1]) || NvEnemy_IsCorpse(e[1]))) {
+    if (!(NvEnemy_Acts(e[1]) || NvEnemy_IsCorpse(e[1]) || NvEnemy_IsNpc(e[1]))) {
         return; // (the other types aren't ported)
     }
     memcpy(&angle, e + 8, 2);
@@ -1207,6 +1228,8 @@ void NvEnemy_ScdSet(PlayState* play, const u8* e) {
     memcpy(&z, e + 16, 2);
     // (RE1's x and z are unsigned: rooms run past 32767) rot: behaviour, angle, death flag
     sNvEnemySpawnSndGroup = (e[0x15] >> 4) & 7; // its sound group (cmd_enemy_set), for NvEnemy_Init
+    sNvEnemySpawnAnim = e[0x13];                // and its starting pose (a character's: its animation, frame)
+    sNvEnemySpawnFrame = e[0x14];
     sNvEnemySlots[slot] = Actor_Spawn(&play->actorCtx, play, NvActor_EnemyId(), x * NV_RE1_SCALE, -y * NV_RE1_SCALE,
                                       -z * NV_RE1_SCALE, e[2], angle & 0xFFF, e[3], e[1]);
 }
@@ -1247,3 +1270,80 @@ void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param) {
 }
 
 const size_t gNvEnemySize = sizeof(NvEnemy);
+
+/** The entity in an enemy slot (an event script's character 1, n), or NULL. */
+NvRe1Entity* NvEnemy_SlotEntity(s32 slot) {
+    if ((slot < 0) || (slot >= NV_ENEMY_SLOTS) || (sNvEnemySlots[slot] == NULL)) {
+        return NULL;
+    }
+    return &((NvEnemy*)sNvEnemySlots[slot])->e;
+}
+
+/* ---- the player in a scripted scene ---- */
+
+// RE1's player entity as the event scripts drive her (character 0): state 8 and a behaviour
+// (z_nv_npc.inc), which walk Link; state 1 is her own control, and the stand-in follows Link.
+static NvRe1Entity sNvCastPlayer;
+static u8 sNvCastHeld;
+static u8 sNvCastPhase;
+static u16 sNvCastHeldFrames;
+// a scene holding her this long is waiting on something not ported yet: she's let go
+#define NV_CAST_HOLD_MAX (60 * 60)
+
+NvRe1Entity* NvCast_Player(void) {
+    return &sNvCastPlayer;
+}
+
+/** The room's start: she's her own again. */
+void NvCast_RoomLoad(void) {
+    memset(&sNvCastPlayer, 0, sizeof(sNvCastPlayer));
+    sNvCastPlayer.state = 1;
+    sNvCastPlayer.id = 0;
+    sNvCastPlayer.sca = sNvJillSca;
+    sNvCastHeld = false;
+    sNvCastHeldFrames = 0;
+}
+
+/** Every frame (NvScript_Update): Link walked by the script while it holds her, else followed. */
+void NvCast_Update(PlayState* play, s32 eventsLive) {
+    Player* player = GET_PLAYER(play);
+    NvRe1Entity* e = &sNvCastPlayer;
+    s32 ticks;
+    s32 t;
+
+    if (player == NULL) {
+        return;
+    }
+    if ((e->state == 8) && (!eventsLive || (sNvCastHeldFrames > NV_CAST_HOLD_MAX))) {
+        if (eventsLive) {
+            printf("NVCAST the scene held her too long: let go\n");
+            fflush(stdout);
+        }
+        e->state = 1; // (the scene ended with her still held: she's let go)
+    }
+    if (e->state != 8) {
+        sNvCastHeldFrames = 0;
+        if (sNvCastHeld) {
+            sNvCastHeld = false;
+            Player_SetCsAction(play, NULL, 7);
+        }
+        e->t[0] = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
+        e->t[1] = (s32)lroundf(-player->actor.world.pos.y / NV_RE1_SCALE);
+        e->t[2] = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
+        e->angle = ((0x4000 - (s32)(u16)player->actor.shape.rot.y) / 16) & 0xFFF;
+        return;
+    }
+    if (!sNvCastHeld) {
+        sNvCastHeld = true;
+        Player_SetCsAction(play, NULL, 8);
+    }
+    sNvCastHeldFrames++;
+    ticks = (sNvCastPhase ^= 1) ? 1 : 2;
+    for (t = 0; t < ticks; t++) {
+        NvRe1_TickBegin();
+        NvNpc_PlayerTick(e);
+    }
+    player->actor.world.pos.x = e->t[0] * NV_RE1_SCALE;
+    player->actor.world.pos.z = -e->t[2] * NV_RE1_SCALE;
+    player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = (s16)(0x4000 - e->angle * 16);
+}

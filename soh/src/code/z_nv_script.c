@@ -53,6 +53,8 @@ void NvBgm_ScdStop(s32 ch);
 void NvBgm_ScdState(s32 stage, s32 room, u8 state);
 s32 NvMovie_Playing(void);
 s32 NvDoorScene_Covering(void);
+void NvCast_RoomLoad(void);
+void NvCast_Update(PlayState* play, s32 eventsLive);
 
 typedef struct {
     u8 active;
@@ -62,6 +64,8 @@ typedef struct {
     const u8* ret[4];
     const u8* call[4];
     s16 counter[4];
+    u8 entKind; // the character it drives (state 0's 0x04): 0 the player, 1 an enemy slot
+    u8 entIdx;
 } NvEvt;
 
 static u32 sNvFlags[10][8];
@@ -426,6 +430,34 @@ static s32 NvScd_Cmd(void) {
             sNvIp = p + 4;
             return 1;
         }
+        case 0x09: { // cmd_cut_lock_set: cut to a camera and hold it there (z_nv_camera.c)
+            void NvCamera_CutLock(s32 n);
+
+            NvCamera_CutLock(p[1]);
+            sNvIp = p + 2;
+            return 1;
+        }
+        case 0x0A: { // cmd_current_cut_set: back to the camera before the cut
+            void NvCamera_CutRestore(void);
+
+            NvCamera_CutRestore();
+            sNvIp = p + 2;
+            return 1;
+        }
+        case 0x23: { // cmd_cut_lock_write
+            void NvCamera_Lock(s32 on);
+
+            NvCamera_Lock(p[1]);
+            sNvIp = p + 2;
+            return 1;
+        }
+        case 0x3A: { // cmd_cut_zone_set: a camera switch zone's cameras rewritten
+            void NvCamera_ZoneSet(s32 i, s32 from, s32 to);
+
+            NvCamera_ZoneSet(p[1], p[2], p[3]);
+            sNvIp = p + 4;
+            return 1;
+        }
         case 0x0B: // cmd_message_set: a room message, shown now (RE1 also pauses for p[2..3])
             NvScd_Message(p[1]);
             sNvIp = p + 4;
@@ -442,6 +474,10 @@ static s32 NvScd_Cmd(void) {
                 player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = (s16)(0x4000 - v[1] * 16);
                 player->linearVelocity = 0.0f;
             }
+            NvCast_Player()->t[0] = v[3]; // (a scene holding her goes on from there)
+            NvCast_Player()->t[1] = v[4];
+            NvCast_Player()->t[2] = v[5];
+            NvCast_Player()->angle = v[1] & 0xFFF;
             sNvIp = p + 14;
             return 1;
         }
@@ -574,6 +610,182 @@ static void NvEvt_Init(NvEvt* e, s32 script) {
     e->state = 0;
     e->depth = -1;
     e->ip = sNvEvtTable + off;
+    e->entKind = 0xFF; // (RE1 hands it the current entity: none, outside an enemy's own script)
+}
+
+/** The event's character (scd_event_cmd_set_entity), or NULL (a room object, or none). */
+static NvRe1Entity* NvEvt_Ent(const NvEvt* e) {
+    if (e->entKind == 0) {
+        return NvCast_Player();
+    }
+    if (e->entKind == 1) {
+        return NvEnemy_SlotEntity(e->entIdx);
+    }
+    return NULL;
+}
+
+/** scd_event_state1_anim: one of the character opcodes (state 1); its length. */
+static s32 NvEvt_Anim(NvEvt* e, const u8* p) {
+    NvRe1Entity* t = NvEvt_Ent(e);
+    NvRe1Entity dummy;
+    u16 w;
+
+    if (t == NULL) {
+        memset(&dummy, 0, sizeof(dummy));
+        t = &dummy; // (an object's: read past)
+    }
+    switch (p[0]) {
+        case 0x00:
+            return 1;
+        case 0x80: // done with it
+            t->ignore_player_flag = 0;
+            // fall through
+        case 0x8B:
+            e->state = 0;
+            return 1;
+        case 0x81: // where it looks (the head tracking isn't ported)
+            return (p[1] & 0x0F) ? 10 : 2;
+        case 0x82:
+            return 1;
+        case 0x83: // a behaviour with a target point: walk there, turn to it
+            t->state = 8;
+            t->ignore_player_flag = 0;
+            if (!(p[1] & 0x10)) {
+                t->action_behavior = p[1];
+                t->action_state = 0;
+                t->collisionFlags &= 0x7F;
+            } else if (!(t->collisionFlags & 0x80)) {
+                t->action_behavior = p[1] & 0x0F;
+                t->action_state = 0;
+                t->collisionFlags |= 0x80;
+            } else {
+                t->action_behavior = p[1] & 0x0F;
+            }
+            t->unk_c6 = (s16)(p[2] | (p[3] << 8));
+            t->unk_c8 = (s16)(p[4] | (p[5] << 8));
+            t->scd_anim_param = p[6];
+            t->scd_timer = 0x28;
+            t->scd_entity_flags = 0;
+            return 7;
+        case 0x84: // play an animation (behaviour 1), raising a flag at its end
+            t->state = 8;
+            t->ignore_player_flag = 0;
+            t->action_behavior = 1;
+            t->action_state = 0;
+            t->animationId = p[1];
+            w = p[2] | (p[3] << 8);
+            t->scd_anim_param = (u8)w;
+            t->scd_entity_flags = (w >> 6) & 0x3FC;
+            t->scd_timer = 0;
+            return 4;
+        case 0x85: // a behaviour and its animation
+            t->state = 8;
+            t->ignore_player_flag = 0;
+            t->action_behavior = p[1];
+            t->action_state = 0;
+            t->animationId = p[2];
+            t->scd_anim_param = p[3];
+            t->scd_timer = 0;
+            t->scd_entity_flags = 0;
+            return 4;
+        case 0x86: // back to its own control
+            t->state = 1;
+            t->ignore_player_flag = 0;
+            t->action_behavior = 0;
+            t->action_state = 0;
+            t->hit_state = 0;
+            return 1;
+        case 0x87:
+            w = p[2] | (p[3] << 8);
+            if (p[1] == 0) {
+                t->scd_entity_flags |= w;
+            } else if (p[1] == 1) {
+                t->scd_entity_flags = w;
+            } else if (p[1] == 2) {
+                t->scd_entity_flags ^= w;
+            }
+            return 4;
+        case 0x88:
+            t->scd_timer = p[2] | (p[3] << 8);
+            return 4;
+        case 0x89: // a frame of an animation (the player's remap table isn't ported: as 0x8A)
+        case 0x8A:
+            t->animation_frame_id = p[1];
+            t->timing_control = 0;
+            t->blend_counter = (t->scd_entity_flags & 0x20) ? 0 : 7;
+            t->move_speed_current = 0;
+            if ((p[0] == 0x89) && (t->id >= 0x20)) {
+                t->action_state = 1;
+            }
+            return 2;
+    }
+    return 0;
+}
+
+/** scd_event_state2_movement: one of the movement opcodes (state 2) on the character; its length. */
+static s32 NvEvt_Move(NvEvt* e, const u8* p) {
+    NvRe1Entity* t = NvEvt_Ent(e);
+    s16 v[3];
+
+    if ((p[0] >= 2) && (p[0] <= 0x0B) && (t != NULL)) {
+        switch (p[0]) {
+            case 0x02:
+            case 0x04:
+                t->t[0] += t->speed[0];
+                t->t[1] += t->speed[1];
+                t->t[2] += t->speed[2];
+                if (p[0] == 0x02) {
+                    break;
+                }
+                // fall through
+            case 0x03:
+                t->angle += t->turn_delta;
+                break;
+            case 0x05:
+                t->speed[0] = (s8)p[1];
+                t->speed[1] = (s8)p[2];
+                t->speed[2] = (s8)p[3];
+                break;
+            case 0x06:
+                t->turn_delta = (s8)p[2];
+                break;
+            case 0x07:
+                memcpy(v, p + 2, sizeof(v));
+                t->t[0] = v[0];
+                t->t[1] = v[1];
+                t->t[2] = v[2];
+                break;
+            case 0x08:
+                if (p[1] < 4) {
+                    ((u8*)&t->state)[p[1]] = p[2]; // the state block from +0x84: state, ignore, behaviour, action
+                }
+                break;
+            case 0x09:
+                t->hit_state = p[1];
+                break;
+            case 0x0A:
+                memcpy(v, p + 2, 2);
+                if (p[1] <= 2) {
+                    t->t[p[1]] = v[0];
+                } else if (p[1] == 3) {
+                    t->health = v[0];
+                } else if (p[1] == 4) {
+                    t->unk_c6 = v[0];
+                } else if (p[1] == 5) {
+                    t->unk_c8 = v[0];
+                }
+                break;
+            case 0x0B:
+                memcpy(v, p + 2, sizeof(v));
+                t->angle = v[1] & 0xFFF;
+                break;
+        }
+    }
+    {
+        static const u8 sLen[12] = { 1, 1, 1, 1, 1, 4, 4, 8, 3, 2, 4, 8 };
+
+        return (p[0] < 12) ? sLen[p[0]] : 0;
+    }
 }
 
 /** ScdEventEntry_Create: a slot past 7 takes the first free one. */
@@ -675,11 +887,21 @@ static void NvEvt_Step(NvEvt* e) {
                     e->ip = p + 1;
                     break;
                 case 0x02:
-                case 0x03:
+                case 0x03: {
+                    NvRe1Entity* t = NvEvt_Ent(e);
+
                     e->state = 2;
                     e->ip = p + 1;
+                    if ((p[0] == 0x02) && (t != NULL)) {
+                        t->ignore_player_flag = 2;
+                        t->action_behavior = 0;
+                        t->action_state = 0;
+                    }
                     break;
-                case 0x04: // the entity it drives (not driven yet)
+                }
+                case 0x04: // the character it drives
+                    e->entKind = p[1];
+                    e->entIdx = p[2];
                     e->ip = p + 3;
                     break;
                 case 0x05:
@@ -712,56 +934,23 @@ static void NvEvt_Step(NvEvt* e) {
                 return; // the movie plays before anything else runs
             }
         } else if (e->state == 1) {
-            s32 n;
+            s32 n = NvEvt_Anim(e, p);
 
-            switch (p[0]) {
-                case 0x81:
-                    n = (p[1] & 0x0F) ? 12 : 2;
-                    break;
-                case 0x83:
-                    n = 9;
-                    break;
-                case 0x84:
-                case 0x85:
-                    n = 5;
-                    break;
-                case 0x87:
-                    n = 4;
-                    break;
-                case 0x88:
-                    n = 3;
-                    break;
-                case 0x89:
-                case 0x8A:
-                    n = 2;
-                    break;
-                case 0x00:
-                case 0x80:
-                case 0x82:
-                case 0x86:
-                case 0x8B:
-                    n = 1;
-                    break;
-                default:
-                    e->active = 0;
-                    return;
-            }
-            if ((p[0] == 0x80) || (p[0] == 0x8B)) {
-                e->state = 0;
-            }
-            e->ip = p + n;
-        } else {
-            static const u8 sLen[12] = { 1, 1, 1, 1, 1, 4, 4, 8, 3, 2, 4, 12 };
-
-            if (p[0] >= 12) {
+            if (n == 0) {
                 e->active = 0;
                 return;
             }
-            e->ip = p + sLen[p[0]];
+            e->ip = p + n;
+        } else {
+            s32 n = NvEvt_Move(e, p);
+
+            if (n == 0) {
+                e->active = 0;
+                return;
+            }
+            e->ip = p + n;
             if (p[0] == 0x01) {
                 e->state = 0;
-            } else if ((p[0] >= 2) && (p[0] <= 4)) {
-                return; // a frame's movement
             }
         }
     }
@@ -1262,6 +1451,12 @@ void NvScript_RoomInit(PlayState* play) {
         sNvEvt[i].active = 0;
     }
     NvEnemy_ClearSlots();
+    NvCast_RoomLoad();
+    {
+        void NvCamera_RoomLoad(void);
+
+        NvCamera_RoomLoad();
+    }
     memset(sNvAot, 0, sizeof(sNvAot));
     sNvAotCount = 0;
     memset(sNvObj, 0, sizeof(sNvObj));
@@ -1462,6 +1657,14 @@ void NvScript_Update(PlayState* play) {
                 return;
             }
             NvEvt_Step(&sNvEvt[i]);
+        }
+        {
+            s32 live = false;
+
+            for (i = 0; i < NV_EVT_SLOTS; i++) {
+                live |= sNvEvt[i].active;
+            }
+            NvCast_Update(play, live); // the player, while a scene walks her
         }
     }
 }

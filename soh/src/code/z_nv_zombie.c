@@ -2948,3 +2948,6 @@ static s32 NvRe1_JointReaches(s32 j, s32 range) {
 
 /* the Tyrant */
 #include "z_nv_tyrant.inc"
+
+/* the characters (Wesker, Barry, ...) and the player's stand-in in a scripted scene */
+#include "z_nv_npc.inc"

@@ -64,7 +64,9 @@ typedef struct NvRe1Entity {
     u8 action_counter;
     u8 death_event_id;
     u8 scd_anim_param;
-    u8 scd_entity_flags;
+    u16 scd_entity_flags;
+    u16 scd_timer;  // +0xDE: the event script's turn step / timer
+    s16 frame_hold; // +0xC4: a held frame's count (npc_scd_01); the stand-in's animation ticks
     s16 unk_c6; // grab / SCD target point
     s16 unk_c8;
     s16 turn_delta; // +0x170
@@ -262,6 +264,11 @@ extern NvRe1Player gNvRe1Player;
 void NvRe1_RoomLoad(void* play);
 void NvRe1_TickBegin(void);
 void NvZombie_Init(NvRe1Entity* e);
+void NvNpc_Init(NvRe1Entity* e);
+void NvNpc_Update(NvRe1Entity* e);
+void NvNpc_PlayerTick(NvRe1Entity* e);
+NvRe1Entity* NvEnemy_SlotEntity(s32 slot);
+NvRe1Entity* NvCast_Player(void);
 void NvZombie_Update(NvRe1Entity* e);
 void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId);
 s32 NvRe1_JointMove(NvRe1Entity* e, s32 reverse, s16 blendStep);

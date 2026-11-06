@@ -336,6 +336,297 @@ static void ty_die(void) {
     }
 }
 
+/* ---- state 8: the script's behaviours (s_emScdBehaviors) ---- */
+
+static void ty_scd_flag(u8 bit) {
+    void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+
+    NvFlags_Op(4, bit, 0);
+}
+
+/** 0: hold the idle pose. */
+static void ty_scd_idle(void) {
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(0, 0x1F);
+    }
+    Joint_move(0, 0x80);
+}
+
+/** 2: walk to the script's point (read unsigned), its flag within 1500. */
+static void ty_scd_walk_to(void) {
+    s32 x = (u16)E->unk_c6;
+    s32 z = (u16)E->unk_c8;
+
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(1, 0x1F);
+        TY->ticks = (E->behavior_flags & 1) ? 1 : 2;
+    } else if (E->action_state == 2) {
+        ty_scd_flag(E->scd_anim_param);
+        if (!(E->collisionFlags & 0x80)) {
+            E->action_behavior = 0;
+            E->action_state = 0;
+        } else {
+            E->action_state = 1; // (the script loops the walk)
+        }
+        return;
+    }
+    entity_rotate_toward_target(x, z, 0x28);
+    if (--TY->ticks <= 0) {
+        Joint_move(0, 0x80);
+        TY->ticks = (E->behavior_flags & 1) ? 1 : 2;
+    }
+    {
+        s32 dz = E->t[2] - z;
+        s32 dx = E->t[0] - x;
+
+        if (SquareRoot0(dz * dz + dx * dx) < 0x5DC) {
+            E->action_state = 2;
+        }
+    }
+    if ((E->animation_frame_id == 3) || (E->animation_frame_id == 0x24)) {
+        Snd_em(0);
+    }
+    E->move_speed_current = 60; // (RE1's: the walk's root motion; the free walk's pace here)
+    Add_speedXZ(0);
+}
+
+/** 10: it pounds the capsule's glass and breaks out (the shards left out). */
+static void ty_scd_break_glass(void) {
+    void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
+
+    if (E->action_state == 0) {
+        E->t[1] = 0;
+        E->action_state = 1;
+        ty_anim(6, 0x1F);
+    } else if (E->action_state == 2) {
+        ty_scd_flag(E->scd_anim_param);
+        E->action_behavior = 0;
+        E->action_state = 0;
+        return;
+    } else if (E->action_state != 1) {
+        return;
+    }
+    E->action_state += (u8)Joint_move(0, 0x80);
+    if (E->animation_frame_id == 0x1E) {
+        NvSnd_At(0x19, 0x2A30, 5000, P->t[0], P->t[2]); // the first blow on the glass
+    }
+    if (E->animation_frame_id == 0x55) { // it shatters
+        NvSnd_At(0x1A, 0x2A30, 5000, P->t[0], P->t[2]);
+        NvSnd_At(0x1B, 0x2A30, 5000, P->t[0], P->t[2]);
+    }
+    if ((E->animation_frame_id == 0x8F) || (E->animation_frame_id == 0x97)) {
+        Snd_em(0); // the two steps out
+    }
+}
+
+/** 11: it floats in the stasis pod, bobbing, until the pod opens (4:0x1F). */
+static void ty_scd_pod(void) {
+    void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+    s32 NvFlags_Test(s32 bank, s32 bit);
+
+    switch (E->action_state) {
+        case 0:
+            E->t[1] = -200;
+            E->action_state = 1;
+            ty_anim(6, 0);
+            TY->ticks = 5;
+            Joint_move(0, 0x80);
+            // fall through
+        case 1:
+            if (--TY->ticks == 0) {
+                TY->ticks = 5;
+                E->t[1] -= 5;
+                if (E->t[1] == -0x15E) {
+                    E->action_state = 2;
+                }
+            }
+            break;
+        case 2:
+            if (--TY->ticks == 0) {
+                TY->ticks = 5;
+                E->t[1] += 5;
+                if (E->t[1] == -200) {
+                    E->action_state = 1;
+                }
+            }
+            break;
+        case 3:
+            E->t[1] += 4;
+            if (E->t[1] > 0) {
+                ty_scd_flag(E->scd_anim_param);
+                E->action_state = 4;
+                E->t[1] = 0;
+            }
+            break;
+    }
+    if (NvFlags_Test(4, 0x1F) && (E->action_state < 3)) {
+        E->action_state = 3;
+    }
+}
+
+/** 12: it runs the victim (slot 0: Wesker) through, raising 4:0x1E at the end. */
+static void ty_scd_impale(void) {
+    NvRe1Entity* self = E;
+    NvRe1Entity* victim = NvEnemy_SlotEntity(0);
+
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(5, 0x1F);
+        E->move_speed_current = 100;
+        E->status_flags |= 2;
+        if (victim != NULL) {
+            entity_rotate_toward_target(victim->t[0], victim->t[2], 0x400);
+            victim->status_flags |= 6;
+            victim->state = 1; // its death: idle 3 (z_nv_npc.inc)
+            victim->ignore_player_flag = 0;
+            victim->action_behavior = 3;
+            victim->action_state = 0;
+        }
+        Snd_em(1);
+        return;
+    }
+    if (E->action_state == 2) {
+        ty_scd_flag(0x1E);
+        E->action_behavior = 0;
+        E->action_state = 0;
+        E->status_flags &= ~2;
+        return;
+    }
+    if (E->action_state != 1) {
+        return;
+    }
+    if (E->animation_frame_id == 6) {
+        Snd_em(4);
+    }
+    if (E->animation_frame_id == 0x5F) {
+        Snd_em(7);
+    }
+    E->action_state += (u8)Joint_move(0, 0x80);
+    if ((E->move_speed_current != 0) && (victim != NULL)) {
+        entity_rotate_toward_target(victim->t[0], victim->t[2], 0x10);
+    }
+    E->move_speed_current = MAX(0, E->move_speed_current - 5);
+    Add_speedXZ(0);
+    if (victim != NULL) { // (RE1 carries the victim with the claw's push)
+        victim->t[0] += E->speed[0];
+        victim->t[2] += E->speed[2];
+    }
+    E = self;
+}
+
+/** 14: animation 10 to its end, then the flag. */
+static void ty_scd_anim(void) {
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(10, 0x1F);
+        E->move_speed_current = 0;
+    } else if (E->action_state != 1) {
+        return;
+    }
+    if (Joint_move(0, 0x80)) {
+        ty_scd_flag(E->scd_anim_param);
+        E->action_behavior = 0;
+        E->action_state = 0;
+    }
+}
+
+/** 15: it turns to her (giving up after a while), then the flag. */
+static void ty_scd_face_player(void) {
+    s32 turn;
+
+    if (E->action_state == 0) {
+        ty_anim(E->animationId, 0x1F);
+        E->hit_state = 0;
+        if (turn_toward_target(P->t[0], P->t[2], 0x400) != 0) {
+            E->animationId = 1;
+        }
+        E->action_state = 1;
+        TY->ticks = (s16)((CbRand() & 0x3F) + 0x28);
+    }
+    turn = turn_toward_target(P->t[0], P->t[2], (E->behavior_flags & 1) ? 0x14 : 0x28);
+    if ((TY->ticks-- == 0) || (turn == 0)) {
+        ty_scd_flag(E->scd_anim_param);
+        E->action_behavior = 0;
+        E->action_state = 0;
+        E->player_pos_x = (s16)P->t[0];
+        E->player_pos_z = (s16)P->t[2];
+    } else {
+        Joint_move(0, 0x80);
+        E->angle += (s16)turn;
+    }
+    if ((E->animation_frame_id == 3) || (E->animation_frame_id == 0x24)) {
+        Snd_em(0);
+    }
+}
+
+/** 16: the scripted swing at the victim (slot 0), 4:0x1E at its end. */
+static void ty_scd_strike(void) {
+    NvRe1Entity* victim = NvEnemy_SlotEntity(0);
+
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(4, 7);
+        Snd_em(1);
+    } else if (E->action_state == 2) {
+        ty_scd_flag(0x1E);
+        E->action_behavior = 0;
+        E->action_state = 0;
+        return;
+    } else if (E->action_state != 1) {
+        return;
+    }
+    E->action_state += (u8)Joint_move(0, 0x200);
+    if ((E->animation_frame_id == 0x0B) && (victim != NULL)) {
+        victim->state = 1; // knocked into its own reaction (idle 1)
+        victim->ignore_player_flag = 0;
+        victim->action_behavior = 1;
+        victim->action_state = 0;
+        Snd_em(2);
+    }
+}
+
+/** tyrant_state_scd: the lab one (behaviour bit 0x40) runs the script's; else it's let go. */
+static void ty_scd(void) {
+    if (!(E->behavior_flags & 0x40)) {
+        E->state = 1;
+        E->ignore_player_flag = 0;
+        E->action_behavior = TY_WALK;
+        E->action_state = 0;
+        return;
+    }
+    switch (E->action_behavior) {
+        case 0:
+            ty_scd_idle();
+            break;
+        case 2:
+            ty_scd_walk_to();
+            break;
+        case 10:
+            ty_scd_break_glass();
+            break;
+        case 11:
+            ty_scd_pod();
+            break;
+        case 12:
+            ty_scd_impale();
+            break;
+        case 14:
+            ty_scd_anim();
+            break;
+        case 15:
+            ty_scd_face_player();
+            break;
+        case 16:
+            ty_scd_strike();
+            break;
+        default: // (13, the rocket's: the heliport's scene)
+            Joint_move(0, 0x40);
+            break;
+    }
+}
+
 void NvTyrant_Init(NvRe1Entity* e) {
     E = e;
     memset(&E->ty, 0, sizeof(E->ty));
@@ -375,7 +666,10 @@ void NvTyrant_Update(NvRe1Entity* e) {
         case 3:
             ty_die();
             break;
-        default: // the script's (the pod, the scenes): it stands
+        case 8: // the script's (the pod, the glass, the walk out, Wesker)
+            ty_scd();
+            break;
+        default:
             if (!(E->behavior_flags & 0x80)) {
                 Joint_move(0, 0x40);
             }

@@ -15,6 +15,11 @@
  * Data: "scenes/shared/<name>_scene/<name>_camzones" (re1/tools/soh_scene.py): "RCZN", u32
  * count, then RE1's own 20-byte records (s16 camTo, camFrom, then 4 corners as u16 x, z in
  * RE1 units).
+ *
+ * The room's scripts also cut by hand (z_nv_script.c): cmd_cut_lock_set (0x09) cuts to a camera
+ * and locks it there (no zone switches) until cmd_current_cut_set (0x0A) goes back to the camera
+ * before, or cmd_cut_lock_write (0x23) lifts the lock; cmd_cut_zone_set (0x3A) rewrites a zone
+ * record's cameras (a copy of the table, fresh each room).
  */
 #include "global.h"
 #include "soh/ResourceManagerHelpers.h"
@@ -37,6 +42,12 @@ static Vec3f sNvCamLastPos;
 static s32 sNvCamWarpFrames = 0; // the floor under Link catches up a frame after a warp
 // a jump this far in one frame is a warp, not walking
 #define NV_CAM_WARP_DIST 60.0f
+#define NV_CAM_MAX_ZONES 160
+static u8 sNvCamZoneCopy[NV_CAM_MAX_ZONES * 20]; // the room's table, as its scripts have rewritten it
+static u32 sNvCamZoneCount;
+static s16 sNvCamZoneScene = -1;
+static u8 sNvCamLocked;  // MSF_CAMERA_LOCK: the script holds the camera
+static s32 sNvCamCutPrev; // g_cutId: the camera before the script's cut
 
 static u8* NvCamera_Zones(PlayState* play, u32* count) {
     char path[256];
@@ -61,7 +72,48 @@ static u8* NvCamera_Zones(PlayState* play, u32* count) {
         return NULL;
     }
     memcpy(count, data + 4, sizeof(*count));
-    return data + 8;
+    if (sNvCamZoneScene != play->sceneNum) { // a fresh copy each room (NvCamera_RoomLoad forgets it)
+        sNvCamZoneScene = play->sceneNum;
+        sNvCamZoneCount = MIN(*count, NV_CAM_MAX_ZONES);
+        memcpy(sNvCamZoneCopy, data + 8, sNvCamZoneCount * 20);
+    }
+    *count = sNvCamZoneCount;
+    return sNvCamZoneCopy;
+}
+
+/** The room's start (z_nv_script.c): its own table again, no cut, no lock. */
+void NvCamera_RoomLoad(void) {
+    sNvCamZoneScene = -1;
+    sNvCamLocked = false;
+}
+
+/** cmd_cut_lock_set: cut to camera n and hold it. */
+void NvCamera_CutLock(s32 n) {
+    sNvCamCutPrev = sNvCamCurrent;
+    sNvCamCurrent = n;
+    sNvCamLocked = true;
+}
+
+/** cmd_current_cut_set: back to the camera before the cut, and let the zones switch again. */
+void NvCamera_CutRestore(void) {
+    sNvCamCurrent = sNvCamCutPrev;
+    sNvCamLocked = false;
+}
+
+/** cmd_cut_lock_write */
+void NvCamera_Lock(s32 on) {
+    sNvCamLocked = (on != 0);
+}
+
+/** cmd_cut_zone_set: zone record i now switches from camera `from` to `to`. */
+void NvCamera_ZoneSet(s32 i, s32 from, s32 to) {
+    if ((i >= 0) && ((u32)i < sNvCamZoneCount)) {
+        s16 f = from;
+        s16 t = to;
+
+        memcpy(sNvCamZoneCopy + i * 20 + 2, &f, 2);
+        memcpy(sNvCamZoneCopy + i * 20, &t, 2);
+    }
 }
 
 // is_entity_in_switch_zone: the quad's corners zero-extended, the point a signed RE1 position
@@ -113,6 +165,10 @@ s32 NvCamera_Select(PlayState* play, s32 floorCam) {
     if ((play->sceneNum != sNvCamScene) || (sNvCamCurrent < 0)) {
         sNvCamScene = play->sceneNum;
         sNvCamCurrent = 0; // the zone walk below makes RE1's one pass
+        sNvCamLocked = false;
+    } else if (sNvCamLocked) {
+        sNvCamLastPos = player->actor.world.pos;
+        return sNvCamCurrent; // the script's cut (Room.cpp: no switch check while locked)
     } else if (Math_Vec3f_DistXZ(&sNvCamLastPos, &player->actor.world.pos) > NV_CAM_WARP_DIST) {
         sNvCamWarpFrames = 3;
     }
