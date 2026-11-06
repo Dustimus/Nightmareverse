@@ -221,6 +221,17 @@ typedef struct NvRe1Entity {
         u8 touch;      // it touched her this tick
         u8 coll;       // it hit a wall this tick
     } cm;
+    // Plant 42's own (the plant and its vines)
+    struct {
+        s32 dist;      // straight-line distance to the player
+        s16 ticks;
+        s16 step;      // a sweep's or a strike's swing speed
+        s8 sway;       // the idle's drift in facing and roll
+        s8 swing;
+        u8 dir;        // which way a sweep goes
+        u8 vinesLeft;  // the plant: vines still up (it can't be hurt while more than one is)
+        u8 dead;       // the plant: dead (the vines wither)
+    } pl;
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */
@@ -271,6 +282,9 @@ void NvBlackTiger_Init(NvRe1Entity* e);
 void NvBlackTiger_Update(NvRe1Entity* e);
 void NvChimera_Init(NvRe1Entity* e);
 void NvChimera_Update(NvRe1Entity* e);
+void NvPlant42_Init(NvRe1Entity* e);
+void NvPlant42_Update(NvRe1Entity* e);
+void NvPlant42_Forget(NvRe1Entity* e);
 extern s16 gNvRe1Drain;
 extern s32 gNvRe1Kill; // an enemy's kill move landed (the maul, the decapitation, the swallow): Link dies // a plant's drain this tick: RE1's health, no knock back (z_nv_enemy.c)
 extern s16 gNvRe1DogBite;
