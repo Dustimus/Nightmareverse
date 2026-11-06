@@ -507,6 +507,11 @@ void NvEnemy_GunHit(Actor* a, s32 item) {
     s32 k = CLAMP(item - 1, 0, 9);
 
     Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 8);
+    if ((this->type == 16) && (item == 0x0A)) {
+        void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+
+        NvFlags_Op(4, 0x0A, 0); // the rocket on the rooftop Tyrant: the heliport's script ends the fight
+    }
     NvZombie_Hit(&this->e, sNvGunDamage[k], sNvGunHitState[k], (u8)item);
     printf("NVENEMY shot (weapon %d): %d damage, health %d\n", (int)item, sNvGunDamage[k], this->e.health);
     fflush(stdout);
@@ -993,6 +998,16 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvRe1_JointMove(e, 0, 0x400);
         }
     }
+    if (NvEnemy_IsTyrant(this->type) && e->ty.boom) { // the rocket's blasts
+        Vec3f at = thisx->world.pos;
+        Vec3f zero = { 0.0f, 0.0f, 0.0f };
+
+        e->ty.boom = 0;
+        at.x += Rand_CenteredFloat(30.0f);
+        at.y += 20.0f + Rand_ZeroFloat(40.0f);
+        at.z += Rand_CenteredFloat(30.0f);
+        EffectSsBomb2_SpawnLayered(play, &at, &zero, &zero, 100, 19);
+    }
     NvEnemy_JointsWorld(this); // its joints where the logic can reach with them, for the next frame
     if (getenv("NV_LOG") && ((play->gameplayFrames % 20) == 0)) {
         printf("NVENEMY f=%d state %d %d/%d/%d anim %d.%d.%d at %d,%d,%d angle %d health %d hit 0x%02x\n",
@@ -1126,7 +1141,8 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
     s32 n;
     u8 tint = 255;
 
-    if ((m == NULL) || NvDoorScene_Covering() || NvEnemy_Parked(&this->e)) {
+    if ((m == NULL) || NvDoorScene_Covering() || NvEnemy_Parked(&this->e) ||
+        (NvEnemy_IsTyrant(this->type) && this->e.ty.blownUp)) {
         return;
     }
     if (thisx->colorFilterTimer != 0) {
@@ -1365,4 +1381,12 @@ void NvCast_Update(PlayState* play, s32 eventsLive) {
     player->actor.world.pos.x = e->t[0] * NV_RE1_SCALE;
     player->actor.world.pos.z = -e->t[2] * NV_RE1_SCALE;
     player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = (s16)(0x4000 - e->angle * 16);
+}
+
+/** Testing (NV_TEST_ENEMY): the slot's enemy goes, so the test one can take its place. */
+void NvEnemy_DevFree(s32 slot) {
+    if ((slot >= 0) && (slot < NV_ENEMY_SLOTS) && (sNvEnemySlots[slot] != NULL)) {
+        Actor_Kill(sNvEnemySlots[slot]);
+        sNvEnemySlots[slot] = NULL;
+    }
 }

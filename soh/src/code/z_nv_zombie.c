@@ -2891,6 +2891,13 @@ void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId) {
     e->ignore_player_flag = 0;
     e->action_behavior = 0;
     e->action_state = 0;
+    if ((e->id == 0x10) && (e->health < 0xC9)) {
+        // the rooftop Tyrant can't be shot down: pinned at 200 (tyrant_update's tail), 4:0x1F up
+        void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+
+        NvFlags_Op(4, 0x1F, 0);
+        e->health = 200;
+    }
     if (e->health >= 0) {
         e->state = ZST_DAMAGED;
     }

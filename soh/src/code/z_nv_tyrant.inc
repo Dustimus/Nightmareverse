@@ -587,6 +587,45 @@ static void ty_scd_strike(void) {
     }
 }
 
+/** 13: the rocket launcher's kill (the heliport): blown apart (here: it falls in the blasts), then still. */
+static void ty_scd_rocket_death(void) {
+    void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+    void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
+
+    switch (E->action_state) {
+        case 0:
+            E->action_state = 1;
+            TY->blownUp = 0;
+            ty_anim(0xC, 7);
+            E->move_speed_current = 0;
+            E->status_flags |= 2;
+            TY->ticks = 0;
+            TY->boom = 1;
+            NvSnd_At(0x19, E->t[0], E->t[2], P->t[0], P->t[2]);
+            // fall through
+        case 1:
+            if ((E->animation_frame_id > 0x12) && (((E->animation_frame_id + 1) & 3) == 0)) {
+                TY->boom = 1; // the blasts off its body
+            }
+            if (Joint_move(0, 0x200)) {
+                E->action_state = 2;
+                TY->ticks = 0;
+                TY->blownUp = 1; // (RE1's limbs fly off as free bodies: here it goes in the last blast)
+                TY->boom = 1;
+            }
+            break;
+        case 2: // it smoulders, then the room moves on
+            if (++TY->ticks > 200) {
+                E->health = -1;
+                if (E->death_event_id != 0xFF) {
+                    NvFlags_Op(3, E->death_event_id, 0);
+                }
+                E->action_state = 3;
+            }
+            break;
+    }
+}
+
 /** tyrant_state_scd: the lab one (behaviour bit 0x40) runs the script's; else it's let go. */
 static void ty_scd(void) {
     if (!(E->behavior_flags & 0x40)) {
@@ -621,7 +660,10 @@ static void ty_scd(void) {
         case 16:
             ty_scd_strike();
             break;
-        default: // (13, the rocket's: the heliport's scene)
+        case 13:
+            ty_scd_rocket_death();
+            break;
+        default:
             Joint_move(0, 0x40);
             break;
     }
@@ -658,6 +700,13 @@ void NvTyrant_Update(NvRe1Entity* e) {
             NvTyrant_Init(e);
             break;
         case 1:
+            if (ty_roof() && ((E->action_behavior == 13) || (E->action_behavior == 14))) {
+                // the heliport's script gives it its end (event 26): under the script from here
+                E->state = 8;
+                E->behavior_flags |= 0x40;
+                ty_scd();
+                break;
+            }
             ty_run();
             break;
         case 2:
@@ -682,4 +731,12 @@ void NvTyrant_Update(NvRe1Entity* e) {
         HandleEnemyCollisions();
     }
     TY->wallHit |= check_room_collision();
+    // the rocket launcher's moment (tyrant_update's tail): the rooftop one at 200 raises 4:0x1F (the
+    // room drops the launcher) and its health is pinned there; the launcher finishes it
+    if (ty_roof() && (E->health < 0xC9) && (E->state != 8)) {
+        void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+
+        NvFlags_Op(4, 0x1F, 0);
+        E->health = 200;
+    }
 }

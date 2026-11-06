@@ -1607,6 +1607,11 @@ void NvScript_RoomInit(PlayState* play) {
             memcpy(rec + 12, &rx, 2);
             memcpy(rec + 16, &rz, 2);
             rec[0x12] = (u8)(slot & 0xF);
+            {
+                void NvEnemy_DevFree(s32 slot);
+
+                NvEnemy_DevFree(slot & 0xF); // (it takes the slot from the room's own)
+            }
             sNvInitRun = true;
             NvEnemy_ScdSet(play, rec);
             sNvInitRun = false;

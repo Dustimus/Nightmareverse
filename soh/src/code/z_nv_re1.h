@@ -241,6 +241,8 @@ typedef struct NvRe1Entity {
         u8 cooldown;   // ticks before it picks another strike
         u8 landed;     // this strike has hit her
         u8 wallHit;    // walls met (the wander steering's)
+        u8 boom;       // an explosion on it this tick (the rocket's: z_nv_enemy.c draws it)
+        u8 blownUp;    // the rocket blew it apart: its body isn't drawn (ty_flags bit 3)
     } ty;
 } NvRe1Entity;
 

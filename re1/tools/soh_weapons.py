@@ -30,6 +30,9 @@ WEAPONS = {
     0x07: ("W17.EMW", "I08V.IVM"),  # grenade launcher (explosive rounds)
     0x08: ("W17.EMW", "I08V.IVM"),  # (acid rounds)
     0x09: ("W17.EMW", "I08V.IVM"),  # (flame rounds)
+    # the rocket launcher: its model is item 10's (I07V); Jill's W1B holds only her moves with it,
+    # no aim or fire, so she aims and fires it as the grenade launcher
+    0x0A: ("W17.EMW", "I07V.IVM"),
 }
 
 

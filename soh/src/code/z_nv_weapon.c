@@ -46,12 +46,15 @@ s32 NvClimb_Active(void);
 void NvSound_Menu(u16 sfx);
 void NvSound_Shot(s32 item);
 s32 NvDoorScene_Covering(void);
+s32 NvActor_EnemyId(void);
 
 typedef enum { NV_GUN_NONE, NV_GUN_RAISE, NV_GUN_AIM, NV_GUN_FIRE } NvGunState;
 typedef enum { NV_AIM_LEVEL, NV_AIM_UP, NV_AIM_DOWN } NvAimDir;
 
-// Jill's range with each weapon (WeaponDamage.cpp weapons_ranges, her half), by item id - 1
-static const s16 sNvGunRange[10] = { 500, 1300, 2600, 800, 800, 400, 900, 900, 900, 1100 };
+// Jill's range with each weapon (WeaponDamage.cpp weapons_ranges, her half), by item id - 1; the
+// rocket launcher's 1100 is its blast's: its rocket flies (effect_behavior_rocket) until it meets
+// something, so here it reaches across a room
+static const s16 sNvGunRange[10] = { 500, 1300, 2600, 800, 800, 400, 900, 900, 900, 16000 };
 
 // Link's fist: the gun's length in his hand limb's units, by item id - 1 (set by eye: the Beretta
 // about as long as his forearm looks)
@@ -252,6 +255,22 @@ static void NvGun_Fire(PlayState* play, Player* player) {
     hit = NvGun_Target(play, player, sNvGunRange[CLAMP(item - 1, 0, 9)], false);
     printf("NVGUN fire weapon %d dir %d rounds %d -> %s\n", (int)item, (int)sNvGunDir, (int)(qty - 1),
            (hit != NULL) ? "hit" : "miss");
+    if ((hit == NULL) && getenv("NV_LOG")) { // what it missed
+        Actor* e;
+
+        for (e = play->actorCtx.actorLists[ACTORCAT_ENEMY].head; e != NULL; e = e->next) {
+            s32 ex, ez, r;
+            f32 ahead, side;
+            s16 yaw;
+
+            if (NvEnemy_GunTarget(e, &ex, &ez, &r)) {
+                NvGun_Relative(player, ex, ez, &ahead, &side, &yaw);
+                printf("NVGUN   missed one %.0f ahead, %.0f to the side (radius %d)\n", ahead, side, (int)r);
+            } else if (e->id == NvActor_EnemyId()) {
+                printf("NVGUN   one not a target now\n");
+            }
+        }
+    }
     fflush(stdout);
     if (hit != NULL) {
         Vec3f at = hit->focus.pos;
