@@ -54,6 +54,9 @@ void NvBgm_ScdState(s32 stage, s32 room, u8 state);
 s32 NvMovie_Playing(void);
 s32 NvDoorScene_Covering(void);
 void NvCast_RoomLoad(void);
+s32 NvSound_Line(const char* name);
+void NvSound_LineStop(void);
+s32 NvSound_LinePlaying(void);
 void NvCast_Update(PlayState* play, s32 eventsLive);
 
 typedef struct {
@@ -206,6 +209,7 @@ static s32 NvScd_Len(const u8* p) {
 
 static void NvEvt_Create(s32 slot, s32 script);
 static void NvScd_Message(s32 id);
+static void NvVoice_Play(s32 id);
 
 // the rest of RE1's state block as the scripts write it (cmd_state_byte_set 0x08, cmd_state_word_set
 // 0x31): what a room's script sets for later ones to test (the stage, room and camera are live)
@@ -458,6 +462,14 @@ static s32 NvScd_Cmd(void) {
             sNvIp = p + 4;
             return 1;
         }
+        case 0x1E: // cmd_voice_play: 1 a cutscene's voice line by number (the stage's), 2 it ends
+            if (p[1] == 1) {
+                NvVoice_Play(p[2] | (p[3] << 8));
+            } else if (p[1] == 2) {
+                NvSound_LineStop();
+            }
+            sNvIp = p + 4;
+            return 1;
         case 0x0B: // cmd_message_set: a room message, shown now (RE1 also pauses for p[2..3])
             NvScd_Message(p[1]);
             sNvIp = p + 4;
@@ -816,8 +828,19 @@ static void NvEvt_Step(NvEvt* e) {
 
         switch (p[0]) {
             case 0xF6: // push, then wait as 0xF7
-            case 0xF7:
-                e->ip = p + 1;
+                if (d < 3) {
+                    e->depth = ++d;
+                }
+                e->ip = p = p + 1;
+                // fall through
+            case 0xF7: // wait for the voice line (MSF_VOICE_PLAYING) and the message to end
+                if (!NvSound_LinePlaying() &&
+                    ((sNvPlay == NULL) || (Message_GetState(&sNvPlay->msgCtx) == TEXT_STATE_NONE))) {
+                    e->ip = p + 1;
+                    if (e->depth >= 0) {
+                        e->depth--;
+                    }
+                }
                 return;
             case 0xF8: // wait n frames
                 if (d < 3) {
@@ -1211,6 +1234,57 @@ s32 NvAot_Act(PlayState* play, Player* player) {
 }
 
 /** cmd_message_set: room message id in OoT's box (as an examine spot's). */
+/* ---- voice lines ---- */
+
+/** voice_load_and_play: the stage's line `id` (re1/voice_names: the game's own table, re1/tools/soh_sound.py). */
+static void NvVoice_Play(s32 id) {
+    static const u8* sNames;
+    static s32 sLoaded;
+    const u8* d;
+    s32 row = (sNvStage >= 5) ? sNvStage - 5 : sNvStage; // (stages 6, 7 are the mansion's and the guardhouse's again)
+    s32 r;
+    char name[10];
+
+    if (!sLoaded) {
+        sLoaded = true;
+        if (ResourceMgr_FileExists("re1/voice_names")) {
+            sNames = (const u8*)ResourceGetDataByName("re1/voice_names");
+            if ((sNames != NULL) && (memcmp(sNames, "RVNM", 4) != 0)) {
+                sNames = NULL;
+            }
+        }
+    }
+    if (sNames == NULL) {
+        static s32 sTold;
+
+        if (!sTold) {
+            sTold = true;
+            printf("NVVOICE no voice names (the converter needs the game's .exe: --exe)\n");
+            fflush(stdout);
+        }
+        return;
+    }
+    if (row >= *(const u16*)(sNames + 4)) {
+        return;
+    }
+    d = sNames + 6;
+    for (r = 0; r < row; r++) {
+        d += 2 + 9 * *(const u16*)d;
+    }
+    if (id >= *(const u16*)d) {
+        return;
+    }
+    memcpy(name, d + 2 + 9 * id, 9);
+    name[9] = '\0';
+    if (name[0] == '\0') {
+        return;
+    }
+    if (!NvSound_Line(name) || getenv("NV_LOG")) {
+        printf("NVVOICE stage %d line %d: %s\n", (int)sNvStage + 1, (int)id, name);
+        fflush(stdout);
+    }
+}
+
 static void NvScd_Message(s32 id) {
     if ((sNvPlay == NULL) || (Message_GetState(&sNvPlay->msgCtx) != TEXT_STATE_NONE)) {
         return;
@@ -1452,6 +1526,7 @@ void NvScript_RoomInit(PlayState* play) {
     }
     NvEnemy_ClearSlots();
     NvCast_RoomLoad();
+    NvSound_LineStop(); // (a line cut off by the door)
     {
         void NvCamera_RoomLoad(void);
 

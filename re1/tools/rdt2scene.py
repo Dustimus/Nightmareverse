@@ -1160,7 +1160,7 @@ def load_rdt(stage, room_id, player):
     raise SystemExit("no RDT for room %s" % room_id)
 
 
-def _pack_soh(folder, re1, anims, jpn=None):
+def _pack_soh(folder, re1, anims, jpn=None, exe=None):
     import soh_doors
     import soh_scene
     import soh_enemy
@@ -1176,6 +1176,7 @@ def _pack_soh(folder, re1, anims, jpn=None):
     print("soh: weapons %s" % soh_weapons.write(re1, folder))
     import soh_sound
     print("soh: sounds, voices %s" % (soh_sound.write(re1, folder),))
+    print("soh: voice names %d%s" % (soh_sound.write_voice_names(exe, folder), "" if exe else " (no executable: --exe)"))
     soh_scene.pack_o2r(folder, folder.rstrip("/") + ".o2r")
     print("soh: packed %s.o2r" % folder.rstrip("/"))
 
@@ -1673,7 +1674,7 @@ def main():
         base = os.path.dirname(a.stage.rstrip("/")) if os.path.basename(a.stage.rstrip("/")).upper().startswith(
             "STAGE") else a.stage
         _pack_soh(a.soh, base, [d.anim for rid, _, room in rooms for di, d in enumerate(room.doors)
-                                if (rid, di) in arrivals], a.jpn)
+                                if (rid, di) in arrivals], a.jpn, a.exe)
 
 
 if __name__ == "__main__":

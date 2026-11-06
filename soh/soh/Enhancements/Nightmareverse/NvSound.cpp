@@ -39,6 +39,7 @@ SDL_AudioDeviceID sDevice = 0;
 std::unordered_map<std::string, Pcm> sCache;
 Voice sEffects[kEffects];
 Voice sMusic[kMusic];
+Voice sLine; // the cutscene's voice line (one at a time: RE1's voice bank)
 int sMusicVol = 128;
 
 void Mix(void*, Uint8* stream, int len) {
@@ -65,6 +66,7 @@ void Mix(void*, Uint8* stream, int len) {
     for (Voice& v : sEffects) {
         add(v);
     }
+    add(sLine);
     for (Voice& v : sMusic) {
         int keep = v.vol;
         v.vol = v.vol * sMusicVol / 128;
@@ -233,7 +235,39 @@ extern "C" void NvSound_StopAll(void) {
         v.playing = false;
         v.pcm = nullptr;
     }
+    sLine.playing = false;
     SDL_UnlockAudioDevice(sDevice);
+}
+
+/** A cutscene's voice line (cmd_voice_play type 1): the one before it stops. 0 if it's missing. */
+extern "C" int32_t NvSound_Line(const char* name) {
+    if (!Open()) {
+        return 0;
+    }
+    const Pcm* pcm = Get(name);
+    SDL_LockAudioDevice(sDevice);
+    sLine.pcm = pcm;
+    sLine.pos = 0;
+    sLine.vol = 128;
+    sLine.loop = false;
+    sLine.playing = pcm != nullptr;
+    SDL_UnlockAudioDevice(sDevice);
+    return pcm != nullptr;
+}
+
+/** cmd_voice_play type 2: the line is cut off. */
+extern "C" void NvSound_LineStop(void) {
+    if (sDevice == 0) {
+        return;
+    }
+    SDL_LockAudioDevice(sDevice);
+    sLine.playing = false;
+    SDL_UnlockAudioDevice(sDevice);
+}
+
+/** Whether a line is still playing (MSF_VOICE_PLAYING: the scene's 0xF7 waits on it). */
+extern "C" int32_t NvSound_LinePlaying(void) {
+    return (sDevice != 0) && sLine.playing;
 }
 
 /** The music's volume, 0-128 (the pause menu turns it down, as OoT's does). */
