@@ -1268,19 +1268,58 @@ void NvEnemy_ScdPos(s32 slot, s16 angle, s16 x, s16 y, s16 z) {
     this->e.pos[2] = z;
 }
 
-/** cmd_enemy_prop_set: 0 the behaviour byte, 2 the action (the others aren't run yet). */
-void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param) {
+/**
+ * cmd_enemy_prop_set: 0 the behaviour byte, 1 hurt it (its damaged state with this health and hit
+ * state: the scripts' own shots), 2 the action, 3 its status bits, 5 its facing, 6 no blend into
+ * the next pose, 8 the follow state, 10 the action's step (9, its joints' visibility, isn't run).
+ */
+void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param, u8 hit) {
     NvEnemy* this;
 
     if ((slot >= NV_ENEMY_SLOTS) || (sNvEnemySlots[slot] == NULL)) {
         return;
     }
     this = (NvEnemy*)sNvEnemySlots[slot];
-    if (subCmd == 0) {
-        this->e.behavior_flags = param & 0xFF;
-    } else if (subCmd == 2) {
-        this->e.action_behavior = param & 0xFF;
-        this->e.action_state = 0;
+    switch (subCmd) {
+        case 0:
+            this->e.behavior_flags = param & 0xFF;
+            break;
+        case 1:
+            this->e.state = 2;
+            this->e.ignore_player_flag = 0;
+            this->e.action_behavior = 0;
+            this->e.action_state = 0;
+            this->e.health = (s16)param;
+            this->e.hit_state = hit;
+            break;
+        case 2:
+            this->e.action_behavior = param & 0xFF;
+            this->e.action_state = 0;
+            break;
+        case 3:
+            if ((param >> 8) == 0) {
+                this->e.status_flags = param & 0xFF;
+            } else if ((param >> 8) == 1) {
+                this->e.status_flags |= param & 0xFF;
+            } else if ((param >> 8) == 2) {
+                this->e.status_flags ^= param & 0xFF;
+            }
+            break;
+        case 5:
+            this->e.angle = param & 0xFFF;
+            break;
+        case 6:
+            this->e.blend_counter = 0;
+            break;
+        case 8:
+            this->e.state = 9;
+            this->e.ignore_player_flag = 0;
+            this->e.action_behavior = 0;
+            this->e.action_state = 0;
+            break;
+        case 10:
+            this->e.action_state = param & 0xFF;
+            break;
     }
     printf("NVENEMY slot %d prop %d = %d\n", (int)slot, (int)subCmd, (int)param);
     fflush(stdout);

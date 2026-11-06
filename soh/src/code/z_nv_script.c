@@ -35,7 +35,7 @@
 
 void NvEnemy_ClearSlots(void);
 void NvEnemy_ScdSet(PlayState* play, const u8* rec);
-void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param);
+void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param, u8 hit);
 void NvEnemy_ScdPos(s32 slot, s16 angle, s16 x, s16 y, s16 z);
 #include "z_nv_re1.h"
 
@@ -73,6 +73,7 @@ typedef struct {
 
 static u32 sNvFlags[10][8];
 static NvEvt sNvEvt[NV_EVT_SLOTS];
+static NvEvt* sNvEvtCur; // the event running now (its character goes to the events it makes)
 static const u8* sNvInit;
 static const u8* sNvMain;
 static const u8* sNvEvtTable;
@@ -409,7 +410,7 @@ static s32 NvScd_Cmd(void) {
             return 1;
         case 0x28: // cmd_enemy_prop_set
             n = NvScd_Len(p);
-            NvEnemy_ScdProp(p[2], p[3], p[4] | (p[5] << 8));
+            NvEnemy_ScdProp(p[2], p[3], p[4] | (p[5] << 8), p[6]);
             sNvIp = p + n;
             return 1;
         case 0x30: { // cmd_boundary_set: a collision record rewritten (a gate, a shelf: z_nv_zombie.c)
@@ -622,7 +623,9 @@ static void NvEvt_Init(NvEvt* e, s32 script) {
     e->state = 0;
     e->depth = -1;
     e->ip = sNvEvtTable + off;
-    e->entKind = 0xFF; // (RE1 hands it the current entity: none, outside an enemy's own script)
+    // ScdEventEntry_Init hands it the current entity: the creating event's character
+    e->entKind = (sNvEvtCur != NULL) ? sNvEvtCur->entKind : 0xFF;
+    e->entIdx = (sNvEvtCur != NULL) ? sNvEvtCur->entIdx : 0;
 }
 
 /** The event's character (scd_event_cmd_set_entity), or NULL (a room object, or none). */
@@ -822,9 +825,22 @@ static void NvEvt_Create(s32 slot, s32 script) {
 static void NvEvt_Step(NvEvt* e) {
     s32 guard = 0;
 
+    sNvEvtCur = e;
     while (e->active && (++guard < 256)) {
         const u8* p = e->ip;
         s8 d = e->depth;
+
+        if (getenv("NV_EVT_TRACE") != NULL) { // dev: each op an event runs, once per place in it
+            static const u8* sLast[NV_EVT_SLOTS];
+            s32 slot = (s32)(e - sNvEvt);
+
+            if (sLast[slot] != p) {
+                sLast[slot] = p;
+                printf("NVEVT slot %d +%d: state %d op %02x %02x %02x %02x\n", (int)slot, (int)(p - sNvEvtTable),
+                       e->state, p[0], p[1], p[2], p[3]);
+                fflush(stdout);
+            }
+        }
 
         switch (p[0]) {
             case 0xF6: // push, then wait as 0xF7
@@ -1737,6 +1753,7 @@ void NvScript_Update(PlayState* play) {
                 return;
             }
             NvEvt_Step(&sNvEvt[i]);
+            sNvEvtCur = NULL;
         }
         {
             s32 live = false;

@@ -13,8 +13,10 @@
  *
  * Left out, each a note where it would be: the flower body and the root ball (RE1 draws them as
  * copies of the model with their own animations: here the plant's own model stands for the
- * body), the acid in the room, the scripted states (Chris in the vines, the fallen core: the
- * script holds those, behaviour bit 0x40 and kinds 4 and 6), and its own sub-frame animator.
+ * body), the acid in the room, Chris's scripted states (held in the vines, the fallen core:
+ * kinds 4 and 6), and its own sub-frame animator. The script's state 8 runs the ones Jill's room
+ * gives it (idle, turn to her, recoil, die, wither, flinch), and its own shots (cmd_enemy_prop_set
+ * 1, Barry's in the rescue) hurt it as hers do.
  */
 
 #define PL (&E->pl)
@@ -405,6 +407,11 @@ static void pl_run(void) {
 
 /** Shot: a vine recoils (and lets go of her); the plant shudders. */
 static void pl_recoil(void) {
+    if ((E->state == 2) && (E->health < 0)) { // (the script's shot can finish it)
+        E->state = 3;
+        E->action_state = 0;
+        return;
+    }
     if (E->action_state == 0) {
         E->action_state = 1;
         pl_anim((u8)(2 + (CbRand() & 3)));
@@ -450,6 +457,43 @@ static void pl_die(void) {
     }
 }
 
+/** plant42_scd_state: what the room's script has it do. */
+static void pl_scd(void) {
+    switch (E->action_behavior) {
+        case 0: // idle
+            if (E->action_state == 0) {
+                E->action_state = 1;
+                pl_anim(2);
+            }
+            Joint_move(0, 0x40);
+            break;
+        case 2: { // turn to her, the flag once it faces her
+            void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+            s32 step = turn_toward_target(P->t[0], P->t[2], 0x20);
+
+            E->angle += (s16)step;
+            if (step == 0) {
+                NvFlags_Op(4, E->scd_anim_param, 0);
+            }
+            Joint_move(0, 0x40);
+            break;
+        }
+        case 13:
+        case 16: // recoil, flinch: then back to its own
+            pl_recoil();
+            break;
+        case 14:
+            pl_die();
+            break;
+        case 15:
+            pl_wither();
+            break;
+        default:
+            Joint_move(0, 0x40);
+            break;
+    }
+}
+
 /** The plant's actor goes (the room left): the vines forget it. */
 void NvPlant42_Forget(NvRe1Entity* e) {
     if (sPlMain == e) {
@@ -486,6 +530,12 @@ void NvPlant42_Update(NvRe1Entity* e) {
             NvPlant42_Init(e);
             break;
         case 1:
+            if ((E->action_behavior >= 13) && (E->action_behavior <= 16)) {
+                // one of the script's (cmd_enemy_prop_set 2: the rescue's shots): under the script
+                E->state = 8;
+                pl_scd();
+                break;
+            }
             pl_run();
             break;
         case 2:
@@ -494,9 +544,12 @@ void NvPlant42_Update(NvRe1Entity* e) {
         case 3:
             pl_die();
             break;
+        case 8:
+            pl_scd();
+            break;
         default:
             if (!(E->behavior_flags & 0x80)) {
-                Joint_move(0, 0x40); // the script's
+                Joint_move(0, 0x40);
             }
             break;
     }
