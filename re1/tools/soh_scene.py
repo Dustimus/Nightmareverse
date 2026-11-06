@@ -736,6 +736,10 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     # RE1's own collision and walk zones: "<name>_re1col" (z_nv_zombie.c)
     blob = re1col_blob(room.raw)
     open(os.path.join(d, name + "_re1col"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    # the records its scripts move: "<name>_re1dyn", "RDYN", u16 count, u16 records (z_nv_zombie.c)
+    dyn = [r for r, _ in r2s.SCRIPT_BOXES.get(room_id.upper(), [])]
+    blob = b"RDYN" + struct.pack("<H", len(dyn)) + b"".join(struct.pack("<H", r) for r in dyn)
+    open(os.path.join(d, name + "_re1dyn"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
     # RE1's item models: "<name>_items" (z_nv_items_draw.c)
     blob = items_blob(room)
     open(os.path.join(d, name + "_items"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)

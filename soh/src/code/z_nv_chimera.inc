@@ -13,9 +13,10 @@
  * - 3: the hard ones (a floor variant that switches stance mid-fight).
  * Hit, it staggers or is knocked down off the ceiling; killed, it dissolves.
  *
- * Left out, each a note where it would be: the acid it bleeds when hurt badly, its claws' reach
- * (RE1 measures its hand joints to her; here a 2000 cone in front), the tint where the claws
- * land, and the hard ones' extra touch attack.
+ * Left out, each a note where it would be: the acid it bleeds when hurt badly, the tint where the
+ * claws land, and the hard ones' extra touch attack. (The swipe lands when either claw, joints 6
+ * and 10, comes within 800 of her, as RE1 measures it; the grabs keep RE1's cone-and-distance
+ * test.)
  */
 
 #define CM (&E->cm)
@@ -291,7 +292,8 @@ static void cm_swipe(void) {
         CM->repause = 0x3C;
         return;
     }
-    if (((u8)(E->animation_frame_id - 7) < 6) && cm_free_to_hit() && cm_reaches(0x300, 2000)) {
+    if (((u8)(E->animation_frame_id - 7) < 6) && cm_free_to_hit() && !check_line_of_sight(P->t[0], P->t[2]) &&
+        (NvRe1_JointReaches(6, 800) || NvRe1_JointReaches(10, 800))) { // either claw
         gNvRe1DogBite = 20;
         Snd_em(5);
     }

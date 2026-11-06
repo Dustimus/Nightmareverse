@@ -404,6 +404,15 @@ static s32 NvScd_Cmd(void) {
             NvEnemy_ScdProp(p[2], p[3], p[4] | (p[5] << 8));
             sNvIp = p + n;
             return 1;
+        case 0x30: { // cmd_boundary_set: a collision record rewritten (a gate, a shelf: z_nv_zombie.c)
+            void NvRe1_BoundSet(s32 list, s32 idx, u8 flagMode, u16 z, u16 w, u16 x, u16 y);
+            u16 v[4];
+
+            memcpy(v, p + 4, sizeof(v)); // z, w, x, y
+            NvRe1_BoundSet(p[1], p[2], p[3], v[0], v[1], v[2], v[3]);
+            sNvIp = p + 12;
+            return 1;
+        }
         case 0x08: // cmd_state_byte_set: one byte of the state block
             sNvStateSet[p[1]] = 1;
             sNvStateVal[p[1]] = p[2];
@@ -1400,6 +1409,17 @@ void NvScript_Update(PlayState* play) {
     }
     gNvSunSongSeen = false;
     NvPickup_Update(play); // an item prompt's answer
+    if ((play->sceneNum >= SCENE_RE1_100) && !NvDoorScene_Covering()) { // off the boxes its scripts moved
+        s32 NvRe1_PushPlayer(s32* x, s32* z);
+        Player* player = GET_PLAYER(play);
+        s32 x = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
+        s32 z = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
+
+        if (NvRe1_PushPlayer(&x, &z)) {
+            player->actor.world.pos.x = x * NV_RE1_SCALE;
+            player->actor.world.pos.z = -z * NV_RE1_SCALE;
+        }
+    }
     if (!NvDoorScene_Covering() && !NvMovie_Playing() && (play->pauseCtx.state == 0) && (play->sceneNum >= SCENE_RE1_100)) {
         void NvPoison_Update(PlayState* play);
 

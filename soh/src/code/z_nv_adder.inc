@@ -175,7 +175,7 @@ static void ad_bite(void) {
     }
     E->action_state += (u8)Joint_move(0, 0x400);
     if ((E->animation_frame_id == 0xB) && (turn_toward_target(P->t[0], P->t[2], 0x200) == 0) &&
-        (AD->dist < 1000) && (P->isBeingAttackedFlag == 0) && !gNvRe1DogFlinch && AD->sees) {
+        NvRe1_JointReaches(1, 900) && (P->isBeingAttackedFlag == 0) && !gNvRe1DogFlinch && AD->sees) { // its head
         Snd_em(1);
         gNvRe1DogBite = 6;
         NvPoison_Give((CbRand() & 1) && (CbRand() & 1)); // RE1: one in four

@@ -81,6 +81,8 @@ static s32 sBoundGroup[5];  // quadrant q's records are [group[q], group[q+1])
 static s16 sCellX;
 static s16 sCellZ;
 static u8* sZones;          // count byte, pad, then 12-byte zones
+static u16 sDynRec[32];     // the records the room's scripts move (cmd_boundary_set): Link is pushed off them
+static s32 sDynCount;
 
 #define NV_RE1_MAX_ENTS 16
 static NvRe1Entity* sEnts[NV_RE1_MAX_ENTS];
@@ -120,6 +122,7 @@ void NvRe1_RoomLoad(void* playArg) {
     free(sZones);
     sBounds = NULL;
     sZones = NULL;
+    sDynCount = 0;
     memset(sEnts, 0, sizeof(sEnts));
     if ((play->loadedScene == NULL) || (play->loadedScene->sceneFile.fileName == NULL)) {
         return;
@@ -163,6 +166,102 @@ void NvRe1_RoomLoad(void* playArg) {
         sZones = malloc(zoneLen);
         memcpy(sZones, d + 12 + bndLen, zoneLen);
     }
+    // the records its scripts move ("RDYN", u16 count, u16 records: re1/tools/soh_scene.py)
+    snprintf(path, sizeof(path), "scenes/shared/%s/%.*s_re1dyn", file, (int)(len - 6), file);
+    if (ResourceMgr_FileExists(path)) {
+        u8* y = (u8*)ResourceGetDataByName(path);
+        u16 n;
+
+        if ((y != NULL) && (memcmp(y, "RDYN", 4) == 0)) {
+            memcpy(&n, y + 4, 2);
+            sDynCount = MIN(n, (s32)ARRAY_COUNT(sDynRec));
+            memcpy(sDynRec, y + 6, sDynCount * 2);
+        }
+    }
+}
+
+/**
+ * cmd_boundary_set (0x30): a room script rewrites collision record `idx` of quadrant list `list`
+ * (a gate swinging open, a shelf sliding: RE1 writes words 2, 3, 0, 1 from z, w, x, y; a non-zero
+ * flag mode patches the flags' 0x0F00 bits). The enemies use the table as it is; Link is pushed
+ * off the records the converter marked as moving (NvRe1_PushPlayer).
+ */
+void NvRe1_BoundSet(s32 list, s32 idx, u8 flagMode, u16 z, u16 w, u16 x, u16 y) {
+    s32 r;
+
+    if ((sBounds == NULL) || (list < 0) || (list > 3)) {
+        return;
+    }
+    r = sBoundGroup[list] + idx;
+    if ((r < 0) || (r >= sBoundGroup[4])) {
+        return;
+    }
+    sBounds[r].xMin = z;
+    sBounds[r].zMin = w;
+    sBounds[r].xMax = x;
+    sBounds[r].zMax = y;
+    if (flagMode != 0) {
+        sBounds[r].flags = (sBounds[r].flags & ~0x0F00) | ((flagMode << 8) & 0x0F00);
+    }
+}
+
+/**
+ * Each frame (z_nv_script.c): Link, at (x, z) in RE1's units, pushed off the moving records that
+ * are solid now (shapes 1 and 3, the ones that stop Jill), to where she stops: 390 out from the
+ * edge, along the shorter way out. True when he was moved.
+ */
+s32 NvRe1_PushPlayer(s32* x, s32* z) {
+    s32 moved = false;
+    s32 k;
+
+    if (sBounds == NULL) {
+        return false;
+    }
+    for (k = 0; k < sDynCount; k++) {
+        NvRe1Bound* b = &sBounds[sDynRec[k]];
+        s32 x0;
+        s32 x1;
+        s32 z0;
+        s32 z1;
+        s32 out[4];
+        s32 best;
+        s32 j;
+
+        if (((b->type & 0xFF) != 1) && ((b->type & 0xFF) != 3)) {
+            continue;
+        }
+        x0 = MIN(b->xMin ^ 0x8000, b->xMax ^ 0x8000) - 390;
+        x1 = MAX(b->xMin ^ 0x8000, b->xMax ^ 0x8000) + 390;
+        z0 = MIN(b->zMin ^ 0x8000, b->zMax ^ 0x8000) - 390;
+        z1 = MAX(b->zMin ^ 0x8000, b->zMax ^ 0x8000) + 390;
+        if ((x1 - x0 <= 780 + 8) || (z1 - z0 <= 780 + 8)) {
+            continue; // shrunk to nothing: open
+        }
+        if ((*x <= x0) || (*x >= x1) || (*z <= z0) || (*z >= z1)) {
+            continue;
+        }
+        out[0] = *x - x0;
+        out[1] = x1 - *x;
+        out[2] = *z - z0;
+        out[3] = z1 - *z;
+        best = 0;
+        for (j = 1; j < 4; j++) {
+            if (out[j] < out[best]) {
+                best = j;
+            }
+        }
+        if (best == 0) {
+            *x = x0;
+        } else if (best == 1) {
+            *x = x1;
+        } else if (best == 2) {
+            *z = z0;
+        } else {
+            *z = z1;
+        }
+        moved = true;
+    }
+    return moved;
 }
 
 /** Once per tick: RE1's g_RandSeed moves on every frame. */
@@ -2795,6 +2894,20 @@ void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId) {
     if (e->health >= 0) {
         e->state = ZST_DAMAGED;
     }
+}
+
+/**
+ * A joint of the enemy within `range` of the player (RE1's joint-to-player test, FUN_0048ae00:
+ * the head that bites, the claw that swipes), from the joints' world places z_nv_enemy.c keeps;
+ * without them (no model), the enemy's own place.
+ */
+static s32 NvRe1_JointReaches(s32 j, s32 range) {
+    s32 x = (E->numJoints > j) ? E->joint[j][0] : E->t[0];
+    s32 z = (E->numJoints > j) ? E->joint[j][2] : E->t[2];
+    s32 dx = P->t[0] - x;
+    s32 dz = P->t[2] - z;
+
+    return (dx * dx + dz * dz) < range * range;
 }
 
 /* the dog: the same helpers, its own behaviour */

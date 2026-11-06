@@ -399,13 +399,48 @@ if __name__ == "__main__":  # soh_scene imports this module: let it see this run
     sys.modules["rdt2scene"] = sys.modules[__name__]
 
 
+# per room, the collision boxes its scripts rewrite (cmd_boundary_set 0x30): [(record, bounds)]
+SCRIPT_BOXES = {}
+
+
+def script_boxes(room):
+    """The collision records a room's scripts rewrite (cmd_boundary_set, 0x30: list, record in
+    it), by their index in the room's whole record table (the quadrant lists one after another),
+    with their bounds as the room starts. They change while the room is played (gates, shelves,
+    statues moving), so Link's fixed OoT collision leaves them out and the engine pushes him off
+    them while they're solid (z_nv_zombie.c NvRe1_PushPlayer)."""
+    d = room.raw
+    o = room.offsets[1]
+    if not o:
+        return []
+    counts = struct.unpack_from("<5I", d, o + 4)
+    starts = [sum(counts[:q]) for q in range(4)]
+    touched = set()
+    for k in (6, 7):
+        so = room.offsets[k]
+        if not so:
+            continue
+        n = struct.unpack_from("<H", d, so)[0]
+        code = d[so + 2:so + 2 + n]
+        i = 0
+        while i < len(code):
+            ln = rdt.scd_inst_len(code, i)
+            if ln <= 0:
+                break
+            if code[i] == 0x30 and i + 3 < len(code) and code[i + 1] < 4:
+                touched.add(starts[code[i + 1]] + code[i + 2])
+            i += ln
+    return [(r, _bounds(room.collisions[r])) for r in sorted(touched) if r < len(room.collisions)]
+
+
 class Floor:
     """Floor height (RE1 units, positive = down) and opened-up collision boxes of a room."""
 
     def __init__(self, room_id):
         cfg = ROOM_FLOORS.get(room_id, {})
         self.base = ROOM_LEVELS.get(room_id.upper(), 0)
-        self.open = cfg.get("open", [])
+        # the boxes its scripts move stay open in the fixed collision (the engine handles them)
+        self.open = cfg.get("open", []) + [b for _, b in SCRIPT_BOXES.get(room_id.upper(), [])]
         self.regions = cfg.get("regions", [])
         self.depth = max([max(r[4], r[5]) for r in self.regions] + [self.base])
         self.top = min([min(r[4], r[5]) for r in self.regions] + [self.base]) - WALL_HEIGHT
@@ -1189,6 +1224,10 @@ def main():
         room_id, name = item.split(":")
         rooms.append((room_id.upper(), name, load_rdt(stage_dir(a.stage, room_id), room_id, a.player)))
         apply_trims(rooms[-1][2], room_id.upper())
+    for rid, _, room in rooms:
+        SCRIPT_BOXES[rid.upper()] = script_boxes(room)
+        if SCRIPT_BOXES[rid.upper()]:
+            print("  %s: collision boxes its scripts move: %s" % (rid, [r for r, _ in SCRIPT_BOXES[rid.upper()]]))
     mansion_return_doors(rooms, a.stage, a.player)
     arrivals_out_of_walls(rooms)
     by_id = {rid: (name, room) for rid, name, room in rooms}
