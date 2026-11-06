@@ -23,6 +23,7 @@
  */
 #include "global.h"
 #include "z_nv_re1.h"
+#include "objects/gameplay_keep/gameplay_keep.h"
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/resourcebridge.h>
 #include <math.h>
@@ -1338,10 +1339,28 @@ void NvCast_Update(PlayState* play, s32 eventsLive) {
         Player_SetCsAction(play, NULL, 8);
     }
     sNvCastHeldFrames++;
-    ticks = (sNvCastPhase ^= 1) ? 1 : 2;
-    for (t = 0; t < ticks; t++) {
-        NvRe1_TickBegin();
-        NvNpc_PlayerTick(e);
+    {
+        s32 x0 = e->t[0];
+        s32 z0 = e->t[2];
+        f32 step;
+        LinkAnimationHeader* want;
+
+        ticks = (sNvCastPhase ^= 1) ? 1 : 2;
+        for (t = 0; t < ticks; t++) {
+            NvRe1_TickBegin();
+            NvNpc_PlayerTick(e);
+        }
+        // Link walks while the script walks her, and stands once she stops (the hold loops
+        // whatever he's playing): OoT's walk at about her pace
+        step = sqrtf(SQ((f32)(e->t[0] - x0)) + SQ((f32)(e->t[2] - z0))) * NV_RE1_SCALE;
+        want = (LinkAnimationHeader*)((step > 0.3f) ? gPlayerAnim_link_normal_walk : gPlayerAnim_link_normal_wait);
+        if ((sNvCastHeldFrames > 2) && (player->skelAnime.animation != want)) {
+            LinkAnimation_Change(play, &player->skelAnime, want, 1.0f, 0.0f, Animation_GetLastFrame(want),
+                                 ANIMMODE_LOOP, -4.0f);
+        }
+        if (want == (LinkAnimationHeader*)gPlayerAnim_link_normal_walk) {
+            player->skelAnime.playSpeed = CLAMP(step / 3.0f, 0.5f, 2.0f);
+        }
     }
     player->actor.world.pos.x = e->t[0] * NV_RE1_SCALE;
     player->actor.world.pos.z = -e->t[2] * NV_RE1_SCALE;
