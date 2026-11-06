@@ -232,6 +232,14 @@ typedef struct NvRe1Entity {
         u8 vinesLeft;  // the plant: vines still up (it can't be hurt while more than one is)
         u8 dead;       // the plant: dead (the vines wither)
     } pl;
+    // the Tyrant's own
+    struct {
+        s32 dist;      // |dx| + |dz| to the player
+        s16 ticks;
+        u8 cooldown;   // ticks before it picks another strike
+        u8 landed;     // this strike has hit her
+        u8 wallHit;    // walls met (the wander steering's)
+    } ty;
 } NvRe1Entity;
 
 /** The player as RE1's enemy code sees her: Link, in RE1's units, each tick. */
@@ -285,6 +293,8 @@ void NvChimera_Update(NvRe1Entity* e);
 void NvPlant42_Init(NvRe1Entity* e);
 void NvPlant42_Update(NvRe1Entity* e);
 void NvPlant42_Forget(NvRe1Entity* e);
+void NvTyrant_Init(NvRe1Entity* e);
+void NvTyrant_Update(NvRe1Entity* e);
 extern s16 gNvRe1Drain;
 extern s32 gNvRe1Kill; // an enemy's kill move landed (the maul, the decapitation, the swallow): Link dies // a plant's drain this tick: RE1's health, no knock back (z_nv_enemy.c)
 extern s16 gNvRe1DogBite;

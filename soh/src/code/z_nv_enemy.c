@@ -215,12 +215,16 @@ static s32 NvEnemy_IsPlant42(s32 type) {
     return type == 8;
 }
 
+static s32 NvEnemy_IsTyrant(s32 type) {
+    return (type == 12) || (type == 16);
+}
+
 static s32 NvEnemy_Acts(s32 type) {
     return NvEnemy_IsZombie(type) || NvEnemy_IsDog(type) || NvEnemy_IsHunter(type) || NvEnemy_IsCrow(type) ||
            NvEnemy_IsPlant(type) || NvEnemy_IsYawn(type) || NvEnemy_IsSpider(type) ||
            NvEnemy_IsWasp(type) || NvEnemy_IsAdder(type) || NvEnemy_IsNeptune(type) ||
            NvEnemy_IsBlackTiger(type) || NvEnemy_IsChimera(type) ||
-           NvEnemy_IsPlant42(type);
+           NvEnemy_IsPlant42(type) || NvEnemy_IsTyrant(type);
 }
 
 static s32 NvEnemy_IsCorpse(s32 type) {
@@ -757,6 +761,12 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x2E; // (a Deku Baba's, as the other plants)
         NvRe1_TickBegin();
         NvPlant42_Init(e);
+    } else if (NvEnemy_IsTyrant(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        thisx->naviEnemyId = 0x40; // (a Dodongo's, as the big ones)
+        NvRe1_TickBegin();
+        NvTyrant_Init(e);
     } else {
         thisx->flags &= ~(ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE);
         e->animationId = 0;
@@ -946,6 +956,15 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvPlant42_Update(e);
             NvEnemy_DogBite(this, play); // (the sweep, the strike, the squeeze's end)
             NvEnemy_Hold(this, play);     // (the grab, the kill)
+        }
+    } else if (NvEnemy_IsTyrant(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvTyrant_Update(e);
+            NvEnemy_DogBite(this, play); // (its claw)
+            NvEnemy_Hold(this, play);     // (the impale)
         }
     } else {
         for (t = 0; t < ticks; t++) {

@@ -1,0 +1,391 @@
+/*
+ * Nightmareverse: RE1's Tyrant (enemy types 12, the lab's, and 16, the heliport's: one code path).
+ * Included at the end of z_nv_zombie.c with the other ported enemies.
+ *
+ * As RE1 runs it (the decomp's entities/Tyrant.cpp is the reference): it walks at her; within
+ * 2700 and roughly facing her it slashes (12 of RE1's health; the heliport one's knocks her
+ * back), within 2000 and lined up it swipes (10), or, she being under 16 and turned away, it
+ * impales her (the kill). The heliport one also charges from beyond 12000 (20), thrusts at her
+ * when she's off to its side within 7000 (16), and rushes after a slash that missed. The claw is
+ * its joint 8: a strike lands when the claw comes within its reach of her (800 the swipe and
+ * the backhand, 1500 the slash and the thrust, 1800 the charge's).
+ *
+ * The lab one starts held by 513's script (it breaks out of its pod; state 8, the script's), the
+ * heliport one with its eruption through the floor. Shot, it staggers; at 0 it falls (RE1 leaves
+ * its deaths to the rooms' scripts and the rocket launcher: here it falls and its flag goes up).
+ *
+ * Left out, each a note where it would be: its heart and claw trails (the drawing), the 24
+ * script-driven behaviours (the pod, the rocket death, the cutscene strikes: the scripts drive
+ * them; until those scenes are built a held Tyrant just stands), the power-up, the second run's
+ * damage.
+ */
+
+#define TY (&E->ty)
+
+static const s16 sTySca[8] = { (s16)0x8000, 0, -1800, 0, 1800, 700, 0, 0 };
+
+enum { TY_PAUSE, TY_WALK, TY_SWIPE, TY_SLASH, TY_THRUST, TY_BACKHAND, TY_IMPALE, TY_CHARGE, TY_ERUPT, TY_RUSH };
+
+static s32 ty_roof(void) {
+    return E->id == 0x10;
+}
+
+static void ty_set(u8 b) {
+    E->ignore_player_flag = 1;
+    E->action_behavior = b;
+    E->action_state = 0;
+}
+
+static void ty_free(void) {
+    E->state = 1;
+    E->ignore_player_flag = 0;
+    E->action_behavior = TY_WALK;
+    E->action_state = 0;
+}
+
+static void ty_anim(u8 id, u8 blend) {
+    E->animationId = id;
+    E->animation_frame_id = 0;
+    E->timing_control = 0;
+    E->blend_counter = blend;
+}
+
+/** Its claw (joint 8) within `reach` of her. */
+static s32 ty_claw_reaches(s32 reach) {
+    if (E->numJoints <= 8) {
+        return TY->dist < reach;
+    }
+    return (CbAbs(P->t[0] - E->joint[8][0]) + CbAbs(P->t[2] - E->joint[8][2])) < reach;
+}
+
+static s32 ty_free_to_hit(void) {
+    return (P->isBeingAttackedFlag == 0) && !gNvRe1DogFlinch && (P->health >= 0);
+}
+
+/** A strike's window: on `from`..`to` its claw at her lands `damage`, once. */
+static void ty_strike(u8 from, u8 to, s32 reach, s16 damage) {
+    if ((E->animation_frame_id >= from) && (E->animation_frame_id <= to) && !TY->landed && ty_free_to_hit() &&
+        ty_claw_reaches(reach)) {
+        TY->landed = 1;
+        gNvRe1DogBite = damage;
+        Snd_em(2);
+    }
+}
+
+static void ty_think(void) {
+    if (TY->cooldown != 0) {
+        TY->cooldown--;
+        return;
+    }
+    if (ty_roof() && (TY->dist > 12000) && (turn_toward_target(P->t[0], P->t[2], 0x40) == 0)) {
+        ty_set(TY_CHARGE);
+    }
+    if ((TY->dist < 2700) && (turn_toward_target(P->t[0], P->t[2], 0x340) == 0)) {
+        ty_set(TY_SLASH);
+    }
+    if ((TY->dist < 2000) && (turn_toward_target(P->t[0], P->t[2], 0x200) == 0)) {
+        ty_set(((P->health < 0x10) && !is_facing_toward_entity()) ? TY_IMPALE : TY_SWIPE);
+    }
+    if (ty_roof() && (TY->dist < 7000) && (turn_toward_target(P->t[0], P->t[2], 0x4C8) != 0)) {
+        ty_set(TY_THRUST);
+    }
+}
+
+/* ---- the moves ---- */
+
+static void ty_pause(void) {
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(0, 0x1F);
+        TY->ticks = 0x3C;
+    }
+    Joint_move(0, 0x80);
+    if (TY->ticks-- == 0) {
+        ty_free();
+    }
+}
+
+static void ty_walk(void) {
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(1, 7);
+    }
+    entity_update_wander_turn(E->move_dist, &TY->wallHit, &E->turn_counter, 0x28, 0x28);
+    Joint_move(0, 0x200);
+    if ((E->animation_frame_id == 6) || (E->animation_frame_id == 0x1F)) {
+        Snd_em(0); // its steps
+    }
+    E->move_speed_current = 60;
+    Add_speedXZ(0);
+}
+
+/** One of its strikes: an animation, a speed that dies away, the claw's window. */
+static void ty_attack(u8 anim, s16 speed, u8 from, u8 to, s32 reach, s16 damage, u8 end, s16 turn) {
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(anim, 7);
+        E->move_speed_current = speed;
+        TY->landed = 0;
+        Snd_em(1);
+        TY->cooldown = 10;
+    } else if (E->action_state != 1) {
+        ty_free();
+        return;
+    }
+    E->action_state += (u8)Joint_move(0, 0x200);
+    if (turn) {
+        entity_rotate_toward_target(P->t[0], P->t[2], turn);
+    }
+    ty_strike(from, to, reach, damage);
+    if (end && (E->animation_frame_id >= end)) {
+        E->action_state = 2;
+    }
+    E->move_speed_current = MAX(0, E->move_speed_current - 5);
+    Add_speedXZ(0);
+}
+
+/** The impale: through her, and up (the kill). */
+static void ty_impale(void) {
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(5, 7);
+        E->move_speed_current = 200;
+        TY->landed = 0;
+        Snd_em(1);
+    } else if (E->action_state != 1) {
+        E->holding = 0;
+        ty_free();
+        return;
+    }
+    E->action_state += (u8)Joint_move(0, 0x200);
+    if (!TY->landed && (E->animation_frame_id >= 5) && (E->animation_frame_id <= 8) && ty_claw_reaches(800) &&
+        (P->health >= 0)) {
+        TY->landed = 1;
+        E->unk_c6 = (s16)E->joint[8][0];
+        E->unk_c8 = (s16)E->joint[8][2];
+        E->holding = 1;
+        Snd_em(4);
+    }
+    if (TY->landed && (E->animation_frame_id == 0x5C)) {
+        gNvRe1Kill = 1;
+    }
+    E->move_speed_current = MAX(0, E->move_speed_current - 5);
+    Add_speedXZ(0);
+}
+
+/** The heliport one's charge: a run at her, then the swing as it arrives (20). */
+static void ty_charge(void) {
+    switch (E->action_state) {
+        case 0:
+            E->action_state = 1;
+            ty_anim(2, 7);
+            E->move_speed_current = 400;
+            TY->landed = 0;
+            // fall through
+        case 1:
+            Joint_move(0, 0x200);
+            entity_rotate_toward_target(P->t[0], P->t[2], 0x10);
+            if ((E->animation_frame_id == 3) || (E->animation_frame_id == 0xF)) {
+                Snd_em(0);
+            }
+            if (TY->dist < 3000) {
+                E->action_state = 2;
+                ty_anim(9, 7);
+                E->move_speed_current = 300;
+            }
+            Add_speedXZ(0);
+            return;
+        case 2:
+            E->action_state += (u8)Joint_move(0, 0x200);
+            ty_strike(8, 14, 1800, 20);
+            E->move_speed_current = MAX(0, E->move_speed_current - 10);
+            Add_speedXZ(0);
+            return;
+        default:
+            ty_free();
+            return;
+    }
+}
+
+/** The heliport one's rush: a run at her a while (after a slash or a thrust that missed). */
+static void ty_rush(void) {
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(2, 7);
+        E->move_speed_current = 400;
+        TY->ticks = 0x3C;
+    }
+    Joint_move(0, 0x200);
+    entity_rotate_toward_target(P->t[0], P->t[2], 0x20);
+    Add_speedXZ(0);
+    if ((TY->ticks-- == 0) || (TY->dist < 2700)) {
+        ty_free();
+    }
+}
+
+/** The heliport one's entrance: up through the floor. */
+static void ty_erupt(void) {
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(6, 0);
+        E->hit_state = 1;
+    }
+    if (Joint_move(0, 0x200)) {
+        E->hit_state = 0;
+        ty_free();
+    }
+}
+
+static void ty_act(void) {
+    switch (E->action_behavior) {
+        case TY_PAUSE:
+            ty_pause();
+            break;
+        case TY_WALK:
+            ty_walk();
+            break;
+        case TY_SWIPE:
+            ty_attack(5, 200, 5, 8, 800, 10, 0x32, 0x10);
+            break;
+        case TY_SLASH: {
+            u8 was = TY->landed;
+
+            ty_attack(4, 0, 7, 11, 1500, 12, 0, 8);
+            if (!was && TY->landed && ty_roof()) {
+                gNvRe1DogBite = 12; // (the knock back comes with it)
+            }
+            if ((E->action_state == 2) && ty_roof() && !TY->landed && (TY->dist > 5000) && (CbRand() & 1)) {
+                ty_set(TY_RUSH);
+            }
+            break;
+        }
+        case TY_THRUST:
+            ty_attack(7, 0, 10, 16, 1500, 16, 0, 0x10);
+            if ((E->action_state == 2) && !TY->landed && (TY->dist > 5000) && (CbRand() & 1)) {
+                ty_set(TY_RUSH);
+            }
+            break;
+        case TY_BACKHAND:
+            ty_attack(3, 300, 4, 10, 800, 12, 0, 0);
+            break;
+        case TY_IMPALE:
+            ty_impale();
+            break;
+        case TY_CHARGE:
+            ty_charge();
+            break;
+        case TY_ERUPT:
+            ty_erupt();
+            break;
+        default:
+            ty_rush();
+            break;
+    }
+}
+
+static void ty_run(void) {
+    if (E->behavior_flags & 0x80) {
+        return; // held by its script
+    }
+    TY->dist = CbAbs(P->t[0] - E->t[0]) + CbAbs(P->t[2] - E->t[2]);
+    entity_check_visual_range(4000);
+    entity_check_alert_range(4000);
+    if (P->health < 0) {
+        if (E->action_behavior != TY_PAUSE) {
+            ty_set(TY_PAUSE);
+        }
+    } else if (E->ignore_player_flag == 0) {
+        ty_think();
+    }
+    entity_pathfind_update();
+    zone_path_find(P->t[0], P->t[2], &E->player_pos_x, &E->player_pos_z);
+    ty_act();
+}
+
+/** Shot: a stagger (its hits break off), then on at her. */
+static void ty_stagger(void) {
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim((u8)((turn_toward_target(P->t[0], P->t[2], 0x400) == 0) ? 0xA : 0xB), 7);
+        E->holding = 0;
+        E->move_speed_current = 0;
+    }
+    if (Joint_move(0, 0x200)) {
+        E->hit_state = 0;
+        ty_free();
+    }
+}
+
+/** Down: it falls and its flag goes up (the rooms' scripts finish it in RE1). */
+static void ty_die(void) {
+    if (E->action_state == 0) {
+        E->action_state = 1;
+        ty_anim(0xC, 7);
+        E->holding = 0;
+        E->status_flags |= 2;
+        TY->ticks = 0x5A;
+        if (E->death_event_id != 0xFF) {
+            void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+
+            NvFlags_Op(3, E->death_event_id, 0);
+        }
+    }
+    Joint_move(0, 0x200);
+    if (TY->ticks-- == 0) {
+        E->status_flags |= 10;
+    }
+}
+
+void NvTyrant_Init(NvRe1Entity* e) {
+    E = e;
+    memset(&E->ty, 0, sizeof(E->ty));
+    E->t[1] = -210;
+    E->hit_state = 0;
+    E->health = ty_roof() ? 600 : 220;
+    E->sca = sTySca;
+    TY->cooldown = 0x5A;
+    ty_anim(6, 0);
+    if (ty_roof()) {
+        E->state = 1;
+        ty_set(TY_ERUPT);
+    } else {
+        E->state = 8; // the lab's: its script lets it out
+        E->ignore_player_flag = 0;
+        E->action_behavior = 0x0B;
+        E->action_state = 0;
+    }
+    Joint_move(0, 0x40);
+}
+
+void NvTyrant_Update(NvRe1Entity* e) {
+    E = e;
+    E->pos[0] = (s16)E->t[0];
+    E->pos[1] = (s16)E->t[1];
+    E->pos[2] = (s16)E->t[2];
+    switch (E->state) {
+        case 0:
+            NvTyrant_Init(e);
+            break;
+        case 1:
+            ty_run();
+            break;
+        case 2:
+            ty_stagger();
+            break;
+        case 3:
+            ty_die();
+            break;
+        default: // the script's (the pod, the scenes): it stands
+            if (!(E->behavior_flags & 0x80)) {
+                Joint_move(0, 0x40);
+            }
+            break;
+    }
+    if (!(E->status_flags & 2)) {
+        SetScaWorld(E->sca, E->angle, E->scaWorld);
+        SetScaWorld(P->sca, P->angle, P->scaWorld);
+        ResolveScaPush(P->sca, P->scaWorld, P->t, E);
+        HandleEnemyCollisions();
+    }
+    TY->wallHit |= check_room_collision();
+}
