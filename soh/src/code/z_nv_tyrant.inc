@@ -594,30 +594,72 @@ static void ty_scd_strike(void) {
 }
 
 /** 13: the rocket launcher's kill (the heliport): blown apart (here: it falls in the blasts), then still. */
+/* the rocket death's five limbs: joint, launch speed (x, y, z), tumble a tick (x, y, z) */
+static const s16 sTyLimbs[5][7] = {
+    { 2, 0, -500, 0, 0x40, 0, 0x60 },
+    { 4, 10, -400, 0x19, 0x40, 0x60, 0 },
+    { 7, -0x1E, -0x1C2, 0x0F, 0, 0, 0x40 },
+    { 10, -0x14, -0x15E, -10, 0, 0x60, 0 },
+    { 12, -0x14, -300, 0x0F, 0, 0x40, 0x40 },
+};
+
+/** tyrant_limb_update: each limb flies, falls (15 a tick), bounces at the floor 3 times, tumbling. */
+static void ty_limbs(void) {
+    s32 k;
+
+    for (k = 0; k < 5; k++) {
+        if (TY->limbBounces[k] == 0) {
+            continue;
+        }
+        TY->limbOff[k][0] += TY->limbV[k][0];
+        TY->limbVy[k] += 0x0F;
+        TY->limbOff[k][2] += TY->limbV[k][1];
+        TY->limbOff[k][1] += TY->limbVy[k];
+        if (TY->limbBaseY[k] + TY->limbOff[k][1] > -200) { // the floor
+            TY->limbOff[k][1] -= TY->limbVy[k];
+            TY->limbBounces[k]--;
+            TY->limbVy[k] = -(TY->limbVy[k] / 2);
+        }
+        TY->limbSpin[k][0] += sTyLimbs[k][4];
+        TY->limbSpin[k][1] += sTyLimbs[k][5];
+        TY->limbSpin[k][2] += sTyLimbs[k][6];
+    }
+}
+
 static void ty_scd_rocket_death(void) {
     void NvFlags_Op(s32 bank, s32 bit, s32 mode);
     void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
+    s32 k;
 
     switch (E->action_state) {
-        case 0:
+        case 0: // the body goes (ty_flags bit 3), five limbs blown off
             E->action_state = 1;
-            TY->blownUp = 0;
-            ty_anim(0xC, 7);
+            ty_anim(0, 7);
             E->move_speed_current = 0;
             E->status_flags |= 2;
             TY->ticks = 0;
             TY->boom = 1;
+            TY->blownUp = 1;
+            for (k = 0; k < 5; k++) {
+                s32 j = sTyLimbs[k][0];
+
+                TY->limbOff[k][0] = TY->limbOff[k][1] = TY->limbOff[k][2] = 0;
+                TY->limbV[k][0] = sTyLimbs[k][1];
+                TY->limbVy[k] = sTyLimbs[k][2];
+                TY->limbV[k][1] = sTyLimbs[k][3];
+                TY->limbSpin[k][0] = TY->limbSpin[k][1] = TY->limbSpin[k][2] = 0;
+                TY->limbBounces[k] = 3;
+                TY->limbBaseY[k] = (E->numJoints > j) ? E->joint[j][1] : E->t[1] - 1000;
+            }
             NvSnd_At(0x19, E->t[0], E->t[2], P->t[0], P->t[2]);
-            // fall through
+            break;
         case 1:
-            if ((E->animation_frame_id > 0x12) && (((E->animation_frame_id + 1) & 3) == 0)) {
+            if ((TY->ticks > 0x10) && (((TY->ticks + 1) & 3) == 0) && (TY->ticks < 0x40)) {
                 TY->boom = 1; // the blasts off its body
             }
-            if (Joint_move(0, 0x200)) {
+            if (++TY->ticks > 0x50) {
                 E->action_state = 2;
                 TY->ticks = 0;
-                TY->blownUp = 1; // (RE1's limbs fly off as free bodies: here it goes in the last blast)
-                TY->boom = 1;
             }
             break;
         case 2: // it smoulders, then the room moves on
@@ -668,6 +710,9 @@ static void ty_scd(void) {
             break;
         case 13:
             ty_scd_rocket_death();
+            if (TY->blownUp) {
+                ty_limbs();
+            }
             break;
         default:
             Joint_move(0, 0x40);

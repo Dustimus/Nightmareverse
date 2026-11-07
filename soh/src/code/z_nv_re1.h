@@ -254,7 +254,15 @@ typedef struct NvRe1Entity {
         u8 landed;     // this strike has hit her
         u8 wallHit;    // walls met (the wander steering's)
         u8 boom;       // an explosion on it this tick (the rocket's: z_nv_enemy.c draws it)
-        u8 blownUp;    // the rocket blew it apart: its body isn't drawn (ty_flags bit 3)
+        u8 blownUp;    // the rocket blew it apart: its body isn't drawn (ty_flags bit 3), its limbs fly
+        // the five limbs (joints 2, 4, 7, 10, 12) as free bodies (tyrant_limb_launch / _update):
+        // their way from where they were (RE1's units), fall speed, sideways speed, tumble, bounces
+        s32 limbOff[5][3];
+        s16 limbVy[5];
+        s16 limbV[5][2];
+        s16 limbSpin[5][3];
+        s32 limbBaseY[5];
+        u8 limbBounces[5];
     } ty;
 } NvRe1Entity;
 

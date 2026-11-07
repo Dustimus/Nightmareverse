@@ -80,6 +80,12 @@ typedef struct {
     s32 grabbing;
     s16 sunStun; // frames left frozen by the Sun's Song, as a ReDead (En_Rd's 600)
     u8 wasHeadless;
+    // the Tyrant's limbs blown off (z_nv_tyrant.inc): each one's pose when it went, and which bones
+    // fly with them (the rest of the body isn't drawn)
+    u8 limbCaught[5];
+    f32 limbR[5][3][3];
+    f32 limbT[5][3];
+    u32 limbBones;
 } NvEnemy;
 
 s32 gNvSunSongSeen; // an enemy took this Sun's Song (z_nv_script.c ends it next frame)
@@ -1097,9 +1103,48 @@ static void NvEnemy_RotMatrix(s16 ax, s16 ay, s16 az, f32 L[3][3]) {
 }
 
 /** The skeleton posed (Joint_move's angles): per bone its rotation and translation in the entity's space. */
+/** A Tyrant limb blown off: its pose when it went, tumbled, carried along its flight. */
+static void NvEnemy_PoseLimb(NvEnemy* this, s32 i, s32 p, f32 R[][3][3], f32 T[][3]) {
+    static const u8 sJoint[5] = { 2, 4, 7, 10, 12 };
+    s32 k;
+    s32 r;
+    s32 c;
+
+    if (i >= 32) {
+        return;
+    }
+    if ((p >= 0) && (p < 32) && (this->limbBones & (1u << p))) {
+        this->limbBones |= 1u << i; // (it goes with its limb)
+    }
+    for (k = 0; k < 5; k++) {
+        f32 S[3][3];
+        f32 Rn[3][3];
+
+        if (sJoint[k] != i) {
+            continue;
+        }
+        this->limbBones |= 1u << i;
+        if (!this->limbCaught[k]) {
+            this->limbCaught[k] = true;
+            memcpy(this->limbR[k], R[i], sizeof(this->limbR[k]));
+            memcpy(this->limbT[k], T[i], sizeof(this->limbT[k]));
+        }
+        NvEnemy_RotMatrix(this->e.ty.limbSpin[k][0], this->e.ty.limbSpin[k][1], this->e.ty.limbSpin[k][2], S);
+        for (r = 0; r < 3; r++) {
+            for (c = 0; c < 3; c++) {
+                Rn[r][c] = this->limbR[k][r][0] * S[0][c] + this->limbR[k][r][1] * S[1][c] + this->limbR[k][r][2] * S[2][c];
+            }
+            T[i][r] = this->limbT[k][r] + this->e.ty.limbOff[k][r];
+        }
+        memcpy(R[i], Rn, sizeof(Rn));
+    }
+}
+
 static void NvEnemy_Pose(NvEnemy* this, f32 R[][3][3], f32 T[][3]) {
     NvEmModel* m = this->model;
     s32 n;
+
+    this->limbBones = 0;
 
     for (n = 0; n < m->numBones; n++) {
         s32 i = m->order[n];
@@ -1124,6 +1169,9 @@ static void NvEnemy_Pose(NvEnemy* this, f32 R[][3][3], f32 T[][3]) {
                 T[i][r] = T[p][r] + R[p][r][0] * m->bones[i * 4] + R[p][r][1] * m->bones[i * 4 + 1] +
                           R[p][r][2] * m->bones[i * 4 + 2];
             }
+        }
+           if (NvEnemy_IsTyrant(this->type) && this->e.ty.blownUp) {
+            NvEnemy_PoseLimb(this, i, p, R, T);
         }
     }
 }
@@ -1167,8 +1215,7 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
     s32 n;
     u8 tint = 255;
 
-    if ((m == NULL) || NvDoorScene_Covering() || NvEnemy_Parked(&this->e) ||
-        (NvEnemy_IsTyrant(this->type) && this->e.ty.blownUp)) {
+    if ((m == NULL) || NvDoorScene_Covering() || NvEnemy_Parked(&this->e)) {
         return;
     }
     if (thisx->colorFilterTimer != 0) {
@@ -1205,7 +1252,8 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
         s32 k;
         s32 b;
 
-        if ((m->numBatches[n] == 0) || (this->e.headless && (n == NV_ZOMBIE_HEAD_BONE))) {
+        if ((m->numBatches[n] == 0) || (this->e.headless && (n == NV_ZOMBIE_HEAD_BONE)) ||
+            (NvEnemy_IsTyrant(this->type) && this->e.ty.blownUp && !(this->limbBones & (1u << n)))) {
             continue;
         }
         // OoT = pos + base * (R p + T); mf[column][row]
