@@ -6,7 +6,9 @@
 
 The RE1 data folder is the one holding Stage1..Stage7 (and Item_m1): "USA" in the GOG release,
 "JPN" in the Japanese PC one. Put the .o2r in SoH's "mods" folder. The executable (optional, the
-game's own .exe) supplies RE1's per-camera mask depth corrections. Needs Python 3 and Pillow
+game's own .exe) supplies RE1's per-camera mask depth corrections, the cutscenes' voice
+line names and, from the English one (ResidentEvil.exe), the text kept in it: the shared
+messages, the item names and their descriptions. Needs Python 3 and Pillow
 (pip install pillow).
 
 Converts pass 1 (the mansion's first visit: every room of stages 1 and 2 with data; the other

@@ -221,6 +221,8 @@ static void NvEvt_Create(s32 slot, s32 script);
 static void NvScd_Message(s32 id);
 static void NvVoice_Play(s32 id);
 static void NvAot_Run(s32 i, s32 handler);
+static const char* NvMsg_Text(s32 id, s32 item);
+const char* NvText_Get(s32 kind, s32 i);
 s32 NvItems_Find(s32 id);
 s32 NvItems_Remove(s32 id);
 s32 NvItems_EquippedId(void);
@@ -1357,6 +1359,15 @@ s32 NvAot_DoAction(PlayState* play, Player* player) {
 static char sNvPrompt[160];
 static s32 sNvPickup = -1; // the item spot whose prompt is open
 
+/** The pickup's question (RE1's shared message 0, "Will you take the ...?", else our own), then yes / no. */
+static void NvPickup_Prompt(s32 item) {
+    if (NvText_Get(0, 0) != NULL) {
+        snprintf(sNvPrompt, sizeof(sNvPrompt), "%s\x1B%%gYes&No%%w", NvMsg_Text(0x40, item));
+    } else {
+        snprintf(sNvPrompt, sizeof(sNvPrompt), "Take the %%r%s%%w?\x1B%%gYes&No%%w", NvItems_Name(item));
+    }
+}
+
 /**
  * The pickup prompt's answer (RE1: message 0xC0's yes/no, then handle_message_post_action's
  * room_event_take_item). Yes: the item goes to the slots and leaves the room, or, with no room
@@ -1382,7 +1393,7 @@ static void NvPickup_Update(PlayState* play) {
         return;
     }
     if (!NvItems_Give(a->item, a->qty)) {
-        snprintf(sNvPrompt, sizeof(sNvPrompt), "You can't carry any more.");
+        snprintf(sNvPrompt, sizeof(sNvPrompt), "%s", (NvText_Get(0, 2) != NULL) ? NvText_Get(0, 2) : "You can't carry any more.");
         sNvMsgText = sNvPrompt;
         Message_ContinueTextbox(play, NV_TEXT_ID);
         return;
@@ -1421,14 +1432,12 @@ static void NvAot_Run(s32 i, s32 handler) {
     fflush(stdout);
     switch (handler) {
         case 2:
-            if (!(a->param[0] & 0x40)) {
-                NvScd_Message(a->param[0] & 0x3F);
-            }
+            NvScd_Message(a->param[0] & 0x7F);
             break;
         case 4:
         case 0x0F:
             if ((Message_GetState(&sNvPlay->msgCtx) == TEXT_STATE_NONE) && (a->item != 0)) {
-                snprintf(sNvPrompt, sizeof(sNvPrompt), "Take the %%r%s%%w?\x1B%%gYes&No%%w", NvItems_Name(a->item));
+                NvPickup_Prompt(a->item);
                 sNvMsgText = sNvPrompt;
                 sNvPickup = i;
                 NvMsg_EnsureHook();
@@ -1463,7 +1472,7 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         return false;
     }
     if ((sNvAot[i].handler == 4) || (sNvAot[i].handler == 0x0F)) { // an item or a map: take it?
-        snprintf(sNvPrompt, sizeof(sNvPrompt), "Take the %%r%s%%w?\x1B%%gYes&No%%w", NvItems_Name(sNvAot[i].item));
+        NvPickup_Prompt(sNvAot[i].item);
         sNvMsgText = sNvPrompt;
         sNvPickup = i;
         printf("NVITEM spot %d: %02X x%d\n", (int)i, sNvAot[i].item, sNvAot[i].qty);
@@ -1508,12 +1517,7 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         return false;
     }
     id = sNvAot[i].param[0];
-    if (id & 0x40) { // the executable's own messages: not read yet
-        printf("NVMSG spot %d: global message 0x%02X (not yet)\n", (int)i, id & 0x3F);
-        fflush(stdout);
-        return false;
-    }
-    sNvMsgText = NvMsg_Get(id & 0x3F);
+    sNvMsgText = NvMsg_Text(id, 0); // (bit 0x40: the executable's shared messages)
     printf("NVMSG spot %d: message %d\n", (int)i, id & 0x3F);
     fflush(stdout);
     if (sNvMsgText[0] == '\0') {
@@ -1576,11 +1580,35 @@ static void NvVoice_Play(s32 id) {
     }
 }
 
+const char* NvText_Get(s32 kind, s32 i);
+
+/**
+ * Message id's text: bit 0x40 the executable's shared messages (re1/exe_text: the prompts, the
+ * locked doors...), else the room's own; RE1's "the item in question" ({item}) filled in with
+ * item's name. "" for none.
+ */
+static const char* NvMsg_Text(s32 id, s32 item) {
+    static char sBuf[400];
+    const char* src = (id & 0x40) ? NvText_Get(0, id & 0x3F) : NvMsg_Get(id & 0x3F);
+    const char* at;
+    const char* name = (item > 0) ? NvItems_Name(item) : "it";
+
+    if (src == NULL) {
+        return "";
+    }
+    at = strstr(src, "{item}");
+    if (at == NULL) {
+        return src;
+    }
+    snprintf(sBuf, sizeof(sBuf), "%.*s%s%s", (int)(at - src), src, name, at + 6);
+    return sBuf;
+}
+
 static void NvScd_Message(s32 id) {
     if ((sNvPlay == NULL) || (Message_GetState(&sNvPlay->msgCtx) != TEXT_STATE_NONE)) {
         return;
     }
-    sNvMsgText = NvMsg_Get(id & 0x3F);
+    sNvMsgText = NvMsg_Text(id, sNvPickedItem);
     if (sNvMsgText[0] == '\0') {
         return;
     }
@@ -1818,6 +1846,13 @@ void NvScript_RoomInit(PlayState* play) {
     NvEnemy_ClearSlots();
     NvCast_RoomLoad();
     sNvUsedItem = sNvPickedItem = 0; // (room_set clears them)
+    if (getenv("NV_TEXT_TEST") != NULL) { // dev: the executable's text as the game shows it
+        NvPickup_Prompt(0x1F);
+        printf("NVTEXT prompt: %s\nNVTEXT carry: %s\nNVTEXT msg 8: %s\nNVTEXT name 0x41: %s\nNVTEXT desc 2: %s\n", sNvPrompt,
+               NvMsg_Text(0x42, 0), NvMsg_Text(0x48, 0), NvItems_Name(0x41),
+               (NvText_Get(2, 1) != NULL) ? NvText_Get(2, 1) : "-");
+        fflush(stdout);
+    }
     NvSound_LineStop(); // (a line cut off by the door)
     {
         void NvCamera_RoomLoad(void);

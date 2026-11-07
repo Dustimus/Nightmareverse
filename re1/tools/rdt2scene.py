@@ -1177,6 +1177,9 @@ def _pack_soh(folder, re1, anims, jpn=None, exe=None):
     import soh_sound
     print("soh: sounds, voices %s" % (soh_sound.write(re1, folder),))
     print("soh: voice names %d%s" % (soh_sound.write_voice_names(exe, folder), "" if exe else " (no executable: --exe)"))
+    import soh_text
+    counts = soh_text.write(exe, folder)
+    print("soh: the executable's text %s" % (counts if counts else "(none: needs the English executable)",))
     soh_scene.pack_o2r(folder, folder.rstrip("/") + ".o2r")
     print("soh: packed %s.o2r" % folder.rstrip("/"))
 
@@ -1217,6 +1220,9 @@ def main():
     a = ap.parse_args()
     import re1_masks
     bias_tables = re1_masks.load_bias_tables(a.exe)
+    import soh_scene
+    import soh_text
+    soh_scene.ITEM_NAMES = soh_text.item_names(a.exe)  # (the room messages' item names: the English executable's)
     if a.soh and not bias_tables:
         print("no executable (--exe): masks without RE1's per-camera depth corrections")
 

@@ -14,6 +14,8 @@
 #include "global.h"
 #include <stdio.h>
 #include <string.h>
+#include "soh/ResourceManagerHelpers.h"
+#include <libultraship/bridge/resourcebridge.h>
 
 #define NV_SLOTS_MAX 8
 #define NV_BOX_SLOTS 48
@@ -124,7 +126,48 @@ static const char* sNvItemNames[0x54] = {
 #define NV_ITEM_MAP_FIRST 0x4E
 #define NV_ITEM_MAP_LAST 0x53
 
+/**
+ * RE1's text from its English executable ("re1/exe_text", re1/tools/soh_text.py): kind 0 the shared
+ * messages (by id & 0x3F), 1 the item names and 2 their descriptions (by item id - 1). NULL when
+ * the mod was made without it.
+ */
+const char* NvText_Get(s32 kind, s32 i) {
+    static const u8* sText;
+    static s32 sTried;
+    u16 counts[3];
+    s32 base = 0;
+    s32 k;
+    u32 off;
+
+    if (!sTried) {
+        sTried = true;
+        if (ResourceMgr_FileExists("re1/exe_text")) {
+            sText = (const u8*)ResourceGetDataByName("re1/exe_text");
+            if ((sText != NULL) && (memcmp(sText, "RXTX", 4) != 0)) {
+                sText = NULL;
+            }
+        }
+    }
+    if ((sText == NULL) || (kind < 0) || (kind > 2)) {
+        return NULL;
+    }
+    memcpy(counts, sText + 4, sizeof(counts));
+    if ((i < 0) || (i >= counts[kind])) {
+        return NULL;
+    }
+    for (k = 0; k < kind; k++) {
+        base += counts[k];
+    }
+    memcpy(&off, sText + 10 + 4 * (base + i), 4);
+    return (const char*)sText + 10 + 4 * (counts[0] + counts[1] + counts[2]) + off;
+}
+
 const char* NvItems_Name(s32 id) {
+    const char* re1 = NvText_Get(1, id - 1); // (RE1's own name, from its executable)
+
+    if ((re1 != NULL) && (re1[0] != '\0')) {
+        return re1;
+    }
     if (id == NV_ITEM_SHOTGUN) {
         return "Shotgun";
     }

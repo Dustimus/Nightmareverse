@@ -26,6 +26,32 @@
 s32 NvItems_Slot(s32 i, s32* qty);
 const char* NvItems_Name(s32 id);
 s32 NvItems_Use(PlayState* play, s32 i);
+const char* NvText_Get(s32 kind, s32 i);
+
+/**
+ * RE1's refusal for Use on item id (menu_item_use_item: shared message 0x37 + the item's kind,
+ * g_ItemImageLookupTable's bounds): "You can't use this alone." for ammo, the chemicals' mixing
+ * hint, "You don't need to use this item at the moment." for a heal at full health, else
+ * "You can't use it here.". `fallback` without the executable's text.
+ */
+static const char* NvSt_UseRefusal(s32 id, const char* fallback) {
+    static const u8 sBound[10] = { 0x0B, 0x13, 0x14, 0x1B, 0x33, 0x3D, 0x3E, 0x41, 0x4C, 0x4C };
+    s32 k = 9;
+    const char* t;
+
+    while ((k >= 0) && (id < sBound[k])) {
+        k--;
+    }
+    t = (k >= 0) ? NvText_Get(0, 0x37 + k) : NULL;
+    return ((t != NULL) && (t[0] != '\0')) ? t : fallback;
+}
+
+/** RE1's description of item id (Check), or NULL. */
+static const char* NvSt_Description(s32 id) {
+    const char* t = NvText_Get(2, id - 1);
+
+    return ((t != NULL) && (t[0] != '\0')) ? t : NULL;
+}
 s32 NvItems_Combine(s32 a, s32 b);
 
 typedef enum { NV_ST_BROWSE, NV_ST_ACTIONS, NV_ST_COMBINE, NV_ST_FILES } NvStMode;
@@ -216,7 +242,7 @@ static s32 sNvStTab;
 static s32 sNvStMode;
 static s32 sNvStAction;      // the action box's cursor (an NvStAction)
 static s32 sNvStFirst;       // Combine: the first item's slot
-static char sNvStLine[48];   // the message line
+static char sNvStLine[200];  // the message line (RE1's descriptions run to a few lines)
 static s8 sNvStHeld;         // the stick's last direction (moves happen on a new push)
 
 /** Whether the pause menu shows RE1's screen: Link is in one of RE1's rooms. */
@@ -406,11 +432,11 @@ static void NvSt_Input(PlayState* play) {
                             NvSt_Sfx(NA_SE_SY_DECIDE);
                             break;
                         case 0:
-                            snprintf(sNvStLine, sizeof(sNvStLine), "It would do nothing now.");
+                            snprintf(sNvStLine, sizeof(sNvStLine), "%s", NvSt_UseRefusal(id, "It would do nothing now."));
                             NvSt_Sfx(NA_SE_SY_ERROR);
                             break;
                         default:
-                            snprintf(sNvStLine, sizeof(sNvStLine), "You can't use it here.");
+                            snprintf(sNvStLine, sizeof(sNvStLine), "%s", NvSt_UseRefusal(id, "You can't use it here."));
                             NvSt_Sfx(NA_SE_SY_ERROR);
                             break;
                     }
@@ -421,8 +447,10 @@ static void NvSt_Input(PlayState* play) {
                     snprintf(sNvStLine, sizeof(sNvStLine), "Combine with?");
                     NvSt_Sfx(NA_SE_SY_DECIDE);
                     break;
-                default: // Check
-                    if (qty > 1) {
+                default: // Check: RE1's description (from its executable), else the name
+                    if (NvSt_Description(id) != NULL) {
+                        snprintf(sNvStLine, sizeof(sNvStLine), "%s", NvSt_Description(id));
+                    } else if (qty > 1) {
                         snprintf(sNvStLine, sizeof(sNvStLine), "%s  x%d", NvItems_Name(id), (int)qty);
                     } else {
                         snprintf(sNvStLine, sizeof(sNvStLine), "%s", NvItems_Name(id));
@@ -637,11 +665,45 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
     // the message line: the item under the cursor's name, or what just happened
     GfxPrint_SetPos(&printer, 5, 20);
     if (sNvStLine[0] != '\0') {
+        // word-wrapped to 19 columns, up to four lines; RE1's colour (%r / %w) and box (^) codes
+        // are left out here
+        char plain[200];
+        const char* src = sNvStLine;
+        s32 n = 0;
+        s32 row = 0;
+        s32 start = 0;
+
+        while ((*src != '\0') && (n < (s32)sizeof(plain) - 1)) {
+            if ((src[0] == '%') && (src[1] != '\0')) {
+                src += 2;
+                continue;
+            }
+            plain[n++] = (*src == '^') ? ' ' : *src;
+            src++;
+        }
+        plain[n] = '\0';
         GfxPrint_SetColor(&printer, 200, 160, 40, 255);
-        GfxPrint_Printf(&printer, "%.19s", sNvStLine);
-        if (strlen(sNvStLine) > 19) {
-            GfxPrint_SetPos(&printer, 5, 21);
-            GfxPrint_Printf(&printer, "%.19s", sNvStLine + 19);
+        while ((plain[start] != '\0') && (row < 4)) {
+            s32 len = (s32)strlen(plain + start);
+            s32 cut = MIN(len, 19);
+
+            if (len > 19) { // (break at the last space that fits)
+                s32 k;
+
+                for (k = 19; k > 0; k--) {
+                    if (plain[start + k] == ' ') {
+                        cut = k;
+                        break;
+                    }
+                }
+            }
+            GfxPrint_SetPos(&printer, 5, 20 + row);
+            GfxPrint_Printf(&printer, "%.*s", (int)cut, plain + start);
+            start += cut;
+            while (plain[start] == ' ') {
+                start++;
+            }
+            row++;
         }
     } else if (sNvStMode == NV_ST_ACTIONS) {
         GfxPrint_SetColor(&printer, 230, 230, 230, 255);

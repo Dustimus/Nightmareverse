@@ -396,10 +396,14 @@ def _msg_char(b):
     return ""  # RE1's own symbols, and a handful of accented capitals
 
 
+ITEM_NAMES = None  # RE1's item names (soh_text.py, from the English executable), when the mod is made with it
+
+
 def decode_message(raw, p):
     """One RE1 message at raw[p] (message state machine, Rendering.cpp 0x00455a10) as an SoH
     CustomMessage string: '^' a new box (RE1's 03 page break), '%r'/'%w' RE1's highlight colour
-    (05 n), '%r?%w' for an item name (06 n, from the executable's tables: not yet). A line break
+    (05 n), an item name (06 n: item n's from the executable's tables, or "{item}" for 06 00, the item in
+    question, filled in by the engine). A line break
     (02) is a space: SoH wraps lines to its own box. Stops at the end (01) or at a yes/no prompt
     (08: its choices drive item actions, which come with the items)."""
     out = []
@@ -424,8 +428,14 @@ def decode_message(raw, p):
         elif b == 5:
             out.append("%r" if raw[p + 1] else "%w")
             p += 2
-        elif b == 6:
-            out.append("%r?%w")
+        elif b == 6:  # an item's name: 0 the one in question (filled in by the engine), else that item
+            n = raw[p + 1] if p + 1 < len(raw) else 0
+            if n == 0:
+                out.append("{item}")
+            elif ITEM_NAMES and n <= len(ITEM_NAMES):
+                out.append(ITEM_NAMES[n - 1])
+            else:
+                out.append("?")
             p += 2
         elif b == 7:
             p += 1
