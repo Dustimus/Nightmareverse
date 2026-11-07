@@ -1884,6 +1884,16 @@ static void NvAot_FlagSet(const NvAot* e) {
         bank = 9;
     }
     NvFlags_Op(bank, e->param[1] & 0xFF, (e->param[2] != 0) ? 0 : 1);
+    if ((bank == 9) && getenv("NV_LOG")) { // (once per item: where it can be used)
+        static u8 sTold[64];
+        s32 b = e->param[1] & 0x3F;
+
+        if (!sTold[b]) {
+            sTold[b] = 1;
+            printf("NVAOT item %02X usable here (entry %d)\n", b + 0x1B, (int)(e - sNvAot));
+            fflush(stdout);
+        }
+    }
 }
 
 static void NvAot_WalkIn(PlayState* play) {
