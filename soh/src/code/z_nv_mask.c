@@ -54,7 +54,9 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
     u8* data;
     u32 count;
     u32 i;
+    s32 colour;
     Gfx* gfx = *gfxP;
+    s32 NvSpr_On(s32 id);
 
     if (NvDoorScene_Covering()) {
         return;
@@ -72,9 +74,10 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
         return;
     }
     data = (u8*)ResourceGetDataByName(path);
-    if ((data == NULL) || (memcmp(data, "RMSK", 4) != 0)) {
+    if ((data == NULL) || ((memcmp(data, "RMSK", 4) != 0) && (memcmp(data, "RMS2", 4) != 0))) {
         return;
     }
+    colour = (memcmp(data, "RMS2", 4) == 0); // (each piece's pixels after its cut-out: room sprites shown)
     memcpy(&count, data + 4, sizeof(count));
     data += 8;
     {
@@ -121,14 +124,32 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
             NvMaskPiece piece;
             f32 d;
             u8* texels;
+            u8* pixels;
             s32 rowsPerLoad;
             s32 row;
 
             memcpy(&piece, data, sizeof(piece));
             texels = data + sizeof(piece);
             data = texels + piece.stride * piece.h;
-            if ((piece.w == 0) || (piece.h == 0) || (piece.stride == 0)) {
-                continue;
+            pixels = NULL;
+            if (colour) {
+                pixels = data;
+                data += piece.stride * piece.h * 2;
+            }
+            if ((piece.w == 0) || (piece.h == 0) || (piece.stride == 0) || !NvSpr_On(piece.group)) {
+                continue; // (a room sprite switched off: not drawn, hides nothing)
+            }
+            if (pixels != NULL) {
+                // a room sprite drawn as itself: its colours over the background (the panel's lit
+                // lights), its holes see-through by the texel's alpha
+                gDPPipeSync(gfx++);
+                gDPSetOtherMode(gfx++,
+                                G_AD_DISABLE | G_CD_DISABLE | G_CK_NONE | G_TC_FILT | G_TF_POINT | G_TT_NONE |
+                                    G_TL_TILE | G_TD_CLAMP | G_TP_NONE | G_CYC_1CYCLE | G_PM_NPRIMITIVE,
+                                G_AC_THRESHOLD | G_ZS_PIXEL | Z_CMP | Z_UPD | ZMODE_OPA | CVG_X_ALPHA | ALPHA_CVG_SEL |
+                                    GBL_c1(G_BL_CLR_IN, G_BL_0, G_BL_CLR_IN, G_BL_1) |
+                                    GBL_c2(G_BL_CLR_IN, G_BL_0, G_BL_CLR_IN, G_BL_1));
+                gDPSetCombineLERP(gfx++, 0, 0, 0, TEXEL0, 0, 0, 0, TEXEL0, 0, 0, 0, TEXEL0, 0, 0, 0, TEXEL0);
             }
             // RE1 keys "always in front" pieces (a chandelier seen from above) at ~128 units,
             // nearer than the camera's near plane: kept just past it, or they'd be clipped
@@ -141,7 +162,7 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
             Matrix_Scale(d / NV_MASK_STEPS, d / NV_MASK_STEPS, d / NV_MASK_STEPS, MTXMODE_APPLY);
             gSPMatrix(gfx++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
             Matrix_Pop();
-            rowsPerLoad = NV_MASK_TMEM / piece.stride;
+            rowsPerLoad = NV_MASK_TMEM / (piece.stride * ((pixels != NULL) ? 2 : 1));
             if (rowsPerLoad < 1) {
                 rowsPerLoad = 1;
             }
@@ -168,9 +189,15 @@ void NvMask_Draw(PlayState* play, Gfx** gfxP, s32 bgCamIndex) {
                     vtx[c].v.tc[1] = (s16)(v * 32.0f);
                     vtx[c].v.cn[0] = vtx[c].v.cn[1] = vtx[c].v.cn[2] = vtx[c].v.cn[3] = 255;
                 }
-                gDPLoadTextureBlock(gfx++, texels + row * piece.stride, G_IM_FMT_I, G_IM_SIZ_8b, piece.stride, rows, 0,
-                                    G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
-                                    G_TX_NOLOD, G_TX_NOLOD);
+                if (pixels != NULL) {
+                    gDPLoadTextureBlock(gfx++, pixels + row * piece.stride * 2, G_IM_FMT_RGBA, G_IM_SIZ_16b, piece.stride,
+                                        rows, 0, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK,
+                                        G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+                } else {
+                    gDPLoadTextureBlock(gfx++, texels + row * piece.stride, G_IM_FMT_I, G_IM_SIZ_8b, piece.stride, rows,
+                                        0, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK,
+                                        G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+                }
                 gSPVertex(gfx++, vtx, 4, 0);
                 gSP2Triangles(gfx++, 0, 1, 2, 0, 0, 2, 3, 0);
             }

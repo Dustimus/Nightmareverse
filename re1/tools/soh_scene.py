@@ -97,17 +97,43 @@ def background_raw(stage, room_id, cam_index):
     return bytes(out)
 
 
-def mask_blob(pieces):
+def mask_blob(pieces, colour=False):
     """The mask resource's data (re1_masks.camera_masks pieces): "RMSK", u32 count; per piece
     s16 x, y, u16 w, h, stride (w rounded up to 8), u16 group (what room scripts switch), f32
     depth (RE1's ordering key * 16: view-space depth, in OoT units); then stride * h I8 texels."""
-    data = bytearray(MASK_MAGIC + struct.pack("<I", len(pieces)))
-    for x, y, w, h, key, group, rows in pieces:
+    data = bytearray((b"RMS2" if colour else MASK_MAGIC) + struct.pack("<I", len(pieces)))
+    for piece in pieces:
+        x, y, w, h, key, group, rows = piece[:7]
         stride = (w + 7) & ~7
         data += struct.pack("<hhHHHHf", x, y, w, h, stride, group, key * 16 * r2s.SCALE)
         for r in rows:
             data += bytes(r) + b"\0" * (stride - w)
+        if colour:  # ("RMS2": then its pixels, stride * h RGBA5551, big-endian)
+            for r in piece[7]:
+                data += struct.pack(">%dH" % stride, *(list(r) + [0] * (stride - w)))
     return bytes(data)
+
+
+def sprite_room(room, room_id):
+    """Whether the room's scripts switch its sprites (cmd_room_sprite_set / _hide, 0x25 / 0x49) or
+    it holds the passcode panel (408): its masks carry their pixels, to be drawn when on."""
+    if room_id.upper() == "408":
+        return True
+    for o in (6, 7):
+        off = room.offsets[o]
+        if not off:
+            continue
+        length = struct.unpack_from("<H", room.raw, off)[0]
+        code = room.raw[off + 2:off + 2 + length]
+        i = 0
+        while i < len(code):
+            n = rdt.scd_inst_len(code, i)
+            if n <= 0:
+                break
+            if code[i] in (0x25, 0x49):
+                return True
+            i += n
+    return False
 
 
 def extend_floor(room, grid, floor, steps=4):
@@ -717,7 +743,8 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
         open(os.path.join(d, bgname), "wb").write(_otr_header(SOH_BACKGROUND) + struct.pack("<I", len(px)) + px)
         # its mask: <bg>_mask (ReMask_Draw finds it by the background's path)
         bias = re1_masks.fade_bias(bias_tables, int(room_id[0]), int(room_id[1:], 16), c)
-        blob = mask_blob(re1_masks.camera_masks(room.raw, c, bias))
+        colour = sprite_room(room, room_id)
+        blob = mask_blob(re1_masks.camera_masks(room.raw, c, bias, colour), colour)
         open(os.path.join(d, bgname + "_mask"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
         R.append("            " + _el("BgImage", Unknown_00=130, Id=c, ImagePath="%s/%s" % (base, bgname),
                                       Unknown_0C=0, TLUT=0, Width=320, Height=240, Fmt=0, Siz=2, Mode0=0,

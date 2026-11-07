@@ -234,8 +234,24 @@ s32 NvItems_Slot(s32 i, s32* qty);
 static u8 sNvStateSet[256];
 static u8 sNvStateVal[256];
 static u16 sNvStateWord[128];
+static u32 sNvSprOff;    // the room sprites switched off, a bit per group id (all on again at each cut)
 static u8 sNvUsedItem;   // g_usedItemId: the item last used on the room (the status screen's Use)
 static u8 sNvPickedItem; // g_pickedItemId: the item last picked up
+
+/** RoomSpr_SetActive / _SetInactive: the camera's sprite group id shown or not (z_nv_mask.c draws it). */
+void NvSpr_Set(s32 id, s32 on) {
+    if ((id >= 0) && (id < 32)) {
+        if (on) {
+            sNvSprOff &= ~(1u << id);
+        } else {
+            sNvSprOff |= 1u << id;
+        }
+    }
+}
+
+s32 NvSpr_On(s32 id) {
+    return (id < 0) || (id >= 32) || !(sNvSprOff & (1u << id));
+}
 
 /** The status screen used an item on the room (z_nv_items.c NvItems_Use). */
 void NvScript_SetUsedItem(s32 id) {
@@ -511,6 +527,16 @@ static s32 NvScd_Cmd(void) {
                 NvSound_LineStop();
             }
             sNvIp = p + 4;
+            return 1;
+        case 0x25: // cmd_room_sprite_set: a sprite group on (high byte 0) or off
+            NvSpr_Set(p[2], p[3] == 0);
+            sNvIp = p + 4;
+            return 1;
+        case 0x49: // cmd_room_sprite_hide: a sprite group off (0xFF: none)
+            if (p[1] != 0xFF) {
+                NvSpr_Set(p[1] & 0x1F, false);
+            }
+            sNvIp = p + 2;
             return 1;
         case 0x3B: // cmd_obj_rotation_set: an object's (or item model's) tilt, x and z
             if ((p[1] & 0x80) && sNvObj[p[1] & 0x3F].set) {
@@ -1604,6 +1630,27 @@ static const char* NvMsg_Text(s32 id, s32 item) {
     return sBuf;
 }
 
+/** For the interactive screens (z_nv_panel.c): message id in the text box, with RE1's yes / no after it. */
+void NvScript_Ask(PlayState* play, s32 id) {
+    static char sAsk[440];
+
+    snprintf(sAsk, sizeof(sAsk), "%s\x1B%%gYes&No%%w", NvMsg_Text(id, 0));
+    sNvMsgText = sAsk;
+    NvMsg_EnsureHook();
+    Message_StartTextbox(play, NV_TEXT_ID, NULL);
+}
+
+/** The room's message id in the message box (a screen's caption: z_nv_panel.c); false if it's empty. */
+s32 NvScript_Say(PlayState* play, s32 id) {
+    const char* t = NvMsg_Text(id, 0);
+
+    if (t[0] == '\0') {
+        return false;
+    }
+    NvMsg_Show(play, t);
+    return true;
+}
+
 static void NvScd_Message(s32 id) {
     if ((sNvPlay == NULL) || (Message_GetState(&sNvPlay->msgCtx) != TEXT_STATE_NONE)) {
         return;
@@ -1846,6 +1893,7 @@ void NvScript_RoomInit(PlayState* play) {
     NvEnemy_ClearSlots();
     NvCast_RoomLoad();
     sNvUsedItem = sNvPickedItem = 0; // (room_set clears them)
+    sNvSprOff = 0;
     if (getenv("NV_TEXT_TEST") != NULL) { // dev: the executable's text as the game shows it
         NvPickup_Prompt(0x1F);
         printf("NVTEXT prompt: %s\nNVTEXT carry: %s\nNVTEXT msg 8: %s\nNVTEXT name 0x41: %s\nNVTEXT desc 2: %s\n", sNvPrompt,
@@ -2292,6 +2340,8 @@ static void NvObj_Update(PlayState* play) {
     }
 }
 
+void NvPanel_Update(PlayState* play);
+
 void NvScript_Update(PlayState* play) {
     extern s32 gNvSunSongSeen;
     s32 ticks;
@@ -2305,6 +2355,7 @@ void NvScript_Update(PlayState* play) {
     }
     gNvSunSongSeen = false;
     NvPickup_Update(play); // an item prompt's answer
+    NvPanel_Update(play);  // a screen the room's script put up (z_nv_panel.c)
     if ((play->sceneNum >= SCENE_RE1_100) && !NvDoorScene_Covering()) { // off the boxes its scripts moved
         s32 NvRe1_PushPlayer(s32* x, s32* z);
         Player* player = GET_PLAYER(play);
@@ -2338,6 +2389,7 @@ void NvScript_Update(PlayState* play) {
         sNvCamera = cam;
         if (cam != sNvLastCamera) { // a camera switch: game_loop's pending redraw, for one frame
             NvFlags_Op(5, NV_MSF_CAMERA_REDRAW, 0);
+            sNvSprOff = 0; // (Room_LoadCameraSprites: the new camera's sprites all on)
             sNvLastCamera = cam;
         }
         NvAot_WalkIn(play);

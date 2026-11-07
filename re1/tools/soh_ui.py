@@ -220,6 +220,39 @@ def write_files(re1, out, jpn=None):
     return done
 
 
+# The lab's slide projector (504; the decomp's LabSlides.cpp): Data/slide.tim, 640x256 8-bit,
+# its six slides in 192x128 cells, slide i at x (i / 2) * 192, y (i % 2) * 128 drawn with CLUT i
+# (lab_slides_update's texture page and texV). RE1 shows 191x127 of each.
+SLIDE_W, SLIDE_H = 191, 127
+
+
+def slides_blob(re1):
+    """"RSLD", u16 count, width, height, then each slide as RGBA5551, big-endian."""
+    tim = emd.parse_tim(open(rdt.find_file(rdt.find_file(re1, "DATA"), "slide.tim"), "rb").read(), 0)
+    out = bytearray(b"RSLD" + struct.pack("<3H", len(tim.cluts), SLIDE_W, SLIDE_H))
+    for i in range(len(tim.cluts)):
+        w, h, rgba = emd.tim_to_rgba(tim, {p: i for p in range(8)})
+        x0, y0 = (i // 2) * 192, (i % 2) * 128
+        for y in range(SLIDE_H):
+            for x in range(SLIDE_W):
+                k = ((y0 + y) * w + x0 + x) * 4
+                out += struct.pack(">H", _rgba5551(rgba[k:k + 3] + b"\xff"))
+    return bytes(out)
+
+
+def write_slides(re1, out):
+    """Write the projector's slides (re1/ui/slides); how many (0 when the file isn't there)."""
+    try:
+        blob = slides_blob(re1)
+    except (OSError, IndexError, ValueError):
+        return 0
+    d = os.path.join(out, "re1", "ui")
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, "slides"), "wb").write(
+        soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    return struct.unpack_from("<H", blob, 4)[0]
+
+
 def write_icons(re1, out):
     """Write the icons into the SoH folder; returns how many (0 when the files aren't there)."""
     try:

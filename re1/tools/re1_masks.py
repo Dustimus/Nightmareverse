@@ -77,9 +77,11 @@ def sprites(raw, mask_pointer):
     return out
 
 
-def camera_masks(raw, cam_index, bias=0):
+def camera_masks(raw, cam_index, bias=0, colour=False):
     """Camera cam_index's mask pieces, clipped to the screen: [(x, y, w, h, key, group, alpha
-    rows)], alpha 255 where the art is opaque. key: RE1's ordering key (view depth / 16)."""
+    rows)], alpha 255 where the art is opaque. key: RE1's ordering key (view depth / 16). With
+    colour, each piece also carries its pixels (RGBA5551 rows, 0 where it's a hole): what a room
+    sprite shows when it's switched on (408's panel lights)."""
     mask_pointer, tim_pointer = struct.unpack_from("<2I", raw, 0x94 + 44 * cam_index)
     sp = sprites(raw, mask_pointer)
     if not sp or tim_pointer in (0, 0xFFFFFFFF):
@@ -92,16 +94,23 @@ def camera_masks(raw, cam_index, bias=0):
         if x1 <= x0 or y1 <= y0:
             continue
         rows = []
+        crows = []
         for yy in range(y0, y1):
             ty = v + yy - y
             row = []
+            crow = []
             for xx in range(x0, x1):
                 tx = u + xx - x
                 inside = tx < tim.width and ty < tim.height
-                row.append(255 if inside and clut[tim.pixels[ty * tim.width + tx]] != 0 else 0)
+                c = clut[tim.pixels[ty * tim.width + tx]] if inside else 0
+                row.append(255 if c != 0 else 0)
+                # the PSX's 15-bit colour (r low) to the N64's RGBA5551 (r high), opaque
+                crow.append(((c & 31) << 11) | (((c >> 5) & 31) << 6) | (((c >> 10) & 31) << 1) | 1 if c else 0)
             rows.append(row)
+            crows.append(crow)
         if not any(any(r) for r in rows):
             continue
         key = max(0, pos - bias) & ~3
-        out.append((x0, y0, x1 - x0, y1 - y0, key, group, rows))
+        piece = (x0, y0, x1 - x0, y1 - y0, key, group, rows)
+        out.append(piece + (crows,) if colour else piece)
     return out

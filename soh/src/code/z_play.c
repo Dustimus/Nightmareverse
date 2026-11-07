@@ -663,6 +663,7 @@ s32 NvMovie_Update(PlayState* play);
 void NvMovie_Draw(PlayState* play);
 s32 NvBoxUi_Update(PlayState* play);
 void NvBoxUi_Draw(PlayState* play);
+void NvPanel_Draw(PlayState* play);
 s32 NvFilesUi_Update(PlayState* play);
 void NvFilesUi_Draw(PlayState* play);
 
@@ -1332,6 +1333,7 @@ void Play_DrawOverlayElements(PlayState* play) {
 
     NvMovie_Draw(play); // Nightmareverse: an RE1 movie, over everything (z_nv_movie.c)
     NvBoxUi_Draw(play); // ...and RE1's item box screen (z_nv_box.c)
+    NvPanel_Draw(play); // ...and the keys of a room's panel (z_nv_panel.c)
     NvFilesUi_Draw(play); // ...and a document being read where it was found (z_nv_files.c)
 }
 
