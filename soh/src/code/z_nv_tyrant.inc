@@ -727,6 +727,8 @@ void NvTyrant_Init(NvRe1Entity* e) {
     E->hit_state = 0;
     E->health = ty_roof() ? 600 : 220;
     E->sca = sTySca;
+    TY->heartScale = 0x1000;
+    TY->heartBeat = 0x15;
     TY->cooldown = 0x5A;
     ty_anim(6, 0);
     if (ty_roof()) {
@@ -741,8 +743,25 @@ void NvTyrant_Init(NvRe1Entity* e) {
     Joint_move(0, 0x40);
 }
 
+/** The heart's beat (tyrant_draw_heart's wobble table, a step a tick while it lives). */
+static void ty_heart(void) {
+    static const s8 sBeat[22] = { -122, -114, -98, -74, 0, 82, 72, 52, 0, -52, -72,
+                                  -82, 0, 74, 98, 114, 122, 102, 62, 0, -62, -102 };
+
+    if (E->health < 0) {
+        return;
+    }
+    if ((TY->heartBeat >= 0) && (TY->heartBeat < 22)) {
+        TY->heartScale += sBeat[TY->heartBeat] * 2;
+    }
+    if (TY->heartBeat-- == 0) {
+        TY->heartBeat = 0x15;
+    }
+}
+
 void NvTyrant_Update(NvRe1Entity* e) {
     E = e;
+    ty_heart();
     E->pos[0] = (s16)E->t[0];
     E->pos[1] = (s16)E->t[1];
     E->pos[2] = (s16)E->t[2];

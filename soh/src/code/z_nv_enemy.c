@@ -1322,6 +1322,54 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
             }
         }
     }
+    // the Tyrant's exposed heart (its model's mesh past the skeleton's): on joint 1 at (312, -760,
+    // -287), beating (tyrant_draw_heart); gone with the body when the rocket blows it apart
+    if (NvEnemy_IsTyrant(this->type) && (m->numExtra >= 1) && !this->e.ty.blownUp && (m->numBones > 1)) {
+        static const f32 sOff[3] = { 312.0f, -760.0f, -287.0f };
+        f32 sc = (this->e.ty.heartScale + 500) / 4096.0f;
+        f32 Th[3];
+        MtxF mf;
+        Mtx* mtx;
+        s32 r;
+        s32 k;
+        s32 b;
+
+        for (r = 0; r < 3; r++) {
+            Th[r] = T[1][r] + R[1][r][0] * sOff[0] + R[1][r][1] * sOff[1] + R[1][r][2] * sOff[2];
+        }
+        for (r = 0; r < 3; r++) {
+            for (k = 0; k < 3; k++) {
+                mf.mf[k][r] = (base[r][0] * R[1][0][k] + base[r][1] * R[1][1][k] + base[r][2] * R[1][2][k]) * sc;
+            }
+            mf.mf[3][r] = base[r][0] * Th[0] + base[r][1] * Th[1] + base[r][2] * Th[2];
+            mf.mf[r][3] = 0.0f;
+        }
+        mf.mf[3][0] += thisx->world.pos.x;
+        mf.mf[3][1] += thisx->world.pos.y;
+        mf.mf[3][2] += thisx->world.pos.z;
+        mf.mf[3][3] = 1.0f;
+        mtx = Graph_Alloc(gfxCtx, sizeof(Mtx));
+        Matrix_MtxFToMtx(&mf, mtx);
+        gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        for (b = 0; b < m->extraNumBatches[0]; b++) {
+            NvEmBatch* batch = &m->batches[m->extraFirstBatch[0] + b];
+            s32 v;
+
+            gDPLoadTextureBlock(POLY_OPA_DISP++, m->cells + batch->cell * NV_EM_CELL_W * NV_EM_CELL_H,
+                                G_IM_FMT_RGBA, G_IM_SIZ_16b, NV_EM_CELL_W, NV_EM_CELL_H, 0,
+                                G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
+                                G_TX_NOLOD, G_TX_NOLOD);
+            for (v = 0; v + 3 <= batch->numVerts; v += 30) {
+                s32 cnt = MIN(30, batch->numVerts - v);
+                s32 q;
+
+                gSPVertex(POLY_OPA_DISP++, batch->vtx + v, cnt, 0);
+                for (q = 0; q + 3 <= cnt; q += 3) {
+                    gSP1Triangle(POLY_OPA_DISP++, q, q + 1, q + 2, 0);
+                }
+            }
+        }
+    }
     // Plant 42's root ball and flower body (its model's two meshes past the vine's: RE1's copies
     // of the plant, drawn at its place; their own sway and the fallen core's pose left out)
     if (NvEnemy_IsPlant42(this->type) && !(this->e.behavior_flags & 1) && (m->numExtra >= 2) &&

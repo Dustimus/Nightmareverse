@@ -263,6 +263,8 @@ typedef struct NvRe1Entity {
         s16 limbSpin[5][3];
         s32 limbBaseY[5];
         u8 limbBounces[5];
+        s16 heartScale; // its exposed heart's beat (tyrant_draw_heart: 4096 = 1, drawn + 500)
+        s16 heartBeat;
     } ty;
 } NvRe1Entity;
 
