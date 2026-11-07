@@ -66,7 +66,18 @@ typedef struct NvRe1Entity {
     u8 scd_anim_param;
     u16 scd_entity_flags;
     u16 scd_timer;  // +0xDE: the event script's turn step / timer
-    u8 fx;          // an effect from its hand this tick (a character's: 1 a muzzle flash, 2 flame)
+    u8 fx;          // an effect this tick (z_nv_enemy.c draws it): 1 a muzzle flash and 2 flame from
+                    // its hand, 3 glass bursting at fxAt, 4 blood from its body (joint fxJoint)
+    u8 fxJoint;
+    s32 fxAt[3];    // (RE1's units)
+    // the look-at (state-1 opcode 0x81, EntityUpdateLookAtAngles): its head turned toward a point
+    // or a character; flags 0x10 on, 0x01 yaw, 0x20 an absolute angle, 0x80 a live target
+    u8 lookFlags;
+    u8 lookStep;
+    u8 lookKind;  // the live target: 0 the player, 1 an enemy slot
+    u8 lookIdx;
+    s32 lookX;
+    s32 lookZ;
     s16 frame_hold; // +0xC4: a held frame's count (npc_scd_01); the stand-in's animation ticks
     s16 unk_c6; // grab / SCD target point
     s16 unk_c8;

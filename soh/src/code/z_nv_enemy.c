@@ -1008,12 +1008,20 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
         at.z += Rand_CenteredFloat(30.0f);
         EffectSsBomb2_SpawnLayered(play, &at, &zero, &zero, 100, 19);
     }
-    if (NvEnemy_IsNpc(this->type) && e->fx && (e->numJoints > 0)) { // its weapon's flash, its flame
-        s32 j = MIN(14, e->numJoints - 1); // (the weapon hand: RE1 spawns them in joint 14's space)
+    if (e->fx && (e->numJoints > 0)) { // its effect this tick
+        // (a weapon's: from the hand, RE1's joint 14; blood: from the joint it names)
+        s32 j = MIN((e->fx == 4) ? e->fxJoint : 14, e->numJoints - 1);
         Vec3f at = { e->joint[j][0] * NV_RE1_SCALE, -e->joint[j][1] * NV_RE1_SCALE, -e->joint[j][2] * NV_RE1_SCALE };
 
         if (e->fx == 1) {
             EffectSsHitMark_SpawnFixedScale(play, 0, &at);
+        } else if (e->fx == 3) { // glass bursting (RE1's 53 shards: OoT's debris)
+            Vec3f g = { e->fxAt[0] * NV_RE1_SCALE, -e->fxAt[1] * NV_RE1_SCALE, -e->fxAt[2] * NV_RE1_SCALE };
+
+            EffectSsHahen_SpawnBurst(play, &g, 8.0f, 0, 6, 6, 40, -1, 10, NULL);
+            EffectSsHahen_SpawnBurst(play, &g, 4.0f, 0, 4, 4, 20, -1, 10, NULL);
+        } else if (e->fx == 4) { // blood
+            EffectSsHitMark_SpawnCustomScale(play, 1, 120, &at);
         } else {
             f32 s = Math_SinS(thisx->shape.rot.y);
             f32 c = Math_CosS(thisx->shape.rot.y);

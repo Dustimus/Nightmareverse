@@ -412,6 +412,12 @@ static void ty_scd_break_glass(void) {
     if (E->animation_frame_id == 0x1E) {
         NvSnd_At(0x19, 0x2A30, 5000, P->t[0], P->t[2]); // the first blow on the glass
     }
+    if (E->animation_frame_id == 0x59) { // the glass bursts out
+        E->fx = 3;
+        E->fxAt[0] = 0x2A30;
+        E->fxAt[1] = -0x1004;
+        E->fxAt[2] = 5000;
+    }
     if (E->animation_frame_id == 0x55) { // it shatters
         NvSnd_At(0x1A, 0x2A30, 5000, P->t[0], P->t[2]);
         NvSnd_At(0x1B, 0x2A30, 5000, P->t[0], P->t[2]);

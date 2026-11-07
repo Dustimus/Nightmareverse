@@ -412,6 +412,10 @@ static void npc_idle_02(void) {
             E->death_timer = 0xB4;
             // fall through
         case 1:
+            if ((E->animation_frame_id < 10) && ((E->animation_frame_id & 1) == 0)) {
+                E->fx = 4; // the blood spray (its first 10 frames)
+                E->fxJoint = 0;
+            }
             E->action_state += (u8)Joint_move(0, 0x400);
             break;
     }
@@ -444,9 +448,59 @@ static void npc_idle_03(void) {
     } else if (E->action_state != 1) {
         return;
     }
+    if (((E->animation_frame_id < 9) || (E->animation_frame_id > 0x5F)) && ((E->animation_frame_id & 1) == 0)) {
+        E->fx = 4; // the blood (where the claw goes in, and as it comes out)
+        E->fxJoint = 0;
+    }
     if (Joint_move(0, 0x400)) {
         E->action_state = 2;
     }
+}
+
+/* ---- the look-at (EntityUpdateLookAtAngles, its yaw: the head's pitch left out) ---- */
+
+#define NV_NPC_HEAD 1 // the joint that turns (the characters' lookAtJointIdx)
+
+static void npc_look(void) {
+    NvRe1Entity* self = E;
+    s32 target;
+    s32 cur;
+    s32 diff;
+    s32 step = E->lookStep;
+
+    if (!(E->lookFlags & 0x10) || (E->anim == NULL) || (E->anim->numJoints <= NV_NPC_HEAD)) {
+        return;
+    }
+    if (E->lookFlags & 0x80) { // a live target: where it is now
+        NvRe1Entity* t = (E->lookKind == 0) ? NvCast_Player() : (E->lookKind == 1) ? NvEnemy_SlotEntity(E->lookIdx) : NULL;
+
+        E = self;
+        if (t == NULL) {
+            return;
+        }
+        E->lookX = t->t[0];
+        E->lookZ = t->t[2];
+    }
+    if (!(E->lookFlags & 0x01)) {
+        target = 0;
+    } else if (E->lookFlags & 0x20) {
+        target = E->lookX & 0xFFF;
+    } else {
+        target = ((s32)getAngleTowardsTarget(E->lookX, E->lookZ) - E->angle) & 0xFFF;
+    }
+    cur = E->yawExtra[NV_NPC_HEAD] & 0xFFF;
+    diff = (step - cur + target) & 0xFFF;
+    if (diff < step * 2) {
+        if (((target + 0x2C8) & 0xFFF) <= 0x590) { // (within its cone, else it holds)
+            cur = target;
+        }
+    } else {
+        cur = (diff < 0x801) ? cur + step : cur - step;
+        if (((cur + 0x2C8) & 0xFFF) > 0x590) { // at the cone's edge
+            cur = ((cur & 0xFFF) < 0x800) ? 0x2C8 : 0x1000 - 0x2C8;
+        }
+    }
+    E->yawExtra[NV_NPC_HEAD] = (s16)((((cur & 0xFFF) + 0x800) & 0xFFF) - 0x800);
 }
 
 /* ---- the character ---- */
@@ -471,6 +525,7 @@ void NvNpc_Update(NvRe1Entity* e) {
     E->pos[0] = (s16)E->t[0];
     E->pos[1] = (s16)E->t[1];
     E->pos[2] = (s16)E->t[2];
+    npc_look();
     switch (E->state) {
         case 0:
             NvNpc_Init(e);

@@ -658,9 +658,25 @@ static s32 NvEvt_Anim(NvEvt* e, const u8* p) {
         case 0x8B:
             e->state = 0;
             return 1;
-        case 0x81: // where it looks (the head tracking isn't ported)
-            return (p[1] & 0x0F) ? 10 : 2;
-        case 0x82:
+        case 0x81: // where it looks (its head: z_nv_npc.inc)
+            t->lookFlags = p[1];
+            if (!(p[1] & 0x0F)) {
+                return 2;
+            }
+            if (p[1] == 0x93) { // a character, followed
+                t->lookKind = p[2];
+                t->lookIdx = p[4];
+            } else {
+                s16 v[3];
+
+                memcpy(v, p + 2, sizeof(v));
+                t->lookX = ((p[1] & 0x20) && (v[0] < 0)) ? v[0] + 0x1000 : v[0];
+                t->lookZ = v[2];
+            }
+            t->lookStep = p[8] ? p[8] : 0xC0;
+            return 10;
+        case 0x82: // it stops following (the head stays where it is)
+            t->lookFlags &= ~0x10;
             return 1;
         case 0x83: // a behaviour with a target point: walk there, turn to it
             t->state = 8;
