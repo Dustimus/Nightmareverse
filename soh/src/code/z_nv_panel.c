@@ -64,6 +64,19 @@ static s32 sNvPanelTimer;
 static s32 sNvPanelStep;
 static s32 sNvPanelAsked;
 static s8 sNvPanelHeld;
+static ActorFunc sNvPanelLinkDraw; // Link's draw, off while a screen is up (he'd stand in front of it)
+
+static void NvScreen_HideLink(PlayState* play, s32 hide) {
+    Player* player = GET_PLAYER(play);
+
+    if (hide) {
+        sNvPanelLinkDraw = player->actor.draw;
+        player->actor.draw = NULL;
+    } else if (sNvPanelLinkDraw != NULL) {
+        player->actor.draw = sNvPanelLinkDraw;
+        sNvPanelLinkDraw = NULL;
+    }
+}
 
 static void NvPanel_Lights(void) {
     s32 i;
@@ -75,6 +88,7 @@ static void NvPanel_Lights(void) {
 
 static void NvPanel_Finish(PlayState* play) {
     sNvPanel = NV_PANEL_OFF;
+    NvScreen_HideLink(play, false);
     NvCamera_CutRestore();
     NvFlags_Op(0, NV_SCN_SCREEN_UP, 1); // (the room gets her back)
     Player_SetCsAction(play, NULL, 7);
@@ -147,6 +161,7 @@ static const u8* sNvSldData;
 
 static void NvSlides_Finish(PlayState* play) {
     sNvSld = NV_SLD_OFF;
+    NvScreen_HideLink(play, false);
     NvCamera_CutRestore();
     NvFlags_Op(0, NV_SCN_SCREEN_UP, 1);
     Player_SetCsAction(play, NULL, 7);
@@ -171,6 +186,7 @@ static void NvSlides_Start(PlayState* play) {
     sNvSld = NV_SLD_WAIT;
     NvCamera_CutLock(4);
     Player_SetCsAction(play, NULL, 8);
+    NvScreen_HideLink(play, true);
     printf("NVSLIDES up (%s)\n", sNvSldData ? "slides" : "no slides");
     fflush(stdout);
 }
@@ -333,6 +349,7 @@ void NvPanel_Update(PlayState* play) {
         sNvPanelAsked = false;
         NvCamera_CutLock(5);
         Player_SetCsAction(play, NULL, 8);
+        NvScreen_HideLink(play, true);
         sNvPanel = NV_PANEL_ASK;
         printf("NVPANEL up %d%d%d %d%d%d %d%d%d\n", start[0], start[1], start[2], start[3], start[4], start[5],
                start[6], start[7], start[8]);
@@ -409,39 +426,33 @@ s32 NvPanel_Up(void) {
     return (sNvPanel != NV_PANEL_OFF) || (sNvSld != NV_SLD_OFF) || NvTerm_Up();
 }
 
-/** Over the room (z_play.c): the keys' numbers, the one under the cursor lit (passcode_panel_draw). */
+/**
+ * Over the room (z_play.c): the key under the cursor lit (passcode_panel_draw puts its own
+ * highlight there). The keys' art (camera 5's picture): 3 x 3, the first centred at (135, 152),
+ * 23 apart.
+ */
 void NvPanel_Draw(PlayState* play) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
-    GfxPrint printer;
-    Gfx* gfx;
-    s32 r;
-    s32 c;
+    s32 cx;
+    s32 cy;
 
     NvSlides_Draw(play);
     NvTerm_Draw(play);
     if (sNvPanel != NV_PANEL_INPUT) {
         return;
     }
+    cx = 135 + 23 * sNvPanelX;
+    cy = 152 + 23 * sNvPanelY;
     OPEN_DISPS(gfxCtx);
-    gfx = OVERLAY_DISP;
-    GfxPrint_Init(&printer);
-    GfxPrint_Open(&printer, gfx);
-    for (r = 0; r < 3; r++) {
-        for (c = 0; c < 3; c++) {
-            s32 here = (sNvPanelX == c) && (sNvPanelY == r);
-
-            if (here) {
-                GfxPrint_SetColor(&printer, 255, 220, 60, 255);
-            } else {
-                GfxPrint_SetColor(&printer, 120, 120, 120, 255);
-            }
-            // (RE1 prints them at x 0x8b + 16 * column, y 14 * (row + 11), over the keys' art)
-            GfxPrint_SetPosPx(&printer, 0x8B + 16 * c, 14 * (r + 11));
-            GfxPrint_Printf(&printer, "%d", r * 3 + c + 1);
-        }
-    }
-    gfx = GfxPrint_Close(&printer);
-    GfxPrint_Destroy(&printer);
-    OVERLAY_DISP = gfx;
+    gDPPipeSync(OVERLAY_DISP++);
+    gDPSetCycleType(OVERLAY_DISP++, G_CYC_1CYCLE);
+    gDPSetRenderMode(OVERLAY_DISP++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
+    gDPSetCombineMode(OVERLAY_DISP++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+    gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 220, 60, 200);
+    gDPFillRectangle(OVERLAY_DISP++, cx - 11, cy - 11, cx + 11, cy - 9); // (a frame round it)
+    gDPFillRectangle(OVERLAY_DISP++, cx - 11, cy + 9, cx + 11, cy + 11);
+    gDPFillRectangle(OVERLAY_DISP++, cx - 11, cy - 9, cx - 9, cy + 9);
+    gDPFillRectangle(OVERLAY_DISP++, cx + 9, cy - 9, cx + 11, cy + 9);
+    gDPPipeSync(OVERLAY_DISP++);
     CLOSE_DISPS(gfxCtx);
 }
