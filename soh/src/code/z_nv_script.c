@@ -217,6 +217,7 @@ s32 NvItems_Find(s32 id);
 s32 NvItems_Remove(s32 id);
 s32 NvItems_EquippedId(void);
 s32 NvItems_GroupCount(s32 group);
+s32 NvItems_Slot(s32 i, s32* qty);
 
 // the rest of RE1's state block as the scripts write it (cmd_state_byte_set 0x08, cmd_state_word_set
 // 0x31): what a room's script sets for later ones to test (the stage, room and camera are live)
