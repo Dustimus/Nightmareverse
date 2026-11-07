@@ -140,6 +140,7 @@ static s32 sNvContinue;
  * bit 0, the return flag, too), but bank 7, the room items' flags (set: the item still lies
  * there), all set but items 1 and 172.
  */
+static u16 sNvStateWord[128];
 void NvFlags_Op(s32 bank, s32 bit, s32 mode);
 static void NvFlags_NewGame(void) {
     static s32 sDone = false;
@@ -152,6 +153,14 @@ static void NvFlags_NewGame(void) {
     memset(sNvFlags[7], 0xFF, sizeof(sNvFlags[7]));
     sNvFlags[7][1 >> 5] &= ~(0x80000000u >> (1 & 31));
     sNvFlags[7][172 >> 5] &= ~(0x80000000u >> (172 & 31));
+    if (getenv("NV_WORD") != NULL) { // dev: NV_WORD="i:v" a state word from the start (4: the countdown)
+        int wi;
+        int wv;
+
+        if (sscanf(getenv("NV_WORD"), "%d:%d", &wi, &wv) == 2) {
+            sNvStateWord[wi & 0x7F] = (u16)wv;
+        }
+    }
     if (getenv("NV_FLAGS") != NULL) { // dev: NV_FLAGS="bank:bit,bank:bit" (hex bits) set from the start
         const char* f = getenv("NV_FLAGS");
         int b;
@@ -248,7 +257,12 @@ s32 NvItems_Slot(s32 i, s32* qty);
 // 0x31): what a room's script sets for later ones to test (the stage, room and camera are live)
 static u8 sNvStateSet[256];
 static u8 sNvStateVal[256];
-static u16 sNvStateWord[128];
+
+
+/** The state block's word i (4: the self-destruct countdown, z_nv_ending.c). */
+u16* NvScript_StateWord(s32 i) {
+    return &sNvStateWord[i & 0x7F];
+}
 static u32 sNvSprOff;    // the room sprites switched off, a bit per group id (all on again at each cut)
 static u8 sNvUsedItem;   // g_usedItemId: the item last used on the room (the status screen's Use)
 static u8 sNvPickedItem; // g_pickedItemId: the item last picked up
@@ -2356,6 +2370,7 @@ static void NvObj_Update(PlayState* play) {
 }
 
 void NvPanel_Update(PlayState* play);
+void NvCountdown_Tick(PlayState* play);
 
 void NvScript_Update(PlayState* play) {
     extern s32 gNvSunSongSeen;
@@ -2401,6 +2416,7 @@ void NvScript_Update(PlayState* play) {
         // word 3, g_RandSeed)
         memset(sNvFlags[9], 0, sizeof(sNvFlags[9]));
         sNvStateWord[3] = (u16)(Rand_Next() >> 16);
+        NvCountdown_Tick(play); // (and game_loop's countdown: z_nv_ending.c)
         sNvCamera = cam;
         if (cam != sNvLastCamera) { // a camera switch: game_loop's pending redraw, for one frame
             NvFlags_Op(5, NV_MSF_CAMERA_REDRAW, 0);
