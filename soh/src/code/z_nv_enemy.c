@@ -67,6 +67,10 @@ typedef struct {
     u16* cells;
     s32 firstBatch[NV_EM_MAX_BONES];
     s32 numBatches[NV_EM_MAX_BONES];
+    // meshes past the skeleton's ("REN3": Plant 42's root ball and flower body, the Tyrant's heart)
+    s32 numExtra;
+    s32 extraFirstBatch[4];
+    s32 extraNumBatches[4];
     NvEmBatch batches[NV_EM_MAX_BATCHES];
 } NvEmModel;
 
@@ -279,7 +283,7 @@ static NvEmModel* NvEnemy_Model(s32 type) {
         return NULL;
     }
     d = (u8*)ResourceGetDataByName(path);
-    if ((d == NULL) || (memcmp(d, "REN2", 4) != 0)) {
+    if ((d == NULL) || ((memcmp(d, "REN2", 4) != 0) && (memcmp(d, "REN3", 4) != 0))) {
         return NULL;
     }
     memset(m, 0, sizeof(*m));
@@ -343,6 +347,34 @@ static NvEmModel* NvEnemy_Model(s32 type) {
                 m->numBatches[i]++;
             }
             d += 4 + nv * sizeof(Vtx);
+        }
+    }
+    if (memcmp(m->bones - 4, "REN3", 4) == 0) { // the extra meshes
+        s32 count = *(u16*)d;
+
+        d += 2;
+        for (i = 0; i < count; i++) {
+            s32 n = *(u16*)d;
+            s32 k;
+
+            d += 2;
+            if (i < 4) {
+                m->extraFirstBatch[i] = nb;
+                m->numExtra = i + 1;
+            }
+            for (k = 0; k < n; k++) {
+                u16 cell = *(u16*)d;
+                u16 nv = *(u16*)(d + 2);
+
+                if ((i < 4) && (nb < NV_EM_MAX_BATCHES)) {
+                    m->batches[nb].cell = cell;
+                    m->batches[nb].numVerts = nv;
+                    m->batches[nb].vtx = (Vtx*)(d + 4);
+                    nb++;
+                    m->extraNumBatches[i]++;
+                }
+                d += 4 + nv * sizeof(Vtx);
+            }
         }
     }
     // parents before children
@@ -1286,6 +1318,53 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
                 gSPVertex(POLY_OPA_DISP++, batch->vtx + v, cnt, 0);
                 for (q = 0; q + 3 <= cnt; q += 3) {
                     gSP1Triangle(POLY_OPA_DISP++, q, q + 1, q + 2, 0);
+                }
+            }
+        }
+    }
+    // Plant 42's root ball and flower body (its model's two meshes past the vine's: RE1's copies
+    // of the plant, drawn at its place; their own sway and the fallen core's pose left out)
+    if (NvEnemy_IsPlant42(this->type) && !(this->e.behavior_flags & 1) && (m->numExtra >= 2) &&
+        !(this->e.status_flags & 8)) {
+        MtxF mf;
+        Mtx* mtx;
+        s32 r;
+        s32 k;
+        s32 x;
+
+        for (r = 0; r < 3; r++) {
+            for (k = 0; k < 3; k++) {
+                mf.mf[k][r] = base[r][k];
+            }
+            mf.mf[3][r] = 0.0f;
+            mf.mf[r][3] = 0.0f;
+        }
+        mf.mf[3][0] = thisx->world.pos.x;
+        mf.mf[3][1] = thisx->world.pos.y;
+        mf.mf[3][2] = thisx->world.pos.z;
+        mf.mf[3][3] = 1.0f;
+        mtx = Graph_Alloc(gfxCtx, sizeof(Mtx));
+        Matrix_MtxFToMtx(&mf, mtx);
+        gSPMatrix(POLY_OPA_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        for (x = 0; x < 2; x++) {
+            s32 b;
+
+            for (b = 0; b < m->extraNumBatches[x]; b++) {
+                NvEmBatch* batch = &m->batches[m->extraFirstBatch[x] + b];
+                s32 v;
+
+                gDPLoadTextureBlock(POLY_OPA_DISP++, m->cells + batch->cell * NV_EM_CELL_W * NV_EM_CELL_H,
+                                    G_IM_FMT_RGBA, G_IM_SIZ_16b, NV_EM_CELL_W, NV_EM_CELL_H, 0,
+                                    G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
+                                    G_TX_NOLOD, G_TX_NOLOD);
+                for (v = 0; v + 3 <= batch->numVerts; v += 30) {
+                    s32 cnt = MIN(30, batch->numVerts - v);
+                    s32 q;
+
+                    gSPVertex(POLY_OPA_DISP++, batch->vtx + v, cnt, 0);
+                    for (q = 0; q + 3 <= cnt; q += 3) {
+                        gSP1Triangle(POLY_OPA_DISP++, q, q + 1, q + 2, 0);
+                    }
                 }
             }
         }

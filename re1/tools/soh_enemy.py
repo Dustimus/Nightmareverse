@@ -79,16 +79,27 @@ def enemy_blob(path):
                         c = 0
                     out += struct.pack(">H", c)
 
-    for i in range(n):
-        obj = e.objects[i] if i < len(e.objects) else emd.MeshObject([], [], [])
+    def mesh(obj):
         cells = soh_doors.model_cells(obj, cw, ch)
-        out += struct.pack("<H", len(cells))
+        part = bytearray(struct.pack("<H", len(cells)))
         for cell, tris in sorted(cells.items()):
-            out += struct.pack("<HH", cell, 3 * len(tris))
+            part += struct.pack("<HH", cell, 3 * len(tris))
             for t in tris:
                 for x, y, z, s, tt in t:
-                    out += struct.pack("<3hH2h4B", round(x), round(y), round(z), 0,
-                                       round(s * 32), round(tt * 32), 255, 255, 255, 255)
+                    part += struct.pack("<3hH2h4B", round(x), round(y), round(z), 0,
+                                        round(s * 32), round(tt * 32), 255, 255, 255, 255)
+        return part
+
+    for i in range(n):
+        out += mesh(e.objects[i] if i < len(e.objects) else emd.MeshObject([], [], []))
+    # meshes past the skeleton's (Plant 42's root ball and flower body, which RE1 draws as copies at
+    # the plant's place): "REN3", then u16 count and each as a bone's
+    extra = e.objects[n:]
+    if extra:
+        out[0:4] = b"REN3"
+        out += struct.pack("<H", len(extra))
+        for obj in extra:
+            out += mesh(obj)
     return bytes(out)
 
 
