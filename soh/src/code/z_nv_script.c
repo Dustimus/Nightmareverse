@@ -102,6 +102,7 @@ typedef struct {
     s16 pos[3];
 } NvAot;
 static NvAot sNvAot[NV_AOT_SLOTS];
+static void NvAot_FlagSet(const NvAot* e);
 static s32 sNvAotCount;
 
 // the room's objects (g_omodel_table: furniture, statues, the item box's lid...), as the scripts'
@@ -211,12 +212,37 @@ static s32 NvScd_Len(const u8* p) {
 static void NvEvt_Create(s32 slot, s32 script);
 static void NvScd_Message(s32 id);
 static void NvVoice_Play(s32 id);
+static void NvAot_Run(s32 i, s32 handler);
+s32 NvItems_Find(s32 id);
+s32 NvItems_Remove(s32 id);
+s32 NvItems_EquippedId(void);
+s32 NvItems_GroupCount(s32 group);
 
 // the rest of RE1's state block as the scripts write it (cmd_state_byte_set 0x08, cmd_state_word_set
 // 0x31): what a room's script sets for later ones to test (the stage, room and camera are live)
 static u8 sNvStateSet[256];
 static u8 sNvStateVal[256];
 static u16 sNvStateWord[128];
+static u8 sNvUsedItem;   // g_usedItemId: the item last used on the room (the status screen's Use)
+static u8 sNvPickedItem; // g_pickedItemId: the item last picked up
+
+/** The status screen used an item on the room (z_nv_items.c NvItems_Use). */
+void NvScript_SetUsedItem(s32 id) {
+    sNvUsedItem = (u8)id;
+    if ((id == 0x1D) || (id == 0x1E)) {
+        // the crank (MainMenu.cpp's exit: animation 8, then SysFlags 0x20 at its end): she turns
+        // it, and the room's script waits on that flag
+        NvRe1Entity* e = NvCast_Player();
+
+        e->state = 8;
+        e->ignore_player_flag = 0;
+        e->action_behavior = 1;
+        e->action_state = 0;
+        e->scd_anim_param = 0x20;
+        e->scd_entity_flags = 0;
+        e->scd_timer = 0;
+    }
+}
 
 static u8 NvScd_StateByte(s32 field) {
     if ((field > 3) && (field != 9) && sNvStateSet[field & 0xFF]) {
@@ -544,15 +570,103 @@ static s32 NvScd_Cmd(void) {
             }
             sNvIp = p + 2;
             return 1;
+        case 0x07: { // cmd_state_word_test: a word of the state block (3 the dice, 4 the lab's countdown)
+            u16 v = sNvStateWord[p[2] & 0x7F];
+            u16 c = p[4] | (p[5] << 8);
+
+            sNvIp = p + 6;
+            switch (p[3]) {
+                case 0:
+                    return c == v;
+                case 1:
+                    return v > c;
+                case 2:
+                    return v >= c;
+                case 3:
+                    return c > v;
+                case 4:
+                    return c >= v;
+                case 5:
+                    return c != v;
+                default:
+                    return 0;
+            }
+        }
+        case 0x10: // cmd_used_item_test
+            sNvIp = p + 2;
+            if ((sNvUsedItem != 0) && getenv("NV_LOG")) {
+                printf("NVSCD used item %02X tested against %02X (4:23 %d)\n", sNvUsedItem, p[1], (int)NvFlags_Test(4, 0x23));
+                fflush(stdout);
+            }
+            return p[1] == sNvUsedItem;
+        case 0x11: // cmd_picked_item_test
+            sNvIp = p + 2;
+            return p[1] == sNvPickedItem;
+        case 0x1A: // cmd_item_search: she carries it
+            sNvIp = p + 2;
+            return NvItems_Find(p[1]) >= 0;
+        case 0x1D: // cmd_equipped_item_test (the scripts test 0: nothing equipped)
+            sNvIp = p + 2;
+            return NvItems_EquippedId() == p[1];
+        case 0x22: { // cmd_item_count_test: how many of an item group she carries
+            s32 total = NvItems_GroupCount(p[1]);
+            s32 c = p[3];
+
+            sNvIp = p + 4;
+            if (total < 0) {
+                return 0;
+            }
+            switch (p[2]) {
+                case 0:
+                    return total == c;
+                case 1:
+                    return c < total;
+                case 2:
+                    return c <= total;
+                case 3:
+                    return total < c;
+                case 4:
+                    return total <= c;
+                case 5:
+                    return total != c;
+                default:
+                    return 0;
+            }
+        }
+        case 0x2C: // cmd_item_remove
+            sNvIp = p + 2;
+            return NvItems_Remove(p[1]);
+        case 0x24: // cmd_room_action: a room action entry's handler run by the script
+            NvAot_Run(p[1], p[2]);
+            sNvIp = p + 4;
+            return 1;
+        case 0x2D: // cmd_got_item: the entry's handler (an item given), with the "got it" prompt
+            NvAot_Run(p[1], p[2]);
+            sNvIp = p + 4;
+            return 0;
+        case 0x4C: { // cmd_item_record_transfer: an item entry's quantity to / from a state byte
+            u8 f = p[3];
+            NvAot* a = (p[2] < NV_AOT_SLOTS) ? &sNvAot[p[2]] : NULL;
+
+            if (a != NULL) {
+                if (p[1] == 0) {
+                    sNvStateSet[f] = 1;
+                    sNvStateVal[f] = a->qty;
+                } else if (p[1] == 1) {
+                    a->qty = NvScd_StateByte(f);
+                } else if ((p[1] == 2) && (NvItems_Find(a->item) >= 0)) {
+                    s32 q;
+
+                    NvItems_Slot(NvItems_Find(a->item), &q);
+                    sNvStateSet[f] = 1;
+                    sNvStateVal[f] = (u8)q;
+                    a->qty = (u8)q;
+                }
+            }
+            sNvIp = p + 4;
+            return 1;
+        }
         // tests not run yet: false
-        case 0x07:
-        case 0x10:
-        case 0x11:
-        case 0x1A:
-        case 0x1D:
-        case 0x22:
-        case 0x2C:
-        case 0x2D:
         case 0x36:
         case 0x38:
         case 0x3C:
@@ -758,6 +872,32 @@ static s32 NvEvt_Move(NvEvt* e, const u8* p) {
     NvRe1Entity* t = NvEvt_Ent(e);
     s16 v[3];
 
+    if ((e->entKind == 2) || (e->entKind == 3)) { // a room object or an item model: placed, turned
+        s16* pos = NULL;
+        s16* rot = NULL;
+        s32 k;
+
+        if ((e->entKind == 2) && (e->entIdx < NV_OBJ_SLOTS)) {
+            pos = sNvObj[e->entIdx].pos;
+            rot = sNvObj[e->entIdx].rot;
+            sNvObj[e->entIdx].set = true;
+        } else {
+            for (k = 0; k < sNvAotCount; k++) { // (the room item drawn with that model)
+                if (sNvAot[k].isItem && (sNvAot[k].model == e->entIdx)) {
+                    pos = sNvAot[k].pos;
+                }
+            }
+        }
+        if ((p[0] == 0x07) && (pos != NULL)) {
+            memcpy(pos, p + 2, 6);
+        } else if ((p[0] == 0x0A) && (pos != NULL) && (p[1] <= 2)) {
+            memcpy(&pos[p[1]], p + 2, 2);
+        } else if ((p[0] == 0x0B) && (rot != NULL)) {
+            memcpy(rot, p + 2, 6);
+        }
+        t = NULL;
+    }
+
     if ((p[0] >= 2) && (p[0] <= 0x0B) && (t != NULL)) {
         switch (p[0]) {
             case 0x02:
@@ -835,6 +975,10 @@ static void NvEvt_Create(s32 slot, s32 script) {
         slot = i;
     }
     NvEvt_Init(&sNvEvt[slot], script);
+    if (getenv("NV_LOG")) {
+        printf("NVEVT event %d starts in slot %d\n", (int)script, (int)slot);
+        fflush(stdout);
+    }
 }
 
 /** One slot until it yields (room_events_check's per-slot loop). */
@@ -1186,6 +1330,7 @@ static void NvPickup_Update(PlayState* play) {
     }
     NvItems_SetTaken(a->itemFlag);
     a->handler = 0;
+    sNvPickedItem = a->item; // (cmd_picked_item_test)
     printf("NVITEM took %02X x%d (flag %d)\n", a->item, a->qty, a->itemFlag);
     NvItems_Log();
     Message_CloseTextbox(play);
@@ -1200,6 +1345,56 @@ s32 NvFiles_Take(s32 id);
 void NvBox_Open(s32 lid);
 void NvBox_Update(PlayState* play);
 void NvBox_Reset(void);
+
+/**
+ * cmd_room_action / cmd_got_item: room action entry i's record run through handler (the script's
+ * choice, not necessarily the entry's own): 2 its message, 4 / 0x0F an item offered (got_item's
+ * "take it?"), 0x0D a document taken and read, 7 its flag, 8 the item box, 9 its event.
+ */
+static void NvAot_Run(s32 i, s32 handler) {
+    NvAot* a;
+
+    if ((i < 0) || (i >= NV_AOT_SLOTS) || (sNvPlay == NULL)) {
+        return;
+    }
+    a = &sNvAot[i];
+    printf("NVAOT script runs entry %d as handler %d\n", (int)i, (int)handler);
+    fflush(stdout);
+    switch (handler) {
+        case 2:
+            if (!(a->param[0] & 0x40)) {
+                NvScd_Message(a->param[0] & 0x3F);
+            }
+            break;
+        case 4:
+        case 0x0F:
+            if ((Message_GetState(&sNvPlay->msgCtx) == TEXT_STATE_NONE) && (a->item != 0)) {
+                snprintf(sNvPrompt, sizeof(sNvPrompt), "Take the %%r%s%%w?\x1B%%gYes&No%%w", NvItems_Name(a->item));
+                sNvMsgText = sNvPrompt;
+                sNvPickup = i;
+                NvMsg_EnsureHook();
+                Message_StartTextbox(sNvPlay, NV_TEXT_ID, NULL);
+            }
+            break;
+        case 0x0D:
+            if (a->item != 0) {
+                sNvPickedItem = a->item;
+                NvItems_SetTaken(a->itemFlag);
+                a->handler = 0;
+                NvFiles_Take(a->item);
+            }
+            break;
+        case 7:
+            NvAot_FlagSet(a);
+            break;
+        case 8:
+            NvBox_Open(a->param[1]);
+            break;
+        case 9:
+            NvEvt_Create(a->param[0] & 0xFF, a->param[1] & 0xFF);
+            break;
+    }
+}
 
 s32 NvAot_Act(PlayState* play, Player* player) {
     s32 i = NvAot_Probe(player);
@@ -1224,6 +1419,10 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         NvEvt_Create(sNvAot[i].param[0] & 0xFF, sNvAot[i].param[1] & 0xFF);
         return true;
     }
+    if (sNvAot[i].handler == 7) { // flag_bank_set on the action press
+        NvAot_FlagSet(&sNvAot[i]);
+        return true;
+    }
     if (sNvAot[i].handler == 8) { // the item box: open_itembox (its lid: the entry's +4, param 1)
         printf("NVBOX spot %d: lid object %d\n", (int)i, sNvAot[i].param[1]);
         fflush(stdout);
@@ -1240,6 +1439,7 @@ s32 NvAot_Act(PlayState* play, Player* player) {
 
         printf("NVFILE spot %d: %02X\n", (int)i, a->item);
         fflush(stdout);
+        sNvPickedItem = a->item;
         NvItems_SetTaken(a->itemFlag);
         a->handler = 0;
         NvFiles_Take(a->item);
@@ -1558,6 +1758,7 @@ void NvScript_RoomInit(PlayState* play) {
     }
     NvEnemy_ClearSlots();
     NvCast_RoomLoad();
+    sNvUsedItem = sNvPickedItem = 0; // (room_set clears them)
     NvSound_LineStop(); // (a line cut off by the door)
     {
         void NvCamera_RoomLoad(void);
@@ -1667,6 +1868,23 @@ void NvScript_RoomInit(PlayState* play) {
  * or 600 in front of him. Handler 9 (create_room_event) starts event param[1] in slot param[0]:
  * 108's windows, the dogs coming in. (The other walk-in handlers aren't run yet.)
  */
+/**
+ * flag_bank_set (room action 7): the entry's flag set or cleared; its +2 the bank (0 the
+ * scenario's, 1 its second, 2 the locks, 3 the enemies', 4 the system's, 7 the room items, 8 the
+ * room's, anything else bank 9: the item-use flags, which game_loop clears every frame).
+ */
+static void NvAot_FlagSet(const NvAot* e) {
+    s32 bank = e->param[0];
+
+    if ((bank == 5) || (bank == 6)) {
+        return; // (the main state and message flags: RE1's engine's own, not kept here)
+    }
+    if (bank > 8) {
+        bank = 9;
+    }
+    NvFlags_Op(bank, e->param[1] & 0xFF, (e->param[2] != 0) ? 0 : 1);
+}
+
 static void NvAot_WalkIn(PlayState* play) {
     Player* player = GET_PLAYER(play);
     s32 px;
@@ -1699,6 +1917,8 @@ static void NvAot_WalkIn(PlayState* play) {
             printf("NVEVT walk-in %d: event %d in slot %d\n", (int)i, e->param[1] & 0xFF, e->param[0] & 0xFF);
             fflush(stdout);
             NvEvt_Create(e->param[0] & 0xFF, e->param[1] & 0xFF);
+        } else if (e->handler == 7) {
+            NvAot_FlagSet(e); // (bank 9: an item can be used here)
         }
     }
 }
@@ -1741,6 +1961,11 @@ void NvScript_Update(PlayState* play) {
     for (t = 0; t < ticks; t++) {
         s32 cam = GET_ACTIVE_CAM(play)->camDataIdx;
 
+        // game_loop's per-frame resets: the item-use flags (bank 9: the room's script raises an
+        // item's bit while it can be used where she stands) and the dice the scripts roll (state
+        // word 3, g_RandSeed)
+        memset(sNvFlags[9], 0, sizeof(sNvFlags[9]));
+        sNvStateWord[3] = (u16)(Rand_Next() >> 16);
         sNvCamera = cam;
         if (cam != sNvLastCamera) { // a camera switch: game_loop's pending redraw, for one frame
             NvFlags_Op(5, NV_MSF_CAMERA_REDRAW, 0);
@@ -1754,6 +1979,20 @@ void NvScript_Update(PlayState* play) {
             int en;
             int ef;
 
+            static s32 sUseDone;
+            int ui;
+            int uf;
+
+            // dev: NV_USE="item,frame" uses that item from the slots once (the status screen's Use)
+            if (!sUseDone && (getenv("NV_USE") != NULL) &&
+                (sscanf(getenv("NV_USE"), "%i,%d", &ui, &uf) == 2) && (play->gameplayFrames >= (u32)uf)) {
+                s32 NvItems_Use(PlayState* play, s32 i);
+
+                sUseDone = true;
+                printf("NVUSE dev: item %02X in slot %d -> %d\n", ui, (int)NvItems_Find(ui),
+                       (NvItems_Find(ui) >= 0) ? (int)NvItems_Use(play, NvItems_Find(ui)) : -9);
+                fflush(stdout);
+            }
             if (!sEvtDone && (getenv("NV_EVT_AT") != NULL) &&
                 (sscanf(getenv("NV_EVT_AT"), "%d,%d,%d", &es, &en, &ef) == 3) && (play->gameplayFrames >= (u32)ef)) {
                 sEvtDone = true;
@@ -1771,6 +2010,11 @@ void NvScript_Update(PlayState* play) {
             NvEvt_Step(&sNvEvt[i]);
             sNvEvtCur = NULL;
         }
+        // room_state_reset, after the scripts and the events each frame: the item used and the
+        // one picked up are seen once, and the system flags 0x20-0x3F (what the room's walk-in
+        // zones raise for them) start again
+        sNvUsedItem = sNvPickedItem = 0;
+        sNvFlags[4][1] = 0;
         {
             s32 live = false;
 

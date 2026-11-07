@@ -397,6 +397,10 @@ static void NvSt_Input(PlayState* play) {
                     break;
                 case NV_ACT_USE:
                     switch (NvItems_Use(play, sNvStCursor)) {
+                        case 2: // used on the room: back to the game, where the script answers it
+                            NvSt_Sfx(NA_SE_SY_DECIDE);
+                            NvSt_ClosePause(play);
+                            break;
                         case 1:
                             snprintf(sNvStLine, sizeof(sNvStLine), "Used the %s.", NvItems_Name(id));
                             NvSt_Sfx(NA_SE_SY_DECIDE);

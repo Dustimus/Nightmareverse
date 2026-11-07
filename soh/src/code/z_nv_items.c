@@ -843,6 +843,98 @@ void NvPoison_Update(PlayState* play) {
  * would do nothing isn't used up.
  * Returns 1 used, 0 nothing happened, -1 not usable here.
  */
+/** The slot holding item id, or -1 (get_item_slot). */
+s32 NvItems_Find(s32 id) {
+    s32 i;
+
+    for (i = 0; i < NvItems_SlotCount(); i++) {
+        if ((sNvSlots[i].id == id) && (id != 0)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/** cmd_item_remove: item id's slot emptied, the rest closing up. True when she had it. */
+s32 NvItems_Remove(s32 id) {
+    s32 i = NvItems_Find(id);
+
+    if (i < 0) {
+        return false;
+    }
+    sNvSlots[i].qty = 1;
+    NvItems_TakeOne(i);
+    return true;
+}
+
+/** The equipped slot's item id (0: nothing equipped), as cmd_equipped_item_test reads it. */
+s32 NvItems_EquippedId(void) {
+    return (sNvEquipped > 0) ? sNvSlots[sNvEquipped - 1].id : 0;
+}
+
+/**
+ * cmd_item_count_test's sum: the quantities of an item group she carries (10 any, 0x0B the
+ * Beretta's, 0x0C the shotgun's, 0x0D the Pythons', 0x0F item 6's, 0x10-0x12 the launcher's;
+ * otherwise the item itself or the weapon 0x0B below it); -1 when she has none of the group.
+ */
+s32 NvItems_GroupCount(s32 group) {
+    s32 total = 0;
+    s32 count = 0;
+    s32 i;
+
+    for (i = 0; i < NvItems_Held(); i++) {
+        s32 id = sNvSlots[i].id;
+        s32 q = sNvSlots[i].qty;
+
+        if ((group == id) || ((u8)(id - group) == (u8)-0x0B)) {
+            total = q;
+        }
+        switch (group) {
+            case 0x0A:
+                total = q;
+                count++;
+                break;
+            case 0x0B:
+            case 0x0C:
+                if (id == group - 9) {
+                    total += q;
+                    count++;
+                }
+                break;
+            case 0x0D:
+                if ((id == 4) || (id == 5)) {
+                    total += q;
+                    count++;
+                }
+                break;
+            case 0x0F:
+                if (id == 6) {
+                    total += q;
+                    count++;
+                }
+                break;
+            case 0x10:
+            case 0x11:
+            case 0x12:
+                if ((id >= 7) && (id <= 9)) {
+                    total += q;
+                    count++;
+                }
+                break;
+        }
+    }
+    return (count == 0) ? -1 : total;
+}
+
+void NvScript_SetUsedItem(s32 id);
+
+/**
+ * Use from the status screen (menu_item_use_item): the heals by RE1's table; the special items and
+ * keys (0x1B-0x3D) and the red book (0x3E) where the room's script allows them this frame (its
+ * item-use flags, bank 9, bit id - 0x1B): one is spent, and the script sees it used
+ * (cmd_used_item_test). 1 healed, 2 used on the room (the menu closes), 0 nothing to do now,
+ * -1 not usable at all.
+ */
 s32 NvItems_Use(PlayState* play, s32 i) {
     s32 id = NvItems_Slot(i, NULL);
     u8 heal = NvItems_Heal(id);
@@ -851,6 +943,18 @@ s32 NvItems_Use(PlayState* play, s32 i) {
 
     s32 used = false;
 
+    if (((id >= 0x1B) && (id < 0x3D + 1)) || (id == 0x3E)) {
+        if (!NvFlags_Test(9, id - 0x1B)) {
+            return 0;
+        }
+        NvScript_SetUsedItem(id);
+        if (sNvSlots[i].qty > 0) { // (a count of 0 isn't spent: RE1 only takes one off a count)
+            NvItems_TakeOne(i);
+        }
+        printf("NVITEM used %02X on the room\n", id);
+        fflush(stdout);
+        return 2;
+    }
     if (heal == 0) {
         return -1;
     }
