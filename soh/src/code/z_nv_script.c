@@ -2218,9 +2218,14 @@ static void NvObj_Update(PlayState* play) {
             }
             if (veto) {
                 o->push = 10; // (parked until she lets go)
-            } else if (step != 0) {
-                o->pos[0] = nx;
-                o->pos[2] = nz;
+            } else {
+                void NvPlayer_StartPush(PlayState* play, Actor* block);
+
+                if (step != 0) {
+                    o->pos[0] = nx;
+                    o->pos[2] = nz;
+                }
+                NvPlayer_StartPush(play, o->block); // (Link's own pushing, z_player.c)
             }
             if (getenv("NV_LOG") && (o->pushTick == 1)) {
                 printf("NVOBJ %d pushed to %d,%d%s\n", (int)i, o->pos[0], o->pos[2], veto ? " (blocked)" : "");

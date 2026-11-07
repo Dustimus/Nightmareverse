@@ -7906,6 +7906,35 @@ void func_8083FAB8(Player* this, PlayState* play) {
     Player_AnimPlayOnce(play, this, &gPlayerAnim_link_normal_push_start);
 }
 
+/**
+ * Nightmareverse: RE1's push (z_nv_script.c NvObj_Update) in Link's own pushing: when an RE1
+ * room object starts moving under him, his push action and animation, against its box
+ * (z_nv_block.c), as if he'd grabbed it. The object keeps RE1's pace; the action ends as OoT's
+ * does, when he lets go of the stick.
+ */
+void NvPlayer_StartPush(PlayState* play, Actor* block) {
+    Player* this = GET_PLAYER(play);
+    DynaPolyActor* wall;
+
+    if ((this == NULL) || (block == NULL) || (this->actionFunc == Player_Action_8084B898) ||
+        (this->actionFunc == Player_Action_8084B9E4)) {
+        return;
+    }
+    if (!(this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) ||
+        !(this->actor.bgCheckFlags & BGCHECKFLAG_PLAYER_WALL_INTERACT) || (this->actor.wallBgId == BGCHECK_SCENE) ||
+        (this->stateFlags1 & (PLAYER_STATE1_CARRYING_ACTOR | PLAYER_STATE1_IN_CUTSCENE)) || (this->heldActor != NULL)) {
+        return;
+    }
+    wall = DynaPoly_GetActor(&play->colCtx, this->actor.wallBgId);
+    if ((wall == NULL) || (&wall->actor != block)) {
+        return;
+    }
+    this->unk_3C4 = block;
+    this->yaw = this->actor.wallYaw + 0x8000;
+    this->actor.shape.rot.y = this->yaw;
+    func_8083FAB8(this, play);
+}
+
 void func_8083FB14(Player* this, PlayState* play) {
     Player_SetupAction(play, this, Player_Action_8084B9E4, 0);
     this->stateFlags2 |= PLAYER_STATE2_MOVING_DYNAPOLY;
