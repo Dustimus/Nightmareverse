@@ -379,6 +379,26 @@ static s32 BoundInside(const NvRe1Bound* r, s32 px, s32 pz, s32 radius) {
     return (px >= xLo) && (px <= xHi) && (pz >= zLo) && (pz <= zHi);
 }
 
+/** A pushed room object's box (half extents ex, ez at x, z) against the room's walls: true when blocked. */
+s32 NvRe1_ObjBlocked(s32 x, s32 z, s32 ex, s32 ez) {
+    s32 i;
+
+    if (sBounds == NULL) {
+        return false;
+    }
+    for (i = 0; i < sBoundGroup[4]; i++) {
+        NvRe1Bound* rec = &sBounds[i];
+
+        if (((rec->type & 0xFF) == 4) || !(rec->flags & 0x300)) {
+            continue; // (floors and steps, and what isn't solid)
+        }
+        if (BoundInside(rec, x, z, MAX(ex, ez))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static s16 EntRadius(void) {
     return E->sca[5];
 }

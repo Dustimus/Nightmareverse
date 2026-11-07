@@ -54,6 +54,7 @@ void NvBgm_ScdState(s32 stage, s32 room, u8 state);
 s32 NvMovie_Playing(void);
 s32 NvDoorScene_Covering(void);
 void NvCast_RoomLoad(void);
+s32 NvClimb_Active(void);
 s32 NvSound_Line(const char* name);
 void NvSound_LineStop(void);
 s32 NvSound_LinePlaying(void);
@@ -114,6 +115,13 @@ typedef struct {
     u8 parent; // 0xFF the room; 0xFE the player; 0x80+ an enemy; else another object
     s16 pos[3];
     s16 rot[3]; // RE1's SVECTOR (+0x72): x 0, y the record's, z 0 (the item box's lid turns it)
+    s16 ext[3];   // its box's half extents (Sca_info +2/+4/+6: the record's +0x18, +0x16, +0x1A)
+    s16 push;     // update_room_objects' push counter (+0x86): nine ticks leaned on, it moves
+    Actor* block; // its collision box for Link (z_nv_block.c)
+    u8 top;       // its box has a top: she's climbed onto it (a crate: RE1's climbable, 0x40)
+    u8 pushTick;  // where in her push's step (behavior_10_push: 16 ticks of moving, then a pause)
+    s16 speed[3]; // an event's movement (state 2: 0x05 sets it, 0x02 / 0x04 add it a tick)
+    s16 turn[3];  // and its turn (0x06 sets it, 0x03 / 0x04 add it: x, y, z)
 } NvObj;
 static NvObj sNvObj[NV_OBJ_SLOTS];
 static u8 sNvItemHidden[NV_AOT_SLOTS]; // obj_flag_set on an item model: bit 0 clear hides it
@@ -382,6 +390,10 @@ static s32 NvScd_Cmd(void) {
                 o->rot[0] = 0;
                 o->rot[1] = (s16)(p[10] | (p[11] << 8));
                 o->rot[2] = 0;
+                o->ext[0] = (s16)(p[0x18] | (p[0x19] << 8));
+                o->ext[1] = (s16)(p[0x16] | (p[0x17] << 8));
+                o->ext[2] = (s16)(p[0x1A] | (p[0x1B] << 8));
+                o->push = 0;
                 printf("NVOBJ %d flags %02X parent %02X pos %d,%d,%d ry %d\n", p[1] & 0x3F, p[2], p[3], o->pos[0],
                        o->pos[1], o->pos[2], o->rot[1]);
             }
@@ -498,6 +510,22 @@ static s32 NvScd_Cmd(void) {
             }
             sNvIp = p + 4;
             return 1;
+        case 0x3B: // cmd_obj_rotation_set: an object's (or item model's) tilt, x and z
+            if ((p[1] & 0x80) && sNvObj[p[1] & 0x3F].set) {
+                memcpy(&sNvObj[p[1] & 0x3F].rot[0], p + 2, 2);
+                memcpy(&sNvObj[p[1] & 0x3F].rot[2], p + 4, 2);
+            } // (an item model's: not drawn turned yet)
+            sNvIp = p + 6;
+            return 1;
+        case 0x47: { // cmd_obj_transform_set: an object's whole place and turn
+            NvObj* o = &sNvObj[p[1] & 0x3F];
+
+            memcpy(o->rot, p + 2, 6);
+            memcpy(o->pos, p + 8, 6);
+            o->set = true;
+            sNvIp = p + 14;
+            return 1;
+        }
         case 0x0B: // cmd_message_set: a room message, shown now (RE1 also pauses for p[2..3])
             NvScd_Message(p[1]);
             sNvIp = p + 4;
@@ -895,6 +923,36 @@ static s32 NvEvt_Move(NvEvt* e, const u8* p) {
             memcpy(&pos[p[1]], p + 2, 2);
         } else if ((p[0] == 0x0B) && (rot != NULL)) {
             memcpy(rot, p + 2, 6);
+        }
+        if ((e->entKind == 2) && (e->entIdx < NV_OBJ_SLOTS)) { // an object's motion (state 2)
+            NvObj* o = &sNvObj[e->entIdx];
+
+            switch (p[0]) {
+                case 0x02:
+                case 0x04:
+                    o->pos[0] += o->speed[0];
+                    o->pos[1] += o->speed[1];
+                    o->pos[2] += o->speed[2];
+                    if (p[0] == 0x02) {
+                        break;
+                    }
+                    // fall through
+                case 0x03:
+                    o->rot[0] += o->turn[0];
+                    o->rot[1] += o->turn[1];
+                    o->rot[2] += o->turn[2];
+                    break;
+                case 0x05:
+                    o->speed[0] = (s8)p[1];
+                    o->speed[1] = (s8)p[2];
+                    o->speed[2] = (s8)p[3];
+                    break;
+                case 0x06:
+                    o->turn[0] = (s8)p[1];
+                    o->turn[1] = (s8)p[2];
+                    o->turn[2] = (s8)p[3];
+                    break;
+            }
         }
         t = NULL;
     }
@@ -1934,6 +1992,266 @@ static void NvAot_WalkIn(PlayState* play) {
     }
 }
 
+/* ---- the room's objects: solid, pushed (RoomCollision.cpp update_room_objects) ---- */
+
+/** For z_nv_block.c: object i's place and box, and whether it's solid now. False: it's gone. */
+s32 NvObj_Box(s32 i, s16* pos, s16* ext, s32* solid, s32* climbable) {
+    NvObj* o;
+
+    if ((i < 0) || (i >= NV_OBJ_SLOTS) || !sNvObj[i].set || (sNvObj[i].ext[0] <= 0) || (sNvObj[i].ext[2] <= 0) ||
+        (sNvObj[i].parent != 0xFF)) {
+        return false; // (one carried by another object, an enemy or her: its place is its parent's, not boxed yet)
+    }
+    o = &sNvObj[i];
+    memcpy(pos, o->pos, sizeof(o->pos));
+    memcpy(ext, o->ext, sizeof(o->ext));
+    *solid = (o->flags & 0x01) && !(o->flags & 0x0A);
+    *climbable = o->top; // (the top only while she's on it: walking into a crate pushes it, as RE1's)
+    return true;
+}
+
+#define NV_JILL_RADIUS 372 // her Sca_info: radius, half height
+#define NV_JILL_HALF_H 1350
+
+/** Whether an entity at (x, y, z) with radius r and half height h is inside object o's box. */
+static s32 NvObj_Touches(const NvObj* o, s32 x, s32 y, s32 z, s32 r, s32 h, s32* dx, s32* dz) {
+    s32 ex = o->ext[0] + r;
+    s32 ey = o->ext[1] + h;
+    s32 ez = o->ext[2] + r;
+    s32 dy = o->pos[1] - y;
+
+    *dx = o->pos[0] - x;
+    *dz = o->pos[2] - z;
+    return ((u32)(*dx + ex) <= (u32)(ex * 2)) && ((u32)(dy + ey) <= (u32)(ey * 2)) &&
+           ((u32)(*dz + ez) <= (u32)(ez * 2));
+}
+
+/** ChkEntitySlide's response: the entity out of the box along the shallower way. */
+static s32 NvObj_Slide(const NvObj* o, s32* x, s32 y, s32* z, s32 r, s32 h) {
+    s32 dx;
+    s32 dz;
+
+    if (!NvObj_Touches(o, *x, y, *z, r, h, &dx, &dz)) {
+        return false;
+    }
+    if (ABS((o->ext[0] + r) * dz) < ABS((o->ext[2] + r) * dx)) {
+        *x = o->pos[0] + ((dx >= 0) ? -(o->ext[0] + r) : (o->ext[0] + r));
+    } else {
+        *z = o->pos[2] + ((dz >= 0) ? -(o->ext[2] + r) : (o->ext[2] + r));
+    }
+    return true;
+}
+
+/** Link in RE1's units, and his facing as RE1's angle (4096 a turn). */
+static void NvObj_LinkRe1(Player* player, s32* x, s32* y, s32* z, s32* dir) {
+    *x = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
+    *y = (s32)lroundf(-player->actor.world.pos.y / NV_RE1_SCALE);
+    *z = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
+    *dir = ((0x4000 - (s32)(u16)player->actor.shape.rot.y) / 16) & 0xFFF;
+}
+
+/**
+ * check_climb_object: the action button on a climbable object (flag 0x40) in reach ahead, she
+ * facing it squarely from its climbing side (within 299 of its facing turned round). She climbs
+ * on: 1800 up and 1850 on (player_door_open_sequence's climb), the crate's top there for her.
+ * With start false, whether she would (the A button's label).
+ */
+s32 NvObj_TryClimb(PlayState* play, Player* player, s32 start) {
+    void NvClimb_Carry(Player* player, Vec3f* to);
+    s32 px;
+    s32 py;
+    s32 pz;
+    s32 dir;
+    s32 i;
+
+    NvObj_LinkRe1(player, &px, &py, &pz, &dir);
+    for (i = NV_OBJ_SLOTS - 1; i >= 0; i--) {
+        NvObj* o = &sNvObj[i];
+        f32 a = player->actor.shape.rot.y * (M_PI / 32768.0f);
+        s32 ax = px + (s32)(1100.0f * sinf(a));
+        s32 az = pz - (s32)(1100.0f * cosf(a));
+        s32 diff;
+
+        if (!o->set || !(o->flags & 0x01) || !(o->flags & 0x40) || o->top || (o->ext[0] <= 0)) {
+            continue;
+        }
+        if (((u32)(ax - o->pos[0] + o->ext[0]) > (u32)(o->ext[0] * 2)) ||
+            ((u32)(az - o->pos[2] + o->ext[2]) > (u32)(o->ext[2] * 2))) {
+            continue;
+        }
+        diff = (((dir + 0x800) & 0xFFF) - (o->rot[1] & 0xFFF)) & 0xFFF;
+        if ((diff > 299) && (diff < 0xED5)) {
+            continue;
+        }
+        if (start) {
+            Vec3f to;
+            s32 tx;
+            s32 tz;
+
+            // square to the crate's side, then up and on
+            dir = (dir + 0x200) & 0xC00;
+            tx = px + ((dir == 0) ? 1850 : (dir == 0x800) ? -1850 : 0);
+            tz = pz + ((dir == 0x400) ? 1850 : (dir == 0xC00) ? -1850 : 0);
+            to.x = tx * NV_RE1_SCALE;
+            to.y = -(o->pos[1] - o->ext[1] * 2) * NV_RE1_SCALE;
+            to.z = -tz * NV_RE1_SCALE;
+            o->top = true;
+            if (o->block != NULL) { // (its box rebuilt with its top)
+                Actor_Kill(o->block);
+                o->block = NULL;
+            }
+            player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = (s16)(0x4000 - dir * 16);
+            NvClimb_Carry(player, &to);
+            printf("NVOBJ %d climbed onto (top %d)\n", (int)i, (int)(o->ext[1] * 2));
+            fflush(stdout);
+        }
+        return true;
+    }
+    return false;
+}
+
+/** Room action entries probed by an object (mask 4: a statue on its spot), run for object o. */
+static void NvObj_WalkIn(const NvObj* o) {
+    s32 i;
+
+    for (i = 0; i < sNvAotCount; i++) {
+        NvAot* e = &sNvAot[i];
+
+        if ((e->handler == 0) || !(e->flags & 0x04) || (e->flags & 0x80)) {
+            continue;
+        }
+        if (((u32)(o->pos[0] - e->zone[0]) > e->zone[2]) || ((u32)(o->pos[2] - e->zone[1]) > e->zone[3])) {
+            continue;
+        }
+        if (e->handler == 7) {
+            NvAot_FlagSet(e);
+        } else if (e->handler == 9) {
+            NvEvt_Create(e->param[0] & 0xFF, e->param[1] & 0xFF);
+        }
+    }
+}
+
+/**
+ * One tick of the room's objects: the enemies and Link pushed out of each solid one; Link leaning
+ * on one (walking into it, within reach ahead, nine ticks on end) pushes it along that side, at
+ * her push's pace, unless the room's walls or another object stop it; then the zones it reaches.
+ * Flags (the record's byte 2): 0x01 there, 0x02 intangible, 0x08 no collision, 0x20 not pushable.
+ */
+static void NvObj_Update(PlayState* play) {
+    s32 NvRe1_ObjBlocked(s32 x, s32 z, s32 ex, s32 ez);
+    Player* player = GET_PLAYER(play);
+    s32 px;
+    s32 py;
+    s32 pz;
+    s32 moved = false;
+    s32 pressing;
+    s32 i;
+    s32 k;
+
+    if ((player == NULL) || (play->sceneNum < SCENE_RE1_100)) {
+        return;
+    }
+    px = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
+    py = (s32)lroundf(-player->actor.world.pos.y / NV_RE1_SCALE);
+    pz = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
+    // walking into it: the stick held (RE1: forward on the pad) and Link not held by a scene
+    pressing = (sqrtf(SQ((f32)play->state.input[0].rel.stick_x) + SQ((f32)play->state.input[0].rel.stick_y)) > 30.0f) &&
+               (NvCast_Player()->state != 8);
+    for (i = 0; i < NV_OBJ_SLOTS; i++) {
+        NvObj* o = &sNvObj[i];
+        s32 dx;
+        s32 dz;
+        s32 reach;
+
+        if (!o->set || !(o->flags & 0x01) || (o->flags & 0x0A) || (o->ext[0] <= 0) || (o->ext[2] <= 0) ||
+            (o->parent != 0xFF)) {
+            continue;
+        }
+        for (k = 0; k < 16; k++) { // the enemies out of it
+            NvRe1Entity* en = NvEnemy_SlotEntity(k);
+
+            if ((en != NULL) && (en->health >= 0)) {
+                s32 r = ((en->sca != NULL) && (en->sca[5] > 0)) ? en->sca[5] : 400;
+
+                NvObj_Slide(o, &en->t[0], en->t[1], &en->t[2], r, 1500);
+            }
+        }
+        // the push probe: touching it, leaning on it, the point 470 ahead of her inside its box
+        {
+            f32 a = player->actor.shape.rot.y * (M_PI / 32768.0f);
+            // (RE1's 470 ahead, plus where OoT's walls stop Link: further out than her radius)
+            s32 ax = px + (s32)(1100.0f * sinf(a));
+            s32 az = pz - (s32)(1100.0f * cosf(a));
+
+            reach = ((u32)(ax - o->pos[0] + o->ext[0]) <= (u32)(o->ext[0] * 2)) &&
+                    ((u32)(az - o->pos[2] + o->ext[2]) <= (u32)(o->ext[2] * 2));
+        }
+        if (NvObj_Touches(o, px, py, pz, NV_JILL_RADIUS + 800, NV_JILL_HALF_H, &dx, &dz) && pressing && reach &&
+            !o->top) {
+            o->push++;
+        } else {
+            o->push = 0;
+            o->pushTick = 0;
+        }
+        if (!(o->flags & 0x20) && (o->push >= 9)) {
+            s32 nx = o->pos[0];
+            s32 nz = o->pos[2];
+            s32 step = (o->pushTick < 16) ? 50 : 0; // (her push: 16 ticks of moving, then she sets again)
+            s32 veto = false;
+
+            o->pushTick = (o->pushTick + 1) % 30;
+            if (ABS((o->ext[0] + NV_JILL_RADIUS) * dz) < ABS((o->ext[2] + NV_JILL_RADIUS) * dx)) { // (the side she's on)
+                nx += (dx >= 0) ? step : -step;
+            } else {
+                nz += (dz >= 0) ? step : -step;
+            }
+            if (NvRe1_ObjBlocked(nx, nz, o->ext[0], o->ext[2])) {
+                veto = true;
+            }
+            for (k = 0; (k < NV_OBJ_SLOTS) && !veto; k++) { // another object in the way
+                const NvObj* q = &sNvObj[k];
+
+                if ((k != i) && q->set && (q->flags & 0x01) && !(q->flags & 0x08) &&
+                    (ABS(q->pos[0] - nx) < q->ext[0] + o->ext[0]) && (ABS(q->pos[2] - nz) < q->ext[2] + o->ext[2])) {
+                    veto = true;
+                }
+            }
+            if (veto) {
+                o->push = 10; // (parked until she lets go)
+            } else if (step != 0) {
+                o->pos[0] = nx;
+                o->pos[2] = nz;
+            }
+            if (getenv("NV_LOG") && (o->pushTick == 1)) {
+                printf("NVOBJ %d pushed to %d,%d%s\n", (int)i, o->pos[0], o->pos[2], veto ? " (blocked)" : "");
+                fflush(stdout);
+            }
+        }
+        // off the crate's top once she's left it (it's a box she pushes again)
+        if (o->top && !NvClimb_Active() &&
+            (((u32)(px - o->pos[0] + o->ext[0] + 200) > (u32)(o->ext[0] * 2 + 400)) ||
+             ((u32)(pz - o->pos[2] + o->ext[2] + 200) > (u32)(o->ext[2] * 2 + 400)) ||
+             (py > o->pos[1] - o->ext[1] * 2 + 300))) {
+            o->top = false;
+            if (o->block != NULL) {
+                Actor_Kill(o->block);
+                o->block = NULL;
+            }
+        }
+        // she can't walk through it: its collision box (z_nv_block.c), spawned once per object
+        if ((o->block == NULL) && (o->flags & 0x01)) {
+            s32 NvActor_BlockId(void);
+
+            o->block = Actor_Spawn(&play->actorCtx, play, NvActor_BlockId(), 0.0f, 0.0f, 0.0f, 0, 0, 0, i);
+        }
+        NvObj_WalkIn(o);
+    }
+    if (moved) {
+        player->actor.world.pos.x = px * NV_RE1_SCALE;
+        player->actor.world.pos.z = -pz * NV_RE1_SCALE;
+    }
+}
+
 void NvScript_Update(PlayState* play) {
     extern s32 gNvSunSongSeen;
     s32 ticks;
@@ -2026,6 +2344,7 @@ void NvScript_Update(PlayState* play) {
         // zones raise for them) start again
         sNvUsedItem = sNvPickedItem = 0;
         sNvFlags[4][1] = 0;
+        NvObj_Update(play); // the room's objects: solid, pushed, on their spots
         {
             s32 live = false;
 

@@ -16,6 +16,31 @@ void NvItemsActor_Init(Actor* thisx, PlayState* play);
 void NvItemsActor_Destroy(Actor* thisx, PlayState* play);
 void NvItemsActor_Update(Actor* thisx, PlayState* play);
 void NvItemsActor_Draw(Actor* thisx, PlayState* play);
+void NvBlock_Init(Actor* thisx, PlayState* play);
+void NvBlock_Destroy(Actor* thisx, PlayState* play);
+void NvBlock_Update(Actor* thisx, PlayState* play);
+extern const size_t gNvBlockSize;
+}
+
+// An RE1 room object's collision box (soh/src/code/z_nv_block.c): one per solid object
+extern "C" s32 NvActor_BlockId(void) {
+    static int id = -1;
+
+    if (id < 0) {
+        ActorDBInit entry;
+        entry.name = "Nv_Block";
+        entry.desc = "RE1 room object's box";
+        entry.category = ACTORCAT_BG;
+        entry.flags = ACTOR_FLAG_UPDATE_CULLING_DISABLED;
+        entry.objectId = OBJECT_GAMEPLAY_KEEP;
+        entry.instanceSize = gNvBlockSize;
+        entry.init = NvBlock_Init;
+        entry.destroy = NvBlock_Destroy;
+        entry.update = NvBlock_Update;
+        entry.draw = NULL;
+        id = ActorDB::Instance->AddEntry(entry).entry.id;
+    }
+    return id;
 }
 
 // RE1's enemies (soh/src/code/z_nv_enemy.c)

@@ -169,6 +169,13 @@ s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD, s32 s
     return false;
 }
 
+/** Carry Link to `to` (OoT units) as a climb does: RE1's climb onto a crate (z_nv_script.c). */
+void NvClimb_Carry(Player* player, Vec3f* to) {
+    sNvClimbFrom = player->actor.world.pos;
+    sNvClimbTo = *to;
+    sNvClimbTimer = NV_CLIMB_FRAMES;
+}
+
 /** Called first thing in Player_Update: while climbing, carry Link and skip his own update. */
 s32 NvClimb_UpdatePlayer(Player* player, PlayState* play) {
     f32 t;
