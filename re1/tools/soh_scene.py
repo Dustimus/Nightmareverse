@@ -443,14 +443,8 @@ def decode_message(raw, p):
         elif b == 3:
             out.append("^")
             p += 2
-        elif b == 4:  # text speed (and, as 04 00, a skipped block up to the next 04)
-            if p + 1 < len(raw) and raw[p + 1] == 0:
-                q = p + 2
-                while q < len(raw) and raw[q] != 4:
-                    q += 2 if raw[q] in (5, 6, 0xF8, 0xF9, 0xFA) else 1
-                p = q + 2
-            else:
-                p += 2
+        elif b == 4:  # text speed; 04 00 ... 04 xx shows the text between at once (it's still shown)
+            p += 2
         elif b == 5:
             out.append("%r" if raw[p + 1] else "%w")
             p += 2

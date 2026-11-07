@@ -223,7 +223,7 @@ def write_files(re1, out, jpn=None):
 # The lab's slide projector (504; the decomp's LabSlides.cpp): Data/slide.tim, 640x256 8-bit,
 # its six slides in 192x128 cells, slide i at x (i / 2) * 192, y (i % 2) * 128 drawn with CLUT i
 # (lab_slides_update's texture page and texV). RE1 shows 191x127 of each.
-SLIDE_W, SLIDE_H = 191, 127
+SLIDE_W, SLIDE_H = 192, 128  # (its whole cell: a texture row a multiple of 8 bytes)
 
 
 def slides_blob(re1):

@@ -52,6 +52,7 @@ static s32 sNvTermTimer;
 static s32 sNvTermRepeat;
 static u16 sNvTermLatch;
 static s32 sNvTermFrames;
+static ActorFunc sNvTermLinkDraw; // Link's draw, off while it's up (RE1 parks the player under the floor)
 
 s32 NvTerm_Up(void) {
     return sNvTerm != NV_TERM_OFF;
@@ -72,6 +73,8 @@ void NvTerm_Start(PlayState* play) {
     sNvTerm = NV_TERM_USER;
     NvCamera_CutLock(4);
     Player_SetCsAction(play, NULL, 8);
+    sNvTermLinkDraw = GET_PLAYER(play)->actor.draw;
+    GET_PLAYER(play)->actor.draw = NULL;
     printf("NVTERM up\n");
     fflush(stdout);
 }
@@ -79,6 +82,9 @@ void NvTerm_Start(PlayState* play) {
 static void NvTerm_Finish(PlayState* play) {
     sNvTerm = NV_TERM_OFF;
     NvCamera_CutRestore();
+    if (sNvTermLinkDraw != NULL) {
+        GET_PLAYER(play)->actor.draw = sNvTermLinkDraw;
+    }
     NvFlags_Op(0, 0x20, 1);
     Player_SetCsAction(play, NULL, 7);
     printf("NVTERM done\n");
@@ -314,16 +320,16 @@ void NvTerm_Draw(PlayState* play) {
     gDPSetRenderMode(OVERLAY_DISP++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
     gDPSetCombineMode(OVERLAY_DISP++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
     gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 0, 24, 8, 200);
-    gDPFillRectangle(OVERLAY_DISP++, 32, 24, 288, 216);
+    gDPFillRectangle(OVERLAY_DISP++, 32, 48, 288, 200);
     gDPPipeSync(OVERLAY_DISP++);
     gfx = OVERLAY_DISP;
     GfxPrint_Init(&printer);
     GfxPrint_Open(&printer, gfx);
-    NvTerm_Print(&printer, 5, 4, 120, 255, 120, "UMBRELLA  RESEARCH TERMINAL");
+    NvTerm_Print(&printer, 5, 7, 120, 255, 120, "UMBRELLA  RESEARCH TERMINAL");
     if ((sNvTerm == NV_TERM_USER) || (sNvTerm == NV_TERM_PASS) || (sNvTerm == NV_TERM_REFUSED) ||
         (sNvTerm == NV_TERM_GRANTED)) {
         snprintf(line, sizeof(line), "USER NAME: %s", sNvTermText[0]);
-        NvTerm_Print(&printer, 6, 7, 160, 255, 160, line);
+        NvTerm_Print(&printer, 6, 10, 160, 255, 160, line);
         if (sNvTerm != NV_TERM_USER) {
             char stars[NV_TERM_FIELD + 1];
             s32 k;
@@ -333,12 +339,12 @@ void NvTerm_Draw(PlayState* play) {
             }
             stars[k] = '\0';
             snprintf(line, sizeof(line), "PASSWORD:  %s", stars);
-            NvTerm_Print(&printer, 6, 9, 160, 255, 160, line);
+            NvTerm_Print(&printer, 6, 12, 160, 255, 160, line);
         }
         if (sNvTerm == NV_TERM_REFUSED) {
-            NvTerm_Print(&printer, 12, 11, 255, 90, 90, "ACCESS DENIED");
+            NvTerm_Print(&printer, 12, 14, 255, 90, 90, "ACCESS DENIED");
         } else if (sNvTerm == NV_TERM_GRANTED) {
-            NvTerm_Print(&printer, 12, 11, 120, 255, 120, "ACCESS GRANTED");
+            NvTerm_Print(&printer, 12, 14, 120, 255, 120, "ACCESS GRANTED");
         }
     } else if (sNvTerm == NV_TERM_MENU) {
         static const char* const sItems[3] = { "RELEASE LOCK 1", "RELEASE LOCK 2", "LOG OFF" };
@@ -348,16 +354,16 @@ void NvTerm_Draw(PlayState* play) {
             if (r < 2 && NvFlags_Test(2, (r == 0) ? 0x25 : 0x26)) {
                 strncat(line, "  (OPEN)", sizeof(line) - strlen(line) - 1);
             }
-            NvTerm_Print(&printer, 8, 8 + 2 * r, (r == sNvTermSel) ? 255 : 140, 255, (r == sNvTermSel) ? 160 : 140,
+            NvTerm_Print(&printer, 8, 11 + 2 * r, (r == sNvTermSel) ? 255 : 140, 255, (r == sNvTermSel) ? 160 : 140,
                          line);
         }
     } else {
         snprintf(line, sizeof(line), "LOCK %d  COMMAND: %s", sNvTermDoor + 1, sNvTermText[0]);
-        NvTerm_Print(&printer, 6, 7, 160, 255, 160, line);
+        NvTerm_Print(&printer, 6, 10, 160, 255, 160, line);
         if (sNvTerm == NV_TERM_BADCMD) {
-            NvTerm_Print(&printer, 12, 11, 255, 90, 90, "INVALID COMMAND");
+            NvTerm_Print(&printer, 12, 14, 255, 90, 90, "INVALID COMMAND");
         } else if (sNvTerm == NV_TERM_RELEASED) {
-            NvTerm_Print(&printer, 12, 11, 120, 255, 120, "LOCK RELEASED");
+            NvTerm_Print(&printer, 12, 14, 120, 255, 120, "LOCK RELEASED");
         }
     }
     if (typing) { // the keyboard, 8 x 4 (ENTER two keys tall, DEL two wide)
@@ -376,7 +382,7 @@ void NvTerm_Draw(PlayState* play) {
                 } else {
                     GfxPrint_SetColor(&printer, 90, 200, 90, 255);
                 }
-                GfxPrint_SetPos(&printer, 6 + c * 4, 15 + r * 2);
+                GfxPrint_SetPos(&printer, 6 + c * 4, 17 + r * 2);
                 GfxPrint_Printf(&printer, "%s", NvTerm_KeyName(cell));
             }
         }

@@ -245,7 +245,7 @@ static void NvSlides_Draw(PlayState* play) {
     s32 dim;
     s32 y;
 
-    if ((sNvSld == NV_SLD_OFF) || (sNvSld == NV_SLD_WAIT)) {
+    if ((sNvSld == NV_SLD_OFF) || (sNvSld == NV_SLD_WAIT) || (x0 >= lx1) || (x0 + 191 <= lx0)) {
         return;
     }
     dim = !sNvSldLoopDone && (sNvSldIndex == 5); // (its first showing: the light alone)
@@ -278,8 +278,9 @@ static void NvSlides_Draw(PlayState* play) {
             gDPLoadTextureBlock(OVERLAY_DISP++, px + y * w, G_IM_FMT_RGBA, G_IM_SIZ_16b, w, rows, 0,
                                 G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
                                 G_TX_NOLOD, G_TX_NOLOD);
-            gSPTextureRectangle(OVERLAY_DISP++, x0 << 2, (y0 + y) << 2, (x0 + w) << 2, (y0 + y + rows) << 2,
-                                G_TX_RENDERTILE, 0, 0, 1 << 10, 1 << 10);
+            // (clipped here to the light: a rectangle off the screen's left loses its texture)
+            gSPTextureRectangle(OVERLAY_DISP++, MAX(x0, lx0) << 2, (y0 + y) << 2, MIN(x0 + w, lx1) << 2,
+                                (y0 + y + rows) << 2, G_TX_RENDERTILE, (MAX(x0, lx0) - x0) << 5, 0, 1 << 10, 1 << 10);
         }
     }
     gDPPipeSync(OVERLAY_DISP++);

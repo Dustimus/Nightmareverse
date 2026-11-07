@@ -296,7 +296,12 @@ def camera_data(cam):
     yaw = math.atan2(d[0], d[2])
     pitch = math.atan2(d[1], math.hypot(d[0], d[2]))
     binang = lambda a: int(round(a * 0x8000 / math.pi))  # noqa: E731
-    fov = int(round(math.degrees(2 * math.atan(120.0 / cam.unknown[2])) * 100))
+    h = cam.unknown[2]
+    if h > 1000:
+        # 408's panel close-up (the only such camera) ships 3436: RE1 draws it at 0xC0 instead
+        # (InteractiveScreen.cpp passcode_panel_init writes camera 5's field)
+        h = 0xC0
+    fov = int(round(math.degrees(2 * math.atan(120.0 / h)) * 100))
     return [int(round(c)) for c in eye], (binang(-pitch), binang(yaw), 0), fov
 
 

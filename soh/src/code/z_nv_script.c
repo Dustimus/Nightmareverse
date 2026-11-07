@@ -140,6 +140,7 @@ static s32 sNvContinue;
  * bit 0, the return flag, too), but bank 7, the room items' flags (set: the item still lies
  * there), all set but items 1 and 172.
  */
+void NvFlags_Op(s32 bank, s32 bit, s32 mode);
 static void NvFlags_NewGame(void) {
     static s32 sDone = false;
 
@@ -151,6 +152,20 @@ static void NvFlags_NewGame(void) {
     memset(sNvFlags[7], 0xFF, sizeof(sNvFlags[7]));
     sNvFlags[7][1 >> 5] &= ~(0x80000000u >> (1 & 31));
     sNvFlags[7][172 >> 5] &= ~(0x80000000u >> (172 & 31));
+    if (getenv("NV_FLAGS") != NULL) { // dev: NV_FLAGS="bank:bit,bank:bit" (hex bits) set from the start
+        const char* f = getenv("NV_FLAGS");
+        int b;
+        int n;
+
+        while (sscanf(f, "%d:%x", &b, &n) == 2) {
+            NvFlags_Op(b, n, 0);
+            f = strchr(f, ',');
+            if (f == NULL) {
+                break;
+            }
+            f++;
+        }
+    }
     // bank 0 bit 0 stays clear: it's the return flag (set once back from the guardhouse:
     // SCENARIO_FLAG_STAGE_VARIANT, which also sends doors to stages 6 and 7), not the character.
     // The first visit's rooms test it clear (210 only brings Yawn in while it is); the character
