@@ -10,8 +10,7 @@
  * The slot is the run: the script flags and state block (z_nv_script.c: every story, lock, enemy
  * and item flag), the items and the box (z_nv_items.c), the files found (z_nv_files.c), the rooms'
  * music (z_nv_sound.c), the clock and the saves (z_nv_ending.c), and where she stood (the room's
- * scene, the spot, the facing) with Link's health, and where the mansion's song was played (the way
- * back out after the ending). It lives next to the Ship save it belongs to
+ * scene, the spot, the facing) with Link's health. It lives next to the Ship save it belongs to
  * (Save/nv_re1_<file>.sav: NvSaveFile.cpp).
  *
  * Going into the mansion with its song ("Clowns Farting in Basement") loads it: back in the room it was written in, where she
@@ -54,7 +53,7 @@ void NvMsg_Show(PlayState* play, const char* text);
 s16 NvDoor_Entrance(const char* sceneFile, s32 spawn);
 void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
 
-#define NV_SAVE_MAGIC "NVS2" // (NVS1: without the way home)
+#define NV_SAVE_MAGIC "NVS1"
 #define NV_SAVE_MAX 0x4000
 #define NV_ITEM_INK_RIBBON 0x2F
 
@@ -63,8 +62,6 @@ typedef struct {
     f32 pos[3];
     s16 yaw;
     s16 health;
-    s16 home; // the entrance of where the mansion's song was played (the way back out), or -1
-    s16 pad;
 } NvSaveWhere;
 
 static u8 sNvSaveBuf[NV_SAVE_MAX];
@@ -72,16 +69,11 @@ static s32 sNvTypewriter;     // 0 idle, 1 asked, 2 answered
 static s32 sNvTypewriterRibbon; // the question was the ribbon's (one is spent: always, as she needs them)
 static s32 sNvSavePending;    // a loaded slot's spot, for Link once he's in the room
 static NvSaveWhere sNvSaveWhere;
-static s16 sNvHome = -1; // where the mansion's song was played: the entrance Link came into that place by
 
-/** The mansion's song played (z_nv_script.c NvWarp_SongEntrance): remember the way back out. */
-void NvSave_NoteHome(s16 entrance) {
-    sNvHome = entrance;
-}
-
-/** The way back to Hyrule after the ending: where the song was played, or the graveyard's warp pad. */
+/** The way back to Hyrule after the ending: always the same place, Kakariko's front gate (the user's
+ * choice; the mansion "canonically in Kakariko"). */
 s16 NvSave_Home(void) {
-    return (sNvHome >= 0) ? sNvHome : ENTR_GRAVEYARD_WARP_PAD;
+    return ENTR_KAKARIKO_VILLAGE_FRONT_GATE;
 }
 
 /** The run, to the slot. */
@@ -102,7 +94,6 @@ static s32 NvSave_Write(PlayState* play) {
         where.yaw = player->actor.shape.rot.y;
     }
     where.health = gSaveContext.health;
-    where.home = sNvHome;
     memcpy(p, NV_SAVE_MAGIC, 4);
     p += 4;
     memcpy(p, &where, sizeof(where));
@@ -170,9 +161,6 @@ s16 NvSave_Enter(void) {
     NvBgm_LoadState(p);
     p += NvBgm_SaveState(NULL);
     NvEnding_LoadState(p);
-    if (sNvHome < 0) { // (going in from somewhere new: that's the way out now)
-        sNvHome = sNvSaveWhere.home;
-    }
     sNvSavePending = true;
     printf("NVSAVE loaded: %s\n", sNvSaveWhere.scene);
     fflush(stdout);

@@ -1949,16 +1949,10 @@ s16 NvWarp_SongEntrance(s32 song, s16 entrance) {
         return entrance;
     }
     sNvWarpIn = true;
-    // the run's save, if there's one: back where it was written (z_nv_save.c); else a new run. And
-    // the way back out after the ending: where the song was played (the entrance into that place)
+    // the run's save, if there's one: back where it was written (z_nv_save.c); else a new run
     {
-        void NvSave_NoteHome(s16 entrance);
-        s16 saved;
+        s16 saved = NvSave_Enter();
 
-        if ((gPlayState != NULL) && (gPlayState->sceneNum < SCENE_RE1_100)) {
-            NvSave_NoteHome(gSaveContext.entranceIndex);
-        }
-        saved = NvSave_Enter();
         if (saved >= 0) {
             return saved;
         }

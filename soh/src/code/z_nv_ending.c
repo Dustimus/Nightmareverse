@@ -20,7 +20,7 @@
  * count, held until a button (or 76 seconds), faded out; after ending 7 the special key's epilogue
  * (its picture and two plates, held nine seconds). The pictures are the player's own (re1/ui/result:
  * soh_ui.result_blob). RE1 then saves the cleared game and goes to its title; here, for now, Link
- * is put back in Hyrule where he played the mansion's song (that place's entrance: z_nv_save.c). The time is the run's
+ * is put back in Hyrule at Kakariko's front gate (z_nv_save.c NvSave_Home). The time is the run's
  * RE1 ticks; the saves, the typewriter's (z_nv_save.c).
  */
 #include "global.h"
@@ -342,7 +342,7 @@ s32 NvEnding_Update(PlayState* play) {
             return true;
         case NV_END_GONE: // (black until the scene changes)
             return false;
-        case NV_END_LEAVE: // for now: back to Hyrule, where the mansion's song was played
+        case NV_END_LEAVE: // for now: back to Hyrule, at Kakariko
             sNvEnd = NV_END_GONE;
             printf("NVEND back to Hyrule\n");
             fflush(stdout);
