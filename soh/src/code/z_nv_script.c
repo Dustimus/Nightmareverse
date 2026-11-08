@@ -2546,6 +2546,23 @@ void NvScript_Update(PlayState* play) {
         // game_loop's per-frame resets: the item-use flags (bank 9: the room's script raises an
         // item's bit while it can be used where she stands) and the dice the scripts roll (state
         // word 3, g_RandSeed)
+        {
+            // (before the item-use flags are cleared: the status screen's Use sees last tick's, as RE1's)
+            static s32 sUseDone;
+            int ui;
+            int uf;
+
+            // dev: NV_USE="item,frame" uses that item from the slots once (the status screen's Use)
+            if (!sUseDone && (getenv("NV_USE") != NULL) &&
+                (sscanf(getenv("NV_USE"), "%i,%d", &ui, &uf) == 2) && (play->gameplayFrames >= (u32)uf)) {
+                s32 NvItems_Use(PlayState* play, s32 i);
+
+                sUseDone = true;
+                printf("NVUSE dev: item %02X in slot %d -> %d\n", ui, (int)NvItems_Find(ui),
+                       (NvItems_Find(ui) >= 0) ? (int)NvItems_Use(play, NvItems_Find(ui)) : -9);
+                fflush(stdout);
+            }
+        }
         memset(sNvFlags[9], 0, sizeof(sNvFlags[9]));
         sNvStateWord[3] = (u16)(Rand_Next() >> 16);
         NvCountdown_Tick(play); // (and game_loop's countdown: z_nv_ending.c)
@@ -2567,20 +2584,6 @@ void NvScript_Update(PlayState* play) {
             int en;
             int ef;
 
-            static s32 sUseDone;
-            int ui;
-            int uf;
-
-            // dev: NV_USE="item,frame" uses that item from the slots once (the status screen's Use)
-            if (!sUseDone && (getenv("NV_USE") != NULL) &&
-                (sscanf(getenv("NV_USE"), "%i,%d", &ui, &uf) == 2) && (play->gameplayFrames >= (u32)uf)) {
-                s32 NvItems_Use(PlayState* play, s32 i);
-
-                sUseDone = true;
-                printf("NVUSE dev: item %02X in slot %d -> %d\n", ui, (int)NvItems_Find(ui),
-                       (NvItems_Find(ui) >= 0) ? (int)NvItems_Use(play, NvItems_Find(ui)) : -9);
-                fflush(stdout);
-            }
             if (!sEvtDone && (getenv("NV_EVT_AT") != NULL) &&
                 (sscanf(getenv("NV_EVT_AT"), "%d,%d,%d", &es, &en, &ef) == 3) && (play->gameplayFrames >= (u32)ef)) {
                 sEvtDone = true;
