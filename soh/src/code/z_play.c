@@ -667,6 +667,7 @@ void NvPanel_Draw(PlayState* play);
 s32 NvEnding_Update(PlayState* play);
 void NvEnding_Draw(PlayState* play);
 void NvCountdown_Draw(PlayState* play);
+void NvLight_Draw(PlayState* play);
 s32 NvFilesUi_Update(PlayState* play);
 void NvFilesUi_Draw(PlayState* play);
 
@@ -1338,6 +1339,7 @@ void Play_DrawOverlayElements(PlayState* play) {
         GameOver_FadeInLights(play);
     }
 
+    NvLight_Draw(play); // Nightmareverse: a room's special light over it (z_nv_script.c, cmd 0x1C)
     NvMovie_Draw(play); // Nightmareverse: an RE1 movie, over everything (z_nv_movie.c)
     NvEnding_Draw(play); // ...and RE1's results after an ending (z_nv_ending.c)
     NvBoxUi_Draw(play); // ...and RE1's item box screen (z_nv_box.c)

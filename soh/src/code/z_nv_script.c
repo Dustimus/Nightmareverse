@@ -21,6 +21,7 @@
  * 0x80000000 >> n % 32). They last for the session; saving them comes with the save system.
  */
 #include "global.h"
+#include "soh/OTRGlobals.h"
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/resourcebridge.h>
 #include <math.h>
@@ -261,6 +262,15 @@ s32 NvItems_Slot(s32 i, s32* qty);
 static u8 sNvStateSet[256];
 static u8 sNvStateVal[256];
 
+// the room's special light (cmd_room_light_fade_set, main_loop's g_FadingRect): a colour over the
+// whole screen, its strength stepping by the delta each tick until it runs past either end
+static s16 sNvLightState = -1; // g_SpecialRoomLightState (negative: off)
+static s16 sNvLightDelta;
+static u8 sNvLightMode; // its blend: 0 half, 1 added, 2 taken away, 3 a quarter added
+static u8 sNvLightR;
+static u8 sNvLightG;
+static u8 sNvLightB;
+
 /** A new RE1 run (z_nv_save.c): the flags and the state block as a new game has them. */
 void NvScript_NewRun(void) {
     memset(sNvStateSet, 0, sizeof(sNvStateSet));
@@ -466,6 +476,22 @@ static s32 NvScd_Cmd(void) {
                 NvItems_Unequip();
             }
             sNvIp = p + NvScd_Len(p);
+            return 1;
+        case 0x1C: // cmd_room_light_fade_set: the screen's coloured flash or fade (NvLight_Draw)
+            sNvLightMode = p[1];
+            sNvLightDelta = (s16)(p[2] | (p[3] << 8));
+            sNvLightB = (p[4] & 1) ? 0xFF : 0;
+            sNvLightG = (p[4] & 2) ? 0xFF : 0;
+            sNvLightR = (p[4] & 4) ? 0xFF : 0;
+            if (sNvLightDelta != 0) {
+                sNvLightState = (sNvLightDelta < 1) ? 0x7FFF : 0;
+            }
+            if (getenv("NV_LOG")) {
+                printf("NVLIGHT mode %d delta %d colour %d%d%d\n", sNvLightMode, sNvLightDelta, sNvLightR != 0,
+                       sNvLightG != 0, sNvLightB != 0);
+                fflush(stdout);
+            }
+            sNvIp = p + 6;
             return 1;
         case 0x4A: // cmd_bgm_restore: the music put aside by 0x4B starts again
             NvBgm_ScdRestore();
@@ -1979,6 +2005,8 @@ s32 NvScript_RoomNum(void) {
 
 void NvScript_RoomInit(PlayState* play) {
     NvFlags_NewGame();
+    sNvLightState = -1; // (room_set: the special light off)
+    sNvLightDelta = 0;
     NvWarp_Arrive(play);
     if (play->sceneNum < SCENE_RE1_100) {
         NvBgm_Leave(); // out of the mansion: RE1's sounds stop
@@ -2495,6 +2523,9 @@ void NvScript_Update(PlayState* play) {
         memset(sNvFlags[9], 0, sizeof(sNvFlags[9]));
         sNvStateWord[3] = (u16)(Rand_Next() >> 16);
         NvCountdown_Tick(play); // (and game_loop's countdown: z_nv_ending.c)
+        if (sNvLightState >= 0) { // main_loop's special light, a step a tick
+            sNvLightState += sNvLightDelta;
+        }
         sNvCamera = cam;
         if (cam != sNvLastCamera) { // a camera switch: game_loop's pending redraw, for one frame
             NvFlags_Op(5, NV_MSF_CAMERA_REDRAW, 0);
@@ -2555,4 +2586,73 @@ void NvScript_Update(PlayState* play) {
             NvCast_Update(play, live); // the player, while a scene walks her
         }
     }
+}
+
+/**
+ * main_loop's special light over the room (z_play.c): its colour masked by the strength (state >> 7),
+ * blended as RE1's draw_rect would (added, taken away, half) - here as see-through colour. Not in
+ * the rooms RE1 leaves it out of (the courtyard's garden, water gate and falls, the fountain's
+ * first camera, the boulder passage's second, the lab's lift and its entry).
+ */
+void NvLight_Draw(PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    s32 m;
+    s32 r;
+    s32 g;
+    s32 b;
+    s32 a;
+    s32 st = sNvStage;
+    s32 rm = sNvRoom;
+
+    if ((sNvLightState < 0) || (play->sceneNum < SCENE_RE1_100) || (sNvMain == NULL)) {
+        return;
+    }
+    if ((st == 2) && ((rm <= 2) || ((rm == 5) && (sNvCamera == 0)) || ((rm == 0x0F) && (sNvCamera == 1)) ||
+                      ((rm == 0x10) && (sNvCamera == 0)))) {
+        return;
+    }
+    if ((st == 4) && (rm == 0)) {
+        return;
+    }
+    m = (sNvLightState >> 7) & 0xFF;
+    r = sNvLightR & m;
+    g = sNvLightG & m;
+    b = sNvLightB & m;
+    if ((st == 2) && (rm == 5) && (sNvCamera == 3)) { // (the fountain's third camera: doubled)
+        r = MIN(r * 2, 255);
+        g = MIN(g * 2, 255);
+        b = MIN(b * 2, 255);
+    }
+    a = MAX(r, MAX(g, b));
+    if (a == 0) {
+        return;
+    }
+    switch (sNvLightMode & 3) {
+        case 2: // taken away: the screen darkened by it
+            r = g = b = 0;
+            a = a * 3 / 4;
+            break;
+        case 0: // half and half
+            a = a / 2;
+            break;
+        case 3: // a quarter added
+            a = a / 4;
+            break;
+        default: // added: its colour, as strong as it is
+            a = a * 3 / 4;
+            r = r ? 255 : 0;
+            g = g ? 255 : 0;
+            b = b ? 255 : 0;
+            break;
+    }
+    OPEN_DISPS(gfxCtx);
+    gDPPipeSync(OVERLAY_DISP++);
+    gDPSetCycleType(OVERLAY_DISP++, G_CYC_1CYCLE);
+    gDPSetRenderMode(OVERLAY_DISP++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
+    gDPSetCombineMode(OVERLAY_DISP++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+    gDPSetPrimColor(OVERLAY_DISP++, 0, 0, r, g, b, a);
+    gDPFillWideRectangle(OVERLAY_DISP++, OTRGetRectDimensionFromLeftEdge(0), 0,
+                         OTRGetRectDimensionFromRightEdge(SCREEN_WIDTH), SCREEN_HEIGHT);
+    gDPPipeSync(OVERLAY_DISP++);
+    CLOSE_DISPS(gfxCtx);
 }
