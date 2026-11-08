@@ -13,7 +13,7 @@
  * scene, the spot, the facing) with Link's health. It lives next to the Ship save it belongs to
  * (Save/nv_re1_<file>.sav: NvSaveFile.cpp).
  *
- * Going into the mansion with its song ("Clowns Farting in Basement") loads it: back in the room it was written in, where she
+ * Going into the mansion with its song ("Clowns Farting in Basement") loads it, as does dying there: back in the room it was written in, where she
  * stood; with no slot, a new run from the foyer. A finished run (the ending) clears it.
  */
 #include "global.h"
@@ -167,6 +167,26 @@ s16 NvSave_Enter(void) {
     return entrance;
 }
 
+/**
+ * Game over in the mansion, continuing (z_kaleido_scope_PAL.c): the entrance to go to instead of
+ * OoT's respawn - the typewriter save's room (the run loaded from it), or the foyer for a new run.
+ * -1 outside the mansion.
+ */
+s16 NvSave_Died(PlayState* play) {
+    s16 e;
+
+    if (play->sceneNum < SCENE_RE1_100) {
+        return -1;
+    }
+    e = NvSave_Enter();
+    if (e < 0) {
+        e = NvDoor_Entrance("re1_106_scene", 0);
+    }
+    printf("NVSAVE died: back to entrance 0x%X\n", (int)e);
+    fflush(stdout);
+    return e;
+}
+
 /** The run's over (the ending): its slot goes, the next time in is a new run. */
 void NvSave_Finished(void) {
     NvSaveFile_Delete(gSaveContext.fileNum);
@@ -191,7 +211,10 @@ void NvSave_Typewriter(PlayState* play) {
 void NvSave_Update(PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (sNvSavePending && (player != NULL) && (play->sceneNum >= SCENE_RE1_100)) {
+    if (sNvSavePending && (player != NULL) && (play->sceneNum >= SCENE_RE1_100) &&
+        (play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->loadedScene != NULL) &&
+        (play->loadedScene->sceneFile.fileName != NULL) &&
+        (strcmp(play->loadedScene->sceneFile.fileName, sNvSaveWhere.scene) == 0)) { // (in its room)
         sNvSavePending = false;
         player->actor.world.pos.x = player->actor.home.pos.x = sNvSaveWhere.pos[0];
         player->actor.world.pos.y = player->actor.home.pos.y = sNvSaveWhere.pos[1];

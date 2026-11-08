@@ -4791,6 +4791,17 @@ void KaleidoScope_Update(PlayState* play) {
                     if (pauseCtx->promptChoice == 0 && GameInteractor_Should(VB_BE_ABLE_TO_SAVE, true)) {
                         Play_TriggerRespawn(play);
                         gSaveContext.respawnFlag = -2;
+                        {
+                            // Nightmareverse: dying in RE1's mansion goes back to the run's typewriter
+                            // save (a new run without one), as RE1's death goes to its load screen
+                            s16 NvSave_Died(PlayState * play);
+                            s16 re1 = NvSave_Died(play);
+
+                            if (re1 >= 0) {
+                                play->nextEntranceIndex = re1;
+                                gSaveContext.respawnFlag = 0;
+                            }
+                        }
                         // Reset frame counter to prevent autosave on respawn
                         play->gameplayFrames = 0;
                         gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
