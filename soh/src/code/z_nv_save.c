@@ -3,9 +3,9 @@
  *
  * A typewriter (a room action with handler 0x10: PlayerAnimations.cpp check_typewriter,
  * RoomEvents.cpp check_typewriter_state): with an INK RIBBON, "Will you use the INK RIBBON?" and
- * one is spent; without one, Jill on a first run saves anyway, as RE1's PC release lets her ("Will
- * you save your progress?"); after a cleared game she needs ribbons ("If I had an INK RIBBON...").
- * Yes writes the slot, RE1's save screen being just this one place.
+ * one is spent; without one, "If I had an INK RIBBON...". Jill needs them: the console (and PC
+ * second-run) rule, the user's choice (re1/README.md, 2026-10-31) over the PC's first-run Jill, who
+ * saves without. Yes writes the slot, RE1's save screen being just this one place.
  *
  * The slot is the run: the script flags and state block (z_nv_script.c: every story, lock, enemy
  * and item flag), the items and the box (z_nv_items.c), the files found (z_nv_files.c), the rooms'
@@ -56,7 +56,6 @@ void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
 #define NV_SAVE_MAGIC "NVS1"
 #define NV_SAVE_MAX 0x4000
 #define NV_ITEM_INK_RIBBON 0x2F
-#define NV_SCN_SECOND_RUN 0x7B // scenario flag: a cleared game (SCENARIO_FLAG_SECOND_PLAYTHROUGH)
 
 typedef struct {
     char scene[32]; // the room's scene file
@@ -67,7 +66,7 @@ typedef struct {
 
 static u8 sNvSaveBuf[NV_SAVE_MAX];
 static s32 sNvTypewriter;     // 0 idle, 1 asked, 2 answered
-static s32 sNvTypewriterRibbon; // the question was the ribbon's (one is spent)
+static s32 sNvTypewriterRibbon; // the question was the ribbon's (one is spent: always, as she needs them)
 static s32 sNvSavePending;    // a loaded slot's spot, for Link once he's in the room
 static NvSaveWhere sNvSaveWhere;
 
@@ -175,9 +174,6 @@ void NvSave_Typewriter(PlayState* play) {
     if (NvItems_Find(NV_ITEM_INK_RIBBON) >= 0) {
         NvScript_Ask(play, 0xC0 | 0x1F); // "You can save your progress with this. Will you use the INK RIBBON?"
         sNvTypewriterRibbon = true;
-    } else if (!NvFlags_Test(0, NV_SCN_SECOND_RUN)) {
-        NvScript_Ask(play, 0xC0 | 0x20); // "... Will you save your progress?" (the PC's first run)
-        sNvTypewriterRibbon = false;
     } else {
         NvScript_SayItem(play, 0xC0 | 0x1E, 0); // "It's an old typewriter. If I had an INK RIBBON..."
         return;
