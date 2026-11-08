@@ -24,6 +24,25 @@ void NvSound_Menu(u16 sfx);
 static u8 sNvFiles[NV_FILES_MAX];
 static s32 sNvFileCount;
 
+/** The files found, for the typewriter's save (z_nv_save.c): its size, written to p if not NULL. */
+u32 NvFiles_SaveState(u8* p) {
+    if (p != NULL) {
+        memcpy(p, sNvFiles, sizeof(sNvFiles));
+        p[sizeof(sNvFiles)] = (u8)sNvFileCount;
+    }
+    return sizeof(sNvFiles) + 1;
+}
+
+void NvFiles_LoadState(const u8* p) {
+    memcpy(sNvFiles, p, sizeof(sNvFiles));
+    sNvFileCount = MIN(p[sizeof(sNvFiles)], (s32)sizeof(sNvFiles));
+}
+
+void NvFiles_NewRun(void) {
+    memset(sNvFiles, 0, sizeof(sNvFiles));
+    sNvFileCount = 0;
+}
+
 static const u8* sNvReadPages; // the open file's "RFIL" blob, or NULL
 // its backdrop from the Japanese PC release ("RFIB", re1/tools/soh_ui.py backdrop_blob: u16 width,
 // height, then RGBA5551), or NULL: a scanned paper picture behind the pages, as the Japanese

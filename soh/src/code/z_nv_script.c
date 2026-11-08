@@ -144,14 +144,15 @@ static s32 sNvContinue;
  */
 static u16 sNvStateWord[128];
 void NvFlags_Op(s32 bank, s32 bit, s32 mode);
-static void NvFlags_NewGame(void) {
-    static s32 sDone = false;
+static s32 sNvRunReady; // the run's flags are set up (a new game's, or a typewriter save's)
 
-    if (sDone) {
+static void NvFlags_NewGame(void) {
+    if (sNvRunReady) {
         return;
     }
-    sDone = true;
+    sNvRunReady = true;
     memset(sNvFlags, 0, sizeof(sNvFlags));
+    memset(sNvStateWord, 0, sizeof(sNvStateWord));
     memset(sNvFlags[7], 0xFF, sizeof(sNvFlags[7]));
     sNvFlags[7][1 >> 5] &= ~(0x80000000u >> (1 & 31));
     sNvFlags[7][172 >> 5] &= ~(0x80000000u >> (172 & 31));
@@ -259,6 +260,42 @@ s32 NvItems_Slot(s32 i, s32* qty);
 // 0x31): what a room's script sets for later ones to test (the stage, room and camera are live)
 static u8 sNvStateSet[256];
 static u8 sNvStateVal[256];
+
+/** A new RE1 run (z_nv_save.c): the flags and the state block as a new game has them. */
+void NvScript_NewRun(void) {
+    memset(sNvStateSet, 0, sizeof(sNvStateSet));
+    memset(sNvStateVal, 0, sizeof(sNvStateVal));
+    sNvRunReady = false;
+    NvFlags_NewGame();
+}
+
+/** The run's script state for the typewriter's save (z_nv_save.c): its size, written to p if not NULL. */
+u32 NvScript_SaveState(u8* p) {
+    u32 n = sizeof(sNvFlags) + sizeof(sNvStateWord) + sizeof(sNvStateSet) + sizeof(sNvStateVal);
+
+    if (p != NULL) {
+        memcpy(p, sNvFlags, sizeof(sNvFlags));
+        p += sizeof(sNvFlags);
+        memcpy(p, sNvStateWord, sizeof(sNvStateWord));
+        p += sizeof(sNvStateWord);
+        memcpy(p, sNvStateSet, sizeof(sNvStateSet));
+        p += sizeof(sNvStateSet);
+        memcpy(p, sNvStateVal, sizeof(sNvStateVal));
+    }
+    return n;
+}
+
+void NvScript_LoadState(const u8* p) {
+    memcpy(sNvFlags, p, sizeof(sNvFlags));
+    p += sizeof(sNvFlags);
+    memcpy(sNvStateWord, p, sizeof(sNvStateWord));
+    p += sizeof(sNvStateWord);
+    memcpy(sNvStateSet, p, sizeof(sNvStateSet));
+    p += sizeof(sNvStateSet);
+    memcpy(sNvStateVal, p, sizeof(sNvStateVal));
+    memset(sNvFlags[9], 0, sizeof(sNvFlags[9])); // (the item-use flags are per frame)
+    sNvRunReady = true;
+}
 
 
 /** The state block's word i (4: the self-destruct countdown, z_nv_ending.c). */
@@ -1560,6 +1597,12 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         NvEvt_Create(sNvAot[i].param[0] & 0xFF, sNvAot[i].param[1] & 0xFF);
         return true;
     }
+    if (sNvAot[i].handler == 0x10) { // check_typewriter: the run's save (z_nv_save.c)
+        void NvSave_Typewriter(PlayState * play);
+
+        NvSave_Typewriter(play);
+        return true;
+    }
     if (sNvAot[i].handler == 7) { // flag_bank_set on the action press
         NvAot_FlagSet(&sNvAot[i]);
         return true;
@@ -1887,6 +1930,8 @@ void NvSong_PlayClip(void) {
     NvMovie_SoundClip(NV_SONG_CLIP_MOVIE, NV_SONG_CLIP_START_MS, NV_SONG_CLIP_LENGTH_MS);
 }
 
+s16 NvSave_Enter(void);
+
 s16 NvWarp_SongEntrance(s32 song, s16 entrance) {
     s16 foyer;
 
@@ -1904,6 +1949,14 @@ s16 NvWarp_SongEntrance(s32 song, s16 entrance) {
         return entrance;
     }
     sNvWarpIn = true;
+    // the run's save, if there's one: back where it was written (z_nv_save.c); else a new run
+    {
+        s16 saved = (song == NV_WARP_SONG) ? NvSave_Enter() : -1;
+
+        if (saved >= 0) {
+            return saved;
+        }
+    }
     return foyer;
 }
 
@@ -2393,6 +2446,7 @@ static void NvObj_Update(PlayState* play) {
 }
 
 void NvPanel_Update(PlayState* play);
+void NvSave_Update(PlayState* play);
 void NvCountdown_Tick(PlayState* play);
 
 void NvScript_Update(PlayState* play) {
@@ -2408,6 +2462,7 @@ void NvScript_Update(PlayState* play) {
     }
     gNvSunSongSeen = false;
     NvPickup_Update(play); // an item prompt's answer
+    NvSave_Update(play);   // the typewriter's answer, a loaded save's spot (z_nv_save.c)
     NvPanel_Update(play);  // a screen the room's script put up (z_nv_panel.c)
     if ((play->sceneNum >= SCENE_RE1_100) && !NvDoorScene_Covering()) { // off the boxes its scripts moved
         s32 NvRe1_PushPlayer(s32* x, s32* z);

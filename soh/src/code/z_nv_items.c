@@ -31,6 +31,36 @@ static NvItemSlot sNvBox[NV_BOX_SLOTS];
 static u8 sNvMapsOwned; // bit n: map item 0x4E + n
 static s8 sNvEquipped;  // RE1's g_EquippedItemId: the equipped slot, one-based (0: none)
 
+/** The run's items for the typewriter's save (z_nv_save.c): its size, written to p if not NULL. */
+u32 NvItems_SaveState(u8* p) {
+    u32 n = sizeof(sNvSlots) + sizeof(sNvBox) + 2;
+
+    if (p != NULL) {
+        memcpy(p, sNvSlots, sizeof(sNvSlots));
+        memcpy(p + sizeof(sNvSlots), sNvBox, sizeof(sNvBox));
+        p[n - 2] = sNvMapsOwned;
+        p[n - 1] = (u8)sNvEquipped;
+    }
+    return n;
+}
+
+void NvItems_LoadState(const u8* p) {
+    u32 n = sizeof(sNvSlots) + sizeof(sNvBox) + 2;
+
+    memcpy(sNvSlots, p, sizeof(sNvSlots));
+    memcpy(sNvBox, p + sizeof(sNvSlots), sizeof(sNvBox));
+    sNvMapsOwned = p[n - 2];
+    sNvEquipped = (s8)p[n - 1];
+}
+
+/** A new run: nothing carried, the box empty. */
+void NvItems_NewRun(void) {
+    memset(sNvSlots, 0, sizeof(sNvSlots));
+    memset(sNvBox, 0, sizeof(sNvBox));
+    sNvMapsOwned = 0;
+    sNvEquipped = 0;
+}
+
 // The items' plain names, by RE1's item id (Types.h ITEM_*)
 static const char* sNvItemNames[0x54] = {
     "",

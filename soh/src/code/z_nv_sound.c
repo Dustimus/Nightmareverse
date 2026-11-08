@@ -33,6 +33,22 @@ static u8 sNvBgmState = 0xFF;      // g_BGM_STATE: what's playing
 static s32 sNvBgmStage = -1;       // the room that state belongs to
 static s32 sNvBgmRoom = -1;
 
+/** The rooms' music states, for the typewriter's save (z_nv_save.c): its size, written to p if not NULL. */
+u32 NvBgm_SaveState(u8* p) {
+    if (p != NULL) {
+        memcpy(p, sNvRoomBgmState, sizeof(sNvRoomBgmState));
+    }
+    return sizeof(sNvRoomBgmState);
+}
+
+void NvBgm_LoadState(const u8* p) {
+    memcpy(sNvRoomBgmState, p, sizeof(sNvRoomBgmState));
+}
+
+void NvBgm_NewRun(void) {
+    memset(sNvRoomBgmState, 0, sizeof(sNvRoomBgmState));
+}
+
 static u8 NvBgm_Group(s32 stage, s32 room, u8 state) {
     if ((stage < 0) || (stage >= 7) || (room < 0) || (room >= 32) || (state == 0xFF)) {
         return 0xFF;

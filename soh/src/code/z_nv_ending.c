@@ -21,7 +21,7 @@
  * (its picture and two plates, held nine seconds). The pictures are the player's own (re1/ui/result:
  * soh_ui.result_blob). RE1 then saves the cleared game and goes to its title; here, for now, Link
  * is put back in Hyrule at the Nocturne's warp pad (the song he came in by). The time is the run's
- * RE1 ticks; the saves are none (there's no saving yet).
+ * RE1 ticks; the saves, the typewriter's (z_nv_save.c).
  */
 #include "global.h"
 #include "soh/OTRGlobals.h"
@@ -34,6 +34,7 @@
 s32 NvFlags_Test(s32 bank, s32 bit);
 void NvFlags_Op(s32 bank, s32 bit, s32 mode);
 u16* NvScript_StateWord(s32 i);
+void NvSave_Finished(void);
 void NvMovie_Start(s32 id);
 s32 NvMovie_Playing(void);
 
@@ -51,6 +52,31 @@ static s32 sNvEndMovie;
 static s32 sNvEndCount;
 static s32 sNvEndId;
 static u32 sNvRunTicks; // the run's clock (Game_timer: 30 a second)
+static u16 sNvRunSaves; // the times saved at a typewriter (the results' count)
+
+/** The run's clock and saves, for the typewriter's save (z_nv_save.c). */
+u32 NvEnding_SaveState(u8* p) {
+    if (p != NULL) {
+        memcpy(p, &sNvRunTicks, 4);
+        memcpy(p + 4, &sNvRunSaves, 2);
+    }
+    return 6;
+}
+
+void NvEnding_LoadState(const u8* p) {
+    memcpy(&sNvRunTicks, p, 4);
+    memcpy(&sNvRunSaves, p + 4, 2);
+}
+
+void NvEnding_NewRun(void) {
+    sNvRunTicks = 0;
+    sNvRunSaves = 0;
+}
+
+/** A typewriter save: one more for the results. */
+void NvEnding_CountSave(void) {
+    sNvRunSaves++;
+}
 static s32 sNvTickPhase;
 
 /* the results' pictures: 0 Jill's backdrop, 1 en05's plates, 2 en07's, 3 the epilogue's picture */
@@ -133,6 +159,7 @@ static void NvEnding_Begin(void) {
     sNvEndMovie = 0;
     sNvEndCount = 0;
     sNvEndId = id;
+    NvSave_Finished(); // (the run's done: next time in is a new one)
     sNvEnd = NV_END_MOVIES;
     printf("NVEND ending %d\n", (int)id);
     fflush(stdout);
@@ -421,7 +448,7 @@ void NvEnding_Draw(PlayState* play) {
                     GfxPrint_Printf(&printer, "%02d:%02d:%02d", (int)(t / 108000), (int)((t % 108000) / 1800),
                                     (int)((t % 1800) / 30));
                 } else {
-                    GfxPrint_Printf(&printer, "%02d", 0);
+                    GfxPrint_Printf(&printer, "%02d", (int)MIN(sNvRunSaves, 99));
                 }
             }
             gfx = GfxPrint_Close(&printer);
