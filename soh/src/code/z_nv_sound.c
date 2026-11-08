@@ -22,6 +22,7 @@ void NvSound_Play(const char* name, s32 vol);
 void NvSound_MusicLoad(s32 ch, const char* name, s32 loop);
 void NvSound_MusicPlay(s32 ch, s32 play);
 void NvSound_StopAll(void);
+s32 NvSound_MusicState(s32 ch, s32* playing);
 
 extern const char* const gNvBgmNames[57][3];
 extern const u8 gNvBgmLoop[57][3];
@@ -32,6 +33,13 @@ static u8 sNvRoomBgmState[7 * 32]; // g_roomBgmState: all clear at a new game
 static u8 sNvBgmState = 0xFF;      // g_BGM_STATE: what's playing
 static s32 sNvBgmStage = -1;       // the room that state belongs to
 static s32 sNvBgmRoom = -1;
+// the music channels' volumes, as RE1 keeps them: DirectSound's hundredths of a dB (0 full,
+// -10000 silent), moved by the scripts' fade (0x27), set (0x2F) and ramp (0x43)
+static s32 sNvBgmDb[3];
+static s32 sNvBgmFadeStep; // BuildSndFadeTbl / UpdateSoundFade: dB a tick, all channels down
+static s32 sNvBgmRampCh = -1;
+static s32 sNvBgmRampDir; // FUN_004804a0 / UpdateSoundDecay
+static s32 sNvBgmRampLeft;
 
 /** The rooms' music states, for the typewriter's save (z_nv_save.c): its size, written to p if not NULL. */
 u32 NvBgm_SaveState(u8* p) {
@@ -59,6 +67,12 @@ static u8 NvBgm_Group(s32 stage, s32 room, u8 state) {
 /** bgm_load_and_start: load the group's channels, stopped. */
 static void NvBgm_Load(u8 group) {
     s32 ch;
+
+    sNvBgmFadeStep = 0;
+    sNvBgmRampCh = -1;
+    for (ch = 0; ch < 3; ch++) {
+        sNvBgmDb[ch] = 0;
+    }
 
     for (ch = 0; ch < 3; ch++) {
         const char* name = (group < 57) ? gNvBgmNames[group][ch] : NULL;
@@ -155,6 +169,79 @@ void NvBgm_ScdStop(s32 ch) {
         NvSound_MusicPlay(ch, false);
         if (sNvBgmState != 0xFF) {
             sNvBgmState &= ~(8 << ch);
+        }
+    }
+}
+
+void NvSound_MusicChannelVolume(s32 ch, s32 vol);
+
+
+static void NvBgm_ApplyDb(s32 ch) {
+    f32 lin = powf(10.0f, sNvBgmDb[ch] / 2000.0f);
+
+    NvSound_MusicChannelVolume(ch, (s32)(lin * 128.0f + 0.5f));
+}
+
+/** Script opcode 0x27 (cmd_snd_fade_set): the music fades out, n * 78 hundredths of a dB a tick. */
+void NvBgm_ScdFade(s32 n) {
+    sNvBgmFadeStep = n * 0x4E;
+}
+
+/** Script opcode 0x2F (cmd_snd_pan_vol_set): a channel's volume from its pan / volume pair (CalcPanVolume). */
+void NvBgm_ScdPanVol(s32 ch, s32 pan, s32 vol) {
+    s32 avg = (pan + vol) / 2;
+
+    if ((ch < 0) || (ch >= 3)) {
+        return;
+    }
+    sNvBgmDb[ch] = (avg < 0x20) ? (avg * 0x103 - 10000) : (avg * 0x12 - 0x8E4);
+    NvBgm_ApplyDb(ch);
+}
+
+/** Script opcode 0x43 (cmd_bgm_volume_ramp): a playing channel slides by dir over n steps, then stops. */
+void NvBgm_ScdRamp(s32 ch, s32 dir, s32 n) {
+    s32 playing = 0;
+
+    if ((ch < 0) || (ch >= 3) || (n <= 0) || !(sNvBgmState != 0xFF && (sNvBgmState & (8 << ch)))) {
+        return;
+    }
+    NvSound_MusicState(ch, &playing);
+    if (!playing) {
+        return;
+    }
+    sNvBgmRampCh = ch;
+    sNvBgmRampDir = (dir / n) * 0x4E;
+    sNvBgmRampLeft = n * 2;
+}
+
+/** A tick of RE1's sound update: the fade and the ramp (UpdateSoundFade, UpdateSoundDecay). */
+void NvBgm_Tick(void) {
+    s32 ch;
+
+    if (sNvBgmFadeStep > 0) {
+        s32 any = false;
+
+        for (ch = 0; ch < 3; ch++) {
+            if (sNvBgmDb[ch] > -10000) {
+                sNvBgmDb[ch] = MAX(sNvBgmDb[ch] - sNvBgmFadeStep, -10000);
+                NvBgm_ApplyDb(ch);
+                any = true;
+            }
+        }
+        if (!any) {
+            sNvBgmFadeStep = 0;
+        }
+    }
+    if ((sNvBgmRampCh >= 0) && (sNvBgmRampLeft > 0)) {
+        ch = sNvBgmRampCh;
+        sNvBgmRampLeft--;
+        sNvBgmDb[ch] += (400 / (sNvBgmRampLeft + 1) * sNvBgmRampDir) / 100;
+        NvBgm_ApplyDb(ch);
+        if ((sNvBgmDb[ch] < -10000) || (sNvBgmRampLeft <= 0)) { // (ends stopped, its volume back)
+            NvSound_MusicPlay(ch, false);
+            sNvBgmDb[ch] = 0;
+            NvBgm_ApplyDb(ch);
+            sNvBgmRampCh = -1;
         }
     }
 }

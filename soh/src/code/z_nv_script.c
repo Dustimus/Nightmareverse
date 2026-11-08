@@ -52,6 +52,10 @@ void NvMsg_EnsureHook(void);
 void NvBgm_ScdPlay(s32 ch);
 void NvBgm_ScdStop(s32 ch);
 void NvBgm_ScdStopAll(void);
+void NvBgm_ScdFade(s32 n);
+void NvBgm_ScdPanVol(s32 ch, s32 pan, s32 vol);
+void NvBgm_ScdRamp(s32 ch, s32 dir, s32 n);
+void NvBgm_Tick(void);
 void NvBgm_ScdRestore(void);
 void NvBgm_ScdState(s32 stage, s32 room, u8 state);
 s32 NvMovie_Playing(void);
@@ -492,6 +496,18 @@ static s32 NvScd_Cmd(void) {
                 fflush(stdout);
             }
             sNvIp = p + 6;
+            return 1;
+        case 0x27: // cmd_snd_fade_set: the music fades out (z_nv_sound.c)
+            NvBgm_ScdFade(p[1]);
+            sNvIp = p + 2;
+            return 1;
+        case 0x2F: // cmd_snd_pan_vol_set: a music channel's volume
+            NvBgm_ScdPanVol(p[1], p[2], p[3]);
+            sNvIp = p + 4;
+            return 1;
+        case 0x43: // cmd_bgm_volume_ramp: a playing channel slides away
+            NvBgm_ScdRamp(p[1], (s8)p[2], p[3]);
+            sNvIp = p + 4;
             return 1;
         case 0x4A: // cmd_bgm_restore: the music put aside by 0x4B starts again
             NvBgm_ScdRestore();
@@ -2523,6 +2539,7 @@ void NvScript_Update(PlayState* play) {
         memset(sNvFlags[9], 0, sizeof(sNvFlags[9]));
         sNvStateWord[3] = (u16)(Rand_Next() >> 16);
         NvCountdown_Tick(play); // (and game_loop's countdown: z_nv_ending.c)
+        NvBgm_Tick(); // (the music's fades and ramps)
         if (sNvLightState >= 0) { // main_loop's special light, a step a tick
             sNvLightState += sNvLightDelta;
         }

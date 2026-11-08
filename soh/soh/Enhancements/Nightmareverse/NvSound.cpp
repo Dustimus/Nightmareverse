@@ -270,6 +270,16 @@ extern "C" int32_t NvSound_LinePlaying(void) {
     return (sDevice != 0) && sLine.playing;
 }
 
+/** Music channel ch's own volume, 0-128 (the scripts' fades and ramps: z_nv_sound.c). */
+extern "C" void NvSound_MusicChannelVolume(int32_t ch, int32_t vol) {
+    if ((ch < 0) || (ch >= kMusic) || (sDevice == 0)) {
+        return;
+    }
+    SDL_LockAudioDevice(sDevice);
+    sMusic[ch].vol = SDL_clamp(vol, 0, 128);
+    SDL_UnlockAudioDevice(sDevice);
+}
+
 /** The music's volume, 0-128 (the pause menu turns it down, as OoT's does). */
 extern "C" void NvSound_MusicVolume(int32_t vol) {
     sMusicVol = SDL_clamp(vol, 0, 128);
