@@ -1687,6 +1687,11 @@ void NvScript_Ask(PlayState* play, s32 id) {
     Message_StartTextbox(play, NV_TEXT_ID, NULL);
 }
 
+/** Message id (a room's, or with 0x40 the executable's shared ones) with an item's name for {item}. */
+void NvScript_SayItem(PlayState* play, s32 id, s32 item) {
+    NvMsg_Show(play, NvMsg_Text(id, item));
+}
+
 /** The room's message id in the message box (a screen's caption: z_nv_panel.c); false if it's empty. */
 s32 NvScript_Say(PlayState* play, s32 id) {
     const char* t = NvMsg_Text(id, 0);

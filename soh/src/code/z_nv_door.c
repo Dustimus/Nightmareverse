@@ -9,7 +9,16 @@
  *
  * Data: "scenes/shared/<name>_scene/<name>_doors" (soh_scene.door_blob): "RDOR", u32 count;
  * per door f32 x0, z0, x1, z1, u8 flags, u8 anim, u16 spawn, u8 Door_set bytes 10, 11, 13, 15
- * (the door scene's inputs), char target[24].
+ * (the door scene's inputs), char target[24], u8 lock, u8 key, 2 pad ("RDOR": without the last 4).
+ *
+ * The locks (PlayerAnimations.cpp door_try_enter): a door whose lock byte has 0x80 is locked until
+ * its bit (the low 6) is up in the locks bank (2: the scripts and the lab's computer raise them
+ * too). Its key byte says what opens it: an item (the key turns: "You have used the ..."; the
+ * door opens on the next press; a key with no more doors to open asks to be thrown away), 0xFE
+ * only from its other side (from there: "You unlocked it."), 0xFF nothing ("locked from inside");
+ * the sword key's doors take Jill's lock pick once she has it (scenario flag 0x7C). Without the
+ * key, RE1's "It's locked" line for it. For testing they can all be left open: the Cheats menu's
+ * "RE1: Unlock All Doors", or NV_NO_LOCKS.
  *
  * A door with a door scene (z_nv_doorscene.c) cuts straight to it, as RE1 does; any other
  * fades to black.
@@ -36,7 +45,15 @@ typedef struct NvDoor {
     u8 b13;
     u8 b15;
     char target[24];
+    u8 lock; // the record's +0xC: 0x80 locked, the low 6 bits its flag in the locks bank
+    u8 key;  // +0x16: the item that opens it (0xFE from the other side, 0xFF never)
+    u8 pad[2];
 } NvDoor;
+
+static u32 sNvDoorStride = sizeof(NvDoor); // the room's records' size ("RDOR": no lock bytes)
+
+static s32 NvDoor_Unlocked(PlayState* play, NvDoor* door);
+static void NvDoor_DiscardUpdate(PlayState* play);
 
 s32 NvDoorScene_Exists(s32 anim);
 void NvDoorScene_Queue(s32 anim, s32 b10, s32 b11, s32 b13, s32 b15);
@@ -104,9 +121,10 @@ static u8* NvDoor_Data(PlayState* play, u32* count) {
         return NULL;
     }
     data = (u8*)ResourceGetDataByName(path);
-    if ((data == NULL) || (memcmp(data, "RDOR", 4) != 0)) {
+    if ((data == NULL) || ((memcmp(data, "RDR2", 4) != 0) && (memcmp(data, "RDOR", 4) != 0))) {
         return NULL;
     }
+    sNvDoorStride = (memcmp(data, "RDR2", 4) == 0) ? sizeof(NvDoor) : sizeof(NvDoor) - 4;
     memcpy(count, data + 4, sizeof(*count));
     return data + 8;
 }
@@ -143,7 +161,8 @@ static s32 NvDoor_Find(PlayState* play, Player* player, NvDoor* out) {
         f32 px;
         f32 pz;
 
-        memcpy(&door, data + i * sizeof(NvDoor), sizeof(NvDoor));
+        memset(&door, 0, sizeof(door));
+        memcpy(&door, data + i * sNvDoorStride, sNvDoorStride);
         if (!(door.flags & NV_DOOR_ACTION)) {
             continue;
         }
@@ -225,7 +244,8 @@ static s32 NvDoor_Ride(PlayState* play, Input* input) {
     for (k = 0; k < count; k++) {
         NvDoor d;
 
-        memcpy(&d, data + k * sizeof(NvDoor), sizeof(NvDoor));
+        memset(&d, 0, sizeof(d));
+        memcpy(&d, data + k * sNvDoorStride, sNvDoorStride);
         if (((d.x1 - d.x0) > 1.0f) || ((d.z1 - d.z0) > 1.0f)) {
             return false; // a room with a door to walk to
         }
@@ -259,6 +279,7 @@ void NvDoor_Update(PlayState* play) {
 
     s32 pressA = CHECK_BTN_ALL(input->press.button, BTN_A);
 
+    NvDoor_DiscardUpdate(play);
     if ((player != NULL) && NvDoor_Ride(play, input)) {
         return;
     }
@@ -281,7 +302,121 @@ void NvDoor_Update(PlayState* play) {
         }
         return;
     }
+    if (!NvDoor_Unlocked(play, &door)) {
+        input->press.button &= ~BTN_A;
+        input->cur.button &= ~BTN_A;
+        return;
+    }
     NvDoor_Take(play, input, &door, i);
+}
+
+s32 NvFlags_Test(s32 bank, s32 bit);
+void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
+void NvScript_SayItem(PlayState* play, s32 id, s32 item);
+void NvScript_Ask(PlayState* play, s32 id);
+s32 NvItems_Find(s32 id);
+s32 NvItems_Slot(s32 i, s32* qty);
+void NvItems_SpendRound(s32 i);
+s32 NvItems_Remove(s32 id);
+
+#define NV_ITEM_LOCK_PICK 0x31
+#define NV_ITEM_SWORD_KEY 0x33
+#define NV_SCN_HAS_LOCKPICK 0x7C
+
+static s32 sNvDoorDiscard; // a key just used up: "This key is useless now. Discard?" once the line's read
+static s32 sNvDoorAsking;
+
+/** The locks are off for testing: the Cheats menu's "RE1: Unlock All Doors", or NV_NO_LOCKS. */
+static s32 NvDoor_LocksOff(void) {
+    return CVarGetInteger(CVAR_CHEAT("NvDoorsUnlocked"), 0) || (getenv("NV_NO_LOCKS") != NULL);
+}
+
+/**
+ * door_try_enter: true if the door may be taken now; otherwise its lock has said why (or the key
+ * has just turned: the next press goes through, as in RE1).
+ */
+static s32 NvDoor_Unlocked(PlayState* play, NvDoor* door) {
+    s32 key = door->key;
+    s32 item;
+    s32 slot;
+    s32 qty = 0;
+
+    if (!(door->lock & 0x80) || NvFlags_Test(2, door->lock & 0x3F) || NvDoor_LocksOff()) {
+        return true;
+    }
+    if (key == NV_ITEM_SWORD_KEY) { // Jill: the lock pick, once she has it
+        if (!NvFlags_Test(0, NV_SCN_HAS_LOCKPICK)) {
+            NvSnd_At(0x14, 0, 0, 0, 0);
+            NvScript_SayItem(play, 0xC0 | 0x15, 0); // "It's locked. Use the lockpick to open the door."
+            return false;
+        }
+        item = NV_ITEM_LOCK_PICK;
+    } else if (key == 0xFE) { // opens from this side only
+        NvScript_SayItem(play, 0xC0 | 0x14, 0); // "You unlocked it."
+        NvSnd_At(0x21, 0, 0, 0, 0);
+        NvFlags_Op(2, door->lock & 0x3F, 0);
+        printf("NVLOCK bit %d unlocked from this side\n", door->lock & 0x3F);
+        fflush(stdout);
+        return false;
+    } else if (key == 0xFF) {
+        NvSnd_At(0x14, 0, 0, 0, 0);
+        NvScript_SayItem(play, 0xC0 | 0x13, 0); // "It's locked from inside."
+        return false;
+    } else {
+        slot = NvItems_Find(key);
+        if (slot < 0) { // RE1's line for the key it wants (200 + key - the sword key, the last for any other)
+            s32 m = key - NV_ITEM_SWORD_KEY;
+
+            if ((m < 0) || (m > 9)) {
+                m = 10;
+            }
+            NvSnd_At(0x14, 0, 0, 0, 0);
+            NvScript_SayItem(play, 0xC0 | (8 + m), 0);
+            printf("NVLOCK bit %d locked: wants item 0x%02X\n", door->lock & 0x3F, key);
+            fflush(stdout);
+            return false;
+        }
+        item = key;
+        NvItems_Slot(slot, &qty);
+        if (qty <= 1) {
+            sNvDoorDiscard = item; // (its last door: asked whether to throw it away)
+        } else {
+            NvItems_SpendRound(slot);
+        }
+    }
+    // the key turns: the door opens on the next press
+    NvScript_SayItem(play, 0xC0 | 0x03, item); // "You have used the ..."
+    NvSnd_At(0x22, 0, 0, 0, 0);
+    NvFlags_Op(2, door->lock & 0x3F, 0);
+    printf("NVLOCK bit %d opened with item 0x%02X\n", door->lock & 0x3F, item);
+    fflush(stdout);
+    return false;
+}
+
+/** The used-up key's question, once the "used" line has been read (handle_message_post_action). */
+static void NvDoor_DiscardUpdate(PlayState* play) {
+    if ((sNvDoorDiscard == 0) || (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE && sNvDoorAsking == 2)) {
+        sNvDoorAsking = 0;
+        sNvDoorDiscard = 0;
+        return;
+    }
+    if (sNvDoorAsking == 0) {
+        if (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) {
+            NvScript_Ask(play, 0xC0 | 0x07); // "This key is useless now. Discard?"
+            sNvDoorAsking = 1;
+        }
+        return;
+    }
+    if ((sNvDoorAsking == 1) && (Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+        if (play->msgCtx.choiceIndex == 0) {
+            NvItems_Remove(sNvDoorDiscard);
+            printf("NVLOCK key 0x%02X thrown away\n", sNvDoorDiscard);
+            fflush(stdout);
+        }
+        Message_CloseTextbox(play);
+        sNvDoorAsking = 2;
+    }
 }
 
 /**

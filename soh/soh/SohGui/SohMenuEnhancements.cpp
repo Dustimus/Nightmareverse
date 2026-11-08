@@ -2000,6 +2000,9 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "No Clip", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_CHEAT("NoClip"))
         .Options(CheckboxOptions().Tooltip("Allows you to walk through walls."));
+    AddWidget(path, "RE1: Unlock All Doors", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_CHEAT("NvDoorsUnlocked"))
+        .Options(CheckboxOptions().Tooltip("Nightmareverse: RE1's locked doors open without their keys (for testing)."));
     AddWidget(path, "Climb Everything", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_CHEAT("ClimbEverything"))
         .Options(CheckboxOptions().Tooltip("Makes every surface in the game climbable."));
