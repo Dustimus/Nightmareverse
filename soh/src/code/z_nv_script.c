@@ -728,6 +728,16 @@ static s32 NvScd_Cmd(void) {
             sNvIp = p + NvScd_Len(p);
             return 1;
         }
+        case 0x3E: // cmd_bullet_effect_clear, 0x42 cmd_effect_clear_typed, 0x48 cmd_effect_pool_clear:
+        case 0x42: // the billboards they'd clear are only stand-ins here (RE1's effect system,
+        case 0x48: // EffectSystem.cpp, isn't ported): nothing to take away
+            sNvIp = p + NvScd_Len(p);
+            return 1;
+        case 0x19: // cmd_model_flag_set: an item model's flags byte (as cmd_obj_flag_set's kind 1)
+            sNvItemHidden[p[1] % NV_AOT_SLOTS] = !(p[2] & 1);
+            sNvIp = p + 4;
+            return 1;
+        case 0x3D: // cmd_bullet_effect_spawn: laid out as 0x2A's
         case 0x2A: { // cmd_effect_spawn: kind p[1] at (x, y, z). A stand-in for RE1's billboards
             // (its glass shards, 0x15 and 0x21): one of OoT's white bursts, a little scattered
             Vec3f at;
