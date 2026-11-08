@@ -1536,6 +1536,20 @@ NvRe1Entity* NvEnemy_SlotEntity(s32 slot) {
     return &((NvEnemy*)sNvEnemySlots[slot])->e;
 }
 
+/** An enemy slot's place and facing in RE1's units (an effect attached to it); false if empty. */
+s32 NvEnemy_Place(s32 slot, s32* t, s16* angle) {
+    NvRe1Entity* e = NvEnemy_SlotEntity(slot);
+
+    if (e == NULL) {
+        return false;
+    }
+    t[0] = e->t[0];
+    t[1] = e->t[1];
+    t[2] = e->t[2];
+    *angle = e->angle;
+    return true;
+}
+
 /* ---- the player in a scripted scene ---- */
 
 // RE1's player entity as the event scripts drive her (character 0): state 8 and a behaviour

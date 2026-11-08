@@ -223,7 +223,7 @@ static const u8 sNvScdLen[0x51] = {
     2, 2, 10, 4, 4, 2, 2, 0, 26, 4, 2, 22, 6, 2, 4, 28, // 0x10
     14, 14, 4, 2, 4, 4, 1, 2, 0, 2, 12, 4, 2, 4, 1, 4,  // 0x20
     12, 4, 4, 0, 8, 4, 4, 4, 4, 2, 4, 6, 6, 12, 2, 6,   // 0x30
-    16, 4, 4, 4, 2, 2, 38, 14, 2, 2, 2, 2, 4, 2, 4, 2,  // 0x40
+    16, 4, 4, 4, 2, 2, 44, 14, 2, 2, 2, 2, 4, 2, 4, 2,  // 0x40 (0x46: 44, cmd_room_lights_set)
     2,
 };
 
@@ -378,6 +378,9 @@ static u8 NvScd_StateByte(s32 field) {
 }
 
 /** One command at sNvIp (script_command_funcs_table): 1 to go on, 0 to stop. */
+s32 NvEnemy_Place(s32 slot, s32* t, s16* angle);
+s32 NvObj_Pose(s32 i, s16* pos, s16* rot);
+
 static s32 NvScd_Cmd(void) {
     const u8* p = sNvIp;
     s32 n;
@@ -733,6 +736,19 @@ static s32 NvScd_Cmd(void) {
             sNvIp = p + 14;
             return 1;
         }
+        case 0x41: { // cmd_entity_posy_set: her height (entity 0; the rooms use only her: 300-305's starts)
+            Player* player = (sNvPlay != NULL) ? GET_PLAYER(sNvPlay) : NULL;
+            s16 y;
+
+            memcpy(&y, p + 2, 2);
+            if ((p[1] == 0) && (player != NULL)) {
+                player->actor.world.pos.y = player->actor.home.pos.y = -y * NV_RE1_SCALE;
+                player->actor.prevPos.y = player->actor.world.pos.y;
+                NvCast_Player()->t[1] = y;
+            }
+            sNvIp = p + 4;
+            return 1;
+        }
         case 0x21: { // cmd_enemy_pos_set
             s16 v[5];
 
@@ -887,12 +903,54 @@ static s32 NvScd_Cmd(void) {
             sNvIp = p + 4;
             return 1;
         }
+        case 0x3C: // cmd_player_dist_test: within u16 +4 of enemy slot n (kind 0) or object n (kind 1)
+        case 0x3F: { // cmd_player_dir_test: her facing within [u16 +2, u16 +4] (wrapping, 4096 a turn)
+            Player* pl = (sNvPlay != NULL) ? GET_PLAYER(sNvPlay) : NULL;
+            s32 r = 0;
+
+            if (pl != NULL) {
+                if (p[0] == 0x3F) {
+                    u16 lo = p[2] | (p[3] << 8);
+                    u16 hi = p[4] | (p[5] << 8);
+                    u16 dir = (u16)((0x4000 - pl->actor.shape.rot.y) / 16) & 0xFFF;
+
+                    r = (u16)(dir - lo) <= (u32)(hi - lo);
+                } else {
+                    s32 t[3];
+                    s16 ang;
+                    s16 op[3];
+                    s16 orot[3];
+                    s32 ok = false;
+                    u32 maxd = p[4] | (p[5] << 8);
+
+                    if (p[2] == 0) {
+                        ok = NvEnemy_Place(p[3], t, &ang);
+                    } else if ((p[2] == 1) && NvObj_Pose(p[3], op, orot)) {
+                        t[0] = op[0];
+                        t[2] = op[2];
+                        ok = true;
+                    }
+                    if (ok) {
+                        f32 dx = pl->actor.world.pos.x / NV_RE1_SCALE - t[0];
+                        f32 dz = -pl->actor.world.pos.z / NV_RE1_SCALE - t[2];
+
+                        r = sqrtf(SQ(dx) + SQ(dz)) <= maxd;
+                    }
+                }
+            }
+            sNvIp = p + NvScd_Len(p);
+            return r;
+        }
+        case 0x0E: // cmd_skip_2bytes_opcode, cmd_skip_4bytes: nothing in RE1 either
+        case 0x32:
+            sNvIp = p + NvScd_Len(p);
+            return 1;
+        case 0x50: // cmd_costume_variant_test: the costume bit 0x4F sets, which no Jill script sets: false
+            sNvIp = p + NvScd_Len(p);
+            return 0;
         // tests not run yet: false
         case 0x36:
         case 0x38:
-        case 0x3C:
-        case 0x3F:
-        case 0x50:
             sNvIp = p + NvScd_Len(p);
             return 0;
         default:
@@ -2274,6 +2332,16 @@ static void NvAot_WalkIn(PlayState* play) {
 /* ---- the room's objects: solid, pushed (RoomCollision.cpp update_room_objects) ---- */
 
 /** For z_nv_block.c: object i's place and box, and whether it's solid now. False: it's gone. */
+/** A room object's place and turn (an effect attached to it: z_nv_effects.c); false if it isn't placed. */
+s32 NvObj_Pose(s32 i, s16* pos, s16* rot) {
+    if ((i < 0) || (i >= NV_OBJ_SLOTS) || !sNvObj[i].set) {
+        return false;
+    }
+    memcpy(pos, sNvObj[i].pos, sizeof(sNvObj[i].pos));
+    memcpy(rot, sNvObj[i].rot, sizeof(sNvObj[i].rot));
+    return true;
+}
+
 s32 NvObj_Box(s32 i, s16* pos, s16* ext, s32* solid, s32* climbable) {
     NvObj* o;
 

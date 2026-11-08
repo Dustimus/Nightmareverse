@@ -204,3 +204,29 @@ s32 NvCamera_Select(PlayState* play, s32 floorCam) {
     }
     return sNvCamCurrent;
 }
+
+/**
+ * Whether RE1 point (x, z) is in the current camera's own zone (its group's first record: what
+ * EffectActor_UpdateAndRender tests an effect against, g_CurrentRdtDataTypePtr). True without a
+ * table.
+ */
+s32 NvCamera_InView(PlayState* play, s32 x, s32 z) {
+    u8* zones;
+    u32 count;
+    u32 i;
+
+    zones = NvCamera_Zones(play, &count);
+    if ((zones == NULL) || (sNvCamCurrent < 0)) {
+        return true;
+    }
+    for (i = 0; i < count; i++) {
+        const u8* rec = zones + i * 20;
+        s16 camFrom;
+
+        memcpy(&camFrom, rec + 2, 2);
+        if (camFrom == sNvCamCurrent) {
+            return NvCamera_InZone(rec, x, z);
+        }
+    }
+    return true;
+}

@@ -30,6 +30,7 @@
 #define NV_FX_OPAQUE(c) (((c) >> 8) & 1) // (an RGBA5551 texel, big-endian in memory: its alpha bit)
 
 extern PlayState* gPlayState;
+s32 NvCamera_InView(PlayState* play, s32 x, s32 z);
 #define NV_FX_SLOTS 64
 #define NV_FX_TYPES 50
 
@@ -43,6 +44,8 @@ typedef struct {
 
 static const NvMtx sNvFxIdentity = { { { 0x1000, 0, 0 }, { 0, 0x1000, 0 }, { 0, 0, 0x1000 } }, 0, { 0, 0, 0 } };
 static NvMtx sNvFxPlayerMtx; // the player's (parent 1): Link where RE1's player would be
+static NvMtx sNvFxEnemyMtx[16]; // the enemies' (parent 2 + slot): where each stands, turned as it faces
+static NvMtx sNvFxObjMtx[64];   // the room objects' (parent 0x80 + object)
 
 static s16 NvFx_Sin(s32 a) {
     return (s16)(Math_SinS((s16)(a * 16)) * 4096.0f);
@@ -1105,6 +1108,36 @@ static void NvFx_PlayerMatrix(PlayState* play) {
     sNvFxPlayerMtx.t[2] = (s32)(-p->actor.world.pos.z / NV_RE1_SCALE);
 }
 
+/** The enemies' and objects' matrices, for the effects attached to them (they follow as they move). */
+static void NvFx_ParentMatrices(void) {
+    s32 NvEnemy_Place(s32 slot, s32* t, s16* angle);
+    s32 NvObj_Pose(s32 i, s16* pos, s16* rot);
+    s32 i;
+
+    for (i = 0; i < 16; i++) {
+        s32 t[3];
+        s16 a;
+
+        if (NvEnemy_Place(i, t, &a)) {
+            NvFx_RotY(a, &sNvFxEnemyMtx[i]);
+            sNvFxEnemyMtx[i].t[0] = t[0];
+            sNvFxEnemyMtx[i].t[1] = t[1];
+            sNvFxEnemyMtx[i].t[2] = t[2];
+        }
+    }
+    for (i = 0; i < 64; i++) {
+        s16 pos[3];
+        s16 rot[3];
+
+        if (NvObj_Pose(i, pos, rot)) {
+            NvFx_RotY(rot[1], &sNvFxObjMtx[i]);
+            sNvFxObjMtx[i].t[0] = pos[0];
+            sNvFxObjMtx[i].t[1] = pos[1];
+            sNvFxObjMtx[i].t[2] = pos[2];
+        }
+    }
+}
+
 /** A tick of update_2d_effects (z_nv_script.c's tick loop). */
 void NvFx_Tick(PlayState* play) {
     s32 i;
@@ -1113,6 +1146,7 @@ void NvFx_Tick(PlayState* play) {
         return;
     }
     NvFx_PlayerMatrix(play);
+    NvFx_ParentMatrices();
     if ((getenv("NV_FX_TEST") != NULL) && ((play->gameplayFrames % 60) == 30)) {
         // dev: NV_FX_TEST="type,group" spawns one a little in front of Link every few seconds
         Player* pl = GET_PLAYER(play);
@@ -1170,8 +1204,12 @@ void NvFx_ScdSpawn(const u8* p) {
     memcpy(&flags, p + 10, 2);
     if (ptype == 1) {
         parent = &sNvFxPlayerMtx;
+    } else if ((ptype >= 2) && !(ptype & 0x80) && (ptype - 2 < 16)) { // an enemy's
+        parent = &sNvFxEnemyMtx[ptype - 2];
+    } else if (ptype & 0x80) { // a room object's
+        parent = &sNvFxObjMtx[ptype & 0x3F];
     }
-    // (2+: an enemy's or an object's matrix: placed in the world here)
+    NvFx_ParentMatrices(); // (where they are now)
     NvFx_Create(p[1], p[2], (s16)flags, parent, pos, 0);
 }
 
@@ -1387,6 +1425,9 @@ void NvFx_Draw(PlayState* play) {
         s32 page;
 
         if ((e->animId == 0) || !e->drawn || (e->animHeader[11] & 0x80) || (e->frame == NULL)) {
+            continue;
+        }
+        if (!NvCamera_InView(play, e->posX, e->posZ)) { // (RE1 draws it only in the camera's own zone)
             continue;
         }
         w = e->frame[2];

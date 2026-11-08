@@ -11,7 +11,8 @@
  *                             C-Left N frames (RE1's gun's aim; letting go fires),
  *                             "pos:x,z" puts Link there, "face:x,z" turns him to face a point,
  *                             "facerect:x0,z0,x1,z1" turns him (16 ways) to put the point in
- *                             front of him deepest into a rectangle (as a player faces a door), "entr:N" warps to entrance N (the
+ *                             front of him deepest into a rectangle (as a player faces a door), "go:XXX" warps to RE1
+ *                             room XXX (its first start), "entr:N" warps to entrance N (the
  *                             script goes on in the new scene), "mark:N" logs "NVMARK N" with
  *                             the scene, position and yaw (re1/tools/soh_check.py --doors)
  *   NV_TOUR="x,y,z;x,y,z"     put Link at each point in turn, NV_TOUR_HOLD frames each (default
@@ -162,6 +163,18 @@ static void NvDev_ParsePath(void) {
             wp->kind = NV_WP_WAIT;
             wp->wait = (s16)atoi(s + 5);
             sNvPathLen++;
+        } else if (strncmp(s, "go:", 3) == 0) { // "go:XXX": warp to RE1 room XXX's first start
+            s16 NvDoor_Entrance(const char* sceneFile, s32 spawn);
+            char name[32];
+            char room[8];
+
+            snprintf(room, sizeof(room), "%.3s", s + 3);
+            snprintf(name, sizeof(name), "re1_%s_scene", room);
+            wp->kind = NV_WP_ENTR;
+            wp->wait = NvDoor_Entrance(name, 0);
+            if (wp->wait >= 0) {
+                sNvPathLen++;
+            }
         } else if (strncmp(s, "entr:", 5) == 0) {
             wp->kind = NV_WP_ENTR;
             wp->wait = (s16)strtol(s + 5, NULL, 0);
