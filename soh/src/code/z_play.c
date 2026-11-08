@@ -1569,6 +1569,11 @@ void Play_Draw(PlayState* play) {
 
         if ((HREG(80) != 10) || (HREG(85) != 0)) {
             Actor_DrawAll(play, &play->actorCtx);
+            {
+                void NvFx_Draw(PlayState * play);
+
+                NvFx_Draw(play); // Nightmareverse: RE1's 2D effects among them (z_nv_effects.c)
+            }
         }
 
         if ((HREG(80) != 10) || (HREG(86) != 0)) {

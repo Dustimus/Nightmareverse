@@ -424,6 +424,7 @@ def _msg_char(b):
     return ""  # RE1's own symbols, and a handful of accented capitals
 
 
+EFFECTS_START = None  # where the rooms' effect sprites start on their pages (soh_effects.write_global)
 ITEM_NAMES = None  # RE1's item names (soh_text.py, from the English executable), when the mod is made with it
 
 
@@ -766,6 +767,10 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     MOVIES.update(c[1] for c in cmds if c[0] == 0x29)
     blob = scd_blob(init, main, evt)
     open(os.path.join(d, name + "_scd"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    # RE1's 2D effects the room declares: "<name>_effects" (z_nv_effects.c, soh_effects.py)
+    import soh_effects
+    soh_effects.write_room(room.raw, int(room_id[0]) - 1, int(room_id[1:], 16), os.path.join(d, name + "_effects"),
+                           EFFECTS_START)
     # RE1's own collision and walk zones: "<name>_re1col" (z_nv_zombie.c)
     blob = re1col_blob(room.raw)
     open(os.path.join(d, name + "_re1col"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)

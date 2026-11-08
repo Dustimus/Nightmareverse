@@ -1229,6 +1229,12 @@ def main():
                     "placements become En_ReBlock (blocks to push, steps to climb)")
     ap.add_argument("--preview", default=None, help="camera-region map of the first room")
     a = ap.parse_args()
+    if a.soh:  # RE1's core effect types and Effspr pages, and where the rooms' sprites go after them
+        import soh_effects
+        fx_base = os.path.dirname(a.stage.rstrip("/")) if os.path.basename(a.stage.rstrip("/")).upper().startswith(
+            "STAGE") else a.stage
+        soh_scene.EFFECTS_START = soh_effects.write_global(fx_base, a.soh, a.exe)
+        print("soh: effects %s" % ("core and pages" if soh_scene.EFFECTS_START else "none (files missing)"))
     import re1_masks
     bias_tables = re1_masks.load_bias_tables(a.exe)
     import soh_scene

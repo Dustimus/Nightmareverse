@@ -108,6 +108,7 @@ typedef struct {
     u8 model;    // the room's item model (RDT item_models)
     u8 parent;   // 0xFF: pos is in the room; 0xFE the player; else a room object (not drawn yet)
     s16 pos[3];
+    u8 sparkle;  // its glint's effect slot (z_nv_effects.c), 0xFF none
 } NvAot;
 static NvAot sNvAot[NV_AOT_SLOTS];
 static void NvAot_FlagSet(const NvAot* e);
@@ -265,6 +266,10 @@ s32 NvItems_Slot(s32 i, s32* qty);
 // 0x31): what a room's script sets for later ones to test (the stage, room and camera are live)
 static u8 sNvStateSet[256];
 static u8 sNvStateVal[256];
+static u8 sNvFxLastBullet; // the last 0x3D's type (0x3E clears it)
+void NvFx_ScdClearType(u8 type);
+void NvFx_Kill(u8 slot);
+u8 NvFx_Spawn(u8 type, u8 group, const s32* pos);
 
 // the room's special light (cmd_room_light_fade_set, main_loop's g_FadingRect): a colour over the
 // whole screen, its strength stepping by the delta each tick until it runs past either end
@@ -577,6 +582,31 @@ static s32 NvScd_Cmd(void) {
                 a->param[0] = (p[0x18] | (p[0x19] << 8)) & 1;
                 a->param[1] = p[12];
                 a->param[2] = p[0x16];
+                a->sparkle = 0xFF;
+                {
+                    // its glint (type 0x0B) while it lies there, if the record asks for one: its
+                    // group by the record's kind (flags 0xF00), above the item by (flags & 0xF0) * 2
+                    u16 f = p[0x18] | (p[0x19] << 8);
+                    u16 kind = f & 0xF00;
+                    u8 grp;
+                    s32 at[3];
+
+                    if (kind < 0x101) {
+                        grp = (kind == 0x100) ? 0x0B : ((f & 0xF00) == 0) ? 0x03 : 0x14;
+                    } else if (kind < 0x301) {
+                        grp = (kind == 0x300) ? 0x1B : (kind == 0x200) ? 0x13 : 0x14;
+                    } else if (kind < 0x501) {
+                        grp = (kind == 0x500) ? 0x0C : (kind == 0x400) ? 0x04 : 0x14;
+                    } else {
+                        grp = (kind == 0x600) ? 0x14 : (kind == 0x700) ? 0x1C : 0x14;
+                    }
+                    if ((f & 0x8000) && NvItems_InRoom(a->itemFlag) && (p[13] == 0xFF)) {
+                        at[0] = a->pos[0];
+                        at[1] = a->pos[1] - (f & 0xF0) * 2;
+                        at[2] = a->pos[2];
+                        a->sparkle = NvFx_Spawn(0x0B, grp, at);
+                    }
+                }
                 sNvAotCount = MAX(sNvAotCount, (p[1] & 0x7F) + 1);
             }
             sNvIp = p + 0x1A;
@@ -728,31 +758,29 @@ static s32 NvScd_Cmd(void) {
             sNvIp = p + NvScd_Len(p);
             return 1;
         }
-        case 0x3E: // cmd_bullet_effect_clear, 0x42 cmd_effect_clear_typed, 0x48 cmd_effect_pool_clear:
-        case 0x42: // the billboards they'd clear are only stand-ins here (RE1's effect system,
-        case 0x48: // EffectSystem.cpp, isn't ported): nothing to take away
-            sNvIp = p + NvScd_Len(p);
+        case 0x3E: // cmd_bullet_effect_clear: the last 0x3D's type, freed (z_nv_effects.c)
+            NvFx_ScdClearType(sNvFxLastBullet);
+            sNvIp = p + 2;
+            return 1;
+        case 0x42: // cmd_effect_clear_typed: a type / group pair's effects freed
+            NvFx_ScdClearTyped(p[1], p[2]);
+            sNvIp = p + 4;
+            return 1;
+        case 0x48: // cmd_effect_pool_clear: all of them
+            NvFx_ScdClearAll();
+            sNvIp = p + 2;
             return 1;
         case 0x19: // cmd_model_flag_set: an item model's flags byte (as cmd_obj_flag_set's kind 1)
             sNvItemHidden[p[1] % NV_AOT_SLOTS] = !(p[2] & 1);
             sNvIp = p + 4;
             return 1;
-        case 0x3D: // cmd_bullet_effect_spawn: laid out as 0x2A's
-        case 0x2A: { // cmd_effect_spawn: kind p[1] at (x, y, z). A stand-in for RE1's billboards
-            // (its glass shards, 0x15 and 0x21): one of OoT's white bursts, a little scattered
-            Vec3f at;
-            s16 v[3];
-
-            memcpy(v, p + 4, sizeof(v));
-            at.x = (u16)v[0] * NV_RE1_SCALE + Rand_CenteredFloat(20.0f);
-            at.y = -v[1] * NV_RE1_SCALE + Rand_CenteredFloat(20.0f);
-            at.z = -(u16)v[2] * NV_RE1_SCALE + Rand_CenteredFloat(20.0f);
-            if ((sNvPlay != NULL) && ((p[1] == 0x15) || (p[1] == 0x21))) {
-                EffectSsHitMark_SpawnCustomScale(sNvPlay, 0, 300, &at);
-            }
+        case 0x3D: // cmd_bullet_effect_spawn, 0x2A cmd_effect_spawn: RE1's 2D effects (z_nv_effects.c)
+            sNvFxLastBullet = p[1];
+            // fall through
+        case 0x2A:
+            NvFx_ScdSpawn(p);
             sNvIp = p + NvScd_Len(p);
             return 1;
-        }
         case 0x29: // cmd_fmv_set
             NvMovie_Start(p[1]);
             sNvIp = p + 2;
@@ -1561,6 +1589,8 @@ static void NvPickup_Update(PlayState* play) {
         return;
     }
     NvItems_SetTaken(a->itemFlag);
+    NvFx_Kill(a->sparkle); // (its glint goes with it)
+    a->sparkle = 0xFF;
     a->handler = 0;
     sNvPickedItem = a->item; // (cmd_picked_item_test)
     printf("NVITEM took %02X x%d (flag %d)\n", a->item, a->qty, a->itemFlag);
@@ -1610,6 +1640,8 @@ static void NvAot_Run(s32 i, s32 handler) {
             if (a->item != 0) {
                 sNvPickedItem = a->item;
                 NvItems_SetTaken(a->itemFlag);
+    NvFx_Kill(a->sparkle); // (its glint goes with it)
+    a->sparkle = 0xFF;
                 a->handler = 0;
                 NvFiles_Take(a->item);
             }
@@ -1677,6 +1709,8 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         fflush(stdout);
         sNvPickedItem = a->item;
         NvItems_SetTaken(a->itemFlag);
+    NvFx_Kill(a->sparkle); // (its glint goes with it)
+    a->sparkle = 0xFF;
         a->handler = 0;
         NvFiles_Take(a->item);
         return true;
@@ -2032,6 +2066,9 @@ s32 NvScript_RoomNum(void) {
 void NvScript_RoomInit(PlayState* play) {
     NvFlags_NewGame();
     sNvLightState = -1; // (room_set: the special light off)
+    if ((play->loadedScene != NULL) && (play->loadedScene->sceneFile.fileName != NULL)) {
+        NvFx_RoomLoad(play->loadedScene->sceneFile.fileName); // (InitRoomEffSprite)
+    }
     sNvLightDelta = 0;
     NvWarp_Arrive(play);
     if (play->sceneNum < SCENE_RE1_100) {
@@ -2500,6 +2537,11 @@ static void NvObj_Update(PlayState* play) {
 }
 
 void NvPanel_Update(PlayState* play);
+void NvFx_ScdSpawn(const u8* p);
+void NvFx_ScdClearTyped(u8 type, u8 group);
+void NvFx_ScdClearAll(void);
+void NvFx_Tick(PlayState* play);
+void NvFx_RoomLoad(const char* sceneFile);
 void NvSave_Update(PlayState* play);
 void NvCountdown_Tick(PlayState* play);
 
@@ -2567,6 +2609,7 @@ void NvScript_Update(PlayState* play) {
         sNvStateWord[3] = (u16)(Rand_Next() >> 16);
         NvCountdown_Tick(play); // (and game_loop's countdown: z_nv_ending.c)
         NvBgm_Tick(); // (the music's fades and ramps)
+        NvFx_Tick(play); // (RE1's 2D effects: z_nv_effects.c)
         if (sNvLightState >= 0) { // main_loop's special light, a step a tick
             sNvLightState += sNvLightDelta;
         }
