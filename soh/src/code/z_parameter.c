@@ -1333,7 +1333,7 @@ void func_80083108(PlayState* play) {
 void Interface_SetSceneRestrictions(PlayState* play) {
     InterfaceContext* interfaceCtx = &play->interfaceCtx;
     s16 i;
-    u8 currentScene;
+    u16 currentScene; // Nightmareverse: 16 bits (RE1 scenes past 0xFF would match OoT's first ones)
 
     // clang-format off
     interfaceCtx->restrictions.hGauge = interfaceCtx->restrictions.bButton =
@@ -1350,7 +1350,7 @@ void Interface_SetSceneRestrictions(PlayState* play) {
     osSyncPrintf("ボタン表示関係データ設定 scene_data_ID=%d\n", play->sceneNum);
 
     do {
-        currentScene = (u8)play->sceneNum;
+        currentScene = (u16)play->sceneNum;
         if (sRestrictionFlags[i].scene == currentScene) {
             interfaceCtx->restrictions.hGauge = (sRestrictionFlags[i].flags1 & 0xC0) >> 6;
             interfaceCtx->restrictions.bButton = (sRestrictionFlags[i].flags1 & 0x30) >> 4;

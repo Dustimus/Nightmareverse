@@ -749,6 +749,17 @@ static s32 NvScd_Cmd(void) {
             sNvIp = p + 4;
             return 1;
         }
+        case 0x45: { // cmd_player_posy_add: her height moved by a signed byte (310's ladder: her climb)
+            Player* player = (sNvPlay != NULL) ? GET_PLAYER(sNvPlay) : NULL;
+
+            if (player != NULL) {
+                player->actor.world.pos.y -= (s8)p[1] * NV_RE1_SCALE;
+                player->actor.velocity.y = -player->actor.gravity; // (held there: the climb's room has no floor)
+            }
+            NvCast_Player()->t[1] += (s8)p[1];
+            sNvIp = p + 2;
+            return 1;
+        }
         case 0x21: { // cmd_enemy_pos_set
             s16 v[5];
 
@@ -948,8 +959,24 @@ static s32 NvScd_Cmd(void) {
         case 0x50: // cmd_costume_variant_test: the costume bit 0x4F sets, which no Jill script sets: false
             sNvIp = p + NvScd_Len(p);
             return 0;
+        case 0x36: { // cmd_obj_field_test: object p[1]'s push counter (+0x86) against p[3], compare p[2]
+            s32 v = ((p[1] < NV_OBJ_SLOTS) && sNvObj[p[1]].set) ? sNvObj[p[1]].push : 0;
+            s32 c = p[3];
+            s32 r;
+
+            switch (p[2]) {
+                case 0: r = (v == c); break;
+                case 1: r = (v > c); break;
+                case 2: r = (v >= c); break;
+                case 3: r = (c > v); break;
+                case 4: r = (c >= v); break;
+                case 5: r = (c != v); break;
+                default: r = 0; break;
+            }
+            sNvIp = p + NvScd_Len(p);
+            return r;
+        }
         // tests not run yet: false
-        case 0x36:
         case 0x38:
             sNvIp = p + NvScd_Len(p);
             return 0;
