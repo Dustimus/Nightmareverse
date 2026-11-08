@@ -1231,6 +1231,7 @@ def main():
     a = ap.parse_args()
     if a.soh:  # RE1's core effect types and Effspr pages, and where the rooms' sprites go after them
         import soh_effects
+        import soh_scene
         fx_base = os.path.dirname(a.stage.rstrip("/")) if os.path.basename(a.stage.rstrip("/")).upper().startswith(
             "STAGE") else a.stage
         soh_scene.EFFECTS_START = soh_effects.write_global(fx_base, a.soh, a.exe)
