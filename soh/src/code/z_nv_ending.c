@@ -80,10 +80,12 @@ void NvEnding_CountSave(void) {
 }
 static s32 sNvTickPhase;
 
-/* the results' pictures: 0 Jill's backdrop, 1 en05's plates, 2 en07's, 3 the epilogue's picture */
-static const u8* sNvResPic[4];
-static u16 sNvResW[4];
-static u16 sNvResH[4];
+/* the results' pictures: 0 Jill's backdrop, 1 en05's plates, 2 en07's, 3 the epilogue's picture,
+   4 RE1's 8x14 font (fontus.tim) */
+#define NV_RES_PICS 5
+static const u8* sNvResPic[NV_RES_PICS];
+static u16 sNvResW[NV_RES_PICS];
+static u16 sNvResH[NV_RES_PICS];
 
 typedef struct {
     s16 x;
@@ -187,7 +189,7 @@ static void NvResult_Load(void) {
         return;
     }
     off = 6;
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < MIN(NV_RES_PICS, d[4] | (d[5] << 8)); i++) {
         memcpy(&sNvResW[i], d + off, 2);
         memcpy(&sNvResH[i], d + off + 2, 2);
         sNvResPic[i] = d + off + 4;
@@ -379,6 +381,32 @@ static Gfx* NvResult_Pic(Gfx* gfx, s32 pic, s32 v, s32 h, s32 x, s32 y, s32 shad
     return gfx;
 }
 
+/** RE1's PrintText8x14: ASCII in fontus.tim's 8x14 cells (column ch % 18, row ch / 18). */
+static Gfx* NvResult_Text(Gfx* gfx, s32 x, s32 y, const char* str, s32 shade) {
+    const u16* font = (const u16*)sNvResPic[4];
+
+    shade = MIN(shade, 255);
+    if ((font == NULL) || (shade <= 0)) {
+        return gfx;
+    }
+    gDPSetPrimColor(gfx++, 0, 0, shade, shade, shade, 255);
+    for (; *str != '\0'; str++, x += 8) {
+        u8 ch = (u8)*str;
+        s32 u = (ch % 18) * 8;
+        s32 v = (ch / 18) * 14;
+
+        if (ch == ' ') {
+            continue;
+        }
+        gDPLoadTextureTile(gfx++, font, G_IM_FMT_RGBA, G_IM_SIZ_16b, sNvResW[4], sNvResH[4], u, v, u + 7, v + 13, 0,
+                           G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
+                           G_TX_NOLOD, G_TX_NOLOD);
+        gSPTextureRectangle(gfx++, x << 2, y << 2, (x + 8) << 2, (y + 14) << 2, G_TX_RENDERTILE, u << 5, v << 5,
+                            1 << 10, 1 << 10);
+    }
+    return gfx;
+}
+
 /** The results over everything (z_play.c, with the movies). */
 void NvEnding_Draw(PlayState* play) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
@@ -431,29 +459,36 @@ void NvEnding_Draw(PlayState* play) {
             }
         }
         gDPPipeSync(gfx++);
-        if (sNvEnd == NV_END_RESULT) {
-            GfxPrint printer;
+        if (sNvEnd == NV_END_RESULT) { // the time and the count, in RE1's font (GfxPrint's without it)
             u32 t = sNvRunTicks;
+            char line[16];
 
-            GfxPrint_Init(&printer);
-            GfxPrint_Open(&printer, gfx);
             for (i = 0; i < n; i++) {
                 s32 shade = MIN(sNvResFade[i] >> 7, 255);
 
                 if (!sNvResOn[i] || (shade <= 0) || ((slots[i].kind != 3) && (slots[i].kind != 5))) {
                     continue;
                 }
-                GfxPrint_SetColor(&printer, shade, shade, shade, 255);
-                GfxPrint_SetPosPx(&printer, slots[i].x + dx, slots[i].y);
-                if (slots[i].kind == 3) {
-                    GfxPrint_Printf(&printer, "%02d:%02d:%02d", (int)(t / 108000), (int)((t % 108000) / 1800),
-                                    (int)((t % 1800) / 30));
+                if (slots[i].kind == 3) { // "%02d:%02d%c%02d": hours, minutes, RE1's separator (0x5E), seconds
+                    snprintf(line, sizeof(line), "%02d:%02d%c%02d", (int)(t / 108000), (int)((t % 108000) / 1800),
+                             0x5E, (int)((t % 1800) / 30));
                 } else {
-                    GfxPrint_Printf(&printer, "%02d", (int)MIN(sNvRunSaves, 99));
+                    snprintf(line, sizeof(line), "%02d", (int)MIN(sNvRunSaves, 99));
+                }
+                if (sNvResPic[4] != NULL) {
+                    gfx = NvResult_Text(gfx, slots[i].x + dx, slots[i].y, line, shade);
+                } else {
+                    GfxPrint printer;
+
+                    GfxPrint_Init(&printer);
+                    GfxPrint_Open(&printer, gfx);
+                    GfxPrint_SetColor(&printer, shade, shade, shade, 255);
+                    GfxPrint_SetPosPx(&printer, slots[i].x + dx, slots[i].y);
+                    GfxPrint_Printf(&printer, "%s", line);
+                    gfx = GfxPrint_Close(&printer);
+                    GfxPrint_Destroy(&printer);
                 }
             }
-            gfx = GfxPrint_Close(&printer);
-            GfxPrint_Destroy(&printer);
         }
     }
     OVERLAY_DISP = gfx;

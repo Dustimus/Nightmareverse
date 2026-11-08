@@ -243,8 +243,9 @@ def slides_blob(re1):
 # The results after an ending (EndingScreen.cpp): Jill's backdrop on the endings without the staff
 # roll (Data/jill02.pix, 320x240 16-bit), the plates of text (Data/en05.tim for the other endings,
 # en07.tim on the backdrop: "TOTAL TIME", "NUMBER OF SAVES", the special key's), and the special
-# key's epilogue picture (Data/rc1121.pix).
-RESULT_PARTS = ["jill02.pix", "en05.tim", "en07.tim", "rc1121.pix"]
+# key's epilogue picture (Data/rc1121.pix), and RE1's 8x14 font (Data/fontus.tim: the time and the
+# count, as PrintText8x14 draws them).
+RESULT_PARTS = ["jill02.pix", "en05.tim", "en07.tim", "rc1121.pix", "fontus.tim"]
 
 
 def _pix_rgba(d):
