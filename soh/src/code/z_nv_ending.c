@@ -20,7 +20,7 @@
  * count, held until a button (or 76 seconds), faded out; after ending 7 the special key's epilogue
  * (its picture and two plates, held nine seconds). The pictures are the player's own (re1/ui/result:
  * soh_ui.result_blob). RE1 then saves the cleared game and goes to its title; here, for now, Link
- * is put back in Hyrule at the Nocturne's warp pad (the song he came in by). The time is the run's
+ * is put back in Hyrule where he played the mansion's song (that place's entrance: z_nv_save.c). The time is the run's
  * RE1 ticks; the saves, the typewriter's (z_nv_save.c).
  */
 #include "global.h"
@@ -35,6 +35,7 @@ s32 NvFlags_Test(s32 bank, s32 bit);
 void NvFlags_Op(s32 bank, s32 bit, s32 mode);
 u16* NvScript_StateWord(s32 i);
 void NvSave_Finished(void);
+s16 NvSave_Home(void);
 void NvMovie_Start(s32 id);
 s32 NvMovie_Playing(void);
 
@@ -341,12 +342,12 @@ s32 NvEnding_Update(PlayState* play) {
             return true;
         case NV_END_GONE: // (black until the scene changes)
             return false;
-        case NV_END_LEAVE: // for now: back to Hyrule, at the Nocturne's warp pad
+        case NV_END_LEAVE: // for now: back to Hyrule, where the mansion's song was played
             sNvEnd = NV_END_GONE;
             printf("NVEND back to Hyrule\n");
             fflush(stdout);
             gSaveContext.health = MAX(gSaveContext.health, 0x30);
-            play->nextEntranceIndex = ENTR_GRAVEYARD_WARP_PAD;
+            play->nextEntranceIndex = NvSave_Home();
             play->transitionTrigger = TRANS_TRIGGER_START;
             play->transitionType = TRANS_TYPE_FADE_BLACK;
             gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
