@@ -13,13 +13,23 @@
  * MSF2_DEATH_VARIANT): the helicopter at 303 does. ending_select_id picks the ending from the
  * second scenario bank's 0xC0 (Chris saved) and 0x4B (Barry: the second survivor); then the
  * movies: 14 (the mansion going up), 14 + the ending, the closing one (27 after the endings with
- * both survivors, else Jill's own, 25) and, after the ones with the staff roll, 22. Then the title.
- * RE1's results screen (the clear time, the saves) and its unlocks aren't here yet.
+ * both survivors, else Jill's own, 25) and, after the ones with the staff roll, 22.
+ *
+ * Then the results (ending_result_update): on the endings without the staff roll Jill's backdrop,
+ * RE1's plates "TOTAL TIME" and "NUMBER OF SAVES" fading in a pair at a time with the time and the
+ * count, held until a button (or 76 seconds), faded out; after ending 7 the special key's epilogue
+ * (its picture and two plates, held nine seconds). The pictures are the player's own (re1/ui/result:
+ * soh_ui.result_blob). RE1 then saves the cleared game and goes to its title; here, for now, Link
+ * is put back in Hyrule at the Nocturne's warp pad (the song he came in by). The time is the run's
+ * RE1 ticks; the saves are none (there's no saving yet).
  */
 #include "global.h"
-#include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
+#include "soh/OTRGlobals.h"
+#include "soh/ResourceManagerHelpers.h"
+#include <libultraship/bridge/resourcebridge.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 s32 NvFlags_Test(s32 bank, s32 bit);
 void NvFlags_Op(s32 bank, s32 bit, s32 mode);
@@ -34,16 +44,50 @@ s32 NvMovie_Playing(void);
 
 static s32 sNvCountTicks; // DAT_004d2294: ticks into the second
 
-typedef enum { NV_END_NONE, NV_END_BLAST, NV_END_MOVIES, NV_END_TITLE } NvEndState;
+typedef enum { NV_END_NONE, NV_END_BLAST, NV_END_MOVIES, NV_END_RESULT, NV_END_EPILOGUE, NV_END_LEAVE, NV_END_GONE } NvEndState;
 static s32 sNvEnd = NV_END_NONE;
 static s8 sNvEndMovies[5];
 static s32 sNvEndMovie;
 static s32 sNvEndCount;
+static s32 sNvEndId;
+static u32 sNvRunTicks; // the run's clock (Game_timer: 30 a second)
+static s32 sNvTickPhase;
+
+/* the results' pictures: 0 Jill's backdrop, 1 en05's plates, 2 en07's, 3 the epilogue's picture */
+static const u8* sNvResPic[4];
+static u16 sNvResW[4];
+static u16 sNvResH[4];
+
+typedef struct {
+    s16 x;
+    s16 y;
+    u8 kind; // 2 a plate, 3 the time, 5 the saves
+    u8 v;    // a plate's rows in the sheet
+    u8 h;
+} NvResSlot;
+
+// s_creditEntries: 0-4 on the backdrop, 7-11 the plain layout, 5-6 the epilogue's plates
+static const NvResSlot sNvResOnBackdrop[5] = {
+    { 0x00, 0x30, 2, 0x00, 0x18 }, { 0x30, 0x50, 3, 0, 0 }, { 0x00, 0x74, 2, 0x18, 0x18 },
+    { 0x48, 0x94, 5, 0, 0 },       { 0x25, 0x66, 2, 0x30, 0x28 },
+};
+static const NvResSlot sNvResPlain[5] = {
+    { 0x20, 0x16, 2, 0x00, 0x36 }, { 0x80, 0x58, 3, 0, 0 }, { 0x20, 0x7A, 2, 0x36, 0x36 },
+    { 0x98, 0xB8, 5, 0, 0 },       { 0, 0, 0, 0, 0 },
+};
+static const NvResSlot sNvResEpilogue[2] = { { 0x20, 0x20, 2, 0x58, 0x30 }, { 0x20, 0xC0, 2, 0x88, 0x20 } };
+
+static s32 sNvResStep;
+static s32 sNvResTimer;
+static s32 sNvResFade[6]; // 0-4 the slots, 5 the backdrop (0..0x8000)
+static s32 sNvResVel[6];
+static s32 sNvResOn[6];
 
 /** game_loop's countdown, one RE1 tick (z_nv_script.c's tick loop). */
 void NvCountdown_Tick(PlayState* play) {
     u16* w = NvScript_StateWord(4);
 
+    sNvRunTicks++;
     if ((sNvCountTicks > 29) || (*w == 0x7FFF)) {
         sNvCountTicks = 0;
         if (*w < 0x7FFE) {
@@ -88,49 +132,304 @@ static void NvEnding_Begin(void) {
     sNvEndMovies[n] = -1;
     sNvEndMovie = 0;
     sNvEndCount = 0;
+    sNvEndId = id;
     sNvEnd = NV_END_MOVIES;
     printf("NVEND ending %d\n", (int)id);
     fflush(stdout);
 }
 
-/** Each frame from Play_Update, ahead of the movies (it runs between them). */
-void NvEnding_Update(PlayState* play) {
-    if (play->sceneNum < SCENE_RE1_100) {
+static s32 NvResult_Backdrop(void) { // s_endingTable's background: the endings without the staff roll
+    return sNvEndId >= 4;
+}
+
+static const NvResSlot* NvResult_Slots(void) {
+    return NvResult_Backdrop() ? sNvResOnBackdrop : sNvResPlain;
+}
+
+static void NvResult_Load(void) {
+    const u8* d = NULL;
+    s32 i;
+    s32 off;
+
+    memset(sNvResPic, 0, sizeof(sNvResPic));
+    if (ResourceMgr_FileExists("re1/ui/result")) {
+        d = (const u8*)ResourceGetDataByName("re1/ui/result");
+    }
+    if ((d == NULL) || (memcmp(d, "RRES", 4) != 0)) {
         return;
     }
+    off = 6;
+    for (i = 0; i < 4; i++) {
+        memcpy(&sNvResW[i], d + off, 2);
+        memcpy(&sNvResH[i], d + off + 2, 2);
+        sNvResPic[i] = d + off + 4;
+        off += 4 + sNvResW[i] * sNvResH[i] * 2;
+    }
+}
+
+static void NvResult_Show(s32 i, s32 vel) {
+    sNvResOn[i] = true;
+    sNvResVel[i] = vel;
+}
+
+/** One RE1 tick of ending_result_update; true when it's done. */
+static s32 NvResult_Tick(Input* input) {
+    s32 i;
+
+    for (i = 0; i < 6; i++) { // ending_result_draw's ramps
+        sNvResFade[i] = CLAMP(sNvResFade[i] + sNvResVel[i], 0, 0x8000);
+        if ((sNvResFade[i] == 0) || (sNvResFade[i] == 0x8000)) {
+            sNvResVel[i] = 0;
+        }
+    }
+    switch (sNvResStep) {
+        case 0:
+            memset(sNvResFade, 0, sizeof(sNvResFade));
+            memset(sNvResVel, 0, sizeof(sNvResVel));
+            memset(sNvResOn, 0, sizeof(sNvResOn));
+            NvResult_Show(5, 0x800);
+            sNvResTimer = 0;
+            sNvResStep = 1;
+            break;
+        case 1:
+        case 2: // the plates a pair at a time
+            if (++sNvResTimer > 0x3C) {
+                sNvResTimer = 0;
+                NvResult_Show((sNvResStep - 1) * 2, 0x800);
+                NvResult_Show((sNvResStep - 1) * 2 + 1, 0x800);
+                sNvResStep++;
+            }
+            break;
+        case 3:
+            if (++sNvResTimer > 0x5A) {
+                sNvResTimer = 0;
+                sNvResStep = 4;
+            }
+            break;
+        case 4: // held until a button or ~76 seconds
+            if ((++sNvResTimer > 0x708) || ((getenv("NV_END_AUTO") != NULL) && (sNvResTimer > 60)) ||
+                CHECK_BTN_ANY(input->press.button, BTN_A | BTN_B | BTN_START | BTN_CRIGHT | BTN_CLEFT)) {
+                for (i = 0; i < 6; i++) {
+                    sNvResVel[i] = -0x800;
+                }
+                sNvResTimer = 0;
+                sNvResStep = 10;
+            }
+            break;
+        case 10:
+            if (++sNvResTimer > 0x1E) {
+                return true;
+            }
+            break;
+    }
+    return false;
+}
+
+/** ending_epilogue_update: the special key's picture and plates, nine seconds, faded out. */
+static s32 NvEpilogue_Tick(void) {
+    s32 i;
+
+    for (i = 0; i < 6; i++) {
+        sNvResFade[i] = CLAMP(sNvResFade[i] + sNvResVel[i], 0, 0x8000);
+    }
+    if (++sNvResTimer == 0x10D) {
+        for (i = 0; i < 6; i++) {
+            sNvResVel[i] = -0x800;
+        }
+    }
+    return sNvResTimer > 0x10D + 0x14;
+}
+
+/** Each frame from Play_Update, ahead of the movies (it runs between them); true while it holds the game. */
+s32 NvEnding_Update(PlayState* play) {
+    Input* input = &play->state.input[0];
+    s32 ticks;
+    s32 t;
+
+    if (play->sceneNum < SCENE_RE1_100) {
+        if (sNvEnd == NV_END_GONE) { // (back in Hyrule)
+            sNvEnd = NV_END_NONE;
+        }
+        return false;
+    }
+    ticks = (sNvTickPhase ^= 1) ? 1 : 2; // (RE1's 30 a second at OoT's 20)
     switch (sNvEnd) {
         case NV_END_NONE:
             if (NvFlags_Test(5, NV_MSF_PLAYER_DEAD) && NvFlags_Test(5, NV_MSF2_DEATH_VARIANT)) {
                 NvFlags_Op(5, NV_MSF_PLAYER_DEAD, 1);
                 NvFlags_Op(5, NV_MSF2_DEATH_VARIANT, 1);
                 NvEnding_Begin();
+                return true;
             }
-            break;
+            return false;
         case NV_END_BLAST: // the explosion over: she's dead (OoT's game over)
             if (!NvMovie_Playing()) {
                 gSaveContext.health = 0;
                 sNvEnd = NV_END_NONE;
             }
-            break;
+            return false;
         case NV_END_MOVIES:
             if (NvMovie_Playing()) {
-                break;
+                return true;
             }
             if (sNvEndMovies[sNvEndMovie] < 0) {
-                sNvEnd = NV_END_TITLE;
-                break;
+                NvResult_Load();
+                sNvResStep = 0;
+                sNvEnd = NV_END_RESULT;
+                printf("NVEND results: %u ticks\n", (unsigned)sNvRunTicks);
+                fflush(stdout);
+                return true;
             }
-            NvMovie_Start(sNvEndMovies[sNvEndMovie++]);
-            break;
-        case NV_END_TITLE: // ending_state's last step: back to the title
-            sNvEnd = NV_END_NONE;
-            printf("NVEND title\n");
+            if (getenv("NV_END_NO_MOVIES") == NULL) { // dev: straight to the results
+                NvMovie_Start(sNvEndMovies[sNvEndMovie]);
+            }
+            sNvEndMovie++;
+            return true;
+        case NV_END_RESULT:
+            for (t = 0; t < ticks; t++) {
+                if (NvResult_Tick(input)) {
+                    if (sNvEndId == 7) { // the special key's epilogue
+                        memset(sNvResOn, 0, sizeof(sNvResOn));
+                        sNvResOn[0] = sNvResOn[1] = sNvResOn[5] = true;
+                        sNvResFade[0] = sNvResFade[1] = sNvResFade[5] = 0x8000;
+                        memset(sNvResVel, 0, sizeof(sNvResVel));
+                        sNvResTimer = 0;
+                        sNvEnd = NV_END_EPILOGUE;
+                        printf("NVEND epilogue\n");
+                    } else {
+                        sNvEnd = NV_END_LEAVE;
+                    }
+                    fflush(stdout);
+                    break;
+                }
+            }
+            return true;
+        case NV_END_EPILOGUE:
+            for (t = 0; t < ticks; t++) {
+                if (NvEpilogue_Tick()) {
+                    sNvEnd = NV_END_LEAVE;
+                    break;
+                }
+            }
+            return true;
+        case NV_END_GONE: // (black until the scene changes)
+            return false;
+        case NV_END_LEAVE: // for now: back to Hyrule, at the Nocturne's warp pad
+            sNvEnd = NV_END_GONE;
+            printf("NVEND back to Hyrule\n");
             fflush(stdout);
-            play->state.running = false;
-            SET_NEXT_GAMESTATE(&play->state, Opening_Init, OpeningContext);
-            GameInteractor_ExecuteOnExitGame(gSaveContext.fileNum);
-            break;
+            gSaveContext.health = MAX(gSaveContext.health, 0x30);
+            play->nextEntranceIndex = ENTR_GRAVEYARD_WARP_PAD;
+            play->transitionTrigger = TRANS_TRIGGER_START;
+            play->transitionType = TRANS_TYPE_FADE_BLACK;
+            gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK;
+            return false; // (Play_Update carries the transition out)
     }
+    return false;
+}
+
+/** A picture's rows y0..y0+h at (x, y), tinted (shade 0..255) and see-through by its alpha. */
+static Gfx* NvResult_Pic(Gfx* gfx, s32 pic, s32 v, s32 h, s32 x, s32 y, s32 shade) {
+    const u16* px = (const u16*)sNvResPic[pic];
+    s32 w = sNvResW[pic];
+    s32 rows = 4096 / (w * 2);
+    s32 r;
+
+    shade = MIN(shade, 255);
+    if ((px == NULL) || (shade <= 0)) {
+        return gfx;
+    }
+    gDPSetPrimColor(gfx++, 0, 0, shade, shade, shade, 255);
+    for (r = 0; r < h; r += rows) {
+        s32 n = MIN(rows, h - r);
+
+        gDPLoadTextureBlock(gfx++, px + (v + r) * w, G_IM_FMT_RGBA, G_IM_SIZ_16b, w, n, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                            G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+        gSPTextureRectangle(gfx++, x << 2, (y + r) << 2, (x + w) << 2, (y + r + n) << 2, G_TX_RENDERTILE, 0, 0, 1 << 10,
+                            1 << 10);
+    }
+    return gfx;
+}
+
+/** The results over everything (z_play.c, with the movies). */
+void NvEnding_Draw(PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    const NvResSlot* slots;
+    s32 sheet;
+    s32 n;
+    s32 i;
+    s32 dx;
+    Gfx* gfx;
+
+    if ((sNvEnd != NV_END_RESULT) && (sNvEnd != NV_END_EPILOGUE) && (sNvEnd != NV_END_LEAVE) &&
+        ((sNvEnd != NV_END_GONE) || (play->sceneNum < SCENE_RE1_100))) {
+        return;
+    }
+    OPEN_DISPS(gfxCtx);
+    gfx = OVERLAY_DISP;
+    gDPPipeSync(gfx++);
+    gDPSetCycleType(gfx++, G_CYC_FILL);
+    gDPSetRenderMode(gfx++, G_RM_NOOP, G_RM_NOOP2);
+    gDPSetFillColor(gfx++, GPACK_RGBA5551(0, 0, 0, 1) << 16 | GPACK_RGBA5551(0, 0, 0, 1));
+    gDPFillWideRectangle(gfx++, OTRGetRectDimensionFromLeftEdge(0), 0, OTRGetRectDimensionFromRightEdge(SCREEN_WIDTH),
+                         SCREEN_HEIGHT);
+    gDPPipeSync(gfx++);
+    if ((sNvEnd != NV_END_LEAVE) && (sNvEnd != NV_END_GONE)) {
+        gDPSetCycleType(gfx++, G_CYC_1CYCLE);
+        gDPSetTexturePersp(gfx++, G_TP_NONE);
+        gDPSetTextureFilter(gfx++, G_TF_POINT);
+        gDPSetTextureLUT(gfx++, G_TT_NONE);
+        gDPSetCombineLERP(gfx++, TEXEL0, 0, PRIMITIVE, 0, TEXEL0, 0, PRIMITIVE, 0, TEXEL0, 0, PRIMITIVE, 0, TEXEL0, 0,
+                          PRIMITIVE, 0);
+        gDPSetRenderMode(gfx++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
+        sheet = NvResult_Backdrop() ? 2 : 1;
+        if (sNvEnd == NV_END_EPILOGUE) {
+            gfx = NvResult_Pic(gfx, 3, 0, 240, 0, 0, sNvResFade[5] >> 7);
+            slots = sNvResEpilogue;
+            n = 2;
+            dx = 0;
+        } else {
+            if (NvResult_Backdrop()) {
+                gfx = NvResult_Pic(gfx, 0, 0, 240, 0, 0, sNvResFade[5] >> 7);
+            }
+            slots = NvResult_Slots();
+            n = 4; // (the fifth plate is Chris's ending 6's)
+            dx = NvResult_Backdrop() ? 0x9C : 0; // (Jill's layout: a plate width right, off her picture)
+        }
+        for (i = 0; i < n; i++) {
+            if (sNvResOn[i] && (slots[i].kind == 2)) {
+                gfx = NvResult_Pic(gfx, sheet, slots[i].v, slots[i].h, slots[i].x + dx,
+                                   slots[i].y, sNvResFade[i] >> 7);
+            }
+        }
+        gDPPipeSync(gfx++);
+        if (sNvEnd == NV_END_RESULT) {
+            GfxPrint printer;
+            u32 t = sNvRunTicks;
+
+            GfxPrint_Init(&printer);
+            GfxPrint_Open(&printer, gfx);
+            for (i = 0; i < n; i++) {
+                s32 shade = MIN(sNvResFade[i] >> 7, 255);
+
+                if (!sNvResOn[i] || (shade <= 0) || ((slots[i].kind != 3) && (slots[i].kind != 5))) {
+                    continue;
+                }
+                GfxPrint_SetColor(&printer, shade, shade, shade, 255);
+                GfxPrint_SetPosPx(&printer, slots[i].x + dx, slots[i].y);
+                if (slots[i].kind == 3) {
+                    GfxPrint_Printf(&printer, "%02d:%02d:%02d", (int)(t / 108000), (int)((t % 108000) / 1800),
+                                    (int)((t % 1800) / 30));
+                } else {
+                    GfxPrint_Printf(&printer, "%02d", 0);
+                }
+            }
+            gfx = GfxPrint_Close(&printer);
+            GfxPrint_Destroy(&printer);
+        }
+    }
+    OVERLAY_DISP = gfx;
+    CLOSE_DISPS(gfxCtx);
 }
 
 /** The time left at the top (game_loop's PrintText8x14 at 0x84, 0x20), while the countdown runs. */

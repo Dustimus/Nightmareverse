@@ -240,6 +240,49 @@ def slides_blob(re1):
     return bytes(out)
 
 
+# The results after an ending (EndingScreen.cpp): Jill's backdrop on the endings without the staff
+# roll (Data/jill02.pix, 320x240 16-bit), the plates of text (Data/en05.tim for the other endings,
+# en07.tim on the backdrop: "TOTAL TIME", "NUMBER OF SAVES", the special key's), and the special
+# key's epilogue picture (Data/rc1121.pix).
+RESULT_PARTS = ["jill02.pix", "en05.tim", "en07.tim", "rc1121.pix"]
+
+
+def _pix_rgba(d):
+    out = bytearray()
+    for i in range(320 * 240):
+        out += bytes(emd.psx_color(struct.unpack_from("<H", d, i * 2)[0]))
+    return 320, 240, bytes(out)
+
+
+def result_blob(re1):
+    """"RRES", u16 count, then each picture: u16 width, height, RGBA5551 (big-endian)."""
+    data = rdt.find_file(re1, "DATA")
+    out = bytearray(b"RRES" + struct.pack("<H", len(RESULT_PARTS)))
+    for name in RESULT_PARTS:
+        d = open(rdt.find_file(data, name), "rb").read()
+        if name.endswith(".pix"):
+            w, h, rgba = _pix_rgba(d)
+        else:
+            w, h, rgba = emd.tim_to_rgba(emd.parse_tim(d, 0), {p: 0 for p in range(8)})
+        out += struct.pack("<2H", w, h)
+        for k in range(w * h):
+            out += struct.pack(">H", _rgba5551(rgba[k * 4:k * 4 + 4]))
+    return bytes(out)
+
+
+def write_result(re1, out):
+    """Write the results screen's pictures (re1/ui/result); how many (0 when they aren't there)."""
+    try:
+        blob = result_blob(re1)
+    except (OSError, IndexError, ValueError):
+        return 0
+    d = os.path.join(out, "re1", "ui")
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, "result"), "wb").write(
+        soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    return len(RESULT_PARTS)
+
+
 def write_slides(re1, out):
     """Write the projector's slides (re1/ui/slides); how many (0 when the file isn't there)."""
     try:
