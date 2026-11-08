@@ -10,10 +10,17 @@
  * Released: the locks bank's bit (2: 0x25 the first, 0x26 the second, cl_cmd_unlock) and the
  * lab's map (the room bank's 0x7C + 5).
  *
- * RE1 draws it all from its own pictures (the hands typing, the windows, the logo); here it is
- * the plain text of the same steps over the monitor.
+ * Drawn from RE1's own pictures (re1/ui/computer: umb00, umb01 and umbrella.tim from the player's
+ * Data folder, soh_ui.computer_blob) where the decomp's tables put them: the windows' frames and
+ * their lines ("Login:", "Basement Doorlock Operation", "B2"...), the keyboard and its lit key, the
+ * typed letters and the caret, the status plates ("Login incorrect.", "No Match!", "Verified!"),
+ * the floor menu's bar and "Quit? Yes / No". Not here: the hands typing (two entities RE1 moves),
+ * the windows opening and closing, the logo's boot animation, the monitor's pictures. Without the
+ * pictures (an older re1.o2r) the same steps as plain text.
  */
 #include "global.h"
+#include "soh/ResourceManagerHelpers.h"
+#include <libultraship/bridge/resourcebridge.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -34,7 +41,8 @@ typedef enum {
     NV_TERM_MENU,    // the two locks, and leaving
     NV_TERM_CMD,     // a lock's release command
     NV_TERM_BADCMD,  // refused, back to the menu
-    NV_TERM_RELEASED // the lock released, back to the menu
+    NV_TERM_RELEASED, // the lock released, back to the menu
+    NV_TERM_QUIT      // "Quit?" (cl_menu_confirm_exit)
 } NvTermState;
 
 static const char* const sNvTermUser = "JOHN";
@@ -52,6 +60,7 @@ static s32 sNvTermTimer;
 static s32 sNvTermRepeat;
 static u16 sNvTermLatch;
 static s32 sNvTermFrames;
+static s32 sNvTermQuitSel; // "Quit?": 0 Yes, 1 No
 static ActorFunc sNvTermLinkDraw; // Link's draw, off while it's up (RE1 parks the player under the floor)
 
 s32 NvTerm_Up(void) {
@@ -274,8 +283,9 @@ void NvTerm_Update(PlayState* play) {
                 sNvTermSel++;
             }
             if (CHECK_BTN_ALL(input->press.button, BTN_A)) {
-                if (sNvTermSel == 2) {
-                    NvTerm_Finish(play);
+                if (sNvTermSel == 2) { // Cancel: "Quit?"
+                    sNvTerm = NV_TERM_QUIT;
+                    sNvTermQuitSel = 0;
                 } else {
                     sNvTermDoor = sNvTermSel;
                     sNvTerm = NV_TERM_CMD;
@@ -284,10 +294,27 @@ void NvTerm_Update(PlayState* play) {
                     sNvTermCol = 1;
                 }
             } else if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
-                NvTerm_Finish(play);
+                sNvTerm = NV_TERM_QUIT;
+                sNvTermQuitSel = 0;
             }
             break;
         }
+        case NV_TERM_QUIT: // Yes leaves the computer, No (or B) back to the floors
+            if (CHECK_BTN_ALL(input->press.button, BTN_DUP)) {
+                sNvTermQuitSel = 0;
+            } else if (CHECK_BTN_ALL(input->press.button, BTN_DDOWN)) {
+                sNvTermQuitSel = 1;
+            }
+            if (CHECK_BTN_ALL(input->press.button, BTN_A)) {
+                if (sNvTermQuitSel == 0) {
+                    NvTerm_Finish(play);
+                } else {
+                    sNvTerm = NV_TERM_MENU;
+                }
+            } else if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
+                sNvTerm = NV_TERM_MENU;
+            }
+            break;
         default:
             break;
     }
@@ -299,7 +326,7 @@ static void NvTerm_Print(GfxPrint* p, s32 col, s32 row, u8 r, u8 g, u8 b, const 
     GfxPrint_Printf(p, "%s", s);
 }
 
-void NvTerm_Draw(PlayState* play) {
+static void NvTerm_DrawText(PlayState* play) {
     GraphicsContext* gfxCtx = play->state.gfxCtx;
     GfxPrint printer;
     Gfx* gfx;
@@ -389,6 +416,380 @@ void NvTerm_Draw(PlayState* play) {
     }
     gfx = GfxPrint_Close(&printer);
     GfxPrint_Destroy(&printer);
+    OVERLAY_DISP = gfx;
+    CLOSE_DISPS(gfxCtx);
+}
+
+/* ---- RE1's pictures ---- */
+
+#define NV_TERM_CX 160 // RE1's screen space is centred: x -160..160, y -120..120
+#define NV_TERM_CY 120
+
+static const u16* sNvTermPic[3]; // umb00, umb01, umbrella.tim
+static u16 sNvTermPicW[3];
+static u16 sNvTermPicH[3];
+static s32 sNvTermPicsTried;
+static const u16* sNvTermFont; // RE1's 8x14 font (fontus.tim, from re1/ui/result): the password's stars
+static u16 sNvTermFontW;
+
+static void NvTerm_LoadPics(void) {
+    const u8* d = NULL;
+    s32 off = 6;
+    s32 i;
+
+    sNvTermPicsTried = true;
+    if (ResourceMgr_FileExists("re1/ui/computer")) {
+        d = (const u8*)ResourceGetDataByName("re1/ui/computer");
+    }
+    if ((d == NULL) || (memcmp(d, "RCMP", 4) != 0)) {
+        return;
+    }
+    for (i = 0; i < 3; i++) {
+        memcpy(&sNvTermPicW[i], d + off, 2);
+        memcpy(&sNvTermPicH[i], d + off + 2, 2);
+        sNvTermPic[i] = (const u16*)(d + off + 4);
+        off += 4 + sNvTermPicW[i] * sNvTermPicH[i] * 2;
+    }
+    if (ResourceMgr_FileExists("re1/ui/result")) { // (its fifth picture)
+        const u8* r = (const u8*)ResourceGetDataByName("re1/ui/result");
+
+        if ((r != NULL) && (memcmp(r, "RRES", 4) == 0) && ((r[4] | (r[5] << 8)) >= 5)) {
+            u16 w;
+            u16 h;
+
+            off = 6;
+            for (i = 0; i < 5; i++) {
+                memcpy(&w, r + off, 2);
+                memcpy(&h, r + off + 2, 2);
+                if (i == 4) {
+                    sNvTermFont = (const u16*)(r + off + 4);
+                    sNvTermFontW = w;
+                }
+                off += 4 + w * h * 2;
+            }
+        }
+    }
+}
+
+/**
+ * A '*' of RE1's 8x8 font (fontus.tim's top rows: PrintText8x8, ch at column ch % 32, row (ch - 32) / 32)
+ * at RE1's (x, y): cl_draw_text's masked letters.
+ */
+static Gfx* NvTerm_Star(Gfx* gfx, s32 x, s32 y) {
+    static u16 sStar[8 * 8];
+    static s32 sCut;
+    s32 r;
+
+    if (sNvTermFont == NULL) {
+        return gfx;
+    }
+    if (!sCut) {
+        for (r = 0; r < 8; r++) {
+            memcpy(sStar + r * 8, sNvTermFont + r * sNvTermFontW + (('*' * 8) & 0xFF), 16);
+        }
+        sCut = true;
+    }
+    x += NV_TERM_CX;
+    y += NV_TERM_CY;
+    gDPLoadTextureBlock(gfx++, sStar, G_IM_FMT_RGBA, G_IM_SIZ_16b, 8, 8, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                        G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+    gSPTextureRectangle(gfx++, x << 2, y << 2, (x + 8) << 2, (y + 8) << 2, G_TX_RENDERTILE, 0, 0, 1 << 10, 1 << 10);
+    return gfx;
+}
+
+// Each sprite's pixels cut out of its picture once, into a buffer of its own: drawn as plain
+// texture blocks (this renderer's tile loads off a shared picture came out at the wrong place)
+#define NV_TERM_CUTS 96
+#define NV_TERM_POOL (320 * 1024)
+typedef struct {
+    s16 pic;
+    u8 u;
+    u8 v;
+    u16 w;
+    u16 h;
+    u16* px;
+} NvTermCut;
+static NvTermCut sNvTermCuts[NV_TERM_CUTS];
+static s32 sNvTermCutCount;
+static u16 sNvTermPool[NV_TERM_POOL / 2];
+static u32 sNvTermPoolUsed; // (in u16s)
+
+static const u16* NvTerm_Cut(s32 pic, s32 u, s32 v, s32 w, s32 h) {
+    NvTermCut* c;
+    s32 i;
+    s32 y;
+
+    for (i = 0; i < sNvTermCutCount; i++) {
+        c = &sNvTermCuts[i];
+        if ((c->pic == pic) && (c->u == u) && (c->v == v) && (c->w == w) && (c->h == h)) {
+            return c->px;
+        }
+    }
+    if ((sNvTermCutCount >= NV_TERM_CUTS) || (sNvTermPoolUsed + (u32)(w * h) > ARRAY_COUNT(sNvTermPool)) ||
+        (u + w > sNvTermPicW[pic]) || (v + h > sNvTermPicH[pic])) {
+        return NULL;
+    }
+    c = &sNvTermCuts[sNvTermCutCount++];
+    c->pic = pic;
+    c->u = u;
+    c->v = v;
+    c->w = w;
+    c->h = h;
+    c->px = &sNvTermPool[sNvTermPoolUsed];
+    sNvTermPoolUsed += w * h;
+    for (y = 0; y < h; y++) {
+        memcpy(c->px + y * w, sNvTermPic[pic] + (v + y) * sNvTermPicW[pic] + u, w * 2);
+    }
+    return c->px;
+}
+
+/**
+ * One of RE1's sprites: texture page `page` (7-8 umb00, 9-10 umb01: 128 wide each; 0 umbrella.tim),
+ * its (u, v) w x h, at RE1's (x, y).
+ */
+static Gfx* NvTerm_Sprite(Gfx* gfx, s32 page, s32 u, s32 v, s32 w, s32 h, s32 x, s32 y) {
+    s32 pic = (page == 0) ? 2 : (page <= 8) ? 0 : 1;
+    const u16* px;
+    s32 r;
+    s32 rows;
+    s32 pw;
+
+    if ((sNvTermPic[pic] == NULL) || (w <= 0) || (h <= 0)) {
+        return gfx;
+    }
+    if ((page == 8) || (page == 10)) {
+        u += 128;
+    }
+    pw = (w + 3) & ~3; // (a texture row a multiple of 8 bytes: cut a little wider, drawn w wide)
+    if (u + pw > sNvTermPicW[pic]) {
+        pw = w;
+    }
+    px = NvTerm_Cut(pic, u, v, pw, h);
+    if (px == NULL) {
+        return gfx;
+    }
+    x += NV_TERM_CX;
+    y += NV_TERM_CY;
+    rows = MAX(1, 2048 / pw);
+    for (r = 0; r < h; r += rows) {
+        s32 n = MIN(rows, h - r);
+
+        gDPLoadTextureBlock(gfx++, px + r * pw, G_IM_FMT_RGBA, G_IM_SIZ_16b, pw, n, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                            G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+        gSPTextureRectangle(gfx++, x << 2, (y + r) << 2, (x + w) << 2, (y + r + n) << 2, G_TX_RENDERTILE, 0, 0,
+                            1 << 10, 1 << 10);
+    }
+    return gfx;
+}
+
+typedef struct {
+    u8 u;
+    u8 v;
+    u8 w; // in 8s
+    u8 h; // in 16s
+    u8 page;
+} NvTermRow;
+
+// the windows' lines (ComputerLab.cpp's ClRow tables)
+static const NvTermRow sNvTermRowsLogin[3] = { { 0x00, 0x90, 32, 2, 9 }, { 0x00, 0xE0, 7, 1, 7 }, { 0x00, 0xF0, 12, 1, 7 } };
+static const NvTermRow sNvTermRowsPanelA[3] = { { 0x00, 0xB0, 32, 1, 9 }, { 0, 0, 0, 1, 7 }, { 0x60, 0xF0, 13, 1, 7 } };
+static const NvTermRow sNvTermRowsSide[3] = { { 0x38, 0xE0, 3, 1, 7 }, { 0x50, 0xE0, 3, 1, 7 }, { 0xC8, 0xE0, 7, 1, 7 } };
+static const NvTermRow sNvTermRowsMenu[4] = { { 0xC8, 0xF0, 6, 1, 7 }, { 0, 0, 0, 1, 7 }, { 0xE0, 0x68, 4, 1, 7 },
+                                              { 0xE0, 0x78, 4, 1, 7 } };
+static const NvTermRow sNvTermRowsPanelB[4] = { { 0x00, 0xC0, 21, 1, 9 }, { 0x00, 0xD0, 21, 1, 9 }, { 0, 0, 0, 1, 7 },
+                                                { 0x00, 0xF0, 12, 1, 7 } };
+
+/** cl_draw_windows: the 9-slice frame (page 10), then its lines, each padded out with the blank cell. */
+static Gfx* NvTerm_Window(Gfx* gfx, s32 x, s32 y, s32 cols, s32 rows, const NvTermRow* lines, s32 n) {
+    s32 fw = (cols + 1) * 16;
+    s32 fh = (rows + 1) * 16;
+    s32 i;
+    s32 ly;
+
+    gfx = NvTerm_Sprite(gfx, 10, 0x50, 0x20, 16, 16, x, y);
+    gfx = NvTerm_Sprite(gfx, 10, 0x70, 0x20, 16, 16, x + fw, y);
+    gfx = NvTerm_Sprite(gfx, 10, 0x50, 0x40, 16, 16, x, y + fh);
+    gfx = NvTerm_Sprite(gfx, 10, 0x70, 0x40, 16, 16, x + fw, y + fh);
+    for (i = 0; i < cols; i++) {
+        gfx = NvTerm_Sprite(gfx, 10, 0x60, 0x20, 16, 16, x + 16 + 16 * i, y);
+        gfx = NvTerm_Sprite(gfx, 10, 0x60, 0x40, 16, 16, x + 16 + 16 * i, y + fh);
+    }
+    for (i = 0; i < rows; i++) {
+        gfx = NvTerm_Sprite(gfx, 10, 0x50, 0x30, 16, 16, x, y + 16 + 16 * i);
+        gfx = NvTerm_Sprite(gfx, 10, 0x70, 0x30, 16, 16, x + fw, y + 16 + 16 * i);
+    }
+    ly = y + 16;
+    for (i = 0; i < n; i++) {
+        s32 lh = lines[i].h * 16;
+        s32 k;
+
+        if (lines[i].w != 0) {
+            gfx = NvTerm_Sprite(gfx, lines[i].page, lines[i].u, lines[i].v, lines[i].w * 8, lh, x + 16, ly);
+        }
+        for (k = lines[i].w; k < cols * 2; k++) { // (the blank cell)
+            gfx = NvTerm_Sprite(gfx, 9, 0xE0, 0x30, 8, 16, x + 16 + 8 * k, ly);
+        }
+        ly += lh;
+    }
+    return gfx;
+}
+
+/** cl_draw_text: a field's letters (umb01's 16x16 cells: A-P, Q-Z), or its stars; and the caret. */
+static Gfx* NvTerm_Field2(Gfx* gfx, s32 wx, s32 wy, s32 fx, s32 fy, const char* text, s32 masked, s32 caret) {
+    s32 sx = fx * 8 + 16 + wx;
+    s32 sy = (fy + 1) * 16 + wy;
+    s32 i;
+
+    for (i = 0; i < NV_TERM_FIELD; i++) {
+        if (text[i] != '\0') {
+            if (masked) {
+                gfx = NvTerm_Star(gfx, sx + 16 * i + 4, sy + 4); // (PrintText8x8 at the cell + 0xA4, 0x7C)
+            } else {
+                s32 g = text[i] - 'A';
+
+                gfx = NvTerm_Sprite(gfx, 9, (g * 16) & 0xFF, g & 0x10, 16, 16, sx + 16 * i, sy);
+            }
+        }
+    }
+    if (caret && ((sNvTermFrames & 16) == 0)) { // cl_draw_caret: an underline where the next letter goes
+        s32 pos = MIN(sNvTermCaret, NV_TERM_FIELD - 1);
+
+        gfx = NvTerm_Sprite(gfx, 9, 0xB0, 0x10, 16, 16, sx + 16 * pos, sy);
+    }
+    return gfx;
+}
+
+/** cl_draw_keyboard: the keys (and their frame), the one under the cursor lit. */
+static Gfx* NvTerm_DrawKeys(Gfx* gfx) {
+    static const s16 sFrame[10][8] = { // s_keyboardFrame: x, y, u, v, w, h, vertical, repeat
+        { 16, 16, 0x10, 0x20, 192, 96, 0, 0 }, { 8, 8, 0x00, 0x48, 16, 8, 0, 12 }, { 200, 8, 0x00, 0x48, 8, 8, 0, 0 },
+        { 8, 16, 0x08, 0x50, 8, 16, 0, 0 },    { 8, 32, 0x08, 0x60, 8, 16, 1, 5 },  { 8, 112, 0x08, 0x70, 8, 8, 0, 0 },
+        { 16, 112, 0x20, 0x80, 16, 8, 0, 11 }, { 192, 112, 0x30, 0x80, 24, 8, 0, 0 }, { 208, 8, 0x50, 0x80, 8, 16, 1, 6 },
+        { 208, 104, 0x50, 0x80, 8, 8, 0, 0 },
+    };
+    s32 i;
+    s32 k;
+    s32 cell = sNvTermRow * 8 + sNvTermCol;
+    s32 w = 24;
+    s32 h = 24;
+
+    for (i = 0; i < 10; i++) {
+        s32 n = MAX(1, sFrame[i][7]);
+
+        for (k = 0; k < n; k++) {
+            gfx = NvTerm_Sprite(gfx, 9, sFrame[i][2], sFrame[i][3], sFrame[i][4], sFrame[i][5],
+                                -0x68 + sFrame[i][0] + (sFrame[i][6] ? 0 : k * sFrame[i][4]),
+                                -0x0E + sFrame[i][1] + (sFrame[i][6] ? k * sFrame[i][5] : 0));
+        }
+    }
+    if (cell == 0x17) { // ENTER, two keys tall; DEL two wide
+        h = 48;
+    }
+    if (cell == 0x1D) {
+        w = 48;
+    }
+    if (((sNvTermFrames & 16) == 0) || (sNvTermRepeat > 0)) { // (the lit key: drawn again, brighter)
+        gDPPipeSync(gfx++);
+        gDPSetPrimColor(gfx++, 0, 0, 255, 255, 160, 255);
+        gfx = NvTerm_Sprite(gfx, 9, sNvTermCol * 24 + 16, sNvTermRow * 24 + 32, w, h, sNvTermCol * 24 - 0x58,
+                            sNvTermRow * 24 + 2);
+        gDPPipeSync(gfx++);
+        gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
+    }
+    return gfx;
+}
+
+void NvTerm_Draw(PlayState* play) {
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    Gfx* gfx;
+    s32 status = 0;
+
+    if (sNvTerm == NV_TERM_OFF) {
+        return;
+    }
+    if (!sNvTermPicsTried) {
+        NvTerm_LoadPics();
+    }
+    if (sNvTermPic[0] == NULL) {
+        NvTerm_DrawText(play);
+        return;
+    }
+    OPEN_DISPS(gfxCtx);
+    gfx = OVERLAY_DISP;
+    gDPPipeSync(gfx++);
+    gDPSetCycleType(gfx++, G_CYC_1CYCLE);
+    gDPSetRenderMode(gfx++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
+    gDPSetTexturePersp(gfx++, G_TP_NONE);
+    gDPSetTextureFilter(gfx++, G_TF_POINT);
+    gDPSetTextureLUT(gfx++, G_TT_NONE);
+    gDPSetCombineLERP(gfx++, TEXEL0, 0, PRIMITIVE, 0, TEXEL0, 0, PRIMITIVE, 0, TEXEL0, 0, PRIMITIVE, 0, TEXEL0, 0,
+                      PRIMITIVE, 0);
+    gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
+    switch (sNvTerm) {
+        case NV_TERM_USER:
+        case NV_TERM_PASS:
+        case NV_TERM_REFUSED:
+        case NV_TERM_GRANTED: // the log-in window (its password line once the name's in) and the keyboard
+        {
+            NvTermRow login[3];
+
+            memcpy(login, sNvTermRowsLogin, sizeof(login));
+            if (sNvTerm == NV_TERM_USER) { // (the password line blank until the name's in: s_rowsLogin[2].width 0)
+                login[2].w = 0;
+            }
+            gfx = NvTerm_Window(gfx, -0x90, -0x68, 0x10, 4, login, 3);
+        }
+            gfx = NvTerm_Field2(gfx, -0x90, -0x68, 7, 2, sNvTermText[0], false, sNvTerm == NV_TERM_USER);
+            if (sNvTerm != NV_TERM_USER) {
+                gfx = NvTerm_Field2(gfx, -0x90, -0x68, 0x0C, 3, sNvTermText[1], true, sNvTerm == NV_TERM_PASS);
+            }
+            if ((sNvTerm == NV_TERM_USER) || (sNvTerm == NV_TERM_PASS)) {
+                gfx = NvTerm_DrawKeys(gfx);
+            }
+            status = (sNvTerm == NV_TERM_REFUSED) ? 4 : 0;
+            break;
+        case NV_TERM_MENU:
+        case NV_TERM_QUIT: // "Basement Doorlock Operation / Select Floor", B2 / B3 / Cancel and its bar
+            gfx = NvTerm_Window(gfx, -0x90, -0x68, 0x10, 3, sNvTermRowsPanelA, 3);
+            gfx = NvTerm_Window(gfx, -0x10, -0x38, 4, 3, sNvTermRowsSide, 3);
+            // (the bar is see-through over its line: RE1 draws it blended, flags 0x40000000)
+            if (sNvTerm == NV_TERM_MENU) {
+                gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 110);
+                gfx = NvTerm_Sprite(gfx, 0, 0, 0xC6, 0x49, 0x11, -0x10 + 8, sNvTermSel * 0x12 - 0x38 + 0x0C);
+            } else { // "Quit? Yes / No"
+                gfx = NvTerm_Window(gfx, 0x10, -0x28, 3, 4, sNvTermRowsMenu, 4);
+                gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 110);
+                gfx = NvTerm_Sprite(gfx, 0, 0, 0xC6, 0x3B, 0x11, 0x10 + 8, (sNvTermQuitSel + 2) * 16 - 0x28 + 0x0E);
+            }
+            gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
+            break;
+        case NV_TERM_CMD:
+        case NV_TERM_BADCMD:
+        case NV_TERM_RELEASED: // "Permission Denied! Lock / Try Enter Password", its field and the keyboard
+            gfx = NvTerm_Window(gfx, -0x90, -0x68, 0x10, 4, sNvTermRowsPanelB, 4);
+            gfx = NvTerm_Field2(gfx, -0x90, -0x68, 0x0C, 3, sNvTermText[0], true, sNvTerm == NV_TERM_CMD);
+            if (sNvTerm == NV_TERM_CMD) {
+                gfx = NvTerm_DrawKeys(gfx);
+            }
+            status = (sNvTerm == NV_TERM_BADCMD) ? 2 : (sNvTerm == NV_TERM_RELEASED) ? 3 : 0;
+            break;
+        default:
+            break;
+    }
+    // cl_draw_status: the plate over the windows (2 "No Match!", 3 "Verified!", 4 "Login incorrect.")
+    if (status == 2) {
+        gfx = NvTerm_Sprite(gfx, 7, 0x78, 0x88, 100, 32, -0x30, -0x3D);
+    } else if (status == 3) {
+        gfx = NvTerm_Sprite(gfx, 7, 0x78, 0xA8, 100, 32, -0x30, -0x3D);
+    } else if (status == 4) {
+        gfx = NvTerm_Sprite(gfx, 7, 0x78, 0xC8, 100, 24, -0x30, -0x3D);
+        gfx = NvTerm_Sprite(gfx, 7, 0x78, 0xA0, 100, 8, -0x30, -0x3D + 24);
+    }
+    if ((sNvTerm == NV_TERM_RELEASED) && (sNvTermTimer < 60)) { // cl_draw_door_picture: the floor's map
+        gfx = NvTerm_Sprite(gfx, 0, 0, (sNvTermDoor == 0) ? 100 : 0, 0x54, 0x61, (sNvTermDoor == 0) ? -0x26 : -0x28,
+                            (sNvTermDoor == 0) ? -0x5D : -0x5C);
+    }
+    gDPPipeSync(gfx++);
     OVERLAY_DISP = gfx;
     CLOSE_DISPS(gfxCtx);
 }

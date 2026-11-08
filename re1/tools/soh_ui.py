@@ -284,6 +284,38 @@ def write_result(re1, out):
     return len(RESULT_PARTS)
 
 
+# The lab computer's pictures (ComputerLab.cpp cl_load_textures): umb00.tim (its texture pages 7-8:
+# the monitor pictures, the status plates, "Login:", "B2"...), umb01.tim (pages 9-10: the letters,
+# the keyboard, the window frame, the header lines) and umbrella.tim (page 0: the floor maps, the
+# menu bar). Each as RGBA5551 like the results' ("RCMP", u16 count, then u16 w, h and the pixels).
+COMPUTER_PARTS = ["umb00.tim", "umb01.tim", "umbrella.tim"]
+
+
+def computer_blob(re1):
+    data = rdt.find_file(re1, "DATA")
+    out = bytearray(b"RCMP" + struct.pack("<H", len(COMPUTER_PARTS)))
+    for name in COMPUTER_PARTS:
+        w, h, rgba = emd.tim_to_rgba(emd.parse_tim(open(rdt.find_file(data, name), "rb").read(), 0),
+                                     {p: 0 for p in range(8)})
+        out += struct.pack("<2H", w, h)
+        for k in range(w * h):
+            out += struct.pack(">H", _rgba5551(rgba[k * 4:k * 4 + 4]))
+    return bytes(out)
+
+
+def write_computer(re1, out):
+    """Write the lab computer's pictures (re1/ui/computer); how many (0 when they aren't there)."""
+    try:
+        blob = computer_blob(re1)
+    except (OSError, IndexError, ValueError):
+        return 0
+    d = os.path.join(out, "re1", "ui")
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, "computer"), "wb").write(
+        soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    return len(COMPUTER_PARTS)
+
+
 def write_slides(re1, out):
     """Write the projector's slides (re1/ui/slides); how many (0 when the file isn't there)."""
     try:
