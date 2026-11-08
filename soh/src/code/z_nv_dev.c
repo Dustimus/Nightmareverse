@@ -29,6 +29,7 @@
 #include "global.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include <string.h>
 
 #define NV_MAX_WAYPOINTS 512
@@ -169,6 +170,9 @@ static void NvDev_ParsePath(void) {
             char room[8];
 
             snprintf(room, sizeof(room), "%.3s", s + 3);
+            for (char* c = room; *c != '\0'; c++) { // (the scene files are lower case)
+                *c = (char)tolower((unsigned char)*c);
+            }
             snprintf(name, sizeof(name), "re1_%s_scene", room);
             wp->kind = NV_WP_ENTR;
             wp->wait = NvDoor_Entrance(name, 0);
