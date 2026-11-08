@@ -910,6 +910,11 @@ s32 NvItems_Remove(s32 id) {
     return true;
 }
 
+/** cmd_player_prop_set 0: nothing equipped. */
+void NvItems_Unequip(void) {
+    sNvEquipped = 0;
+}
+
 /** The equipped slot's item id (0: nothing equipped), as cmd_equipped_item_test reads it. */
 s32 NvItems_EquippedId(void) {
     return (sNvEquipped > 0) ? sNvSlots[sNvEquipped - 1].id : 0;

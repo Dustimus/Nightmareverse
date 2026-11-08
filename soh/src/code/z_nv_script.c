@@ -50,6 +50,8 @@ void NvMovie_Start(s32 id);
 void NvMsg_EnsureHook(void);
 void NvBgm_ScdPlay(s32 ch);
 void NvBgm_ScdStop(s32 ch);
+void NvBgm_ScdStopAll(void);
+void NvBgm_ScdRestore(void);
 void NvBgm_ScdState(s32 stage, s32 room, u8 state);
 s32 NvMovie_Playing(void);
 s32 NvDoorScene_Covering(void);
@@ -418,6 +420,22 @@ static s32 NvScd_Cmd(void) {
             return 1;
         case 0x16: // cmd_bgm_stop
             NvBgm_ScdStop(p[1]);
+            sNvIp = p + 2;
+            return 1;
+        case 0x33: // cmd_player_prop_set: only 0, the weapon put away, means anything here
+            if (p[1] == 0) {
+                void NvItems_Unequip(void);
+
+                NvItems_Unequip();
+            }
+            sNvIp = p + NvScd_Len(p);
+            return 1;
+        case 0x4A: // cmd_bgm_restore: the music put aside by 0x4B starts again
+            NvBgm_ScdRestore();
+            sNvIp = p + 2;
+            return 1;
+        case 0x4B: // cmd_bgm_stop_all
+            NvBgm_ScdStopAll();
             sNvIp = p + 2;
             return 1;
         case 0x37: // cmd_room_bgm_state_set: a room's music state (stage p[1] & 7, room p[2])

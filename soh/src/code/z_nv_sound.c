@@ -143,6 +143,31 @@ void NvBgm_ScdStop(s32 ch) {
     }
 }
 
+static u8 sNvBgmSaved = 0xFF; // what cmd_bgm_stop_all put aside (RE1: g_BGM_STATE << 8)
+
+/** Script opcode 0x4B (cmd_bgm_stop_all): the music stops, its state put aside. */
+void NvBgm_ScdStopAll(void) {
+    s32 ch;
+
+    for (ch = 0; ch < 3; ch++) {
+        NvSound_MusicPlay(ch, false);
+    }
+    sNvBgmSaved = sNvBgmState;
+    if (sNvBgmState != 0xFF) {
+        sNvBgmState &= ~0x38;
+    }
+}
+
+/** Script opcode 0x4A (cmd_bgm_restore): the channels that were playing start again. */
+void NvBgm_ScdRestore(void) {
+    if ((sNvBgmSaved == 0xFF) || (sNvBgmState == 0xFF)) {
+        return;
+    }
+    NvBgm_StartBits(sNvBgmSaved);
+    sNvBgmState = sNvBgmSaved;
+    sNvBgmSaved = 0xFF;
+}
+
 /** Script opcode 0x37 (cmd_room_bgm_state_set): a stage's room's music state. */
 void NvBgm_ScdState(s32 stage, s32 room, u8 state) {
     sNvRoomBgmState[(stage * 32 + room) % (7 * 32)] = state;
