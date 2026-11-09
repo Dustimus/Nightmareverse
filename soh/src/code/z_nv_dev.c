@@ -428,7 +428,15 @@ void NvDev_Update(PlayState* play) {
                        (int)probe.x, (int)probe.z);
                 fflush(stdout);
                 sPhase++;
-            } else if (sPhase < 8) { // settling
+            } else if (sPhase < 8) { // settling, nudged toward its middle (walls stop him, as a player walking up)
+                f32 dx = (r[0] + r[2]) / 2 - player->actor.world.pos.x;
+                f32 dz = (r[1] + r[3]) / 2 - player->actor.world.pos.z;
+                f32 d = sqrtf(SQ(dx) + SQ(dz));
+
+                if ((sPhase >= 2) && (d > 4.0f)) {
+                    player->actor.world.pos.x += dx / d * 3.0f;
+                    player->actor.world.pos.z += dz / d * 3.0f;
+                }
                 sPhase++;
             } else if (sPhase == 8) { // facing into it, as a player at a door
                 f32 best = -1e9f;
