@@ -2562,6 +2562,8 @@ void Actor_InitContext(PlayState* play, ActorContext* actorCtx, ActorEntry* acto
     func_8002FA60(play);
 }
 
+extern s32 gNvCastHolding;
+
 u32 D_80116068[ACTORCAT_MAX] = {
     PLAYER_STATE1_TALKING | PLAYER_STATE1_DEAD | PLAYER_STATE1_IN_ITEM_CS,
     PLAYER_STATE1_TALKING | PLAYER_STATE1_DEAD | PLAYER_STATE1_IN_ITEM_CS,
@@ -2629,6 +2631,11 @@ void Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
 
     for (i = 0; i < ARRAY_COUNT(actorCtx->actorLists); i++, sp80++) {
         unkCondition = (*sp80 & player->stateFlags1);
+        // Nightmareverse: an RE1 scene walking the player (z_nv_enemy.c NvCast_Update) holds Link in a
+        // cutscene, but RE1's characters and enemies go on meanwhile (its scripts wait on them)
+        if (gNvCastHolding && (play->sceneNum >= SCENE_RE1_100)) {
+            unkCondition &= ~PLAYER_STATE1_IN_CUTSCENE;
+        }
 
         actor = actorCtx->actorLists[i].head;
         while (actor != NULL) {

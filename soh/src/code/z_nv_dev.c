@@ -14,12 +14,16 @@
  *                             front of him deepest into a rectangle (as a player faces a door), "go:XXX" warps to RE1
  *                             room XXX (its first start), "entr:N" warps to entrance N (the
  *                             script goes on in the new scene), "mark:N" logs "NVMARK N" with
- *                             the scene, position and yaw (re1/tools/soh_check.py --doors)
+ *                             the scene, position and yaw (re1/tools/soh_check.py --doors),
+ *                             "door:N" / "aot:N" put Link in the room's door N's / action entry
+ *                             N's rectangle, facing into it, and press A (a story walkthrough),
+ *                             "list" logs the room's doors and live action entries
  *   NV_TOUR="x,y,z;x,y,z"     put Link at each point in turn, NV_TOUR_HOLD frames each (default
  *                             40), printing "NVTOUR <i> ..." once he has settled there and
  *                             "NVTOUR done" after the last (re1/tools/soh_check.py screenshots
  *                             on those lines)
  *   NV_LOG=1                  log Link's position, floor and camera every 20 frames
+ *   NV_GODMODE=1              Link's health kept full (a story walkthrough, not its fights)
  *
  * Always on: hold L and press D-pad down to note the spot Link stands on (scene, position,
  * facing, camera) in nv_spots.txt in the SoH folder, for marking places to change by hand.
@@ -31,10 +35,11 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include <math.h>
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST } NvWaypointKind;
 
 typedef struct {
     s16 kind;
@@ -179,6 +184,15 @@ static void NvDev_ParsePath(void) {
             if (wp->wait >= 0) {
                 sNvPathLen++;
             }
+        } else if ((strncmp(s, "door:", 5) == 0) || (strncmp(s, "aot:", 4) == 0)) {
+            // "door:N" / "aot:N": Link put in the room's door N's (or action entry N's) rectangle,
+            // turned to face into it, and A pressed (a logic walkthrough: what's behind it, not the walk)
+            wp->kind = (s[0] == 'd') ? NV_WP_DOOR : NV_WP_AOT;
+            wp->wait = (s16)atoi(s + ((s[0] == 'd') ? 5 : 4));
+            sNvPathLen++;
+        } else if ((strncmp(s, "list", 4) == 0) && ((s[4] == ';') || (s[4] == '\0'))) {
+            wp->kind = NV_WP_LIST; // the room's doors and live action entries, logged
+            sNvPathLen++;
         } else if (strncmp(s, "entr:", 5) == 0) {
             wp->kind = NV_WP_ENTR;
             wp->wait = (s16)strtol(s + 5, NULL, 0);
@@ -244,6 +258,9 @@ void NvDev_Update(PlayState* play) {
 
     // dev: NV_HEALTH=n sets Link's health (in sixteenths of a heart) once, e.g. to see the enemies'
     // low-health kill moves
+    if (getenv("NV_GODMODE") != NULL) { // (a story walkthrough: the route, not the fights)
+        gSaveContext.health = gSaveContext.healthCapacity;
+    }
     if (!sHealthSet && (getenv("NV_HEALTH") != NULL) && (play->gameplayFrames > 2)) {
         sHealthSet = true;
         gSaveContext.health = (s16)atoi(getenv("NV_HEALTH"));
@@ -329,6 +346,147 @@ void NvDev_Update(PlayState* play) {
                 }
             }
             player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = bestYaw;
+            sNvPathIdx++;
+        } else if ((wp->kind == NV_WP_DOOR) || (wp->kind == NV_WP_AOT)) {
+            s32 NvDoor_DevRect(PlayState* play, s32 i, f32* r, const char** target);
+            s32 NvAot_DevRect(s32 i, f32* r, s32* handler, s32* item);
+            static s32 sPhase;
+            static s32 sRetry;
+            f32 r[4];
+            const char* target = "";
+            s32 handler = 1;
+            s32 item = -1;
+            s32 NvDoorScene_Covering(void);
+            s32 NvMovie_Playing(void);
+            s32 ok;
+
+            if ((sPhase == 0) && ((play->transitionTrigger != TRANS_TRIGGER_OFF) ||
+                                  (play->transitionMode != TRANS_MODE_OFF) || NvDoorScene_Covering() ||
+                                  NvMovie_Playing() || (play->gameplayFrames < 20))) {
+                return; // (the room isn't up yet: a door's scene, a movie, a load)
+            }
+            static f32 sRect[4];
+
+            ok = (wp->kind == NV_WP_DOOR) ? NvDoor_DevRect(play, wp->wait, r, &target)
+                                          : NvAot_DevRect(wp->wait, r, &handler, &item);
+            if (sPhase == 0) {
+                memcpy(sRect, r, sizeof(sRect));
+            } else { // (started: its zone as it was, though a walk-in event may have used the entry up)
+                memcpy(r, sRect, sizeof(sRect));
+                ok = true;
+            }
+            if (!ok && (sPhase == 0) && (++sRetry < 600)) {
+                return; // (not armed yet: the room's own scene may come first)
+            }
+            sRetry = 0;
+            if (!ok) {
+                printf("NVSTEP %s %d: none in scene %d\n", (wp->kind == NV_WP_DOOR) ? "door" : "aot", (int)wp->wait,
+                       (int)play->sceneNum);
+                fflush(stdout);
+                sPhase = 0;
+                sNvPathIdx++;
+            } else if (sPhase == 0) { // onto the floor in the middle of it (a wall pushes him back out)
+                // (a door's rectangle lies past the wall, where there's no floor: the nearest point
+                // that has floor at his level, then a little further in)
+                f32 cx = (r[0] + r[2]) / 2;
+                f32 cz = (r[1] + r[3]) / 2;
+                Vec3f probe = { cx, 5000.0f, cz };
+                CollisionPoly* poly;
+                s32 bgId;
+                f32 y = BGCHECK_Y_MIN;
+                f32 rad;
+                s32 k;
+
+                for (rad = 0.0f; rad <= 120.0f; rad += 4.0f) {
+                    for (k = 0; k < ((rad == 0.0f) ? 1 : 24); k++) {
+                        f32 a = k * (2.0f * M_PI / 24.0f);
+                        Vec3f q = { cx + cosf(a) * rad, 5000.0f, cz + sinf(a) * rad };
+                        f32 qy = BgCheck_EntityRaycastFloor3(&play->colCtx, &poly, &bgId, &q);
+
+                        if ((qy > BGCHECK_Y_MIN) && (fabsf(qy - player->actor.world.pos.y) < 60.0f)) {
+                            probe.x = cx + cosf(a) * (rad + ((rad > 0.0f) ? 14.0f : 0.0f));
+                            probe.z = cz + sinf(a) * (rad + ((rad > 0.0f) ? 14.0f : 0.0f));
+                            y = qy;
+                            break;
+                        }
+                    }
+                    if (y > BGCHECK_Y_MIN) {
+                        break;
+                    }
+                }
+
+                player->actor.world.pos.x = player->actor.home.pos.x = probe.x;
+                player->actor.world.pos.z = player->actor.home.pos.z = probe.z;
+                player->actor.world.pos.y = (y > BGCHECK_Y_MIN ? y : player->actor.world.pos.y) + 10.0f;
+                player->linearVelocity = 0.0f;
+                printf("NVSTEP %s %d -> %s (handler %d item %d) at %d,%d\n",
+                       (wp->kind == NV_WP_DOOR) ? "door" : "aot", (int)wp->wait, target, (int)handler, (int)item,
+                       (int)probe.x, (int)probe.z);
+                fflush(stdout);
+                sPhase++;
+            } else if (sPhase < 8) { // settling
+                sPhase++;
+            } else if (sPhase == 8) { // facing into it, as a player at a door
+                f32 best = -1e9f;
+                s16 bestYaw = player->actor.shape.rot.y;
+                s32 k;
+
+                for (k = 0; k < 16; k++) {
+                    s16 yaw = k * 0x1000;
+                    f32 d;
+                    f32 deepest = -1e9f;
+
+                    for (d = 13.0f; d <= 22.0f; d += 1.0f) {
+                        f32 px = player->actor.world.pos.x + Math_SinS(yaw) * d;
+                        f32 pz = player->actor.world.pos.z + Math_CosS(yaw) * d;
+
+                        deepest = MAX(deepest, MIN(MIN(px - r[0], r[2] - px), MIN(pz - r[1], r[3] - pz)));
+                    }
+                    if (deepest > best) {
+                        best = deepest;
+                        bestYaw = yaw;
+                    }
+                }
+                player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = bestYaw;
+                sPhase++;
+            } else if (sPhase < 11) {
+                sPhase++;
+            } else if (sPhase == 11) { // A
+                input->press.button |= BTN_A;
+                input->cur.button |= BTN_A;
+                sPhase = (wp->kind == NV_WP_DOOR) ? 12 : 0;
+                if (wp->kind != NV_WP_DOOR) {
+                    sNvPathIdx++;
+                }
+            } else { // a door: it opened, or again (an enemy holding him, a message in the way)
+                static s32 sTries;
+
+                if ((play->transitionTrigger != TRANS_TRIGGER_OFF) || NvDoorScene_Covering()) {
+                    sPhase = 0;
+                    sTries = 0;
+                    sNvPathIdx++;
+                } else if (++sPhase > 50) {
+                    sPhase = 0;
+                    if (++sTries >= 40) {
+                        printf("NVSTEP door %d: didn't open\n", (int)wp->wait);
+                        fflush(stdout);
+                        sTries = 0;
+                        sNvPathIdx++;
+                    }
+                }
+            }
+        } else if (wp->kind == NV_WP_LIST) {
+            s32 NvDoor_DevRect(PlayState* play, s32 i, f32* r, const char** target);
+            void NvAot_DevList(void);
+            f32 r[4];
+            const char* target;
+            s32 i;
+
+            for (i = 0; NvDoor_DevRect(play, i, r, &target); i++) {
+                printf("NVDOORLIST %d -> %s rect %d,%d..%d,%d\n", (int)i, target, (int)r[0], (int)r[1], (int)r[2],
+                       (int)r[3]);
+            }
+            NvAot_DevList();
             sNvPathIdx++;
         } else if (wp->kind == NV_WP_ENTR) {
             if (play->transitionTrigger == TRANS_TRIGGER_OFF) {

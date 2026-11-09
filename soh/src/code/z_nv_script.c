@@ -381,6 +381,8 @@ static u8 NvScd_StateByte(s32 field) {
 s32 NvEnemy_Place(s32 slot, s32* t, s16* angle);
 s32 NvObj_Pose(s32 i, s16* pos, s16* rot);
 
+void NvCast_Placed(void);
+
 static s32 NvScd_Cmd(void) {
     const u8* p = sNvIp;
     s32 n;
@@ -733,6 +735,7 @@ static s32 NvScd_Cmd(void) {
             NvCast_Player()->t[1] = v[4];
             NvCast_Player()->t[2] = v[5];
             NvCast_Player()->angle = v[1] & 0xFFF;
+            NvCast_Placed();
             sNvIp = p + 14;
             return 1;
         }
@@ -1397,6 +1400,17 @@ static void NvEvt_Step(NvEvt* e) {
                     continue;
                 }
                 sNvIp = e->call[d];
+                if (getenv("NV_EVT_TRACE") && (sNvIp[0] == 0x04)) {
+                    static u32 sLastW;
+                    static s32 sLastF;
+
+                    if ((sLastW != sNvFlags[4][1]) || (sLastF != (s32)sNvPlay->gameplayFrames - 2)) {
+                        printf("NVEVT test %02x %02x %02x %02x: bank4[1] %08X f=%d\n", sNvIp[0], sNvIp[1], sNvIp[2],
+                               sNvIp[3], sNvFlags[4][1], (int)sNvPlay->gameplayFrames);
+                    }
+                    sLastW = sNvFlags[4][1];
+                    sLastF = (s32)sNvPlay->gameplayFrames;
+                }
                 if (NvScd_Cmd() == 0) {
                     e->ip = p + 1;
                     e->depth--;
@@ -2354,6 +2368,39 @@ static void NvAot_WalkIn(PlayState* play) {
             NvAot_FlagSet(e); // (bank 9: an item can be used here)
         }
     }
+}
+
+/** dev (z_nv_dev.c "aot:N"): room action entry i's zone (OoT units: x0, z0, x1, z1), its handler
+ * and item; false if the entry isn't live. */
+s32 NvAot_DevRect(s32 i, f32* r, s32* handler, s32* item) {
+    const NvAot* a;
+
+    if ((i < 0) || (i >= NV_AOT_SLOTS) || (sNvAot[i].handler == 0)) {
+        return false;
+    }
+    a = &sNvAot[i];
+    r[0] = a->zone[0] * NV_RE1_SCALE;
+    r[2] = (a->zone[0] + a->zone[2]) * NV_RE1_SCALE;
+    r[1] = -(a->zone[1] + a->zone[3]) * NV_RE1_SCALE;
+    r[3] = -a->zone[1] * NV_RE1_SCALE;
+    *handler = a->handler;
+    *item = a->isItem ? a->item : -1;
+    return true;
+}
+
+/** dev: the room's live action entries, logged (to pick "aot:N" steps). */
+void NvAot_DevList(void) {
+    s32 i;
+
+    for (i = 0; i < NV_AOT_SLOTS; i++) {
+        const NvAot* a = &sNvAot[i];
+
+        if (a->handler != 0) {
+            printf("NVAOTLIST %d handler %d flags %02X zone %u,%u %ux%u item %02X%s\n", (int)i, a->handler, a->flags,
+                   a->zone[0], a->zone[1], a->zone[2], a->zone[3], a->item, a->isItem ? " (pickup)" : "");
+        }
+    }
+    fflush(stdout);
 }
 
 /* ---- the room's objects: solid, pushed (RoomCollision.cpp update_room_objects) ---- */

@@ -30,6 +30,7 @@
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/resourcebridge.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef struct NvDoor {
@@ -127,6 +128,26 @@ static u8* NvDoor_Data(PlayState* play, u32* count) {
     sNvDoorStride = (memcmp(data, "RDR2", 4) == 0) ? sizeof(NvDoor) : sizeof(NvDoor) - 4;
     memcpy(count, data + 4, sizeof(*count));
     return data + 8;
+}
+
+/** dev (z_nv_dev.c "door:N"): door i's rectangle (OoT units) and its target; false if none. */
+s32 NvDoor_DevRect(PlayState* play, s32 i, f32* r, const char** target) {
+    static NvDoor door;
+    u32 count = 0;
+    u8* data = NvDoor_Data(play, &count);
+
+    if ((data == NULL) || (i < 0) || ((u32)i >= count)) {
+        return false;
+    }
+    memset(&door, 0, sizeof(door));
+    memcpy(&door, data + i * sNvDoorStride, sNvDoorStride);
+    door.target[sizeof(door.target) - 1] = '\0';
+    r[0] = door.x0;
+    r[1] = door.z0;
+    r[2] = door.x1;
+    r[3] = door.z1;
+    *target = door.target;
+    return true;
 }
 
 // Whether Link may use a door or stairs now (standing, in control, nothing else going on; not
@@ -284,9 +305,21 @@ void NvDoor_Update(PlayState* play) {
         return;
     }
     if (!NvDoor_CanAct(play, player)) {
+        if (pressA && (player != NULL) && getenv("NV_LOG")) { // (why a door didn't open: the walkthrough's log)
+            printf("NVDOOR busy: msg %d cs %d floor %d parent %d grabbed %d climb %d trans %d/%d pause %d\n",
+                   play->msgCtx.msgMode, Player_InBlockingCsMode(play, player), player->actor.bgCheckFlags & 1,
+                   player->actor.parent != NULL, !!(player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY),
+                   NvClimb_Active(), play->transitionTrigger, play->transitionMode, play->pauseCtx.state);
+            fflush(stdout);
+        }
         return;
     }
     i = NvDoor_Find(play, player, &door);
+    if (pressA && (i < 0) && getenv("NV_LOG")) {
+        printf("NVDOOR none in reach at %d,%d yaw %d\n", (int)player->actor.world.pos.x, (int)player->actor.world.pos.z,
+               (u16)player->actor.shape.rot.y);
+        fflush(stdout);
+    }
     if (!pressA) { // only stairs between rooms, by walking into them
         if ((i < 0) || !NV_DOOR_IS_STAIRS(door.anim) ||
             (SQ(input->rel.stick_x) + SQ(input->rel.stick_y) < SQ(NV_DOOR_STAIRS_STICK))) {

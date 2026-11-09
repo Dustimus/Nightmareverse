@@ -45,6 +45,17 @@ static void npc_done(void) {
     void NvFlags_Op(s32 bank, s32 bit, s32 mode);
 
     NvFlags_Op(4, E->scd_anim_param, 0);
+    if (getenv("NV_EVT_TRACE") && (E == NvCast_Player())) {
+        static s32 sTold;
+
+        extern PlayState* gPlayState;
+
+        if (sTold++ < 400) {
+            printf("NVCASTP done: flag 4:%02X raised f=%d\n", E->scd_anim_param,
+                   (gPlayState != NULL) ? (int)gPlayState->gameplayFrames : -1);
+            fflush(stdout);
+        }
+    }
 }
 
 /** entity_apply_walk_speed: slower on the frames a foot is planted. */

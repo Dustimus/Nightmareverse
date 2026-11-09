@@ -1555,6 +1555,8 @@ s32 NvEnemy_Place(s32 slot, s32* t, s16* angle) {
 // RE1's player entity as the event scripts drive her (character 0): state 8 and a behaviour
 // (z_nv_npc.inc), which walk Link; state 1 is her own control, and the stand-in follows Link.
 static NvRe1Entity sNvCastPlayer;
+static u8 sNvCastPlaced; // the stand-in is where Link is (or where a script put her) since the room loaded
+s32 gNvCastHolding; // the cast holds Link: OoT doesn't freeze the enemies for it (z_actor.c)
 static u8 sNvCastHeld;
 static u8 sNvCastPhase;
 static u16 sNvCastHeldFrames;
@@ -1572,7 +1574,14 @@ void NvCast_RoomLoad(void) {
     sNvCastPlayer.id = 0;
     sNvCastPlayer.sca = sNvJillSca;
     sNvCastHeld = false;
+    gNvCastHolding = false;
     sNvCastHeldFrames = 0;
+    sNvCastPlaced = false;
+}
+
+/** A script put her somewhere (cmd_player_pos_set): the stand-in starts from there. */
+void NvCast_Placed(void) {
+    sNvCastPlaced = true;
 }
 
 /** Every frame (NvScript_Update): Link walked by the script while it holds her, else followed. */
@@ -1596,16 +1605,26 @@ void NvCast_Update(PlayState* play, s32 eventsLive) {
         sNvCastHeldFrames = 0;
         if (sNvCastHeld) {
             sNvCastHeld = false;
+            gNvCastHolding = false;
             Player_SetCsAction(play, NULL, 7);
         }
         e->t[0] = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
         e->t[1] = (s32)lroundf(-player->actor.world.pos.y / NV_RE1_SCALE);
         e->t[2] = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
         e->angle = ((0x4000 - (s32)(u16)player->actor.shape.rot.y) / 16) & 0xFFF;
+        sNvCastPlaced = true;
         return;
+    }
+    if (!sNvCastPlaced) { // (a scene taking her as the room starts: from where Link is, not the room's 0,0)
+        e->t[0] = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
+        e->t[1] = (s32)lroundf(-player->actor.world.pos.y / NV_RE1_SCALE);
+        e->t[2] = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
+        e->angle = ((0x4000 - (s32)(u16)player->actor.shape.rot.y) / 16) & 0xFFF;
+        sNvCastPlaced = true;
     }
     if (!sNvCastHeld) {
         sNvCastHeld = true;
+        gNvCastHolding = true;
         Player_SetCsAction(play, NULL, 8);
     }
     sNvCastHeldFrames++;
@@ -1619,6 +1638,12 @@ void NvCast_Update(PlayState* play, s32 eventsLive) {
         for (t = 0; t < ticks; t++) {
             NvRe1_TickBegin();
             NvNpc_PlayerTick(e);
+        }
+        if (getenv("NV_LOG") && ((sNvCastHeldFrames % 20) == 1)) {
+            printf("NVCASTP held %d beh %d/%d at %d,%d target %d,%d flag %02X angle %d\n", (int)sNvCastHeldFrames,
+                   e->action_behavior, e->action_state, (int)e->t[0], (int)e->t[2], e->unk_c6, e->unk_c8,
+                   e->scd_anim_param, e->angle);
+            fflush(stdout);
         }
         // Link walks while the script walks her, and stands once she stops (the hold loops
         // whatever he's playing): OoT's walk at about her pace
