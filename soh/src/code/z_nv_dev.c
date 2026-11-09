@@ -17,7 +17,8 @@
  *                             the scene, position and yaw (re1/tools/soh_check.py --doors),
  *                             "door:N" / "aot:N" put Link in the room's door N's / action entry
  *                             N's rectangle, facing into it, and press A (a story walkthrough),
- *                             "list" logs the room's doors and live action entries
+ *                             "list" logs the room's doors and live action entries, "save"
+ *                             writes the RE1 slot (a checkpoint, no ribbon)
  *   NV_TOUR="x,y,z;x,y,z"     put Link at each point in turn, NV_TOUR_HOLD frames each (default
  *                             40), printing "NVTOUR <i> ..." once he has settled there and
  *                             "NVTOUR done" after the last (re1/tools/soh_check.py screenshots
@@ -39,7 +40,7 @@
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE } NvWaypointKind;
 
 typedef struct {
     s16 kind;
@@ -189,6 +190,9 @@ static void NvDev_ParsePath(void) {
             // turned to face into it, and A pressed (a logic walkthrough: what's behind it, not the walk)
             wp->kind = (s[0] == 'd') ? NV_WP_DOOR : NV_WP_AOT;
             wp->wait = (s16)atoi(s + ((s[0] == 'd') ? 5 : 4));
+            sNvPathLen++;
+        } else if ((strncmp(s, "save", 4) == 0) && ((s[4] == ';') || (s[4] == '\0'))) {
+            wp->kind = NV_WP_SAVE; // the RE1 slot written (a checkpoint: NV_BOOT_ENTRANCE=warp resumes it)
             sNvPathLen++;
         } else if ((strncmp(s, "list", 4) == 0) && ((s[4] == ';') || (s[4] == '\0'))) {
             wp->kind = NV_WP_LIST; // the room's doors and live action entries, logged
@@ -474,6 +478,13 @@ void NvDev_Update(PlayState* play) {
                         sNvPathIdx++;
                     }
                 }
+            }
+        } else if (wp->kind == NV_WP_SAVE) {
+            void NvSave_DevSave(PlayState* play);
+
+            if ((play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->msgCtx.msgMode == MSGMODE_NONE)) {
+                NvSave_DevSave(play);
+                sNvPathIdx++;
             }
         } else if (wp->kind == NV_WP_LIST) {
             s32 NvDoor_DevRect(PlayState* play, s32 i, f32* r, const char** target);

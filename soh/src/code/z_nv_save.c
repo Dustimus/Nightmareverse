@@ -115,6 +115,12 @@ static s32 NvSave_Write(PlayState* play) {
     return NvSaveFile_Write(gSaveContext.fileNum, sNvSaveBuf, n);
 }
 
+/** dev (z_nv_dev.c NV_WALK "save"): the slot written here, no typewriter or ribbon (a walkthrough's
+ * checkpoint, resumed with NV_BOOT_ENTRANCE=warp). */
+void NvSave_DevSave(PlayState* play) {
+    NvSave_Write(play);
+}
+
 /** A new run: a new game's flags, nothing carried, the clock at 0. */
 static void NvSave_NewRun(void) {
     NvScript_NewRun();
