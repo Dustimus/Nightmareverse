@@ -1771,13 +1771,25 @@ static void NvAot_Run(s32 i, s32 handler) {
     }
 }
 
+// RE1 plays her interaction animation (action_behavior 0xC) after an action-button room action,
+// with no input until it ends; by then the event it set off has changed the entry (210's Moon
+// Crest: its event, pressed twice, gave two). Link has no such animation: no action press for
+// as long (about a second)
+#define NV_ACT_LOCK_FRAMES 20
+static u32 sNvActFrame;
+
 s32 NvAot_Act(PlayState* play, Player* player) {
-    s32 i = NvAot_Probe(player);
+    s32 i;
     u16 id;
 
+    if ((play->gameplayFrames - sNvActFrame) < NV_ACT_LOCK_FRAMES) {
+        return false;
+    }
+    i = NvAot_Probe(player);
     if (i < 0) {
         return false;
     }
+    sNvActFrame = play->gameplayFrames;
     if ((sNvAot[i].handler == 4) || (sNvAot[i].handler == 0x0F)) { // an item or a map: take it?
         NvPickup_Prompt(sNvAot[i].item);
         sNvMsgText = sNvPrompt;
