@@ -66,7 +66,20 @@ here is agreed or scheduled.
   probably too much.
 - The warp song's music: "Icy Gaze" (Japanese or English, the user's own file) or the end credits
   song, heard when it's played after the first time (the first time plays the opening movie).
-- Moonlight Sonata (the piano bar puzzle, 10F) as an ocarina song of its own.
+- Moonlight Sonata (the piano bar puzzle, 10F) as an ocarina song of its own. Wanted (2026-11-10:
+  the user wants mod1's version back here). mod1's plan (Dustimus/mod1 docs/design.md, "Moonlight
+  Sonata", and its En_ReSong actor):
+  - the notes A, C-down, C-right, A, C-down, C-right (the opening triplet twice);
+  - learned for good when the Music Notes (item 0x23) are picked up, and their Check text hints
+    it's piano music; playing it freely in the bar does nothing, and outside the mansion it jumps
+    to midnight (the Easter egg);
+  - checking the piano once it's learned asks to play it; Link sits as Jill does (RE1 event 6) and
+    OoT's playback staff opens with no notes shown (the puzzle is remembering them);
+  - right notes: a "You learned..."-style box and stinger, then the playing (Jill's anims 55-57)
+    and the wall opens: here that's the room's own event 0, which the Music Notes' Use starts now
+    (entries 13/14 at 10200,7300; z_nv_script.c's Use, flag 4:23);
+  - wrong notes: OoT's wrong-note fail, Chris's hesitant presses (his 10F event 1), and Navi
+    pointing back to the sheet music.
 - Both songs as two more notes on the Quest screen next to OoT's songs.
 - Decided (2026-10-29): after the first time, the warp song plays the opening movie's own audio
   from just after the narration ends, where the cast list starts (the user will give the exact
