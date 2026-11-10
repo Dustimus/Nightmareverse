@@ -2230,6 +2230,9 @@ void NvScript_RoomInit(PlayState* play) {
     }
     memset(sNvAot, 0, sizeof(sNvAot));
     sNvAotCount = 0;
+    // room_set: the system flags (bank 4, both words) start again with the room; a room's puzzle
+    // in progress (117's switches, 4:1E) doesn't carry into the next
+    sNvFlags[4][0] = sNvFlags[4][1] = 0;
     memset(sNvObj, 0, sizeof(sNvObj));
     NvBox_Reset();
     memset(sNvItemHidden, 0, sizeof(sNvItemHidden));
