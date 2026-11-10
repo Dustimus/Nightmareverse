@@ -2841,14 +2841,19 @@ void NvScript_Update(PlayState* play) {
                 NvEvt_Create(es, en);
             }
         }
-        NvScd_Run(sNvMain);
-        NvFlags_Op(5, NV_MSF_CAMERA_REDRAW, 1);
-        for (i = 0; i < NV_EVT_SLOTS; i++) {
-            if (NvMovie_Playing()) {
-                return;
+        // (a pickup's "Take it?" is RE1's item view, a menu mode: the game loop, scripts and
+        // events with it, waits for it; 210's Moon Crest event tests the item's flag the frame
+        // after offering it)
+        if (sNvPickup < 0) {
+            NvScd_Run(sNvMain);
+            NvFlags_Op(5, NV_MSF_CAMERA_REDRAW, 1);
+            for (i = 0; i < NV_EVT_SLOTS; i++) {
+                if (NvMovie_Playing()) {
+                    return;
+                }
+                NvEvt_Step(&sNvEvt[i]);
+                sNvEvtCur = NULL;
             }
-            NvEvt_Step(&sNvEvt[i]);
-            sNvEvtCur = NULL;
         }
         // room_state_reset, after the scripts and the events each frame: the item used and the
         // one picked up are seen once, and the system flags 0x20-0x3F (what the room's walk-in
