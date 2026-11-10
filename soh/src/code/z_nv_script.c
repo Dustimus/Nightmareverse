@@ -2389,9 +2389,16 @@ s32 NvAot_DevRect(s32 i, f32* r, s32* handler, s32* item) {
     return true;
 }
 
-/** dev: the room's live action entries, logged (to pick "aot:N" steps). */
+/** dev: the room's live action entries and placed objects, logged (to pick "aot:N" steps). */
 void NvAot_DevList(void) {
     s32 i;
+
+    for (i = 0; i < NV_OBJ_SLOTS; i++) {
+        if (sNvObj[i].set) {
+            printf("NVOBJLIST %d flags %02X at %d,%d,%d box %d,%d\n", (int)i, sNvObj[i].flags, sNvObj[i].pos[0],
+                   sNvObj[i].pos[1], sNvObj[i].pos[2], sNvObj[i].ext[0], sNvObj[i].ext[2]);
+        }
+    }
 
     for (i = 0; i < NV_AOT_SLOTS; i++) {
         const NvAot* a = &sNvAot[i];
