@@ -15,6 +15,7 @@
  *                             room XXX (its first start), "entr:N" warps to entrance N (the
  *                             script goes on in the new scene), "mark:N" logs "NVMARK N" with
  *                             the scene, position and yaw (re1/tools/soh_check.py --doors),
+ *                             "doorto:XXX" the same for the door to room XXX,
  *                             "door:N" / "aot:N" put Link in the room's door N's / action entry
  *                             N's rectangle, facing into it, and press A (a story walkthrough),
  *                             "list" logs the room's doors and live action entries, "save"
@@ -186,6 +187,11 @@ static void NvDev_ParsePath(void) {
             if (wp->wait >= 0) {
                 sNvPathLen++;
             }
+        } else if (strncmp(s, "doorto:", 7) == 0) { // "doorto:XXX": the room's door to RE1 room XXX
+            wp->kind = NV_WP_DOOR;
+            wp->wait = -1;
+            wp->x = (s16)strtol(s + 7, NULL, 16);
+            sNvPathLen++;
         } else if ((strncmp(s, "door:", 5) == 0) || (strncmp(s, "aot:", 4) == 0)) {
             // "door:N" / "aot:N": Link put in the room's door N's (or action entry N's) rectangle,
             // turned to face into it, and A pressed (a logic walkthrough: what's behind it, not the walk)
@@ -376,6 +382,28 @@ void NvDev_Update(PlayState* play) {
             }
             static f32 sRect[4];
 
+            if ((wp->kind == NV_WP_DOOR) && (wp->wait < 0)) { // (doorto: which door that is, here)
+                char want[24];
+                s32 k;
+
+                snprintf(want, sizeof(want), "re1_%03x_scene", (u16)wp->x);
+                for (k = 0; NvDoor_DevRect(play, k, r, &target); k++) {
+                    if (strcmp(target, want) == 0) {
+                        wp->wait = k;
+                        break;
+                    }
+                }
+                if (wp->wait < 0) {
+                    if (++sRetry < 600) {
+                        return;
+                    }
+                    sRetry = 0;
+                    printf("NVSTEP doorto %03x: no such door in scene %d\n", (u16)wp->x, (int)play->sceneNum);
+                    fflush(stdout);
+                    sNvPathIdx++;
+                    return;
+                }
+            }
             ok = (wp->kind == NV_WP_DOOR) ? NvDoor_DevRect(play, wp->wait, r, &target)
                                           : NvAot_DevRect(wp->wait, r, &handler, &item);
             if (sPhase == 0) {
