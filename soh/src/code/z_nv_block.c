@@ -10,6 +10,8 @@
  * off while the object is hidden or intangible.
  */
 #include "global.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 #include <string.h>
 
@@ -100,6 +102,10 @@ static void NvBlock_Follow(NvBlock* this, PlayState* play) {
     s32 there = NvObj_Box(this->obj, pos, ext, &solid, &climbable);
 
     if (!there) {
+        if (getenv("NV_PUSHLOG")) {
+            printf("NVBLOCK %d gone\n", (int)this->obj);
+            fflush(stdout);
+        }
         Actor_Kill(&this->dyna.actor);
         return;
     }
@@ -128,9 +134,17 @@ void NvBlock_Init(Actor* thisx, PlayState* play) {
         Actor_Kill(thisx);
         return;
     }
+    if (getenv("NV_PUSHLOG")) {
+        printf("NVBLOCK %d at %d,%d,%d box %d,%d,%d solid %d\n", (int)this->obj, pos[0], pos[1], pos[2], ext[0], ext[1],
+               ext[2], (int)solid);
+        fflush(stdout);
+    }
     Actor_SetScale(thisx, NV_BLOCK_SCALE);
     DynaPolyActor_Init(&this->dyna, 0);
-    NvBlock_Build(this, ext[0] * k, ext[1] * 2 * k, ext[2] * k, climbable);
+    // (RE1's own test adds Jill's height to the object's, so a box with no height of its own
+    // (202's statue: 0) still stops her; Link's collision box gets at least her height, 2700)
+    NvBlock_Build(this, ext[0] * k, ((!climbable && (ext[1] * 2 < 2700)) ? 2700 : ext[1] * 2) * k, ext[2] * k,
+                  climbable);
     this->dyna.bgId = DynaPoly_SetBgActor(play, &play->colCtx.dyna, thisx, &this->col);
     this->off = false;
     NvBlock_Follow(this, play);
