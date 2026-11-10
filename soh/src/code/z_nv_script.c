@@ -86,6 +86,7 @@ static const u8* sNvInit;
 static const u8* sNvMain;
 static const u8* sNvEvtTable;
 static PlayState* sNvPlay;
+s32 gNvDevUseItem = -1; // dev: an item to Use this tick, as the status screen (NV_WALK "use:XX")
 static u8 sNvStage;
 static u8 sNvRoom;
 static u8 sNvCamera;
@@ -2742,6 +2743,15 @@ void NvScript_Update(PlayState* play) {
                 s32 NvItems_Use(PlayState* play, s32 i);
 
                 sUseDone = true;
+                printf("NVUSE dev: item %02X in slot %d -> %d\n", ui, (int)NvItems_Find(ui),
+                       (NvItems_Find(ui) >= 0) ? (int)NvItems_Use(play, NvItems_Find(ui)) : -9);
+                fflush(stdout);
+            }
+            if (gNvDevUseItem >= 0) { // (the same, from NV_WALK's "use:XX" step: z_nv_dev.c)
+                s32 NvItems_Use(PlayState* play, s32 i);
+
+                ui = gNvDevUseItem;
+                gNvDevUseItem = -1;
                 printf("NVUSE dev: item %02X in slot %d -> %d\n", ui, (int)NvItems_Find(ui),
                        (NvItems_Find(ui) >= 0) ? (int)NvItems_Use(play, NvItems_Find(ui)) : -9);
                 fflush(stdout);
