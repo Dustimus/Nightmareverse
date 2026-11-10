@@ -2601,14 +2601,22 @@ static void NvObj_Update(PlayState* play) {
         // the push probe: touching it, leaning on it, the point 470 ahead of her inside its box
         {
             f32 a = player->actor.shape.rot.y * (M_PI / 32768.0f);
-            // (RE1's 470 ahead, plus where OoT's walls stop Link: further out than her radius)
-            s32 ax = px + (s32)(1100.0f * sinf(a));
-            s32 az = pz - (s32)(1100.0f * cosf(a));
+            // (RE1's 470 ahead, plus where OoT's walls stop Link: further out than her radius, about
+            // 1060 from the box's face; and a step or two of the box moving off before he follows,
+            // or a push from his own standing spot stalls after its first step: 205's armors)
+            s32 ax = px + (s32)(1250.0f * sinf(a));
+            s32 az = pz - (s32)(1250.0f * cosf(a));
 
             reach = ((u32)(ax - o->pos[0] + o->ext[0]) <= (u32)(o->ext[0] * 2)) &&
                     ((u32)(az - o->pos[2] + o->ext[2]) <= (u32)(o->ext[2] * 2));
         }
-        if (NvObj_Touches(o, px, py, pz, NV_JILL_RADIUS + 800, NV_JILL_HALF_H, &dx, &dz) && pressing && reach &&
+        if (getenv("NV_PUSHLOG") && ((play->gameplayFrames % 4) == 0) && (SQ(px - o->pos[0]) + SQ(pz - o->pos[2]) < SQ(2500))) {
+            printf("NVPUSH obj %d at %d,%d her %d,%d (link %.1f,%.1f) touch %d press %d reach %d push %d\n", (int)i,
+                   o->pos[0], o->pos[2], px, pz, player->actor.world.pos.x, player->actor.world.pos.z,
+                   NvObj_Touches(o, px, py, pz, NV_JILL_RADIUS + 950, NV_JILL_HALF_H, &dx, &dz), pressing, reach, o->push);
+            fflush(stdout);
+        }
+        if (NvObj_Touches(o, px, py, pz, NV_JILL_RADIUS + 950, NV_JILL_HALF_H, &dx, &dz) && pressing && reach &&
             !o->top) {
             o->push++;
         } else {
