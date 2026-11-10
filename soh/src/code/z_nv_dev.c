@@ -437,10 +437,12 @@ void NvDev_Update(PlayState* play) {
                 for (rad = 0.0f; rad <= 120.0f; rad += 4.0f) {
                     for (k = 0; k < ((rad == 0.0f) ? 1 : 24); k++) {
                         f32 a = k * (2.0f * M_PI / 24.0f);
-                        Vec3f q = { cx + cosf(a) * rad, 5000.0f, cz + sinf(a) * rad };
+                        // (from just above him: a floor up to a storey's step higher or lower, not a
+                        // wall's top or the storey above)
+                        Vec3f q = { cx + cosf(a) * rad, player->actor.world.pos.y + 100.0f, cz + sinf(a) * rad };
                         f32 qy = BgCheck_EntityRaycastFloor3(&play->colCtx, &poly, &bgId, &q);
 
-                        if ((qy > BGCHECK_Y_MIN) && (fabsf(qy - player->actor.world.pos.y) < 60.0f)) {
+                        if ((qy > BGCHECK_Y_MIN) && (fabsf(qy - player->actor.world.pos.y) < 90.0f)) {
                             probe.x = cx + cosf(a) * (rad + ((rad > 0.0f) ? 14.0f : 0.0f));
                             probe.z = cz + sinf(a) * (rad + ((rad > 0.0f) ? 14.0f : 0.0f));
                             y = qy;
