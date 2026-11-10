@@ -382,6 +382,10 @@ static u8 NvScd_StateByte(s32 field) {
             return sNvFwdPosAction;
         case 17:
             return sNvEntPosAction;
+        case 18: // usedItemId, pickedItemId (what cmd_used_item_test / cmd_picked_item_test read)
+            return sNvUsedItem;
+        case 19:
+            return sNvPickedItem;
         default:
             return 0;
     }
