@@ -200,6 +200,12 @@ s32 NvFlags_Test(s32 bank, s32 bit) {
     if ((bank < 0) || (bank >= 10)) {
         return 0;
     }
+    if ((bank == 5) && ((bit & 0xFF) >= 0x40) && ((bit & 0xFF) < 0x80)) {
+        // (bank 5 is two words: RE1 reads past them into the system flags, bank 4 - 205's gas
+        // trap tests 5:40, which is 4:00)
+        bank = 4;
+        bit -= 0x40;
+    }
     return (sNvFlags[bank][(bit >> 5) & 7] & (0x80000000u >> (bit & 31))) != 0;
 }
 
@@ -209,6 +215,11 @@ void NvFlags_Op(s32 bank, s32 bit, s32 mode) {
 
     if ((bank < 0) || (bank >= 10)) {
         return;
+    }
+    if ((bank == 5) && ((bit & 0xFF) >= 0x40) && ((bit & 0xFF) < 0x80)) {
+        bank = 4; // (as NvFlags_Test)
+        bit -= 0x40;
+        mask = 0x80000000u >> (bit & 31);
     }
     w = &sNvFlags[bank][(bit >> 5) & 7];
     if (mode == 0) {
@@ -578,11 +589,30 @@ static s32 NvScd_Cmd(void) {
             NvBgm_ScdStop(p[1]);
             sNvIp = p + 2;
             return 1;
-        case 0x33: // cmd_player_prop_set: only 0, the weapon put away, means anything here
+        case 0x33: // cmd_player_prop_set: 0 the weapon put away, 5 her facing, 8 her status bits (the gas)
             if (p[1] == 0) {
                 void NvItems_Unequip(void);
 
                 NvItems_Unequip();
+            } else if ((p[1] == 5) && (sNvPlay != NULL)) {
+                Player* player = GET_PLAYER(sNvPlay);
+                s16 dir = (s16)(p[2] | (p[3] << 8));
+
+                player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = (s16)(0x4000 - dir * 16);
+            } else if (p[1] == 8) {
+                extern u8 gNvRe1Poison;
+
+                if (p[3] == 0) {
+                    gNvRe1Poison = p[2];
+                } else if (p[3] == 1) {
+                    gNvRe1Poison |= p[2];
+                } else if (p[3] == 2) {
+                    gNvRe1Poison ^= p[2];
+                }
+                if (getenv("NV_LOG")) {
+                    printf("NVSCD her status bits now %02X\n", gNvRe1Poison);
+                    fflush(stdout);
+                }
             }
             sNvIp = p + NvScd_Len(p);
             return 1;
@@ -893,6 +923,10 @@ static s32 NvScd_Cmd(void) {
             }
             if (p[1] == 2) { // the room's bank (doors, glass, its enemies): Play3DSnd's type 2
                 NvSnd_At(p[2], (u16)x, (u16)z, gNvRe1Player.t[0], gNvRe1Player.t[2]);
+            } else if (p[1] == 0) { // the room's door set (load_room_sfx: a gate, a lift)
+                void NvSnd_RoomSet(s32 id);
+
+                NvSnd_RoomSet(p[2]);
             }
             sNvIp = p + NvScd_Len(p);
             return 1;

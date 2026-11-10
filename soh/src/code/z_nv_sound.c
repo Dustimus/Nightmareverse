@@ -383,7 +383,19 @@ static const char* const sNvDoorSnd[15][2] = {
 };
 
 /** A door's sound (z_nv_doorscene.c): which = 0 as it opens, 1 as it closes behind (play_sfx(0, 1)). */
+static s32 sNvRoomSfxSet = -1; // load_room_sfx: the set the last door loaded (Play3DSnd's bank 0)
+
+/** cmd_sfx_3d_play's bank 0: sound id of the room's set (the door's that brought her in), if any. */
+void NvSnd_RoomSet(s32 id) {
+    if ((sNvRoomSfxSet >= 0) && (id >= 0) && (id < 2) && (sNvDoorSnd[sNvRoomSfxSet][id] != NULL)) {
+        NvSound_Play(sNvDoorSnd[sNvRoomSfxSet][id], 128);
+    }
+}
+
 void NvSnd_Door(s32 set, s32 which) {
+    if ((set >= 0) && (set < 15)) {
+        sNvRoomSfxSet = set;
+    }
     if ((set >= 0) && (set < 15) && (which >= 0) && (which < 2) && (sNvDoorSnd[set][which] != NULL)) {
         NvSound_Play(sNvDoorSnd[set][which], 128);
     }

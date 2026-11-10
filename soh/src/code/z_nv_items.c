@@ -863,7 +863,8 @@ s32 NvItems_ToggleEquip(s32 i) {
 /* ---- poison (RE1's player status: the snakes', the wasps', the spiders' and the first Yawn's) ---- */
 
 // RE1's poison bits (the player's healthStatusFlags): 0x02 a creature's venom (the blue herb
-// cures it), 0x20 the first Yawn's (only the serum does)
+// cures it), 0x20 the first Yawn's (only the serum does), 0x40 a room's gas (the scripts raise and
+// drop it: player_prop_set 8; fast, and it can kill)
 u8 gNvRe1Poison;
 
 #ifndef NV_RE1_JILL_HEALTH
@@ -891,11 +892,11 @@ void NvPoison_Update(PlayState* play) {
     if (NvFlags_Test(1, 0x43)) {
         gNvRe1Poison |= 0x20;
     }
-    if (!(gNvRe1Poison & 0x22) || (gSaveContext.health <= 1)) {
+    if (!(gNvRe1Poison & 0x62) || (gSaveContext.health <= ((gNvRe1Poison & 0x40) ? 0 : 1))) {
         sTimer = 0;
         return;
     }
-    if (++sTimer < 80) { // four seconds at OoT's 20 a second
+    if (++sTimer < ((gNvRe1Poison & 0x40) ? 5 : 80)) { // four seconds at OoT's 20 a second; the gas, 7 of RE1's ticks
         return;
     }
     sTimer = 0;
@@ -903,7 +904,7 @@ void NvPoison_Update(PlayState* play) {
     whole = (s32)sOwed;
     if (whole > 0) {
         sOwed -= whole;
-        whole = MIN(whole, gSaveContext.health - 1);
+        whole = MIN(whole, gSaveContext.health - ((gNvRe1Poison & 0x40) ? 0 : 1));
         if (whole > 0) {
             Health_ChangeBy(play, -whole);
         }
