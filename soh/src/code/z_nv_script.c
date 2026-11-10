@@ -266,6 +266,11 @@ s32 NvItems_Slot(s32 i, s32* qty);
 // the rest of RE1's state block as the scripts write it (cmd_state_byte_set 0x08, cmd_state_word_set
 // 0x31): what a room's script sets for later ones to test (the stage, room and camera are live)
 static u8 sNvStateSet[256];
+// update_player_position's probe results (BioCard 0x210/0x211, state bytes 16/17): the index + 1 of
+// the action entry hit by the point ahead of her, and by her (or a room object's) own position;
+// cleared each frame with the item-use ids (room_state_reset)
+static u8 sNvFwdPosAction;
+static u8 sNvEntPosAction;
 static u8 sNvStateVal[256];
 static u8 sNvFxLastBullet; // the last 0x3D's type (0x3E clears it)
 void NvFx_ScdClearType(u8 type);
@@ -373,6 +378,10 @@ static u8 NvScd_StateByte(s32 field) {
             return sNvCamera;
         case 9: // characterModelId: Jill (0 Chris, 1 Jill; +8 her other outfit)
             return 1;
+        case 16:
+            return sNvFwdPosAction;
+        case 17:
+            return sNvEntPosAction;
         default:
             return 0;
     }
@@ -2361,6 +2370,11 @@ static void NvAot_WalkIn(PlayState* play) {
         if (((u32)(x - e->zone[0]) > e->zone[2]) || ((u32)(z - e->zone[1]) > e->zone[3])) {
             continue;
         }
+        if (e->flags & 0x40) {
+            sNvEntPosAction = (u8)(i + 1);
+        } else {
+            sNvFwdPosAction = (u8)(i + 1);
+        }
         if (e->handler == 9) {
             printf("NVEVT walk-in %d: event %d in slot %d\n", (int)i, e->param[1] & 0xFF, e->param[0] & 0xFF);
             fflush(stdout);
@@ -2552,6 +2566,13 @@ static void NvObj_WalkIn(const NvObj* o) {
         if (((u32)(o->pos[0] - e->zone[0]) > e->zone[2]) || ((u32)(o->pos[2] - e->zone[1]) > e->zone[3])) {
             continue;
         }
+        // (update_player_position run for the object, mask 4: its place counts as the entity's,
+        // whatever the handler, 10 included: 202's balcony statue at the railing's gap)
+        if (e->flags & 0x40) {
+            sNvEntPosAction = (u8)(i + 1);
+        } else {
+            sNvFwdPosAction = (u8)(i + 1);
+        }
         if (e->handler == 7) {
             NvAot_FlagSet(e);
         } else if (e->handler == 9) {
@@ -2564,7 +2585,8 @@ static void NvObj_WalkIn(const NvObj* o) {
  * One tick of the room's objects: the enemies and Link pushed out of each solid one; Link leaning
  * on one (walking into it, within reach ahead, nine ticks on end) pushes it along that side, at
  * her push's pace, unless the room's walls or another object stop it; then the zones it reaches.
- * Flags (the record's byte 2): 0x01 there, 0x02 intangible, 0x08 no collision, 0x20 not pushable.
+ * Flags (the record's byte 2): 0x01 there, 0x02 intangible, 0x04 no floor probe, 0x08 no collision,
+ * 0x20 not pushable.
  */
 static void NvObj_Update(PlayState* play) {
     s32 NvRe1_ObjBlocked(s32 x, s32 z, s32 ex, s32 ez);
@@ -2642,7 +2664,8 @@ static void NvObj_Update(PlayState* play) {
             } else {
                 nz += (dz >= 0) ? step : -step;
             }
-            if (NvRe1_ObjBlocked(nx, nz, o->ext[0], o->ext[2])) {
+            // (the object's own floor probe; flag 0x04: it never needs one, update_room_objects)
+            if (!(o->flags & 0x04) && NvRe1_ObjBlocked(nx, nz, o->ext[0], o->ext[2])) {
                 veto = true;
             }
             for (k = 0; (k < NV_OBJ_SLOTS) && !veto; k++) { // another object in the way
@@ -2815,6 +2838,7 @@ void NvScript_Update(PlayState* play) {
         // one picked up are seen once, and the system flags 0x20-0x3F (what the room's walk-in
         // zones raise for them) start again
         sNvUsedItem = sNvPickedItem = 0;
+        sNvFwdPosAction = sNvEntPosAction = 0; // (the same dword: 0x210-0x213)
         sNvFlags[4][1] = 0;
         NvObj_Update(play); // the room's objects: solid, pushed, on their spots
         {
