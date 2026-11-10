@@ -495,9 +495,15 @@ void NvDev_Update(PlayState* play) {
         } else if (wp->kind == NV_WP_USE) {
             extern s32 gNvDevUseItem;
 
+            static s32 sClose;
+
             if (play->msgCtx.msgMode == MSGMODE_NONE) {
                 gNvDevUseItem = wp->wait;
+                sClose = 0;
                 sNvPathIdx++;
+            } else if ((++sClose % 12) == 0) { // (a message still up: read on, as a player would)
+                input->press.button |= BTN_A;
+                input->cur.button |= BTN_A;
             }
         } else if (wp->kind == NV_WP_SAVE) {
             void NvSave_DevSave(PlayState* play);
