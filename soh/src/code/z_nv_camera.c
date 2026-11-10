@@ -82,9 +82,13 @@ static u8* NvCamera_Zones(PlayState* play, u32* count) {
 }
 
 /** The room's start (z_nv_script.c): its own table again, no cut, no lock. */
+static s32 sNvCamFresh; // the room just loaded: its init script's cut and lock stand
+
 void NvCamera_RoomLoad(void) {
     sNvCamZoneScene = -1;
     sNvCamLocked = false;
+    sNvCamCurrent = -1;
+    sNvCamFresh = true;
 }
 
 /** cmd_cut_lock_set: cut to camera n and hold it. */
@@ -98,6 +102,11 @@ void NvCamera_CutLock(s32 n) {
 void NvCamera_CutRestore(void) {
     sNvCamCurrent = sNvCamCutPrev;
     sNvCamLocked = false;
+}
+
+/** cmd_state_byte_set on the camera's byte (g_roomCameraId): the room cuts to camera n, the lock as it is. */
+void NvCamera_Set(s32 n) {
+    sNvCamCurrent = n;
 }
 
 /** cmd_cut_lock_write */
@@ -162,10 +171,23 @@ s32 NvCamera_Select(PlayState* play, s32 floorCam) {
         sNvCamScene = -1;
         return floorCam;
     }
-    if ((play->sceneNum != sNvCamScene) || (sNvCamCurrent < 0)) {
+    if (sNvCamFresh || (play->sceneNum != sNvCamScene) || (sNvCamCurrent < 0)) {
+        // (the room's init script may have cut to a camera and locked it already: a scene that
+        // starts with the room. A lock alone holds the camera she came in on)
+        s32 scripted = sNvCamFresh && (sNvCamCurrent >= 0);
+
+        if (!sNvCamFresh) {
+            sNvCamLocked = false;
+        }
+        sNvCamFresh = false;
         sNvCamScene = play->sceneNum;
-        sNvCamCurrent = 0; // the zone walk below makes RE1's one pass
-        sNvCamLocked = false;
+        if (scripted && sNvCamLocked) {
+            sNvCamLastPos = player->actor.world.pos;
+            return sNvCamCurrent;
+        }
+        if (!scripted) {
+            sNvCamCurrent = 0; // the zone walk below makes RE1's one pass
+        }
     } else if (sNvCamLocked) {
         sNvCamLastPos = player->actor.world.pos;
         return sNvCamCurrent; // the script's cut (Room.cpp: no switch check while locked)

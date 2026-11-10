@@ -12249,6 +12249,8 @@ s32 NvWeapon_OwnsCLeft(PlayState* play);
 void NvWeapon_Draw(PlayState* play, Player* player);
 void NvLinkAnim_Apply(Player* player, PlayState* play);
 
+extern s32 gNvInputLock;
+
 void Player_Update(Actor* thisx, PlayState* play) {
     static Vec3f sDogSpawnPos;
     Player* this = (Player*)thisx;
@@ -12290,7 +12292,9 @@ void Player_Update(Actor* thisx, PlayState* play) {
             Player_DetachHeldActor(play, this);
         }
 
-        if (this->stateFlags1 & (PLAYER_STATE1_INPUT_DISABLED | PLAYER_STATE1_IN_CUTSCENE)) {
+        // Nightmareverse: an RE1 room's scripts keep the pad from the player (z_nv_script.c NvMf_Update)
+        if ((this->stateFlags1 & (PLAYER_STATE1_INPUT_DISABLED | PLAYER_STATE1_IN_CUTSCENE)) ||
+            (gNvInputLock && (play->sceneNum >= SCENE_RE1_100))) {
             memset(&input, 0, sizeof(input));
         } else {
             input = play->state.input[0];

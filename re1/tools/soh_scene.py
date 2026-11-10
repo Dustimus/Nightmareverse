@@ -428,20 +428,23 @@ EFFECTS_START = None  # where the rooms' effect sprites start on their pages (so
 ITEM_NAMES = None  # RE1's item names (soh_text.py, from the English executable), when the mod is made with it
 
 
-def decode_message(raw, p):
+def decode_message(raw, p, yn=False):
     """One RE1 message at raw[p] (message state machine, Rendering.cpp 0x00455a10) as an SoH
     CustomMessage string: '^' a new box (RE1's 03 page break), '%r'/'%w' RE1's highlight colour
     (05 n), an item name (06 n: item n's from the executable's tables, or "{item}" for 06 00, the item in
     question, filled in by the engine). A line break
     (02) is a space: SoH wraps lines to its own box. Stops at the end (01) or at a yes/no prompt
-    (08: its choices drive item actions, which come with the items)."""
+    (08): with yn, the prompt is kept as a closing "{yn}" for the engine to ask (the room's
+    scripts read the answer)."""
     out = []
+    ask = False
     while p < len(raw):
         b = raw[p]
         if b == 0 or b == 2:
             out.append(" ")
             p += 1
         elif b == 1 or b == 8:
+            ask = yn and b == 8
             break
         elif b == 3:
             out.append("^")
@@ -468,7 +471,7 @@ def decode_message(raw, p):
             out.append(_msg_char(b))
             p += 1
     text = " ".join("".join(out).split())  # RE1 pads lines with spaces
-    return text.replace(" ^", "^").replace("^ ", "^").strip("^ ")
+    return text.replace(" ^", "^").replace("^ ", "^").strip("^ ") + ("{yn}" if ask else "")
 
 
 def msg_blob(raw):
@@ -480,7 +483,7 @@ def msg_blob(raw):
     if mp and re1_verify.text_language(raw) != "japanese":
         first = struct.unpack_from("<H", raw, mp)[0]
         for i in range(first // 2):
-            texts.append(decode_message(raw, mp + struct.unpack_from("<H", raw, mp + 2 * i)[0]).encode("ascii"))
+            texts.append(decode_message(raw, mp + struct.unpack_from("<H", raw, mp + 2 * i)[0], yn=True).encode("ascii"))
     head = b"RMSG" + struct.pack("<I", len(texts))
     offs, pos = [], 0
     for t in texts:

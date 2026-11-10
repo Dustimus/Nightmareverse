@@ -32,6 +32,10 @@
 #define NV_EVT_SLOTS 8
 #define NV_SCD_STACK 16
 #define NV_SCD_GUARD 4096 // commands per run before giving up (a desynced stream)
+#define NV_MSF_CHAR_VARIANT 0x08 // bank 5's bit: Jill's game (MSF_CHAR_VARIANT, raised at RE1's character select)
+#define NV_MSF_VOICE_PLAYING 0x0E // a voice line playing (MSF_VOICE_PLAYING: the scripts wait on it)
+#define NV_MSF_OBJECT_PUSH 0x19   // she's pushing an object (MSF_OBJECT_PUSH)
+#define NV_MSF_ON_OBJECT 0x18     // she's climbed up onto an object (MSF_DOOR_TRANSITION: check_climb_object)
 #define NV_MSF_CAMERA_REDRAW 0x1A // bank 5's bit: the camera switched this frame (MSF_CAMERA_REDRAW)
 
 void NvEnemy_ClearSlots(void);
@@ -163,6 +167,7 @@ static void NvFlags_NewGame(void) {
     memset(sNvFlags[7], 0xFF, sizeof(sNvFlags[7]));
     sNvFlags[7][1 >> 5] &= ~(0x80000000u >> (1 & 31));
     sNvFlags[7][172 >> 5] &= ~(0x80000000u >> (172 & 31));
+    NvFlags_Op(5, NV_MSF_CHAR_VARIANT, 0); // (her game: the rooms' scripts branch on it)
     if (getenv("NV_WORD") != NULL) { // dev: NV_WORD="i:v" a state word from the start (4: the countdown)
         int wi;
         int wv;
@@ -252,10 +257,13 @@ static s32 NvScd_Len(const u8* p) {
 }
 
 static void NvEvt_Create(s32 slot, s32 script);
-static void NvScd_Message(s32 id);
+static void NvScd_Message(s32 id, u32 pause);
 static void NvVoice_Play(s32 id);
 static void NvAot_Run(s32 i, s32 handler);
 static const char* NvMsg_Text(s32 id, s32 item);
+static s32 sNvMsgYn; // NvMsg_Text's last message ends in RE1's yes / no
+static s32 NvMsg_Start(PlayState* play, s32 id, s32 item, u32 pause);
+static s32 NvDesk_Key(void);
 const char* NvText_Get(s32 kind, s32 i);
 s32 NvItems_Find(s32 id);
 s32 NvItems_Remove(s32 id);
@@ -319,6 +327,7 @@ void NvScript_LoadState(const u8* p) {
     p += sizeof(sNvStateSet);
     memcpy(sNvStateVal, p, sizeof(sNvStateVal));
     memset(sNvFlags[9], 0, sizeof(sNvFlags[9])); // (the item-use flags are per frame)
+    NvFlags_Op(5, NV_MSF_CHAR_VARIANT, 0); // (a save from before the flag was kept)
     sNvRunReady = true;
 }
 
@@ -364,8 +373,75 @@ void NvScript_SetUsedItem(s32 id) {
     }
 }
 
+/* ---- g_message_flags (bank 6's word): what RE1 lets run ---- */
+#define NV_MF_PLAYER 0x001 // the player's state machine
+#define NV_MF_NPC 0x002    // the characters think
+#define NV_MF_ENEMY 0x004  // the enemies think
+#define NV_MF_EVENTS 0x080 // the room's events step
+#define NV_MF_INPUT 0x100  // the pad reaches the player
+#define NV_MF_FADE_TICKS 7 // game_loop's fade into a room: nothing but the main script runs
+#define NV_MF_LOCK_MAX (20 * 120) // (a scene that never gives the pad back: let go, and say so)
+
+static u32 sNvMfBackup; // g_messageFlagsBackup: the flags a message put aside
+static s32 sNvMfHeld;   // a message is holding them
+static s32 sNvMfFade;   // ticks of the room's fade left
+static s32 sNvMfFirst;  // the room's events haven't had room_set's first step
+static s32 sNvMfLocked; // frames the pad has been kept from the player
+s32 gNvInputLock;       // the pad is kept from the player now (z_player.c, z_nv_door.c)
+
+/** g_message_flags now: all on outside RE1's rooms. */
+u32 NvScript_MsgFlags(void) {
+    if ((sNvMain == NULL) || (sNvPlay == NULL) || (sNvPlay->sceneNum < SCENE_RE1_100)) {
+        return 0xFFFF;
+    }
+    return sNvFlags[6][0] & 0xFFFF;
+}
+
+/** set_message_display: the flags in mask are put down while the message is up. */
+static void NvMf_Hold(u32 mask) {
+    if (!sNvMfHeld) {
+        sNvMfHeld = true;
+        sNvMfBackup = sNvFlags[6][0];
+        sNvFlags[6][0] &= ~mask;
+    }
+}
+
+/**
+ * Each frame: a message that came up some other way (a door's, an item's: RE1's own show theirs
+ * with everything held, 0xFF) holds the flags too; they come back as it closes. Then the pad:
+ * kept from the player while the scripts have the input or her state machine off.
+ */
+static void NvMf_Update(PlayState* play) {
+    s32 open = (Message_GetState(&play->msgCtx) != TEXT_STATE_NONE);
+    u32 mf;
+
+    if (open && !sNvMfHeld && (sNvMain != NULL)) {
+        NvMf_Hold(0xFF);
+    } else if (!open && sNvMfHeld) {
+        sNvMfHeld = false;
+        sNvFlags[6][0] = sNvMfBackup;
+    }
+    mf = NvScript_MsgFlags();
+    gNvInputLock = ((mf & (NV_MF_INPUT | NV_MF_PLAYER)) != (NV_MF_INPUT | NV_MF_PLAYER)) && !open;
+    if (!gNvInputLock) {
+        sNvMfLocked = 0;
+    } else if (++sNvMfLocked > NV_MF_LOCK_MAX) {
+        printf("NVMF the room kept the pad too long (flags %04X): given back\n", (unsigned)mf);
+        fflush(stdout);
+        sNvFlags[6][0] |= NV_MF_INPUT | NV_MF_PLAYER;
+        gNvInputLock = false;
+        sNvMfLocked = 0;
+    }
+}
+
+static u8 sNvLastEnemyFlags; // g_scdLastEnemyFlags
+static s32 sNvDeskAsk = -1; // check_desk: the desk whose "use the key?" is open
+static s32 sNvDeskCam;      // the desk's camera is up while its item is offered
+static u8 sNvChoice; // the last yes / no a room's message asked: 0 yes, 1 no (g_menu_choice_id)
+static s32 sNvAsk;   // such a question is open
+
 static u8 NvScd_StateByte(s32 field) {
-    if ((field > 3) && (field != 9) && sNvStateSet[field & 0xFF]) {
+    if ((field > 3) && (field != 5) && (field != 9) && (field != 10) && sNvStateSet[field & 0xFF]) {
         return sNvStateVal[field & 0xFF];
     }
     switch (field) {
@@ -376,8 +452,13 @@ static u8 NvScd_StateByte(s32 field) {
         case 2:
         case 3:
             return sNvCamera;
+        case 5: // menu_choice_id: 0x80 while a message is up, then the answer to its yes / no (0 yes, 1 no)
+            return (((sNvPlay != NULL) && (Message_GetState(&sNvPlay->msgCtx) != TEXT_STATE_NONE)) ? 0x80 : 0) |
+                   sNvChoice;
         case 9: // characterModelId: Jill (0 Chris, 1 Jill; +8 her other outfit)
             return 1;
+        case 10: // scdLastEnemyFlags (cmd_enemy_flags_get)
+            return sNvLastEnemyFlags;
         case 16:
             return sNvFwdPosAction;
         case 17:
@@ -657,6 +738,15 @@ static s32 NvScd_Cmd(void) {
         case 0x08: // cmd_state_byte_set: one byte of the state block
             sNvStateSet[p[1]] = 1;
             sNvStateVal[p[1]] = p[2];
+            if (p[1] == 2) { // (g_roomCameraId: a scene's camera, usually with the cut lock on)
+                void NvCamera_Set(s32 n);
+
+                NvCamera_Set(p[2]);
+                if (getenv("NV_LOG")) {
+                    printf("NVCAM the script cuts to camera %d\n", p[2]);
+                    fflush(stdout);
+                }
+            }
             sNvIp = p + 4;
             return 1;
         case 0x31: { // cmd_state_word_set: one word of it (the lab countdown, 411's emergency light)
@@ -664,6 +754,11 @@ static s32 NvScd_Cmd(void) {
 
             memcpy(&v, p + 2, 2);
             sNvStateWord[p[1] & 0x7F] = v;
+            if (p[1] == 1) { // (specialRoomLightState and its delta: the light over the room, NvLight_Draw)
+                sNvLightState = (s16)v;
+            } else if (p[1] == 2) {
+                sNvLightDelta = (s16)v;
+            }
             sNvIp = p + 4;
             return 1;
         }
@@ -729,8 +824,8 @@ static s32 NvScd_Cmd(void) {
             sNvIp = p + 14;
             return 1;
         }
-        case 0x0B: // cmd_message_set: a room message, shown now (RE1 also pauses for p[2..3])
-            NvScd_Message(p[1]);
+        case 0x0B: // cmd_message_set: a room message, shown now, with p[2..3] of the message flags held
+            NvScd_Message(p[1], p[2] | (p[3] << 8));
             sNvIp = p + 4;
             return 1;
         case 0x20: { // cmd_player_pos_set: the player put at (x, y, z) facing an angle
@@ -838,6 +933,14 @@ static s32 NvScd_Cmd(void) {
         case 0x07: { // cmd_state_word_test: a word of the state block (3 the dice, 4 the lab's countdown)
             u16 v = sNvStateWord[p[2] & 0x7F];
             u16 c = p[4] | (p[5] << 8);
+
+            if (p[2] == 1) { // (the light over the room, as it stands)
+                v = (u16)sNvLightState;
+            } else if (p[2] == 2) {
+                v = (u16)sNvLightDelta;
+            } else if (p[2] == 5) { // (playerHealthCopy: the health her game started with)
+                v = 96;
+            }
 
             sNvIp = p + 6;
             switch (p[3]) {
@@ -993,10 +1096,16 @@ static s32 NvScd_Cmd(void) {
             sNvIp = p + NvScd_Len(p);
             return r;
         }
-        // tests not run yet: false
-        case 0x38:
-            sNvIp = p + NvScd_Len(p);
-            return 0;
+        case 0x38: // cmd_dpad_test: the pad's held buttons against a mask - none of them, here
+            sNvIp = p + 4;
+            return p[1] != 0; // (p[1]: true while none of the mask is held)
+        case 0x39: { // cmd_enemy_flags_get: slot p[1]'s behaviour flags into state byte 10
+            s32 NvEnemy_SlotFlags(s32 slot);
+
+            sNvLastEnemyFlags = NvEnemy_SlotFlags(p[1]);
+            sNvIp = p + 2;
+            return 1;
+        }
         default:
             n = NvScd_Len(p);
             if (getenv("NV_LOG")) { // (the room sweep counts these: commands not run yet)
@@ -1737,7 +1846,7 @@ static void NvAot_Run(s32 i, s32 handler) {
     fflush(stdout);
     switch (handler) {
         case 2:
-            NvScd_Message(a->param[0] & 0x7F);
+            NvScd_Message(a->param[0] & 0x7F, a->param[1]);
             break;
         case 4:
         case 0x0F:
@@ -1806,6 +1915,47 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         NvEvt_Create(sNvAot[i].param[0] & 0xFF, sNvAot[i].param[1] & 0xFF);
         return true;
     }
+    if (sNvAot[i].handler == 0x0E) { // check_desk: param 0 its lock (bank 2), 1 its item's entry, 2 its camera
+        NvAot* d = &sNvAot[i];
+        s32 k = d->param[1];
+        static char sAsk[300];
+
+        if ((k >= NV_AOT_SLOTS) || !sNvAot[k].isItem || (sNvAot[k].handler == 0) ||
+            !NvFlags_Test(7, sNvAot[k].itemFlag)) {
+            return false; // (the desk's emptied: nothing happens)
+        }
+        if (!NvFlags_Test(2, d->param[0])) { // locked
+            if (NvDesk_Key() == 0) {
+                return NvMsg_Start(play, 0xD8, 0, 0xFF); // "it's locked"
+            }
+            snprintf(sAsk, sizeof(sAsk), "%s\x1B%%gYes&No%%w", NvMsg_Text(0xD9, NvDesk_Key()));
+            sNvMsgText = sAsk;
+            sNvChoice = 0;
+            sNvAsk = true;
+            sNvDeskAsk = i;
+            printf("NVDESK spot %d: locked (lock %d), asks to open it\n", (int)i, d->param[0]);
+            fflush(stdout);
+            NvMsg_EnsureHook();
+            Message_StartTextbox(play, NV_TEXT_ID, NULL);
+            return true;
+        }
+        { // unlocked: the lid, the desk's camera, then its item offered as any other
+            void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
+            void NvCamera_CutLock(s32 n);
+
+            NvSnd_At(0x24, 0, 0, 0, 0);
+            NvCamera_CutLock(d->param[2]);
+            sNvDeskCam = true;
+            NvPickup_Prompt(sNvAot[k].item);
+            sNvMsgText = sNvPrompt;
+            sNvPickup = k;
+            printf("NVDESK spot %d: open, offers %02X (camera %d)\n", (int)i, sNvAot[k].item, d->param[2]);
+            fflush(stdout);
+            NvMsg_EnsureHook();
+            Message_StartTextbox(play, NV_TEXT_ID, NULL);
+            return true;
+        }
+    }
     if (sNvAot[i].handler == 0x10) { // check_typewriter: the run's save (z_nv_save.c)
         void NvSave_Typewriter(PlayState * play);
 
@@ -1844,15 +1994,9 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         return false;
     }
     id = sNvAot[i].param[0];
-    sNvMsgText = NvMsg_Text(id, 0); // (bit 0x40: the executable's shared messages)
     printf("NVMSG spot %d: message %d\n", (int)i, id & 0x3F);
     fflush(stdout);
-    if (sNvMsgText[0] == '\0') {
-        return false;
-    }
-    NvMsg_EnsureHook();
-    Message_StartTextbox(play, NV_TEXT_ID, NULL);
-    return true;
+    return NvMsg_Start(play, id, 0, sNvAot[i].param[1]); // (its own pause word; bit 0x40: the executable's shared messages)
 }
 
 /** cmd_message_set: room message id in OoT's box (as an examine spot's). */
@@ -1919,16 +2063,93 @@ static const char* NvMsg_Text(s32 id, s32 item) {
     const char* src = (id & 0x40) ? NvText_Get(0, id & 0x3F) : NvMsg_Get(id & 0x3F);
     const char* at;
     const char* name = (item > 0) ? NvItems_Name(item) : "it";
+    char* yn;
 
+    sNvMsgYn = false;
     if (src == NULL) {
         return "";
     }
     at = strstr(src, "{item}");
     if (at == NULL) {
-        return src;
+        if (strstr(src, "{yn}") == NULL) {
+            return src;
+        }
+        snprintf(sBuf, sizeof(sBuf), "%s", src);
+    } else {
+        snprintf(sBuf, sizeof(sBuf), "%.*s%s%s", (int)(at - src), src, name, at + 6);
     }
-    snprintf(sBuf, sizeof(sBuf), "%.*s%s%s", (int)(at - src), src, name, at + 6);
+    yn = strstr(sBuf, "{yn}"); // (RE1's yes / no after it: re1/tools/soh_scene.py decode_message)
+    if (yn != NULL) {
+        *yn = '\0';
+        sNvMsgYn = true;
+    }
     return sBuf;
+}
+
+/**
+ * A room's message in the text box, as cmd_message_set and the examine spots show it: with RE1's
+ * yes / no when the message ends in one, the answer kept for the room's scripts (state byte 5).
+ */
+static s32 NvMsg_Start(PlayState* play, s32 id, s32 item, u32 pause) {
+    static char sAsk[440];
+    const char* t = NvMsg_Text(id, item);
+
+    if (t[0] == '\0') {
+        return false;
+    }
+    sNvChoice = 0;
+    sNvAsk = sNvMsgYn;
+    if (sNvMsgYn) {
+        snprintf(sAsk, sizeof(sAsk), "%s\x1B%%gYes&No%%w", t);
+        t = sAsk;
+    }
+    sNvMsgText = t;
+    NvMsg_EnsureHook();
+    Message_StartTextbox(play, NV_TEXT_ID, NULL);
+    NvMf_Hold(pause);
+    return true;
+}
+
+/** What she opens a desk with: the lockpick (Jill's), else the small key; 0 for neither. */
+static s32 NvDesk_Key(void) {
+    if (NvFlags_Test(0, 0x7C) || (NvItems_Find(0x31) >= 0)) { // (SCENARIO_FLAG_HAS_LOCKPICK: Barry's, in 106)
+        return 0x31;
+    }
+    return (NvItems_Find(0x3D) >= 0) ? 0x3D : 0;
+}
+
+/** The question's answer, each frame (Rendering.cpp's message state 4: the cursor's side, then closed). */
+static void NvAsk_Update(PlayState* play) {
+    if (!sNvAsk) {
+        return;
+    }
+    if (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) {
+        sNvAsk = false;
+        return;
+    }
+    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
+        sNvChoice = (play->msgCtx.choiceIndex != 0) ? 1 : 0;
+        sNvAsk = false;
+        if (getenv("NV_LOG")) {
+            printf("NVMSG answered %s\n", sNvChoice ? "no" : "yes");
+            fflush(stdout);
+        }
+        if ((sNvDeskAsk >= 0) && (sNvChoice == 0)) { // check_desk_state 3: unlocked, "key turned"
+            void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
+            NvAot* d = &sNvAot[sNvDeskAsk];
+
+            sNvDeskAsk = -1;
+            NvFlags_Op(2, d->param[0], 0);
+            NvSnd_At(0x26, 0, 0, 0, 0);
+            printf("NVDESK unlocked (lock %d)\n", d->param[0]);
+            fflush(stdout);
+            sNvMsgText = NvMsg_Text(0xC3, NvDesk_Key());
+            Message_ContinueTextbox(play, NV_TEXT_ID);
+            return;
+        }
+        sNvDeskAsk = -1;
+        Message_CloseTextbox(play);
+    }
 }
 
 /** For the interactive screens (z_nv_panel.c): message id in the text box, with RE1's yes / no after it. */
@@ -1957,16 +2178,11 @@ s32 NvScript_Say(PlayState* play, s32 id) {
     return true;
 }
 
-static void NvScd_Message(s32 id) {
+static void NvScd_Message(s32 id, u32 pause) {
     if ((sNvPlay == NULL) || (Message_GetState(&sNvPlay->msgCtx) != TEXT_STATE_NONE)) {
         return;
     }
-    sNvMsgText = NvMsg_Text(id, sNvPickedItem);
-    if (sNvMsgText[0] == '\0') {
-        return;
-    }
-    NvMsg_EnsureHook();
-    Message_StartTextbox(sNvPlay, NV_TEXT_ID, NULL);
+    NvMsg_Start(sNvPlay, id, sNvPickedItem, pause);
 }
 
 void NvBgm_RoomEnter(s32 stage, s32 room);
@@ -2233,6 +2449,16 @@ void NvScript_RoomInit(PlayState* play) {
     // room_set: the system flags (bank 4, both words) start again with the room; a room's puzzle
     // in progress (117's switches, 4:1E) doesn't carry into the next
     sNvFlags[4][0] = sNvFlags[4][1] = 0;
+    // (and the low nibble of both main state words: the mirror, the camera's deferral)
+    sNvFlags[5][0] &= ~0xFu;
+    sNvFlags[5][1] &= ~0xFu;
+    // game_loop: nothing but the main script runs through the fade in; then all of it
+    sNvFlags[6][0] = 0;
+    sNvMfHeld = false;
+    sNvMfFade = NV_MF_FADE_TICKS;
+    sNvMfFirst = true;
+    sNvDeskAsk = -1;
+    sNvDeskCam = false;
     memset(sNvObj, 0, sizeof(sNvObj));
     NvBox_Reset();
     memset(sNvItemHidden, 0, sizeof(sNvItemHidden));
@@ -2618,6 +2844,15 @@ static void NvObj_Update(PlayState* play) {
     s32 i;
     s32 k;
 
+    NvFlags_Op(5, NV_MSF_OBJECT_PUSH, 1); // (raised again below while she's moving one)
+    {
+        s32 up = NvClimb_Active(); // (and while she's on a crate: 107's shelf is in reach from it)
+
+        for (i = 0; i < NV_OBJ_SLOTS; i++) {
+            up |= sNvObj[i].set && sNvObj[i].top;
+        }
+        NvFlags_Op(5, NV_MSF_ON_OBJECT, up ? 0 : 1);
+    }
     if ((player == NULL) || (play->sceneNum < SCENE_RE1_100)) {
         return;
     }
@@ -2704,6 +2939,7 @@ static void NvObj_Update(PlayState* play) {
                     o->pos[0] = nx;
                     o->pos[2] = nz;
                 }
+                NvFlags_Op(5, NV_MSF_OBJECT_PUSH, 0); // (MSF_OBJECT_PUSH: 205's armour waits on it)
                 NvPlayer_StartPush(play, o->block); // (Link's own pushing, z_player.c)
             }
             if (getenv("NV_LOG") && (o->pushTick == 1)) {
@@ -2758,6 +2994,14 @@ void NvScript_Update(PlayState* play) {
     }
     gNvSunSongSeen = false;
     NvPickup_Update(play); // an item prompt's answer
+    NvAsk_Update(play);    // a room message's yes / no
+    NvMf_Update(play);     // what a message holds still, and the pad
+    if (sNvDeskCam && (sNvPickup < 0) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
+        void NvCamera_CutRestore(void);
+
+        sNvDeskCam = false; // check_desk_state 4: back to the room's camera
+        NvCamera_CutRestore();
+    }
     NvSave_Update(play);   // the typewriter's answer, a loaded save's spot (z_nv_save.c)
     NvPanel_Update(play);  // a screen the room's script put up (z_nv_panel.c)
     if ((play->sceneNum >= SCENE_RE1_100) && !NvDoorScene_Covering()) { // off the boxes its scripts moved
@@ -2816,6 +3060,7 @@ void NvScript_Update(PlayState* play) {
         }
         memset(sNvFlags[9], 0, sizeof(sNvFlags[9]));
         sNvStateWord[3] = (u16)(Rand_Next() >> 16);
+        NvFlags_Op(5, NV_MSF_VOICE_PLAYING, NvSound_LinePlaying() ? 0 : 1);
         NvCountdown_Tick(play); // (and game_loop's countdown: z_nv_ending.c)
         NvBgm_Tick(); // (the music's fades and ramps)
         NvFx_Tick(play); // (RE1's 2D effects: z_nv_effects.c)
@@ -2848,9 +3093,20 @@ void NvScript_Update(PlayState* play) {
         // events with it, waits for it; 210's Moon Crest event tests the item's flag the frame
         // after offering it)
         if (sNvPickup < 0) {
-            NvScd_Run(sNvMain);
-            NvFlags_Op(5, NV_MSF_CAMERA_REDRAW, 1);
-            for (i = 0; i < NV_EVT_SLOTS; i++) {
+            s32 first = sNvMfFirst;
+
+            if (first) { // room_set: the events the init script made take their first step
+                sNvMfFirst = false;
+            } else {
+                NvScd_Run(sNvMain);
+                NvFlags_Op(5, NV_MSF_CAMERA_REDRAW, 1);
+                if ((sNvMfFade > 0) && (--sNvMfFade == 0)) { // (the fade's done: g_short_message_flags)
+                    sNvFlags[6][0] = 0xFFFF;
+                    sNvMfHeld = false;
+                }
+            }
+            // room_events_check: only while the message flags let the events run
+            for (i = 0; (i < NV_EVT_SLOTS) && (first || (sNvFlags[6][0] & NV_MF_EVENTS)); i++) {
                 if (NvMovie_Playing()) {
                     return;
                 }

@@ -887,6 +887,15 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
     if ((this->model == NULL) || NvDoorScene_Covering()) {
         return;
     }
+    {
+        // g_message_flags: the enemies (bit 2) and the characters (bit 1) only think while the room's
+        // scripts and messages let them
+        u32 NvScript_MsgFlags(void);
+
+        if (!(NvScript_MsgFlags() & (NvEnemy_IsNpc(this->type) ? 0x02 : 0x04))) {
+            return;
+        }
+    }
     // RE1 runs at 30 Hz: three ticks every two frames
     ticks = (this->tickPhase ^= 1) ? 1 : 2;
     if (NvEnemy_IsZombie(this->type)) {
@@ -1467,6 +1476,14 @@ void NvEnemy_ScdPos(s32 slot, s16 angle, s16 x, s16 y, s16 z) {
     this->e.pos[0] = x;
     this->e.pos[1] = y;
     this->e.pos[2] = z;
+}
+
+/** cmd_enemy_flags_get: the slot's behaviour flags, for the scripts' state byte 10. */
+s32 NvEnemy_SlotFlags(s32 slot) {
+    if ((slot < 0) || (slot >= NV_ENEMY_SLOTS) || (sNvEnemySlots[slot] == NULL)) {
+        return 0;
+    }
+    return ((NvEnemy*)sNvEnemySlots[slot])->e.behavior_flags;
 }
 
 /**
