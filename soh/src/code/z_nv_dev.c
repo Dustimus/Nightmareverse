@@ -538,9 +538,15 @@ void NvDev_Update(PlayState* play) {
         } else if (wp->kind == NV_WP_SAVE) {
             void NvSave_DevSave(PlayState* play);
 
+            static s32 sClose;
+
             if ((play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->msgCtx.msgMode == MSGMODE_NONE)) {
                 NvSave_DevSave(play);
+                sClose = 0;
                 sNvPathIdx++;
+            } else if ((++sClose % 12) == 0) { // (a message still up: read on)
+                input->press.button |= BTN_A;
+                input->cur.button |= BTN_A;
             }
         } else if (wp->kind == NV_WP_LIST) {
             s32 NvDoor_DevRect(PlayState* play, s32 i, f32* r, const char** target);
