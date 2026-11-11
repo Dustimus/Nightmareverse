@@ -1997,6 +1997,29 @@ s32 NvAot_Act(PlayState* play, Player* player) {
             return true;
         }
     }
+    if (sNvAot[i].handler == 0x0C) { // set_stairs_zone: a ladder down to a lower level (301), behaviour 0x0B
+        void NvClimb_Carry(Player * player, Vec3f * to);
+        NvAot* d = &sNvAot[i];
+        s32 dir = ((0x4000 - (s32)(u16)player->actor.shape.rot.y) / 16) & 0xFFF;
+        s32 down = (d->param[0] != 0); // (zoneFlags 0x10: down the ladder, 2700 below; else back up to 0)
+        s32 x = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
+        s32 z = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
+        s32 dz = down ? 2000 : 1000;
+        Vec3f to;
+
+        if (dir <= 0x800) { // (her facing squared to the axis: on along z the way she faces)
+            dz = -dz;
+        }
+        player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = (dir > 0x800) ? -0x8000 : 0;
+        to.x = x * NV_RE1_SCALE;
+        to.y = -(down ? 2700 : 0) * NV_RE1_SCALE;
+        to.z = -(z + dz) * NV_RE1_SCALE;
+        NvClimb_Carry(player, &to);
+        d->param[0] ^= 1; // (the entry turns round for the way back)
+        printf("NVLADDER spot %d: %s to %d,%d\n", (int)i, down ? "down" : "up", x, z + dz);
+        fflush(stdout);
+        return true;
+    }
     if (sNvAot[i].handler == 0x10) { // check_typewriter: the run's save (z_nv_save.c)
         void NvSave_Typewriter(PlayState * play);
 
