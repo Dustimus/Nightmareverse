@@ -2851,8 +2851,23 @@ s32 NvObj_TryClimb(PlayState* play, Player* player, s32 start) {
 
             // square to the crate's side, then up and on
             dir = (dir + 0x200) & 0xC00;
-            tx = px + ((dir == 0) ? 1850 : (dir == 0x800) ? -1850 : 0);
-            tz = pz + ((dir == 0x400) ? 1850 : (dir == 0xC00) ? -1850 : 0);
+            // (RE1 climbs from against the face, 1850 on: about 1400 past it. Link's collision keeps
+            // him further out, so it's from the face: 11B's crank is only in reach from there)
+            {
+                s32 in = MIN(1400, o->ext[(dir & 0x400) ? 2 : 0] * 2 - 300);
+
+                tx = px;
+                tz = pz;
+                if (dir == 0) {
+                    tx = o->pos[0] - o->ext[0] + in;
+                } else if (dir == 0x800) {
+                    tx = o->pos[0] + o->ext[0] - in;
+                } else if (dir == 0x400) { // (RE1's -z, as the reach probe)
+                    tz = o->pos[2] + o->ext[2] - in;
+                } else {
+                    tz = o->pos[2] - o->ext[2] + in;
+                }
+            }
             to.x = tx * NV_RE1_SCALE;
             to.y = -(o->pos[1] - o->ext[1] * 2) * NV_RE1_SCALE;
             to.z = -tz * NV_RE1_SCALE;
