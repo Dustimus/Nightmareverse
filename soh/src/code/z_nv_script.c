@@ -93,6 +93,9 @@ static PlayState* sNvPlay;
 s32 gNvDevUseItem = -1; // dev: an item to Use this tick, as the status screen (NV_WALK "use:XX")
 static u8 sNvStage;
 static u8 sNvRoom;
+static u8 sNvPrevRoom = 0x1F; // state byte 3 (g_AttractMode_RoomCameraId): the room she came from, in this
+                              // stage; 0x1F after a stage change or a load (init_room)
+static s32 sNvFreshRoom = true; // the next room loaded comes from a load or a new run
 static u8 sNvCamera;
 static s32 sNvLastCamera = -1;
 static u8 sNvTickPhase;
@@ -311,6 +314,7 @@ void NvScript_NewRun(void) {
     memset(sNvStateSet, 0, sizeof(sNvStateSet));
     memset(sNvStateVal, 0, sizeof(sNvStateVal));
     sNvRunReady = false;
+    sNvFreshRoom = true;
     NvFlags_NewGame();
 }
 
@@ -340,6 +344,7 @@ void NvScript_LoadState(const u8* p) {
     memcpy(sNvStateVal, p, sizeof(sNvStateVal));
     memset(sNvFlags[9], 0, sizeof(sNvFlags[9])); // (the item-use flags are per frame)
     NvFlags_Op(5, NV_MSF_CHAR_VARIANT, 0); // (a save from before the flag was kept)
+    sNvFreshRoom = true;
     sNvRunReady = true;
 }
 
@@ -462,8 +467,9 @@ static u8 NvScd_StateByte(s32 field) {
         case 1:
             return sNvRoom;
         case 2:
-        case 3:
             return sNvCamera;
+        case 3:
+            return sNvPrevRoom;
         case 5: // menu_choice_id: 0x80 while a message is up, then the answer to its yes / no (0 yes, 1 no)
             return (((sNvPlay != NULL) && (Message_GetState(&sNvPlay->msgCtx) != TEXT_STATE_NONE)) ? 0x80 : 0) |
                    sNvChoice;
@@ -2526,8 +2532,17 @@ void NvScript_RoomInit(PlayState* play) {
             hex[0] = file[5];
             hex[1] = file[6];
         }
-        sNvStage = (len >= 7) ? (file[4] - '1') : 0;
-        sNvRoom = (u8)strtol(hex, NULL, 16);
+        {
+            s32 stage = (len >= 7) ? (file[4] - '1') : 0;
+            s32 room = (s32)strtol(hex, NULL, 16);
+
+            // room_transition_load: the room she leaves, for state byte 3; init_room (a new stage,
+            // a load) makes it 0x1F
+            sNvPrevRoom = (sNvFreshRoom || (stage != sNvStage)) ? 0x1F : (sNvRoom & 0x1F);
+            sNvFreshRoom = false;
+            sNvStage = stage;
+            sNvRoom = (u8)room;
+        }
     }
     sNvCamera = GET_ACTIVE_CAM(play)->camDataIdx;
     snprintf(path, sizeof(path), "scenes/shared/%s/%.*s_msg", file, (int)(len - 6), file);
