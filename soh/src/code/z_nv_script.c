@@ -133,6 +133,7 @@ typedef struct {
     Actor* block; // its collision box for Link (z_nv_block.c)
     u8 top;       // its box has a top: she's climbed onto it (a crate: RE1's climbable, 0x40)
     u8 pushTick;  // where in her push's step (behavior_10_push: 16 ticks of moving, then a pause)
+    u8 pushDir;   // the push's way, from her facing snapped square at its start: 0 +x, 1 -z, 2 -x, 3 +z
     s16 speed[3]; // an event's movement (state 2: 0x05 sets it, 0x02 / 0x04 add it a tick)
     s16 turn[3];  // and its turn (0x06 sets it, 0x03 / 0x04 add it: x, y, z)
 } NvObj;
@@ -2946,11 +2947,25 @@ static void NvObj_Update(PlayState* play) {
             s32 step = (o->pushTick < 16) ? 50 : 0; // (her push: 16 ticks of moving, then she sets again)
             s32 veto = false;
 
+            if (o->pushTick == 0) { // (RE1 squares her to the object as the push starts: one axis for all of it)
+                s32 a = (0x400 - player->actor.shape.rot.y / 16) & 0xFFF;
+
+                o->pushDir = ((a + 0x200) & 0xC00) >> 10;
+            }
             o->pushTick = (o->pushTick + 1) % 30;
-            if (ABS((o->ext[0] + NV_JILL_RADIUS) * dz) < ABS((o->ext[2] + NV_JILL_RADIUS) * dx)) { // (the side she's on)
-                nx += (dx >= 0) ? step : -step;
-            } else {
-                nz += (dz >= 0) ? step : -step;
+            switch (o->pushDir) {
+                case 0:
+                    nx += step;
+                    break;
+                case 1:
+                    nz -= step;
+                    break;
+                case 2:
+                    nx -= step;
+                    break;
+                default:
+                    nz += step;
+                    break;
             }
             // (the object's own floor probe; flag 0x04: it never needs one, update_room_objects)
             if (!(o->flags & 0x04) && NvRe1_ObjBlocked(nx, nz, o->ext[0], o->ext[2])) {
