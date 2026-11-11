@@ -79,6 +79,15 @@ def climb_zones(aots):
     return [tuple(a[:6]) for a in aots if a[0] in (5, 6)]
 
 
+LADDER = (2000, 2700)  # set_stairs_zone (Aot type 0x0C, 301's pool): along z from its target point, down
+
+
+def ladder_zones(aots):
+    """The script's ladders (room action 0x0C: behaviour 0x0B) as (target x, target z): the point
+    the climb starts from (the entry's +4 / +6), the lower floor LADDER[0] along z either way."""
+    return [(a[7], a[8]) for a in aots if a[0] == 0x0C and len(a) > 8]
+
+
 class Floor:
     def __init__(self, raw, room_number, arrivals, aots):
         """arrivals: [(x, z, y)] RE1 positions where the player enters (doors, start
@@ -105,6 +114,9 @@ class Floor:
             for s in (-1, 1):
                 ex, ez = (cx + s * dx_climb / 2, cz) if zt == 5 else (cx, cz + s * dx_climb / 2)
                 starts.append(self.cell(ex, ez))
+        for lx, lz in ladder_zones(aots):  # the floor below each ladder's foot, either way along z
+            for s in (-1, 1):
+                starts.append(self.cell(lx, lz + s * LADDER[0]))
         for st in starts:
             if st in comp or not self.in_extent(st) or blocked(st):
                 continue
@@ -149,6 +161,19 @@ class Floor:
                 elif chi in level and clo not in level:
                     level[clo] = level[chi] - up_from_low
                     changed = True
+        # the ladders: the side below the target (not reached from a door) is LADDER[1] down
+        changed = True
+        while changed:
+            changed = False
+            for lx, lz in ladder_zones(aots):
+                ct = comp.get(self.cell(lx, lz))
+                if ct is None or ct not in level:
+                    continue
+                for s in (-1, 1):
+                    cs = comp.get(self.cell(lx, lz + s * LADDER[0]))
+                    if cs is not None and cs != ct and cs not in level:
+                        level[cs] = level[ct] + LADDER[1]
+                        changed = True
         self.level = level
 
         # walkable stairs: RE1's stairs are a solid box with a climb zone over it, between two

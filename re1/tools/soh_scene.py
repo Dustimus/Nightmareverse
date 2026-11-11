@@ -259,8 +259,8 @@ def room_aots(raw):
             if n <= 0:
                 break
             if code[i] == 0x0D and i + 18 <= len(code):
-                _op, _id, x, z, w, d, t, sat, d0, _d1, _d2 = struct.unpack_from("<BB4H2B3h", code, i)
-                out.append((t, x, z, w, d, d0, sat))
+                _op, _id, x, z, w, d, t, sat, d0, d1, d2 = struct.unpack_from("<BB4H2B3h", code, i)
+                out.append((t, x, z, w, d, d0, sat, d1 & 0xFFFF, d2 & 0xFFFF))
             i += n
     return out
 
@@ -760,7 +760,7 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     # (a staircase that became a ramp is walked, not climbed: no A there)
     climbs = [a for a in aots if a[0] in (5, 6) and tuple(a[:5]) not in floor.ramp_zones]
     blob = b"RCLB" + struct.pack("<I", len(climbs)) + b"".join(
-        struct.pack("<3Bx4H2h", t, sat, d0 & 0xFF, x, z, w, dd, along, up) for t, x, z, w, dd, d0, sat in climbs)
+        struct.pack("<3Bx4H2h", t, sat, d0 & 0xFF, x, z, w, dd, along, up) for t, x, z, w, dd, d0, sat, *_ in climbs)
     open(os.path.join(d, name + "_climbs"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
 
     # RE1's scripts: "<name>_scd" (z_nv_script.c), with the enemies they place and movies they play

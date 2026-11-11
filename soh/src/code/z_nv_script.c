@@ -2002,9 +2002,9 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         NvAot* d = &sNvAot[i];
         s32 dir = ((0x4000 - (s32)(u16)player->actor.shape.rot.y) / 16) & 0xFFF;
         s32 down = (d->param[0] != 0); // (zoneFlags 0x10: down the ladder, 2700 below; else back up to 0)
-        s32 x = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
-        s32 z = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
-        s32 dz = down ? 2000 : 1000;
+        s32 x = d->param[1]; // (the climb's foot: the entry's +4 / +6, where behaviour 0x0B walks her)
+        s32 z = d->param[2];
+        s32 dz = down ? 2000 : 0; // (down: on along z and 2700 below, re1_floor.py LADDER; up: back to the foot)
         Vec3f to;
 
         if (dir <= 0x800) { // (her facing squared to the axis: on along z the way she faces)
@@ -2718,6 +2718,32 @@ s32 NvAot_DevRect(s32 i, f32* r, s32* handler, s32* item) {
     r[3] = -a->zone[1] * NV_RE1_SCALE;
     *handler = a->handler;
     *item = a->isItem ? a->item : -1;
+    return true;
+}
+
+/**
+ * Whether the door with this rect (OoT units, as z_nv_door.c has it) is live now: RE1 only runs a
+ * door whose action entry is still a door (handler 1) with its probe bit (0x01) up - the scripts
+ * arm and disarm them (301's gate to 302 waits for the pool). A door no entry matches is live.
+ */
+s32 NvAot_DoorLive(f32 x0, f32 z0, f32 x1, f32 z1) {
+    s32 i;
+
+    if (sNvMain == NULL) {
+        return true;
+    }
+    for (i = 0; i < sNvAotCount; i++) {
+        const NvAot* a = &sNvAot[i];
+        f32 ax0 = a->zone[0] * NV_RE1_SCALE;
+        f32 ax1 = (a->zone[0] + a->zone[2]) * NV_RE1_SCALE;
+        f32 az0 = -(a->zone[1] + a->zone[3]) * NV_RE1_SCALE;
+        f32 az1 = -a->zone[1] * NV_RE1_SCALE;
+
+        if ((fabsf(ax0 - x0) < 1.0f) && (fabsf(ax1 - x1) < 1.0f) && (fabsf(az0 - z0) < 1.0f) &&
+            (fabsf(az1 - z1) < 1.0f)) {
+            return (a->handler == 1) && (a->flags & 0x01);
+        }
+    }
     return true;
 }
 

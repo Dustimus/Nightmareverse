@@ -167,6 +167,8 @@ static f32 NvDoor_Reach(Player* player) {
 }
 
 // The door A would open now (RE1's test), or -1
+s32 NvAot_DoorLive(f32 x0, f32 z0, f32 x1, f32 z1);
+
 static s32 NvDoor_Find(PlayState* play, Player* player, NvDoor* out) {
     u8* data;
     u32 count;
@@ -186,7 +188,7 @@ static s32 NvDoor_Find(PlayState* play, Player* player, NvDoor* out) {
 
         memset(&door, 0, sizeof(door));
         memcpy(&door, data + i * sNvDoorStride, sNvDoorStride);
-        if (!(door.flags & NV_DOOR_ACTION)) {
+        if (!(door.flags & NV_DOOR_ACTION) || !NvAot_DoorLive(door.x0, door.z0, door.x1, door.z1)) {
             continue;
         }
         if (door.flags & NV_DOOR_AT_PLAYER) {
