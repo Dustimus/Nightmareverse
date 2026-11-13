@@ -1886,6 +1886,15 @@ static void NvAot_Run(s32 i, s32 handler) {
     printf("NVAOT script runs entry %d as handler %d\n", (int)i, (int)handler);
     fflush(stdout);
     switch (handler) {
+        case 1: { // door_try_enter: through the entry's door (301's gate, after its scene)
+            s32 NvDoor_ScriptTake(PlayState * play, f32 x0, f32 z0, f32 x1, f32 z1);
+            s32 took = NvDoor_ScriptTake(sNvPlay, a->zone[0] * NV_RE1_SCALE, -(a->zone[1] + a->zone[3]) * NV_RE1_SCALE,
+                                         (a->zone[0] + a->zone[2]) * NV_RE1_SCALE, -a->zone[1] * NV_RE1_SCALE);
+
+            printf("NVAOT script takes door entry %d: %s\n", (int)i, took ? "through" : "no such door");
+            fflush(stdout);
+            break;
+        }
         case 2:
             NvScd_Message(a->param[0] & 0x7F, a->param[1]);
             break;

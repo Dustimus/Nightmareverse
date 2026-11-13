@@ -499,3 +499,31 @@ static void NvDoor_Take(PlayState* play, Input* input, NvDoor* doorp, s32 i) {
     }
     return;
 }
+
+/**
+ * cmd_room_action on a door entry (handler 1, door_try_enter): the room's script sends her through
+ * the door with this rect (OoT units), as if she'd opened it - 301's gate, once its scene has
+ * played. Locks aren't asked: the script decided. False if the room has no such door.
+ */
+s32 NvDoor_ScriptTake(PlayState* play, f32 x0, f32 z0, f32 x1, f32 z1) {
+    u8* data;
+    u32 count;
+    u32 i;
+
+    data = NvDoor_Data(play, &count);
+    if (data == NULL) {
+        return false;
+    }
+    for (i = 0; i < count; i++) {
+        NvDoor door;
+
+        memset(&door, 0, sizeof(door));
+        memcpy(&door, data + i * sNvDoorStride, sNvDoorStride);
+        if ((fabsf(door.x0 - x0) < 1.0f) && (fabsf(door.x1 - x1) < 1.0f) && (fabsf(door.z0 - z0) < 1.0f) &&
+            (fabsf(door.z1 - z1) < 1.0f)) {
+            NvDoor_Take(play, &play->state.input[0], &door, i);
+            return true;
+        }
+    }
+    return false;
+}
