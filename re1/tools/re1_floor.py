@@ -85,7 +85,7 @@ LADDER = (2000, 2700)  # set_stairs_zone (Aot type 0x0C, 301's pool): along z fr
 def ladder_zones(aots):
     """The script's ladders (room action 0x0C: behaviour 0x0B) as (target x, target z): the point
     the climb starts from (the entry's +4 / +6), the lower floor LADDER[0] along z either way."""
-    return [(a[7], a[8]) for a in aots if a[0] == 0x0C and len(a) > 8]
+    return sorted({(a[7], a[8]) for a in aots if a[0] == 0x0C and len(a) > 8})
 
 
 class Floor:
@@ -161,18 +161,23 @@ class Floor:
                 elif chi in level and clo not in level:
                     level[clo] = level[chi] - up_from_low
                     changed = True
-        # the ladders: the side below the target (not reached from a door) is LADDER[1] down
+        # the ladders: each joins the floors either side of its foot along z; the one they share
+        # (301's drained pool, between its two ladders) is LADDER[1] below the others
+        sides = []
+        for lx, lz in ladder_zones(aots):
+            sides.append([comp.get(self.cell(lx, lz + sg * LADDER[0])) for sg in (-1, 1)])
+        shared = {c for c in {c for pair in sides for c in pair if c is not None}
+                  if sum(c in pair for pair in sides) > 1}
         changed = True
         while changed:
             changed = False
-            for lx, lz in ladder_zones(aots):
-                ct = comp.get(self.cell(lx, lz))
-                if ct is None or ct not in level:
+            for pair in sides:
+                a, b = pair
+                if a is None or b is None or a == b:
                     continue
-                for s in (-1, 1):
-                    cs = comp.get(self.cell(lx, lz + s * LADDER[0]))
-                    if cs is not None and cs != ct and cs not in level:
-                        level[cs] = level[ct] + LADDER[1]
+                for known, other in ((a, b), (b, a)):
+                    if known in level and other not in level:
+                        level[other] = level[known] + (LADDER[1] if other in shared else -LADDER[1])
                         changed = True
         self.level = level
 

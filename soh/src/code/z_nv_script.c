@@ -2004,7 +2004,7 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         s32 down = (d->param[0] != 0); // (zoneFlags 0x10: down the ladder, 2700 below; else back up to 0)
         s32 x = d->param[1]; // (the climb's foot: the entry's +4 / +6, where behaviour 0x0B walks her)
         s32 z = d->param[2];
-        s32 dz = down ? 2000 : 0; // (down: on along z and 2700 below, re1_floor.py LADDER; up: back to the foot)
+        s32 dz = down ? 2000 : 1000; // (down: 2000 on from the foot and 2700 below, re1_floor.py LADDER; up: 1000 on, at 0)
         Vec3f to;
 
         if (dir <= 0x800) { // (her facing squared to the axis: on along z the way she faces)
