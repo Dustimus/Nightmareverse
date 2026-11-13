@@ -1887,8 +1887,8 @@ static void NvAot_Run(s32 i, s32 handler) {
     fflush(stdout);
     switch (handler) {
         case 1: { // door_try_enter: through the entry's door (301's gate, after its scene)
-            s32 NvDoor_ScriptTake(PlayState * play, f32 x0, f32 z0, f32 x1, f32 z1);
-            s32 took = NvDoor_ScriptTake(sNvPlay, a->zone[0] * NV_RE1_SCALE, -(a->zone[1] + a->zone[3]) * NV_RE1_SCALE,
+            s32 NvDoor_ScriptTake(PlayState * play, s32 slot, f32 x0, f32 z0, f32 x1, f32 z1);
+            s32 took = NvDoor_ScriptTake(sNvPlay, i, a->zone[0] * NV_RE1_SCALE, -(a->zone[1] + a->zone[3]) * NV_RE1_SCALE,
                                          (a->zone[0] + a->zone[2]) * NV_RE1_SCALE, -a->zone[1] * NV_RE1_SCALE);
 
             printf("NVAOT script takes door entry %d: %s\n", (int)i, took ? "through" : "no such door");
@@ -2753,6 +2753,28 @@ s32 NvAot_DoorLive(f32 x0, f32 z0, f32 x1, f32 z1) {
             return (a->handler == 1) && (a->flags & 0x01);
         }
     }
+    return true;
+}
+
+/**
+ * The door in action slot `slot` as the scripts have it now: its rect (OoT units: x0, z0, x1, z1)
+ * and flags; false if the slot isn't a live door (handler 1, probe bit 0x01 up).
+ */
+s32 NvAot_DoorSlot(s32 slot, f32* r, u8* flags) {
+    const NvAot* a;
+
+    if ((slot < 0) || (slot >= NV_AOT_SLOTS) || (sNvMain == NULL)) {
+        return false;
+    }
+    a = &sNvAot[slot];
+    if ((a->handler != 1) || !(a->flags & 0x01)) {
+        return false;
+    }
+    r[0] = a->zone[0] * NV_RE1_SCALE;
+    r[1] = -(a->zone[1] + a->zone[3]) * NV_RE1_SCALE;
+    r[2] = (a->zone[0] + a->zone[2]) * NV_RE1_SCALE;
+    r[3] = -a->zone[1] * NV_RE1_SCALE;
+    *flags = a->flags;
     return true;
 }
 

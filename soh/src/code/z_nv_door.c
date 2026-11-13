@@ -168,6 +168,7 @@ static f32 NvDoor_Reach(Player* player) {
 
 // The door A would open now (RE1's test), or -1
 s32 NvAot_DoorLive(f32 x0, f32 z0, f32 x1, f32 z1);
+s32 NvAot_DoorSlot(s32 slot, f32* r, u8* flags);
 
 static s32 NvDoor_Find(PlayState* play, Player* player, NvDoor* out) {
     u8* data;
@@ -188,7 +189,20 @@ static s32 NvDoor_Find(PlayState* play, Player* player, NvDoor* out) {
 
         memset(&door, 0, sizeof(door));
         memcpy(&door, data + i * sNvDoorStride, sNvDoorStride);
-        if (!(door.flags & NV_DOOR_ACTION) || !NvAot_DoorLive(door.x0, door.z0, door.x1, door.z1)) {
+        if (door.pad[1] == 0xA5) { // (the live entry in its slot: where the scripts put it, and if it's on)
+            f32 r[4];
+
+            if (!NvAot_DoorSlot(door.pad[0], r, &door.flags)) {
+                continue;
+            }
+            door.x0 = r[0];
+            door.z0 = r[1];
+            door.x1 = r[2];
+            door.z1 = r[3];
+        } else if (!NvAot_DoorLive(door.x0, door.z0, door.x1, door.z1)) {
+            continue;
+        }
+        if (!(door.flags & NV_DOOR_ACTION) && !(door.flags & NV_DOOR_AT_PLAYER)) {
             continue;
         }
         if (door.flags & NV_DOOR_AT_PLAYER) {
@@ -324,9 +338,13 @@ void NvDoor_Update(PlayState* play) {
                (u16)player->actor.shape.rot.y);
         fflush(stdout);
     }
-    if (!pressA) { // only stairs between rooms, by walking into them
-        if ((i < 0) || !NV_DOOR_IS_STAIRS(door.anim) ||
-            (SQ(input->rel.stick_x) + SQ(input->rel.stick_y) < SQ(NV_DOOR_STAIRS_STICK))) {
+    if (!pressA) { // only stairs between rooms, by walking into them, and the doors with no button
+        if (i < 0) {
+            return;
+        }
+        if ((door.flags & NV_DOOR_ACTION) &&
+            (!NV_DOOR_IS_STAIRS(door.anim) ||
+             (SQ(input->rel.stick_x) + SQ(input->rel.stick_y) < SQ(NV_DOOR_STAIRS_STICK)))) {
             return;
         }
     } else if (i < 0) {
@@ -505,7 +523,7 @@ static void NvDoor_Take(PlayState* play, Input* input, NvDoor* doorp, s32 i) {
  * the door with this rect (OoT units), as if she'd opened it - 301's gate, once its scene has
  * played. Locks aren't asked: the script decided. False if the room has no such door.
  */
-s32 NvDoor_ScriptTake(PlayState* play, f32 x0, f32 z0, f32 x1, f32 z1) {
+s32 NvDoor_ScriptTake(PlayState* play, s32 slot, f32 x0, f32 z0, f32 x1, f32 z1) {
     u8* data;
     u32 count;
     u32 i;
@@ -519,8 +537,9 @@ s32 NvDoor_ScriptTake(PlayState* play, f32 x0, f32 z0, f32 x1, f32 z1) {
 
         memset(&door, 0, sizeof(door));
         memcpy(&door, data + i * sNvDoorStride, sNvDoorStride);
-        if ((fabsf(door.x0 - x0) < 1.0f) && (fabsf(door.x1 - x1) < 1.0f) && (fabsf(door.z0 - z0) < 1.0f) &&
-            (fabsf(door.z1 - z1) < 1.0f)) {
+        if ((door.pad[1] == 0xA5) ? (door.pad[0] == slot)
+                                  : ((fabsf(door.x0 - x0) < 1.0f) && (fabsf(door.x1 - x1) < 1.0f) &&
+                                     (fabsf(door.z0 - z0) < 1.0f) && (fabsf(door.z1 - z1) < 1.0f))) {
             NvDoor_Take(play, &play->state.input[0], &door, i);
             return true;
         }

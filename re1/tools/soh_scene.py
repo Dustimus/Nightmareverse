@@ -230,15 +230,18 @@ def door_blob(doors):
     RE1's door scene reads as its variables: Bio.exe's table at 0x4b0de8), char target[24]
     (the target scene's file), u8 lock (the record's +0xC: 0x80 locked, the low 6 bits its flag in
     the locks bank) and u8 key (+0x16: the item that opens it, 0xFE from the other side, 0xFF
-    never: door_try_enter), 2 bytes pad.
+    never: door_try_enter), u8 its room action slot and 0xA5.
     doors: [(Door, target scene file, spawn index)]."""
     data = bytearray(DOOR_MAGIC + struct.pack("<I", len(doors)))
     for door, target, spawn in doors:
         # OoT = (x, -y, -z) * SCALE: RE1's z range flips
         x0, x1 = door.x * r2s.SCALE, (door.x + door.w) * r2s.SCALE
         z0, z1 = -(door.z + door.d) * r2s.SCALE, -door.z * r2s.SCALE
-        data += struct.pack("<4fBBH4B24s2B2x", x0, z0, x1, z1, door.raw[0x19], door.anim, spawn, door.raw[10],
-                            door.raw[11], door.raw[13], door.raw[15], target.encode(), door.raw[0x0E], door.raw[0x18])
+        # (the pad: the door's room action slot and 0xA5, so the engine follows the scripts' changes
+        # to that entry: a ladder's door set where she stands, 406's down to 40D)
+        data += struct.pack("<4fBBH4B24s4B", x0, z0, x1, z1, door.raw[0x19], door.anim, spawn, door.raw[10],
+                            door.raw[11], door.raw[13], door.raw[15], target.encode(), door.raw[0x0E], door.raw[0x18],
+                            door.raw[1], 0xA5)
     return bytes(data)
 
 
