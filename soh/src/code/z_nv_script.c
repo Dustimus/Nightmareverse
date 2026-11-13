@@ -345,6 +345,20 @@ void NvScript_LoadState(const u8* p) {
     memset(sNvFlags[9], 0, sizeof(sNvFlags[9])); // (the item-use flags are per frame)
     NvFlags_Op(5, NV_MSF_CHAR_VARIANT, 0); // (a save from before the flag was kept)
     sNvFreshRoom = true;
+    if (getenv("NV_FLAGS") != NULL) { // dev: NV_FLAGS on a loaded save too (a story step skipped: a boss beaten)
+        const char* f = getenv("NV_FLAGS");
+        int b;
+        int n;
+
+        while (sscanf(f, "%d:%x", &b, &n) == 2) {
+            NvFlags_Op(b, n, 0);
+            f = strchr(f, ',');
+            if (f == NULL) {
+                break;
+            }
+            f++;
+        }
+    }
     sNvRunReady = true;
 }
 
