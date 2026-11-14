@@ -88,6 +88,21 @@ def ladder_zones(aots):
     return sorted({(a[7], a[8]) for a in aots if a[0] == 0x0C and len(a) > 8})
 
 
+def step_zones(aots):
+    """The script's walked stairs (room action 0x11, stairs_height_update: 40D's): (x, z, w, d, way,
+    step, rise). She stands at (how far into the zone along `way` // step + 1) * rise, the distance
+    counted from x0 (way 0), from the far x (1), from z0 (2) or from the far z (3)."""
+    return sorted({(a[1], a[2], a[3], a[4], a[5] & 3, a[7], a[8]) for a in aots
+                   if a[0] == 0x11 and len(a) > 8 and a[7] > 0})
+
+
+def step_height(zone, x, z):
+    """stairs_height_update's height (RE1 units, down) at a point in zone (step_zones)."""
+    zx, zz, zw, zd, way, step, rise = zone
+    dist = (x - zx, zx + zw - x, z - zz, zz + zd - z)[way]
+    return (int(max(dist, 0) // step) + 1) * rise
+
+
 class Floor:
     def __init__(self, raw, room_number, arrivals, aots):
         """arrivals: [(x, z, y)] RE1 positions where the player enters (doors, start
@@ -99,9 +114,30 @@ class Floor:
         self.gx0, self.gz0 = int(min(xs) // CELL), int(min(zs) // CELL)
         self.gx1, self.gz1 = int(max(xs) // CELL), int(max(zs) // CELL)
 
+        steps = step_zones(aots)
+
+        def in_steps(x, z):
+            # (with its sides widened a little: a sliver of floor beside the strip, against the wall,
+            # would join its two ends at one height)
+            for sx, sz, sw, sd, way, *_ in steps:
+                mx, mz = (0, 2 * CELL) if way < 2 else (2 * CELL, 0)
+                if sx - mx <= x < sx + sw + mx and sz - mz <= z < sz + sd + mz:
+                    return True
+            return False
+
         def blocked(k):
             x, z = (k[0] + 0.5) * CELL, (k[1] + 0.5) * CELL
-            return any(inside(r, x, z) for r in solid)
+            # (a walked staircase's strip floods apart from either end: it becomes a ramp)
+            return any(inside(r, x, z) for r in solid) or in_steps(x, z)
+
+        def step_ends(st):
+            """A walked staircase's two ends: the floor cell just outside each, its height there."""
+            sx, sz, sw, sd = st[:4]
+            if st[4] < 2:
+                lo, hi = (sx - CELL / 2, sz + sd / 2), (sx + sw + CELL / 2, sz + sd / 2)
+            else:
+                lo, hi = (sx + sw / 2, sz - CELL / 2), (sx + sw / 2, sz + sd + CELL / 2)
+            return [(self.cell(*lo), step_height(st, *lo)), (self.cell(*hi), step_height(st, *hi))]
 
         # flood from every arrival, then split into the parts the shapes keep apart
         self.cells = set()
@@ -114,6 +150,8 @@ class Floor:
             for s in (-1, 1):
                 ex, ez = (cx + s * dx_climb / 2, cz) if zt == 5 else (cx, cz + s * dx_climb / 2)
                 starts.append(self.cell(ex, ez))
+        for st in steps:  # the floor at either end of each walked staircase
+            starts += [k for k, _ in step_ends(st)]
         for lx, lz in ladder_zones(aots):  # the floor below each ladder's foot, either way along z
             for s in (-1, 1):
                 starts.append(self.cell(lx, lz + s * LADDER[0]))
@@ -179,6 +217,21 @@ class Floor:
                     if known in level and other not in level:
                         level[other] = level[known] + (LADDER[1] if other in shared else -LADDER[1])
                         changed = True
+        # the walked staircases: one end's floor is the other's, moved by RE1's heights there
+        changed = True
+        while changed:
+            changed = False
+            for st in steps:
+                (ka, ya), (kb, yb) = step_ends(st)
+                a, b = comp.get(ka), comp.get(kb)
+                if a is None or b is None or a == b:
+                    continue
+                if a in level and b not in level:
+                    level[b] = level[a] + yb - ya
+                    changed = True
+                elif b in level and a not in level:
+                    level[a] = level[b] + ya - yb
+                    changed = True
         self.level = level
 
         # walkable stairs: RE1's stairs are a solid box with a climb zone over it, between two
@@ -226,6 +279,23 @@ class Floor:
                     parts = [(x0, z0, across[0], z1, shape, fl), (across[1], z0, x1, z1, shape, fl)]
                 records += [q for q in parts if q[2] > q[0] and q[3] > q[1]]
         self.records = records
+        # and the walked staircases as ramps too: the zone's floor sloping from end to end
+        for st in steps:
+            (ka, _ya), (kb, _yb) = step_ends(st)
+            a, b = comp.get(ka), comp.get(kb)
+            if a is None or b is None or a not in level or b not in level:
+                continue
+            sx, sz, sw, sd = st[:4]
+            if st[4] < 2:
+                ramp = (5, sx, sx + sw, sz, sz + sd, level[a], level[b])
+            else:
+                ramp = (6, sz, sz + sd, sx, sx + sw, level[a], level[b])
+            self.ramps.append(ramp)
+            for gx in range(int(sx // CELL), int((sx + sw - 1) // CELL) + 1):
+                for gz in range(int(sz // CELL), int((sz + sd - 1) // CELL) + 1):
+                    c = ((gx + 0.5) * CELL, (gz + 0.5) * CELL)
+                    if not any(inside(r, *c) for r in solid):
+                        self.ramp_cells[(gx, gz)] = ramp
 
     def cell(self, x, z):
         return (int(x // CELL), int(z // CELL))
