@@ -1292,6 +1292,16 @@ def main():
         door = by_id[src][1].doors[di]
         spawns[target].append((door.next_pos[0], door.next_pos[2], re_dir_to_yaw(door.next_dir)))
         arrivals[(src, di)] = (target, len(spawns[target]) - 1)
+    # the mansion's second visit: once back from the guardhouse (scenario flag 0) RE1 sends a door
+    # to stage 1 or 2 to the same room of stage 6 or 7 (room_transition_load's +5). Each such door
+    # gets the arrival there too, so the engine can follow it (z_nv_door.c)
+    varrivals = {}  # (from_room, door index) -> (variant room, spawn index there)
+    for (src, di), (target, _) in list(arrivals.items()):
+        vt = "%d%s" % (int(target[0]) + 5, target[1:]) if target[0] in "12" else None
+        if vt in by_id:
+            door = by_id[src][1].doors[di]
+            spawns[vt].append((door.next_pos[0], door.next_pos[2], re_dir_to_yaw(door.next_dir)))
+            varrivals[(src, di)] = (vt, len(spawns[vt]) - 1)
 
     # door exits per room. RE1's doors open with the action button only, so they have no floor
     # cells: En_ReLock (A on the door) takes its exit (door_exit: (room, door) -> 0-based exit);
@@ -1663,10 +1673,11 @@ def main():
                           extra_masks)
         if a.soh:
             import soh_scene
-            soh_doors = [(door, by_id[arrivals[(rid, di)][0]][0] + "_scene", arrivals[(rid, di)][1])
+            soh_doors = [(door, by_id[arrivals[(rid, di)][0]][0] + "_scene", arrivals[(rid, di)][1],
+                          varrivals.get((rid, di), (None, 0xFFFF))[1])
                          for di, door in enumerate(room.doors) if (rid, di) in arrivals]
             arr = []
-            for (src, di), (target, _) in arrivals.items():
+            for (src, di), (target, _) in list(arrivals.items()) + list(varrivals.items()):
                 if target == rid:
                     dd = by_id[src][1].doors[di]
                     ny = dd.next_pos[1] - 0x10000 if dd.next_pos[1] >= 0x8000 else dd.next_pos[1]

@@ -48,7 +48,9 @@ typedef struct NvDoor {
     char target[24];
     u8 lock; // the record's +0xC: 0x80 locked, the low 6 bits its flag in the locks bank
     u8 key;  // +0x16: the item that opens it (0xFE from the other side, 0xFF never)
-    u8 pad[2];
+    u8 pad[2];   // its room action slot and 0xA5 (RDR2+)
+    u16 vspawn;  // RDR3: its spawn in the target's second-visit room (stage 6 / 7), 0xFFFF none
+    u8 pad2[2];
 } NvDoor;
 
 static u32 sNvDoorStride = sizeof(NvDoor); // the room's records' size ("RDOR": no lock bytes)
@@ -122,10 +124,13 @@ static u8* NvDoor_Data(PlayState* play, u32* count) {
         return NULL;
     }
     data = (u8*)ResourceGetDataByName(path);
-    if ((data == NULL) || ((memcmp(data, "RDR2", 4) != 0) && (memcmp(data, "RDOR", 4) != 0))) {
+    if ((data == NULL) || ((memcmp(data, "RDR3", 4) != 0) && (memcmp(data, "RDR2", 4) != 0) &&
+                           (memcmp(data, "RDOR", 4) != 0))) {
         return NULL;
     }
-    sNvDoorStride = (memcmp(data, "RDR2", 4) == 0) ? sizeof(NvDoor) : sizeof(NvDoor) - 4;
+    sNvDoorStride = (memcmp(data, "RDR3", 4) == 0)   ? sizeof(NvDoor)
+                    : (memcmp(data, "RDR2", 4) == 0) ? sizeof(NvDoor) - 4
+                                                     : sizeof(NvDoor) - 8;
     memcpy(count, data + 4, sizeof(*count));
     return data + 8;
 }
@@ -487,6 +492,13 @@ static void NvDoor_Take(PlayState* play, Input* input, NvDoor* doorp, s32 i) {
         snprintf(sNvFromScene, sizeof(sNvFromScene), "%s", play->loadedScene->sceneFile.fileName);
     }
     door.target[sizeof(door.target) - 1] = '\0';
+    // the mansion's second visit (scenario flag 0, raised as Plant 42 dies): a door to stage 1 or 2
+    // goes to the same room of stage 6 or 7 (room_transition_load's +5)
+    if ((sNvDoorStride == sizeof(NvDoor)) && (door.vspawn != 0xFFFF) && NvFlags_Test(0, 0) &&
+        (strncmp(door.target, "re1_", 4) == 0) && ((door.target[4] == '1') || (door.target[4] == '2'))) {
+        door.target[4] += 5;
+        door.spawn = door.vspawn;
+    }
     entrance = NvDoor_Entrance(door.target, door.spawn);
     printf("NVDOOR %d -> %s spawn %d entrance 0x%X\n", (int)i, door.target, (int)door.spawn, (int)entrance);
     fflush(stdout);
