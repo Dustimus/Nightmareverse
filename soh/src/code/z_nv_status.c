@@ -46,6 +46,8 @@ static const char* NvSt_UseRefusal(s32 id, const char* fallback) {
     return ((t != NULL) && (t[0] != '\0')) ? t : fallback;
 }
 
+s32 NvItems_CheckOpen(s32 i);
+
 /** RE1's description of item id (Check), or NULL. */
 static const char* NvSt_Description(s32 id) {
     const char* t = NvText_Get(2, id - 1);
@@ -448,7 +450,10 @@ static void NvSt_Input(PlayState* play) {
                     NvSt_Sfx(NA_SE_SY_DECIDE);
                     break;
                 default: // Check: RE1's description (from its executable), else the name
-                    if (NvSt_Description(id) != NULL) {
+                    if (NvItems_CheckOpen(sNvStCursor) != 0) { // (a Doom Book: its medal inside)
+                        snprintf(sNvStLine, sizeof(sNvStLine), "There's a %s inside the book.",
+                                 NvItems_Name(NvItems_Slot(sNvStCursor, NULL)));
+                    } else if (NvSt_Description(id) != NULL) {
                         snprintf(sNvStLine, sizeof(sNvStLine), "%s", NvSt_Description(id));
                     } else if (qty > 1) {
                         snprintf(sNvStLine, sizeof(sNvStLine), "%s  x%d", NvItems_Name(id), (int)qty);

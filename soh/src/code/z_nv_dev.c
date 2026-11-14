@@ -42,7 +42,7 @@
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE, NV_WP_CHECK } NvWaypointKind;
 
 typedef struct {
     s16 kind;
@@ -197,6 +197,10 @@ static void NvDev_ParsePath(void) {
             // turned to face into it, and A pressed (a logic walkthrough: what's behind it, not the walk)
             wp->kind = (s[0] == 'd') ? NV_WP_DOOR : NV_WP_AOT;
             wp->wait = (s16)atoi(s + ((s[0] == 'd') ? 5 : 4));
+            sNvPathLen++;
+        } else if (strncmp(s, "check:", 6) == 0) { // the status screen's Check on item XX (a Doom Book: its medal)
+            wp->kind = NV_WP_CHECK;
+            wp->wait = (s16)strtol(s + 6, NULL, 16);
             sNvPathLen++;
         } else if (strncmp(s, "use:", 4) == 0) { // the status screen's Use of item XX, where he stands
             wp->kind = NV_WP_USE;
@@ -535,6 +539,13 @@ void NvDev_Update(PlayState* play) {
                 input->press.button |= BTN_A;
                 input->cur.button |= BTN_A;
             }
+        } else if (wp->kind == NV_WP_CHECK) {
+            s32 NvItems_Find(s32 id);
+            s32 NvItems_CheckOpen(s32 i);
+
+            printf("NVSTEP check %02X -> %02X\n", wp->wait, (int)NvItems_CheckOpen(NvItems_Find(wp->wait)));
+            fflush(stdout);
+            sNvPathIdx++;
         } else if (wp->kind == NV_WP_SAVE) {
             void NvSave_DevSave(PlayState* play);
 

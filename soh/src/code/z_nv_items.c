@@ -297,6 +297,22 @@ s32 NvItems_Slot(s32 i, s32* qty) {
     return sNvSlots[i].id;
 }
 
+/**
+ * Check on slot i (the item viewer's action 3, MainMenu.cpp 0x0044e920): a Doom Book opens to its
+ * medal, in the same slot - Doom Book 2 (0x3F) the Wolf Medal (0x24), Doom Book 1 (0x40) the Eagle
+ * Medal (0x25). The new item, or 0 when checking it changes nothing.
+ */
+s32 NvItems_CheckOpen(s32 i) {
+    if ((i < 0) || (i >= NvItems_SlotCount()) || (sNvSlots[i].id < 0x3F) || (sNvSlots[i].id > 0x40)) {
+        return 0;
+    }
+    sNvSlots[i].id = sNvSlots[i].id - 0x3F + 0x24;
+    sNvSlots[i].qty = 1;
+    printf("NVITEM checked a Doom Book: %02X in slot %d\n", sNvSlots[i].id, (int)i);
+    NvItems_Log();
+    return sNvSlots[i].id;
+}
+
 void NvItems_Log(void) {
     s32 i;
 
