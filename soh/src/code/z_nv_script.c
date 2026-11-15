@@ -1354,6 +1354,39 @@ static s32 NvEvt_Anim(NvEvt* e, const u8* p) {
     return 0;
 }
 
+/**
+ * A room object the scripts just moved shoves the solid objects it now overlaps out ahead of it,
+ * along its way (update_room_objects 4/5: ChkObjSlide on whatever it ran into). 306's statue,
+ * sliding out of the wall at the crank, pushes the other one off the wall.
+ */
+static void NvObj_Shove(const NvObj* o) {
+    s32 k;
+    s32 alongX = ABS(o->speed[0]) >= ABS(o->speed[2]);
+
+    if (!(o->flags & 0x01) || (o->ext[0] <= 0) || (o->ext[2] <= 0) || ((o->speed[0] == 0) && (o->speed[2] == 0))) {
+        return;
+    }
+    for (k = 0; k < NV_OBJ_SLOTS; k++) {
+        NvObj* q = &sNvObj[k];
+
+        if ((q == o) || !q->set || !(q->flags & 0x01) || (q->flags & 0x0A) || (q->ext[0] <= 0) || (q->ext[2] <= 0)) {
+            continue;
+        }
+        if ((ABS(q->pos[0] - o->pos[0]) >= q->ext[0] + o->ext[0]) || (ABS(q->pos[2] - o->pos[2]) >= q->ext[2] + o->ext[2])) {
+            continue;
+        }
+        if (alongX) {
+            q->pos[0] = o->pos[0] + ((o->speed[0] > 0) ? 1 : -1) * (o->ext[0] + q->ext[0]);
+        } else {
+            q->pos[2] = o->pos[2] + ((o->speed[2] > 0) ? 1 : -1) * (o->ext[2] + q->ext[2]);
+        }
+        if (getenv("NV_LOG")) {
+            printf("NVOBJ %d shoved by the scripts' object to %d,%d\n", (int)k, q->pos[0], q->pos[2]);
+            fflush(stdout);
+        }
+    }
+}
+
 /** scd_event_state2_movement: one of the movement opcodes (state 2) on the character; its length. */
 static s32 NvEvt_Move(NvEvt* e, const u8* p) {
     NvRe1Entity* t = NvEvt_Ent(e);
@@ -1391,6 +1424,7 @@ static s32 NvEvt_Move(NvEvt* e, const u8* p) {
                     o->pos[0] += o->speed[0];
                     o->pos[1] += o->speed[1];
                     o->pos[2] += o->speed[2];
+                    NvObj_Shove(o); // (update_room_objects: a moved object shoves what it runs into)
                     if (p[0] == 0x02) {
                         break;
                     }
