@@ -265,6 +265,7 @@ typedef struct NvRe1Entity {
         u8 limbBounces[5];
         s16 heartScale; // its exposed heart's beat (tyrant_draw_heart: 4096 = 1, drawn + 500)
         s16 heartBeat;
+        u8 savedState[4]; // state, ignore, behaviour, action before a hit (Entity+0x174)
     } ty;
 } NvRe1Entity;
 

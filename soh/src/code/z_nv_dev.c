@@ -36,13 +36,14 @@
 #include "global.h"
 #include <stdio.h>
 #include <stdlib.h>
+u32 NvScript_MsgFlags(void);
 #include <ctype.h>
 #include <string.h>
 #include <math.h>
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE, NV_WP_CHECK, NV_WP_DROP } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE, NV_WP_CHECK, NV_WP_DROP, NV_WP_EQUIP } NvWaypointKind;
 
 typedef struct {
     s16 kind;
@@ -197,6 +198,10 @@ static void NvDev_ParsePath(void) {
             // turned to face into it, and A pressed (a logic walkthrough: what's behind it, not the walk)
             wp->kind = (s[0] == 'd') ? NV_WP_DOOR : NV_WP_AOT;
             wp->wait = (s16)atoi(s + ((s[0] == 'd') ? 5 : 4));
+            sNvPathLen++;
+        } else if (strncmp(s, "equip:", 6) == 0) { // item XX equipped (a scene put the gun away)
+            wp->kind = NV_WP_EQUIP;
+            wp->wait = (s16)strtol(s + 6, NULL, 16);
             sNvPathLen++;
         } else if (strncmp(s, "drop:", 5) == 0) { // item XX out of the slots (a walkthrough's trip to the box)
             wp->kind = NV_WP_DROP;
@@ -543,6 +548,18 @@ void NvDev_Update(PlayState* play) {
                 input->press.button |= BTN_A;
                 input->cur.button |= BTN_A;
             }
+        } else if (wp->kind == NV_WP_EQUIP) {
+            s32 NvItems_Find(s32 id);
+            s32 NvItems_EquippedId(void);
+            s32 NvItems_ToggleEquip(s32 i);
+            s32 i = NvItems_Find(wp->wait);
+
+            if ((i >= 0) && (NvItems_EquippedId() != wp->wait)) {
+                NvItems_ToggleEquip(i);
+            }
+            printf("NVSTEP equip %02X -> %02X\n", wp->wait, (int)NvItems_EquippedId());
+            fflush(stdout);
+            sNvPathIdx++;
         } else if (wp->kind == NV_WP_DROP) {
             s32 NvItems_Remove(s32 id);
 
@@ -666,10 +683,10 @@ void NvDev_Update(PlayState* play) {
             printf("NVWALL n=%d,%d,%d d=%d bg=%x\n", w->normal.x, w->normal.y, w->normal.z, w->dist,
                    player->actor.bgCheckFlags);
         }
-        printf("NVPOS scene=%d f=%d pos=%d,%d,%d yaw=%d floor=%d cam=%d\n", (int)play->sceneNum,
+        printf("NVPOS scene=%d f=%d pos=%d,%d,%d yaw=%d floor=%d cam=%d mf=%04X\n", (int)play->sceneNum,
                (int)play->gameplayFrames, (int)player->actor.world.pos.x, (int)player->actor.world.pos.y,
                (int)player->actor.world.pos.z, (u16)player->actor.shape.rot.y, player->actor.floorPoly != NULL,
-               (int)GET_ACTIVE_CAM(play)->camDataIdx);
+               (int)GET_ACTIVE_CAM(play)->camDataIdx, (unsigned)NvScript_MsgFlags());
         fflush(stdout);
     }
 }

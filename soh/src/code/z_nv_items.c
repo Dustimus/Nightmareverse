@@ -396,6 +396,8 @@ static void NvItems_DevGive(void) {
             s++;
         }
         NvItems_ToggleEquip(atoi(getenv("NV_EQUIP")));
+        printf("NVGIVE equipped slot %d now %d\n", atoi(getenv("NV_EQUIP")), (int)sNvEquipped);
+        NvItems_Log();
         return;
     }
     while (sscanf(s, "%i,%i%n", &id, &qty, &used) == 2) {
@@ -723,6 +725,46 @@ static void NvItems_TakeOne(s32 i) {
     } else if (sNvEquipped > i + 1) {
         sNvEquipped--;
     }
+}
+
+/**
+ * fire_consume_ammo_stack (PlayerAnimations.cpp 0x0045a580): the trigger on an empty gun loads it
+ * from the biggest stack of its ammo (item weapon + 9), up to the gun's capacity; a stack it
+ * empties is gone. Returns the rounds loaded (0: no ammo for it).
+ */
+s32 NvItems_Reload(s32 gun) {
+    // g_ItemMaxQty for the guns that load (2 the handgun .. 9 the bazooka's flame rounds)
+    static const u8 sCap[10] = { 0, 0, 15, 7, 6, 6, 240, 6, 6, 6 };
+    s32 weapon;
+    s32 ammo;
+    s32 best = -1;
+    s32 i;
+    s32 load;
+
+    if ((gun < 0) || (gun >= NvItems_SlotCount())) {
+        return 0;
+    }
+    weapon = sNvSlots[gun].id;
+    if ((weapon < 2) || (weapon > 9)) {
+        return 0;
+    }
+    ammo = weapon + 9;
+    for (i = 0; i < NvItems_SlotCount(); i++) {
+        if ((sNvSlots[i].id == ammo) && (sNvSlots[i].qty > 0) && ((best < 0) || (sNvSlots[i].qty > sNvSlots[best].qty))) {
+            best = i;
+        }
+    }
+    if (best < 0) {
+        return 0;
+    }
+    load = MIN(sNvSlots[best].qty, sCap[weapon]);
+    sNvSlots[gun].qty = load;
+    sNvSlots[best].qty -= load;
+    if (sNvSlots[best].qty == 0) {
+        sNvSlots[best].qty = 1;
+        NvItems_TakeOne(best);
+    }
+    return load;
 }
 
 /* ---- the item box (RE1's g_itemboxSlots: one box, linked across every box in the mansion) ---- */

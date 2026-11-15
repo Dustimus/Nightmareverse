@@ -198,7 +198,7 @@ static void NvGun_Relative(Player* player, s32 ex, s32 ez, f32* ahead, f32* side
 }
 
 /** The enemy the aim is on: the Z-target if it's RE1's, else the nearest ahead in reach. */
-static Actor* NvGun_Target(PlayState* play, Player* player, s32 reach, s32 autoAim) {
+static Actor* NvGun_Target(PlayState* play, Player* player, s32 item, s32 reach, s32 autoAim) {
     Actor* best = NULL;
     f32 bestAhead = 1e9f;
     Actor* a;
@@ -219,8 +219,15 @@ static Actor* NvGun_Target(PlayState* play, Player* player, s32 reach, s32 autoA
             if ((ahead <= 0.0f) || (ahead > reach + r) || (fabsf(side) > ahead + r)) {
                 continue;
             }
+        } else if ((item >= 2) && (item <= 5)) {
+            // weapon_hit_detect_gun (WeaponDamage.cpp 0x0043d410) / checkEntityInRangeCone: the guns' range
+            // is the half-width of a band straight ahead (the shotgun's the widest: its spread), from 650
+            // in front of her on, however far; the nearest in it is hit
+            if ((ahead < 650.0f) || (fabsf(side) > r + reach)) {
+                continue;
+            }
         } else if ((ahead <= 0.0f) || (ahead > reach + r) || (fabsf(side) > r + 200)) {
-            continue; // the shot: in front, within its radius + 200 to either side
+            continue; // the knife and the launchers: in front, within its reach
         }
         if (ahead < bestAhead) {
             bestAhead = ahead;
@@ -239,7 +246,16 @@ static void NvGun_Fire(PlayState* play, Player* player) {
     s32 raise, fire, hold;
 
     NvItems_Slot(slot, &qty);
-    if ((item != 1) && (qty <= 0)) { // empty: the click, no shot
+    if ((item != 1) && (qty <= 0)) { // empty: loaded from her ammo instead of a shot, else the click
+        s32 NvItems_Reload(s32 gun);
+        s32 loaded = NvItems_Reload(slot);
+
+        if (loaded > 0) {
+            Player_PlaySfx(&player->actor, NA_SE_IT_SWORD_PUTAWAY);
+            printf("NVGUN reload: %d rounds\n", (int)loaded);
+            fflush(stdout);
+            return;
+        }
         NvSound_Menu(NA_SE_SY_ERROR);
         printf("NVGUN click (empty)\n");
         fflush(stdout);
@@ -252,7 +268,7 @@ static void NvGun_Fire(PlayState* play, Player* player) {
     NvGun_Play(fire);
     sNvGunState = NV_GUN_FIRE;
     NvSound_Shot(item); // RE1's shot for the weapon (z_nv_sound.c)
-    hit = NvGun_Target(play, player, sNvGunRange[CLAMP(item - 1, 0, 9)], false);
+    hit = NvGun_Target(play, player, item, sNvGunRange[CLAMP(item - 1, 0, 9)], false);
     printf("NVGUN fire weapon %d dir %d rounds %d -> %s\n", (int)item, (int)sNvGunDir, (int)(qty - 1),
            (hit != NULL) ? "hit" : "miss");
     if ((hit == NULL) && getenv("NV_LOG")) { // what it missed
@@ -296,6 +312,11 @@ void NvWeapon_PreUpdate(Player* player, PlayState* play, Input* input) {
         (player->stateFlags2 & PLAYER_STATE2_GRABBED_BY_ENEMY) || !(player->actor.bgCheckFlags & 1) ||
         (play->msgCtx.msgMode != MSGMODE_NONE) || NvClimb_Active() || NvDoorScene_Covering() ||
         (play->transitionTrigger != TRANS_TRIGGER_OFF)) {
+        if ((item != 0) && held && getenv("NV_LOG") && ((play->gameplayFrames % 20) == 0)) {
+            printf("NVGUN held but can't aim: s1 %08X s2 %08X ground %d msg %d climb %d door %d trans %d\n",
+                   (unsigned)player->stateFlags1, (unsigned)player->stateFlags2, player->actor.bgCheckFlags & 1,
+                   play->msgCtx.msgMode, NvClimb_Active(), NvDoorScene_Covering(), play->transitionTrigger);
+        }
         NvGun_Lower();
         return;
     }
@@ -358,7 +379,7 @@ void NvWeapon_PreUpdate(Player* player, PlayState* play, Input* input) {
     }
     // squared up: the stick turns him (RE1's 0x48 a step, at OoT's rate), or the aim does
     {
-        Actor* target = NvGun_Target(play, player, sNvGunRange[CLAMP(item - 1, 0, 9)], true);
+        Actor* target = NvGun_Target(play, player, item, sNvGunRange[CLAMP(item - 1, 0, 9)], true);
         s16 turn = (s16)(input->rel.stick_x * 0x6C0 / 60);
 
         if (ABS(input->rel.stick_x) > 20) {

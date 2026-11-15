@@ -2905,6 +2905,16 @@ void NvZombie_Update(NvRe1Entity* e) {
  * (hit_state set) isn't hit again, as in RE1.
  */
 void NvZombie_Hit(NvRe1Entity* e, s16 damage, u8 hit, u8 weaponId) {
+    if ((e->id == 0x0C) || (e->id == 0x10)) {
+        // the Tyrants: apply_weapon_damage keeps the state word (+0x84 into +0x174) and
+        // tyrant_state_hit (0x00421d60) puts it back - a shot doesn't stop what it's doing
+        if (e->state != ZST_DAMAGED) {
+            e->ty.savedState[0] = e->state;
+            e->ty.savedState[1] = e->ignore_player_flag;
+            e->ty.savedState[2] = e->action_behavior;
+            e->ty.savedState[3] = e->action_state;
+        }
+    }
     e->health -= damage;
     e->hit_state = hit | (u8)(weaponId << 3);
     e->state = ZST_DIE;

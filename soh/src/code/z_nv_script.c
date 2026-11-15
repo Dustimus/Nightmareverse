@@ -2585,6 +2585,7 @@ void NvScript_RoomInit(PlayState* play) {
     // game_loop: nothing but the main script runs through the fade in; then all of it
     sNvFlags[6][0] = 0;
     sNvMfHeld = false;
+    sNvMfLocked = 0; // (the safety counts one room's hold: 514's lift talk runs straight into 513's scene)
     sNvMfFade = NV_MF_FADE_TICKS;
     sNvMfFirst = true;
     sNvDeskAsk = -1;

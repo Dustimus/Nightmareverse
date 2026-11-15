@@ -304,16 +304,19 @@ static void ty_run(void) {
 
 /** Shot: a stagger (its hits break off), then on at her. */
 static void ty_stagger(void) {
-    if (E->action_state == 0) {
-        E->action_state = 1;
-        ty_anim((u8)((turn_toward_target(P->t[0], P->t[2], 0x400) == 0) ? 0xA : 0xB), 7);
-        E->holding = 0;
-        E->move_speed_current = 0;
+    // tyrant_state_hit (0x00421d60): no stagger of its own - the hit's flash, and back to the state
+    // it was in when the round struck
+    if (E->ignore_player_flag != 0) {
+        return;
     }
-    if (Joint_move(0, 0x200)) {
-        E->hit_state = 0;
+    E->state = E->ty.savedState[0];
+    E->ignore_player_flag = E->ty.savedState[1];
+    E->action_behavior = E->ty.savedState[2];
+    E->action_state = E->ty.savedState[3];
+    if ((E->state == 0) || (E->state == 2)) {
         ty_free();
     }
+    E->hit_state = 0;
 }
 
 /** Down: it falls and its flag goes up (the rooms' scripts finish it in RE1). */
