@@ -422,6 +422,8 @@ static s32 NvDoor_Unlocked(PlayState* play, NvDoor* door) {
     } else if (key == 0xFF) {
         NvSnd_At(0x14, 0, 0, 0, 0);
         NvScript_SayItem(play, 0xC0 | 0x13, 0); // "It's locked from inside."
+        printf("NVLOCK bit %d locked from the other side\n", door->lock & 0x3F);
+        fflush(stdout);
         return false;
     } else {
         slot = NvItems_Find(key);
