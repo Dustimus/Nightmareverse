@@ -25,7 +25,9 @@ records keep her out of things, and only scripted climbs change her height. So h
   WALL_INSET into the shape (out past the edge) so Link stops where Jill does.
 """
 import math
+import os
 import struct
+import sys
 
 CELL = 100  # RE1 units (~2.2 OoT units)
 # The walls' height (RE1 has none; this one matched the rooms in play). No ceilings yet: they
@@ -155,19 +157,46 @@ class Floor:
         for lx, lz in ladder_zones(aots):  # the floor below each ladder's foot, either way along z
             for s in (-1, 1):
                 starts.append(self.cell(lx, lz + s * LADDER[0]))
-        for st in starts:
-            if st in comp or not self.in_extent(st) or blocked(st):
-                continue
+        # A climb end inside a pushing shape is a floor the shape walls round: 305's drained fountain,
+        # whose basin (with its own walls) lies inside the rim's ellipse. The event puts her on the
+        # rim and climbs her down; here the basin floods inside the shape(s) holding the end.
+        climb_ends = set(starts[len(arrivals):])
+        enclosed = set()
+
+        def flood(st, stop):
+            nonlocal ncomp
             stack = [st]
             comp[st] = ncomp
             while stack:
                 k = stack.pop()
                 self.cells.add(k)
                 for n in ((k[0] + 1, k[1]), (k[0] - 1, k[1]), (k[0], k[1] + 1), (k[0], k[1] - 1)):
-                    if n not in comp and self.in_extent(n) and not blocked(n):
+                    if n not in comp and self.in_extent(n) and not stop(n):
                         comp[n] = ncomp
                         stack.append(n)
             ncomp += 1
+
+        for st in starts:
+            if st in comp or not self.in_extent(st) or blocked(st):
+                continue
+            flood(st, blocked)
+        for st in starts:
+            if st in comp or st not in climb_ends or not self.in_extent(st):
+                continue
+            x, z = (st[0] + 0.5) * CELL, (st[1] + 0.5) * CELL
+            rims = [r for r in solid if inside(r, x, z)]
+            if not rims or in_steps(x, z):
+                continue
+
+            def stop(k, rims=rims):
+                cx, cz = (k[0] + 0.5) * CELL, (k[1] + 0.5) * CELL
+                return (not all(inside(r, cx, cz) for r in rims) or in_steps(cx, cz) or
+                        any(inside(r, cx, cz) for r in solid if r not in rims))
+
+            if stop(st):
+                continue
+            enclosed.add(ncomp)
+            flood(st, stop)
         self.comp = comp
 
         # levels: arrivals first, then across climbs until nothing changes
@@ -232,6 +261,23 @@ class Floor:
                 elif b in level and a not in level:
                     level[a] = level[b] + ya - yb
                     changed = True
+        # an enclosed floor nothing else sets keeps the height of the floor nearest it (305: the rim
+        # at 2918 where the event sets her, 1402 down to the basin, is the courtyard's 4330 again)
+        for c in sorted(enclosed):
+            if c in level:
+                continue
+            mine = [k for k, v in comp.items() if v == c]
+            best = None
+            for k, v in comp.items():
+                if v in level and v not in enclosed:
+                    dist = min(abs(k[0] - m[0]) + abs(k[1] - m[1]) for m in mine[::max(1, len(mine) // 50)])
+                    if best is None or dist < best[0]:
+                        best = (dist, level[v])
+            if best is not None:
+                level[c] = best[1]
+        self.enclosed = enclosed
+        if enclosed and os.environ.get("RE1_FLOOR_DEBUG"):
+            print("enclosed floor in room %02X: %s" % (room_number, {c: level.get(c) for c in enclosed}), file=sys.stderr)
         self.level = level
 
         # walkable stairs: RE1's stairs are a solid box with a climb zone over it, between two

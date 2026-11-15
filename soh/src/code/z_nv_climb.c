@@ -80,6 +80,59 @@ static s32 NvClimb_In(const NvClimb* c, f32 x, f32 z) {
 }
 
 /**
+ * The climb itself (player_door_open_sequence): from the side she's on, if she faces into the
+ * zone from it, 4350 (2114) along the axis and 2885 (1402) up or down. With start false, only
+ * whether she would.
+ */
+static s32 NvClimb_Go(Player* player, const NvClimb* cp, u32 i, f32 rx, f32 ry, f32 rz, f32 rfx, f32 rfz,
+                      s32 start) {
+    NvClimb c = *cp;
+    s32 low;
+    s32 dir;
+    s32 otherWay;
+    f32 tx = rx;
+    f32 tz = rz;
+
+    // the side she's on, and facing into the zone from it
+    if (c.type == 5) {
+        low = (rx - c.x) < (c.w >> 1);
+    } else {
+        low = (rz - c.z) < (c.d >> 1);
+    }
+    dir = low ? 1 : -1;
+    if (((c.type == 5) ? rfx : rfz) * dir <= 0.0f) {
+        return false;
+    }
+    if (!start) {
+        return true;
+    }
+    if (c.type == 5) {
+        tx += dir * c.along;
+    } else {
+        tz += dir * c.along;
+    }
+    otherWay = (!low) ^ (c.d0 & 1);
+    ry += otherWay ? c.up : -c.up; // RE1's y points down
+
+    sNvClimbFrom = player->actor.world.pos;
+    sNvClimbTo.x = tx * NV_RE1_SCALE;
+    sNvClimbTo.y = -ry * NV_RE1_SCALE;
+    sNvClimbTo.z = -tz * NV_RE1_SCALE;
+    sNvClimbTimer = NV_CLIMB_FRAMES;
+    // square to the axis, facing on along it
+    if (c.type == 5) {
+        player->actor.shape.rot.y = (dir > 0) ? 0x4000 : -0x4000;
+    } else {
+        player->actor.shape.rot.y = (dir > 0) ? -0x8000 : 0;
+    }
+    player->actor.world.rot.y = player->yaw = player->actor.shape.rot.y;
+    printf("NVCLIMB %d from %d,%d,%d to %d,%d,%d\n", (int)i, (int)sNvClimbFrom.x, (int)sNvClimbFrom.y,
+           (int)sNvClimbFrom.z, (int)sNvClimbTo.x, (int)sNvClimbTo.y, (int)sNvClimbTo.z);
+    fflush(stdout);
+    return true;
+}
+
+/**
  * On an A press with no door in reach: start a climb if a stairs zone is in front of Link (the
  * same points z_nv_door.c tests, from nearD to farD OoT units ahead). Returns true if he climbs
  * (with start false, whether he would: the A button's label).
@@ -107,11 +160,6 @@ s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD, s32 s
     for (i = 0; i < count; i++) {
         NvClimb c;
         s32 in = false;
-        s32 low;
-        s32 dir;
-        s32 otherWay;
-        f32 tx = rx;
-        f32 tz = rz;
         f32 d;
 
         memcpy(&c, data + i * sizeof(NvClimb), sizeof(NvClimb));
@@ -128,43 +176,38 @@ s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD, s32 s
         if (!in) {
             continue;
         }
-        // the side she's on, and facing into the zone from it
-        if (c.type == 5) {
-            low = (rx - c.x) < (c.w >> 1);
-        } else {
-            low = (rz - c.z) < (c.d >> 1);
-        }
-        dir = low ? 1 : -1;
-        if (((c.type == 5) ? rfx : rfz) * dir <= 0.0f) {
-            continue;
-        }
-        if (!start) {
+        if (NvClimb_Go(player, &c, i, rx, ry, rz, rfx, rfz, start)) {
             return true;
         }
-        if (c.type == 5) {
-            tx += dir * c.along;
-        } else {
-            tz += dir * c.along;
-        }
-        otherWay = (!low) ^ (c.d0 & 1);
-        ry += otherWay ? c.up : -c.up; // RE1's y points down
+    }
+    return false;
+}
 
-        sNvClimbFrom = player->actor.world.pos;
-        sNvClimbTo.x = tx * NV_RE1_SCALE;
-        sNvClimbTo.y = -ry * NV_RE1_SCALE;
-        sNvClimbTo.z = -tz * NV_RE1_SCALE;
-        sNvClimbTimer = NV_CLIMB_FRAMES;
-        // square to the axis, facing on along it
-        if (c.type == 5) {
-            player->actor.shape.rot.y = (dir > 0) ? 0x4000 : -0x4000;
-        } else {
-            player->actor.shape.rot.y = (dir > 0) ? -0x8000 : 0;
+/**
+ * cmd_room_action running a climb zone's handler (5 / 6, check_door / check_door_side): the zone
+ * at RE1 (x, z) climbed from where she stands, as if pressed there (305's fountain).
+ */
+s32 NvClimb_Script(PlayState* play, Player* player, u16 x, u16 z) {
+    u8* data;
+    u32 count;
+    u32 i;
+
+    if (sNvClimbTimer > 0) {
+        return false;
+    }
+    data = NvClimb_Data(play, &count);
+    if (data == NULL) {
+        return false;
+    }
+    for (i = 0; i < count; i++) {
+        NvClimb c;
+
+        memcpy(&c, data + i * sizeof(NvClimb), sizeof(NvClimb));
+        if ((c.x == x) && (c.z == z)) {
+            return NvClimb_Go(player, &c, i, player->actor.world.pos.x / NV_RE1_SCALE,
+                              -player->actor.world.pos.y / NV_RE1_SCALE, -player->actor.world.pos.z / NV_RE1_SCALE,
+                              Math_SinS(player->actor.shape.rot.y), -Math_CosS(player->actor.shape.rot.y), true);
         }
-        player->actor.world.rot.y = player->yaw = player->actor.shape.rot.y;
-        printf("NVCLIMB %d from %d,%d,%d to %d,%d,%d\n", (int)i, (int)sNvClimbFrom.x, (int)sNvClimbFrom.y,
-               (int)sNvClimbFrom.z, (int)sNvClimbTo.x, (int)sNvClimbTo.y, (int)sNvClimbTo.z);
-        fflush(stdout);
-        return true;
     }
     return false;
 }

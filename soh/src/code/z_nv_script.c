@@ -1966,6 +1966,15 @@ static void NvAot_Run(s32 i, s32 handler) {
                 NvFiles_Take(a->item);
             }
             break;
+        case 5: // check_door / check_door_side: a climb from where she stands (305's fountain rim)
+        case 6: {
+            s32 NvClimb_Script(PlayState * play, Player * player, u16 x, u16 z);
+            s32 went = NvClimb_Script(sNvPlay, GET_PLAYER(sNvPlay), (u16)a->zone[0], (u16)a->zone[1]);
+
+            printf("NVAOT script climb entry %d: %s\n", (int)i, went ? "climbs" : "no climb");
+            fflush(stdout);
+            break;
+        }
         case 7:
             NvAot_FlagSet(a);
             break;
@@ -2751,7 +2760,8 @@ static void NvAot_WalkIn(PlayState* play) {
             sNvFwdPosAction = (u8)(i + 1);
         }
         if (e->handler == 9) {
-            printf("NVEVT walk-in %d: event %d in slot %d\n", (int)i, e->param[1] & 0xFF, e->param[0] & 0xFF);
+            printf("NVEVT walk-in %d: event %d in slot %d (msg flags %04X fade %d pickup %d held %d)\n", (int)i, e->param[1] & 0xFF,
+                   e->param[0] & 0xFF, (unsigned)sNvFlags[6][0], (int)sNvMfFade, (int)sNvPickup, (int)sNvMfHeld);
             fflush(stdout);
             NvEvt_Create(e->param[0] & 0xFF, e->param[1] & 0xFF);
         } else if (e->handler == 7) {
