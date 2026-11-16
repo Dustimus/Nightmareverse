@@ -2290,6 +2290,20 @@ static void NvAsk_Update(PlayState* play) {
     if ((Message_GetState(&play->msgCtx) == TEXT_STATE_CHOICE) && Message_ShouldAdvance(play)) {
         sNvChoice = (play->msgCtx.choiceIndex != 0) ? 1 : 0;
         sNvAsk = false;
+        if (getenv("NV_ANSWERS") != NULL) { // dev: NV_ANSWERS="yes,no,..." the questions' answers in turn
+            static s32 sNvAnswerAt;
+            const char* a = getenv("NV_ANSWERS");
+            s32 k;
+
+            for (k = 0; (k < sNvAnswerAt) && (a != NULL); k++) {
+                a = strchr(a, ',');
+                a = (a != NULL) ? a + 1 : NULL;
+            }
+            if ((a != NULL) && (*a != '\0')) {
+                sNvChoice = (*a == 'n') ? 1 : 0;
+                sNvAnswerAt++;
+            }
+        }
         if (getenv("NV_LOG")) {
             printf("NVMSG answered %s\n", sNvChoice ? "no" : "yes");
             fflush(stdout);
