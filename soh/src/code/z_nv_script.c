@@ -180,13 +180,18 @@ static void NvFlags_NewGame(void) {
             sNvStateWord[wi & 0x7F] = (u16)wv;
         }
     }
-    if (getenv("NV_FLAGS") != NULL) { // dev: NV_FLAGS="bank:bit,bank:bit" (hex bits) set from the start
+    if (getenv("NV_FLAGS") != NULL) { // dev: NV_FLAGS="bank:bit,-bank:bit" (hex bits) set (or cleared) from the start
         const char* f = getenv("NV_FLAGS");
         int b;
         int n;
 
-        while (sscanf(f, "%d:%x", &b, &n) == 2) {
-            NvFlags_Op(b, n, 0);
+        while (true) {
+            s32 clear = (*f == '-'); // "-bank:bit" clears it (a route's flag undone)
+
+            if (sscanf(f + clear, "%d:%x", &b, &n) != 2) {
+                break;
+            }
+            NvFlags_Op(b, n, clear ? 1 : 0);
             f = strchr(f, ',');
             if (f == NULL) {
                 break;
@@ -226,6 +231,9 @@ void NvFlags_Op(s32 bank, s32 bit, s32 mode) {
         mask = 0x80000000u >> (bit & 31);
     }
     w = &sNvFlags[bank][(bit >> 5) & 7];
+    if ((bank == 4) && getenv("NV_FLAG_TRACE")) { // dev: the system flags as the room's scripts move them
+        printf("NVFLAG 4:%02X %s\n", (unsigned)(bit & 0xFF), (mode == 0) ? "set" : (mode == 1) ? "clear" : "toggle");
+    }
     if (mode == 0) {
         *w |= mask;
     } else if (mode == 1) {
@@ -345,13 +353,26 @@ void NvScript_LoadState(const u8* p) {
     memset(sNvFlags[9], 0, sizeof(sNvFlags[9])); // (the item-use flags are per frame)
     NvFlags_Op(5, NV_MSF_CHAR_VARIANT, 0); // (a save from before the flag was kept)
     sNvFreshRoom = true;
+    if (getenv("NV_WORD") != NULL) { // dev: NV_WORD on a loaded save too (the countdown restarted for a test)
+        int wi;
+        int wv;
+
+        if (sscanf(getenv("NV_WORD"), "%d:%d", &wi, &wv) == 2) {
+            sNvStateWord[wi & 0x7F] = (u16)wv;
+        }
+    }
     if (getenv("NV_FLAGS") != NULL) { // dev: NV_FLAGS on a loaded save too (a story step skipped: a boss beaten)
         const char* f = getenv("NV_FLAGS");
         int b;
         int n;
 
-        while (sscanf(f, "%d:%x", &b, &n) == 2) {
-            NvFlags_Op(b, n, 0);
+        while (true) {
+            s32 clear = (*f == '-'); // "-bank:bit" clears it (a route's flag undone)
+
+            if (sscanf(f + clear, "%d:%x", &b, &n) != 2) {
+                break;
+            }
+            NvFlags_Op(b, n, clear ? 1 : 0);
             f = strchr(f, ',');
             if (f == NULL) {
                 break;
@@ -610,7 +631,7 @@ static s32 NvScd_Cmd(void) {
             NvBgm_ScdStop(p[1]);
             sNvIp = p + 2;
             return 1;
-        case 0x33: // cmd_player_prop_set: 0 the weapon put away, 5 her facing, 8 her status bits (the gas)
+        case 0x33: // cmd_player_prop_set: 0 the weapon put away, 5 her facing, 7 back to her, 8 her status bits
             if (p[1] == 0) {
                 void NvItems_Unequip(void);
 
@@ -620,6 +641,15 @@ static s32 NvScd_Cmd(void) {
                 s16 dir = (s16)(p[2] | (p[3] << 8));
 
                 player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = (s16)(0x4000 - dir * 16);
+            } else if (p[1] == 7) {
+                // back to her own state (state 1, behaviour 0, action 2: the decomp's "animationId" at
+                // +0x84 is the state): the script hands her back, though its events run on (303's
+                // helicopter circling after the flare)
+                NvRe1Entity* e = NvCast_Player();
+
+                e->state = 1;
+                e->action_behavior = 0;
+                e->action_state = 2;
             } else if (p[1] == 8) {
                 extern u8 gNvRe1Poison;
 

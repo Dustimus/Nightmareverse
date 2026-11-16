@@ -43,7 +43,7 @@ u32 NvScript_MsgFlags(void);
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE, NV_WP_CHECK, NV_WP_DROP, NV_WP_EQUIP } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE, NV_WP_CHECK, NV_WP_DROP, NV_WP_EQUIP, NV_WP_FACEENEMY } NvWaypointKind;
 
 typedef struct {
     s16 kind;
@@ -198,6 +198,9 @@ static void NvDev_ParsePath(void) {
             // turned to face into it, and A pressed (a logic walkthrough: what's behind it, not the walk)
             wp->kind = (s[0] == 'd') ? NV_WP_DOOR : NV_WP_AOT;
             wp->wait = (s16)atoi(s + ((s[0] == 'd') ? 5 : 4));
+            sNvPathLen++;
+        } else if ((strncmp(s, "faceenemy", 9) == 0) && ((s[9] == ';') || (s[9] == '\0'))) {
+            wp->kind = NV_WP_FACEENEMY; // turned to the nearest of RE1's enemies (a fight's aim)
             sNvPathLen++;
         } else if (strncmp(s, "equip:", 6) == 0) { // item XX equipped (a scene put the gun away)
             wp->kind = NV_WP_EQUIP;
@@ -548,6 +551,28 @@ void NvDev_Update(PlayState* play) {
                 input->press.button |= BTN_A;
                 input->cur.button |= BTN_A;
             }
+        } else if (wp->kind == NV_WP_FACEENEMY) {
+            s32 NvEnemy_GunTarget(Actor * a, s32 * x, s32 * z, s32 * radius);
+            Actor* a;
+            Actor* best = NULL;
+            f32 bestD = 1e9f;
+
+            for (a = play->actorCtx.actorLists[ACTORCAT_ENEMY].head; a != NULL; a = a->next) {
+                s32 ex, ez, r;
+                f32 d = Actor_WorldDistXZToActor(&player->actor, a);
+
+                if (NvEnemy_GunTarget(a, &ex, &ez, &r) && (d < bestD)) {
+                    bestD = d;
+                    best = a;
+                }
+            }
+            if (best != NULL) {
+                player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw =
+                    Actor_WorldYawTowardActor(&player->actor, best);
+            }
+            printf("NVSTEP faceenemy -> %s\n", (best != NULL) ? "turned" : "none");
+            fflush(stdout);
+            sNvPathIdx++;
         } else if (wp->kind == NV_WP_EQUIP) {
             s32 NvItems_Find(s32 id);
             s32 NvItems_EquippedId(void);

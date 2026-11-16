@@ -545,11 +545,6 @@ void NvEnemy_GunHit(Actor* a, s32 item) {
     s32 k = CLAMP(item - 1, 0, 9);
 
     Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 8);
-    if ((this->type == 16) && (item == 0x0A)) {
-        void NvFlags_Op(s32 bank, s32 bit, s32 mode);
-
-        NvFlags_Op(4, 0x0A, 0); // the rocket on the rooftop Tyrant: the heliport's script ends the fight
-    }
     NvZombie_Hit(&this->e, sNvGunDamage[k], sNvGunHitState[k], (u8)item);
     printf("NVENEMY shot (weapon %d): %d damage, health %d\n", (int)item, sNvGunDamage[k], this->e.health);
     fflush(stdout);

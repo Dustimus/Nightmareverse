@@ -786,6 +786,22 @@ void NvTyrant_Update(NvRe1Entity* e) {
             ty_stagger();
             break;
         case 3:
+            if (ty_roof()) {
+                // tyrant_state_forced -> behaviour 1, tyrant_behavior_yield_to_scd (0x00424d70): its
+                // death flag up (303's script sees it, raises 4:0A and runs event 26, the rocket's
+                // end) and it's the script's from here
+                void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+
+                if (E->death_event_id != 0xFF) {
+                    NvFlags_Op(3, E->death_event_id, 0);
+                }
+                E->behavior_flags |= 0x40;
+                E->state = 8;
+                E->ignore_player_flag = 0;
+                E->action_behavior = 0;
+                E->action_state = 1;
+                break;
+            }
             ty_die();
             break;
         case 8: // the script's (the pod, the glass, the walk out, Wesker)
