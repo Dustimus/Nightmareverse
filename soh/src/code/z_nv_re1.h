@@ -21,6 +21,7 @@ typedef struct NvRe1Anim {
 
 typedef struct NvRe1Entity {
     u8 status_flags;
+    u8 webGone; // the spider web: its joints burnt away (bit n: joint n)
     u8 id;
     u8 behavior_flags;
     u8 state;
@@ -319,6 +320,8 @@ void NvAdder_Update(NvRe1Entity* e);
 void NvNeptune_Init(NvRe1Entity* e);
 void NvNeptune_Update(NvRe1Entity* e);
 void NvBlackTiger_Init(NvRe1Entity* e);
+void NvWeb_Init(NvRe1Entity* e);
+void NvWeb_Update(NvRe1Entity* e);
 void NvBlackTiger_Update(NvRe1Entity* e);
 void NvChimera_Init(NvRe1Entity* e);
 void NvChimera_Update(NvRe1Entity* e);

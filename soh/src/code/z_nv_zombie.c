@@ -2981,3 +2981,6 @@ static s32 NvRe1_JointReaches(s32 j, s32 range) {
 
 /* the characters (Wesker, Barry, ...) and the player's stand-in in a scripted scene */
 #include "z_nv_npc.inc"
+
+/* the spider web */
+#include "z_nv_web.inc"

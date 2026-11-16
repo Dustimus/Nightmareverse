@@ -219,6 +219,14 @@ static Actor* NvGun_Target(PlayState* play, Player* player, s32 item, s32 reach,
             if ((ahead <= 0.0f) || (ahead > reach + r) || (fabsf(side) > ahead + r)) {
                 continue;
             }
+        } else if (item == 1) {
+            // weapon_hit_detect_knife (WeaponDamage.cpp 0x0043d690): from the blade in her hand (joint 14
+            // at the thrust, here 600 ahead of her), the enemy's place within its radius + the reach
+            f32 dh = ahead - 600.0f;
+
+            if ((ahead <= 0.0f) || ((dh * dh + side * side) > (f32)(r + reach) * (f32)(r + reach))) {
+                continue;
+            }
         } else if ((item >= 2) && (item <= 5)) {
             // weapon_hit_detect_gun (WeaponDamage.cpp 0x0043d410) / checkEntityInRangeCone: the guns' range
             // is the half-width of a band straight ahead (the shotgun's the widest: its spread), from 650

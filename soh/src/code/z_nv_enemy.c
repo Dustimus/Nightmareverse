@@ -228,6 +228,10 @@ static s32 NvEnemy_IsPlant42(s32 type) {
     return type == 8;
 }
 
+static s32 NvEnemy_IsWeb(s32 type) {
+    return type == 19;
+}
+
 static s32 NvEnemy_IsTyrant(s32 type) {
     return (type == 12) || (type == 16);
 }
@@ -237,7 +241,7 @@ static s32 NvEnemy_Acts(s32 type) {
            NvEnemy_IsPlant(type) || NvEnemy_IsYawn(type) || NvEnemy_IsSpider(type) ||
            NvEnemy_IsWasp(type) || NvEnemy_IsAdder(type) || NvEnemy_IsNeptune(type) ||
            NvEnemy_IsBlackTiger(type) || NvEnemy_IsChimera(type) ||
-           NvEnemy_IsPlant42(type) || NvEnemy_IsTyrant(type);
+           NvEnemy_IsPlant42(type) || NvEnemy_IsTyrant(type) || NvEnemy_IsWeb(type);
 }
 
 static s32 NvEnemy_IsCorpse(s32 type) {
@@ -544,9 +548,13 @@ void NvEnemy_GunHit(Actor* a, s32 item) {
     NvEnemy* this = (NvEnemy*)a;
     s32 k = CLAMP(item - 1, 0, 9);
 
+    // the spider web's row of the hit records: the knife cuts it, fire and the launchers burn it, bullets don't
+    static const s16 sNvWebDamage[10] = { 10, 0, 0, 0, 0, 2, 30, 30, 30, 900 };
+    s16 dmg = NvEnemy_IsWeb(this->type) ? sNvWebDamage[k] : sNvGunDamage[k];
+
     Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 8);
-    NvZombie_Hit(&this->e, sNvGunDamage[k], sNvGunHitState[k], (u8)item);
-    printf("NVENEMY shot (weapon %d): %d damage, health %d\n", (int)item, sNvGunDamage[k], this->e.health);
+    NvZombie_Hit(&this->e, dmg, sNvGunHitState[k], (u8)item);
+    printf("NVENEMY shot (weapon %d): %d damage, health %d\n", (int)item, dmg, this->e.health);
     fflush(stdout);
 }
 
@@ -789,6 +797,11 @@ void NvEnemy_Init(Actor* thisx, PlayState* play) {
         thisx->naviEnemyId = 0x40; // (a Dodongo's, as Yawn: a big one)
         NvRe1_TickBegin();
         NvNeptune_Init(e);
+    } else if (NvEnemy_IsWeb(this->type) && (this->model != NULL)) {
+        thisx->colChkInfo.damageTable = &sNvZombieDamage;
+        thisx->colChkInfo.health = 255;
+        NvRe1_TickBegin();
+        NvWeb_Init(e);
     } else if (NvEnemy_IsBlackTiger(this->type) && (this->model != NULL)) {
         thisx->colChkInfo.damageTable = &sNvZombieDamage;
         thisx->colChkInfo.health = 255;
@@ -1001,6 +1014,13 @@ void NvEnemy_Update(Actor* thisx, PlayState* play) {
             NvRe1_TickBegin();
             NvBlackTiger_Update(e);
             NvEnemy_DogBite(this, play); // (its bite and its venom)
+        }
+    } else if (NvEnemy_IsWeb(this->type)) {
+        NvEnemy_Hits(this, play);
+        for (t = 0; t < ticks; t++) {
+            NvEnemy_PlayerToRe1(play);
+            NvRe1_TickBegin();
+            NvWeb_Update(e);
         }
     } else if (NvEnemy_IsChimera(this->type)) {
         NvEnemy_Hits(this, play);
@@ -1289,7 +1309,8 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
         s32 b;
 
         if ((m->numBatches[n] == 0) || (this->e.headless && (n == NV_ZOMBIE_HEAD_BONE)) ||
-            (NvEnemy_IsTyrant(this->type) && this->e.ty.blownUp && !(this->limbBones & (1u << n)))) {
+            (NvEnemy_IsTyrant(this->type) && this->e.ty.blownUp && !(this->limbBones & (1u << n))) ||
+            (NvEnemy_IsWeb(this->type) && (n < 8) && (this->e.webGone & (1u << n)))) {
             continue;
         }
         // OoT = pos + base * (R p + T); mf[column][row]
