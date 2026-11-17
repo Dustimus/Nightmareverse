@@ -488,6 +488,13 @@ static void NvMf_Update(PlayState* play) {
 
 static u8 sNvLastEnemyFlags; // g_scdLastEnemyFlags
 static s32 sNvDeskAsk = -1; // check_desk: the desk whose "use the key?" is open
+static s32 sNvPianoAsk; // 10F's piano: its "play it?" is open
+static void NvPiano_Listen(PlayState* play);
+static s32 NvPiano_Offer(PlayState* play, s32 i);
+static void NvSonata_Learn(void);
+static s32 NvPiano_Note(PlayState* play, u8 button);
+static void NvSonata_Midnight(PlayState* play);
+static void NvPiano_Update(PlayState* play);
 static s32 sNvDeskCam;      // the desk's camera is up while its item is offered
 static u8 sNvChoice; // the last yes / no a room's message asked: 0 yes, 1 no (g_menu_choice_id)
 static s32 sNvAsk;   // such a question is open
@@ -1935,6 +1942,9 @@ static void NvPickup_Update(PlayState* play) {
     a->handler = 0;
     sNvPickedItem = a->item; // (cmd_picked_item_test)
     printf("NVITEM took %02X x%d (flag %d)\n", a->item, a->qty, a->itemFlag);
+    if (a->item == 0x23) { // the music notes: the "Moonlight Sonata" is learned for good
+        NvSonata_Learn();
+    }
     NvItems_Log();
     Message_CloseTextbox(play);
 }
@@ -2156,6 +2166,9 @@ s32 NvAot_Act(PlayState* play, Player* player) {
     id = sNvAot[i].param[0];
     printf("NVMSG spot %d: message %d\n", (int)i, id & 0x3F);
     fflush(stdout);
+    if (NvPiano_Offer(play, i)) { // (10F's piano, once the "Moonlight Sonata" is known)
+        return true;
+    }
     return NvMsg_Start(play, id, 0, sNvAot[i].param[1]); // (its own pause word; bit 0x40: the executable's shared messages)
 }
 
@@ -2308,6 +2321,14 @@ static void NvAsk_Update(PlayState* play) {
             printf("NVMSG answered %s\n", sNvChoice ? "no" : "yes");
             fflush(stdout);
         }
+        if (sNvPianoAsk) { // the piano: yes, the ocarina's staff, no notes shown
+            sNvPianoAsk = false;
+            Message_CloseTextbox(play);
+            if (sNvChoice == 0) {
+                NvPiano_Listen(play);
+            }
+            return;
+        }
         if ((sNvDeskAsk >= 0) && (sNvChoice == 0)) { // check_desk_state 3: unlocked, "key turned"
             void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz);
             NvAot* d = &sNvAot[sNvDeskAsk];
@@ -2371,11 +2392,11 @@ void NvBgm_ScdState(s32 stage, s32 room, u8 state);
  * (the warp light, the fade), but only this song goes to the mansion: Nocturne itself warps to
  * the graveyard as ever. In place of a melody it plays a stretch of RE1's opening movie's sound
  * (the cast roll), from the player's own files. The first arrival plays the whole opening movie,
- * as before; "seen it" is a save flag (an event flag OoT and the randomizer leave unused).
+ * as before; "seen it" is a save flag (event flag 0xD7, which OoT and the randomizer leave unused).
  */
 #define NV_WARP_SONG OCARINA_SONG_NOCTURNE // the slot it rides
-#define NV_WARP_SEEN_INDEX (0xD5 >> 4)
-#define NV_WARP_SEEN_MASK (1 << (0xD5 & 15))
+#define NV_WARP_SEEN_INDEX (0xD7 >> 4) // (0xD5 was the Song of Time frog's prize: 0xD7-0xD9 are free)
+#define NV_WARP_SEEN_MASK (1 << (0xD7 & 15))
 
 // the notes: the opening phrase of the user's MIDI of the Dual Shock basement theme, its shape
 // (a chromatic crawl, a dip, the crawl back, the leap) on the ocarina's five notes:
@@ -2395,6 +2416,141 @@ static s32 sNvSongPlayed; // the mansion's song was just played (the warp sequen
 static u8 sNvSongHeard[8]; // the last notes played in free play, newest last
 static void NvSong_Restore(void);
 
+/*
+ * The "Moonlight Sonata" (10F's piano bar; mod1's design, agreed again for here 2026-11-10, re1/IDEAS.md):
+ * A, C-Down, C-Right twice, the opening triplet's shape. Picking up the music notes teaches it for
+ * good (event flag 0xD8; their Check shows the buttons). RE1 has Jill Use the notes at the piano;
+ * here, once the song is known, examining the piano asks to play it and opens the ocarina's staff
+ * with no notes shown: the six notes right, OoT's correct chime and the room's own event 0 ("It's
+ * 'Moonlight Sonata'.", then event 6: the playing, the wall, 1:A5); wrong, OoT's error and a word
+ * pointing back to the sheet music. Played freely in the bar it does nothing; outside the mansion
+ * it turns the clock to midnight.
+ * Not yet: Link seated as Jill is for event 6, the song on the Quest screen.
+ */
+#define NV_SONATA_INDEX (0xD8 >> 4)
+#define NV_SONATA_MASK (1 << (0xD8 & 15))
+
+static const u8 sNvSonataNotes[6] = { OCARINA_BTN_A, OCARINA_BTN_C_DOWN, OCARINA_BTN_C_RIGHT,
+                                      OCARINA_BTN_A, OCARINA_BTN_C_DOWN, OCARINA_BTN_C_RIGHT };
+static s32 sNvPianoListening; // the staff is open for the piano
+static u8 sNvPianoHeard[6];
+static s32 sNvPianoCount;
+static s32 sNvPianoResult; // 1 right, 2 wrong: dealt with once the staff has closed (NvPiano_Update)
+
+static s32 NvSonata_Known(void) {
+    return (gSaveContext.eventChkInf[NV_SONATA_INDEX] & NV_SONATA_MASK) != 0;
+}
+
+static void NvSonata_Learn(void) {
+    if (!NvSonata_Known()) {
+        gSaveContext.eventChkInf[NV_SONATA_INDEX] |= NV_SONATA_MASK;
+        printf("NVSONG learned the Moonlight Sonata\n");
+        fflush(stdout);
+    }
+}
+
+/** 10F's piano (the stage's first visit or the return, 60F): its examine, while the song's still to play. */
+static s32 NvPiano_Waiting(s32 i) {
+    return (sNvRoom == 0x0F) && ((sNvStage == 0) || (sNvStage == 5)) && (i >= 0) && (i < NV_AOT_SLOTS) &&
+           (sNvAot[i].handler == 2) && ((sNvAot[i].param[0] & 0x7F) == 0) && NvSonata_Known() &&
+           !NvFlags_Test(1, 0xA5);
+}
+
+static s32 NvPiano_Offer(PlayState* play, s32 i) {
+    static char sAsk[200];
+
+    if (!NvPiano_Waiting(i)) {
+        return false;
+    }
+    snprintf(sAsk, sizeof(sAsk), "%s&Will you play it?\x1B%%gYes&No%%w", NvMsg_Text(0, 0));
+    sNvMsgText = sAsk;
+    sNvPianoAsk = true;
+    sNvAsk = true; // (its answer: NvAsk_Update)
+    NvMsg_EnsureHook();
+    Message_StartTextbox(play, NV_TEXT_ID, NULL);
+    return true;
+}
+
+static void NvPiano_Listen(PlayState* play) {
+    sNvPianoListening = true;
+    sNvPianoCount = 0;
+    sNvPianoResult = 0;
+    func_8010BD58(play, OCARINA_ACTION_FREE_PLAY); // (free play's staff: the notes are the player's to remember)
+    printf("NVSONG at the piano\n");
+    fflush(stdout);
+}
+
+/** A note while the piano listens: true when it was the piano's. After six, the verdict. */
+static s32 NvPiano_Note(PlayState* play, u8 button) {
+    s32 k;
+    s32 right = true;
+
+    if (!sNvPianoListening) {
+        return false;
+    }
+    if (sNvPianoCount < 6) {
+        sNvPianoHeard[sNvPianoCount++] = button;
+    }
+    if (sNvPianoCount < 6) {
+        return true;
+    }
+    for (k = 0; k < 6; k++) {
+        right &= (sNvPianoHeard[k] == sNvSonataNotes[k]);
+    }
+    sNvPianoListening = false;
+    sNvPianoResult = right ? 1 : 2;
+    printf("NVSONG the piano: %s\n", right ? "the Moonlight Sonata" : "wrong notes");
+    fflush(stdout);
+    return true;
+}
+
+/** Each frame (NvScript_Update): the staff closed, the verdict's outcome. */
+static void NvPiano_Update(PlayState* play) {
+    if (sNvPianoListening && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) &&
+        (play->msgCtx.ocarinaMode == OCARINA_MODE_00)) {
+        sNvPianoListening = false; // (put away before six notes: nothing played)
+    }
+    if (sNvPianoResult == 0) {
+        return;
+    }
+    if (play->msgCtx.msgMode == MSGMODE_OCARINA_PLAYING) { // put the ocarina away, as B does
+        AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_OFF);
+        play->msgCtx.ocarinaMode = OCARINA_MODE_04;
+        Message_CloseTextbox(play);
+        return;
+    }
+    if (Message_GetState(&play->msgCtx) != TEXT_STATE_NONE) {
+        return;
+    }
+    if (sNvPianoResult == 1) {
+        Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
+        NvEvt_Create(9, 0); // the room's own: "It's 'Moonlight Sonata'.", then the playing and the wall
+    } else {
+        Sfx_PlaySfxCentered(NA_SE_SY_OCARINA_ERROR);
+        NvMsg_Show(play, "%cHey!%w That's not how it went...&Look at the sheet music again!");
+    }
+    sNvPianoResult = 0;
+}
+
+/** Outside the mansion, the song in free play turns the clock to midnight (mod1's Easter egg). */
+static void NvSonata_Midnight(PlayState* play) {
+    s32 k;
+
+    if (!NvSonata_Known() || (play->sceneNum >= SCENE_RE1_100)) {
+        return;
+    }
+    for (k = 0; k < 6; k++) {
+        if (sNvSongHeard[sizeof(sNvSongHeard) - 6 + k] != sNvSonataNotes[k]) {
+            return;
+        }
+    }
+    memset(sNvSongHeard, 0xFF, sizeof(sNvSongHeard));
+    gSaveContext.dayTime = 0; // midnight
+    Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
+    printf("NVSONG the Moonlight Sonata: midnight\n");
+    fflush(stdout);
+}
+
 /** A note played in free play (z_message_PAL.c): true when it completes the mansion's song. */
 s32 NvSong_Note(PlayState* play, u8 button) {
     s32 n = ARRAY_COUNT(sNvSongNotes);
@@ -2411,6 +2567,10 @@ s32 NvSong_Note(PlayState* play, u8 button) {
     if (play->msgCtx.ocarinaAction != OCARINA_ACTION_FREE_PLAY) {
         return false;
     }
+    if (NvPiano_Note(play, button)) { // (at the piano, the notes are the piano's)
+        return false;
+    }
+    NvSonata_Midnight(play);
     for (k = 0; k < n; k++) {
         if (sNvSongHeard[sizeof(sNvSongHeard) - n + k] != sNvSongNotes[k]) {
             return false;
@@ -3256,6 +3416,7 @@ void NvScript_Update(PlayState* play) {
     }
     gNvSunSongSeen = false;
     NvPickup_Update(play); // an item prompt's answer
+    NvPiano_Update(play);  // the piano's song, once its staff has closed
     NvAsk_Update(play);    // a room message's yes / no
     NvMf_Update(play);     // what a message holds still, and the pad
     if (sNvDeskCam && (sNvPickup < 0) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
