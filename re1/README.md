@@ -288,16 +288,21 @@ C-Left (RE1's icon on the button; the OoT item there is back outside the mansion
 turns him, up/down aims high or low, and Jill's raise and hold for that weapon and direction play
 on him (`re1/weapons/w<id>`, `tools/soh_weapons.py`: her PLAYERS/W1x.EMW, mirrored, as Link is
 left-handed; through z_nv_linkanim.c). Releasing C-Left fires (B fires too and keeps the aim): a
-round from the slot (the knife none; an empty gun clicks), Jill's fire animation, and RE1's hit
-(an enemy ahead within the weapon's range, her half of weapons_ranges, and its radius + 200 to the
-side) and damage (the zombies' hit records: the Beretta 9, the shotgun 53, ...). The aim follows the
+round from the slot (the knife none; an empty gun loads itself from her biggest stack of its ammo,
+up to its capacity, fire_consume_ammo_stack), Jill's fire animation, and RE1's hit: for the handgun,
+shotgun and Pythons (weapon_hit_detect_gun) an enemy in a band straight ahead, from 650 out to any
+distance, as wide as the weapon's range (her half of weapons_ranges: the shotgun's 2600 is its
+spread) plus the enemy's radius; for the knife (weapon_hit_detect_knife) the enemy's place within
+its radius + the reach of the blade, 600 ahead of her at the thrust; and damage (the zombies' hit
+records: the Beretta 9, the shotgun 53, ...; the spider web has its own row). The aim follows the
 Z-target when it's one of RE1's enemies, else RE1's auto-aim: the nearest enemy ahead in reach.
 The gun is RE1's item-viewer model (ITEM_M2/I<nn>V.IVM by the item record's model byte) in Link's
 left fist, which closes round it, placed as Mod1 placed its Beretta in his right hand (that looked
 right in play), mirrored across the hand; it's drawn only while the gun is up, so another item (the
 ocarina) replaces it, and another C button puts it down. Not yet: RE1's gunshot sounds and muzzle
 flash (OoT placeholders), the line of sight through walls, aiming down only hitting crawlers, the
-shotgun's spread and the launcher's rounds, ammo loading by Combine. Dev: `NV_EQUIP=n` equips slot n
+launcher's rounds, ammo loading by Combine, the per-enemy range adjustments (the Black Tiger's
+-1000, Plant 42's +2000). Dev: `NV_EQUIP=n` equips slot n
 of NV_GIVE's items; NV_WALK `cl:N` holds C-Left N frames; `NV_GUN_FIT="x,y,z,rx,ry,rz,size%"` and
 `NV_GUN_MIRROR=x|y|z|none` move the gun in the fist.
 
@@ -338,6 +343,35 @@ polygons first. Heights per room: to estimate from each room's cameras, checked 
 backgrounds, or marked by hand.
 
 Later: the mansion's way in through a Lost Woods wrong turn instead of a replaced OoT door.
+
+## Walking the game headless (2026-11-14 to 11-17)
+
+The walkthrough runs from a typewriter-style checkpoint (`NV_BOOT_ENTRANCE=warp` with a slot copied
+in) and an `NV_WALK` step list, `;`-separated: `x,z` walks, `pos:`, `face:`, `wait:N`, `a`, `b`,
+`doorto:XXX` / `door:N` / `aot:N` (walk into a door or action entry and press A), `use:XX`,
+`check:XX`, `drop:XX`, `equip:XX`, `faceenemy` (turn to the nearest of RE1's enemies), `cl:N`
+(aim and fire), `list` (the room's doors and live action entries), `mark:N`, `save`. Settings:
+`NV_GODMODE`, `NV_GIVE` / `NV_EQUIP`, `NV_FLAGS="bank:bit,-bank:bit"` (set or clear, on a new game
+or a loaded save), `NV_WORD="i:v"` (a state word, also on a loaded save: 4 restarts the countdown),
+`NV_ANSWERS="yes,no,..."` (the yes/no questions in turn), `NV_FLAG_TRACE` (the system flags as the
+scripts move them), `NV_EVT_TRACE`, `NV_LOG`.
+
+What the run showed about RE1's story (Jill), all from the rooms' own scripts:
+
+- Barry: his talk in 308 decides his route. Yes, then no (event 4) keeps him: bank 1 0x5B up,
+  0x5C down. Walking past him, or yes twice, leaves 0x5C up, and coming back through 307 then sets
+  1:0xC0. On his route he is with her in 30A, on the lab's lift and in 513; 514 (event 6, after the
+  Tyrant) arms the self-destruct and unlocks 500->501 and Chris's cell (0:0x2B, 2:0x1C, 2:0x2C),
+  and Lab Key A isn't placed at all. Off it, Lab Key A is in 513 for 501 and the cell.
+- Chris: freed in 512 (through 50B, once 508's panel has the three pass codes) sets 1:0x4B.
+- The countdown (3 minutes) only starts when Barry is there for it (501's event 4 or 6), and 303's
+  rooftop Tyrant fight only happens with it (303's event 17 tests 0:0x2B). With Barry and Chris it
+  ends 7, the launcher epilogue; Chris alone 3; neither 2 (ending_select_id's numbering).
+- The MO disk is spent at each machine: RE1 places three (30F, 503, 717) for 509, 507 and 510.
+- Yawn: the first (210) comes in when she walks into its camera 2 and flees under 2800 of its
+  3050; the second (70C) is let go by the press spot in the corner (event 1) and can die.
+- The rooftop Tyrant wakes once she walks off the helipad zones that keep it asleep (303's 4:0x21,
+  0x22), is pinned at 200 by tyrant_update until the launcher's rocket, then dies under the script.
 
 ## Design notes (from the user)
 
