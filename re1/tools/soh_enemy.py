@@ -118,6 +118,54 @@ def player_blob(path):
     return bytes(out)
 
 
+def room_player_blob(raw):
+    """A room's own player animations (RDT+0x6C, the frames, as a skeleton block; RDT+0x70, the
+    animation list), which RE1 plays on the player for the scripts' animations 0x10-0x3D
+    (player_scd_behavior_01: jointMoveData2/3, set by room_set), or None. As player_blob: "RPLA",
+    bones, then the bank, the list indexed by the scripts' own numbers."""
+    if len(raw) < 0x94:
+        return None  # (a placeholder file)
+    offs = struct.unpack_from("<19I", raw, 0x94 - 76)
+    frames_off, list_off = offs[9], offs[10]
+    if not frames_off or not list_off:
+        return None
+    sk = emd.parse_skeleton(raw, frames_off, list_off)
+    anims = emd.parse_anim_list(raw, list_off)
+    if not sk.frames or not anims:
+        return None
+    out = bytearray(b"RPLA" + struct.pack("<H", len(sk.relpos)))
+    for i in range(len(sk.relpos)):
+        out += struct.pack("<4h", *sk.relpos[i], sk.parents[i])
+    out += bank(sk, anims)
+    return bytes(out)
+
+
+# Chris's rooms whose player animations Jill's game borrows (10F: his hesitant notes at the piano,
+# Link's wrong notes; z_nv_script.c NvPiano)
+CHRIS_ROOMS = {"10F"}
+
+
+def write_room_players(re1, out):
+    """Each of Jill's rooms' player animations (and Chris's in CHRIS_ROOMS) to "re1/player/r<room><0|1>";
+    returns how many were written."""
+    import re as _re
+    d = os.path.join(out, "re1", "player")
+    os.makedirs(d, exist_ok=True)
+    n = 0
+    for root, _dirs, files in os.walk(re1):
+        for f in files:
+            m = _re.fullmatch(r"ROOM([0-9A-F]{3})([01])\.RDT", f.upper())
+            if not m or (m.group(2) == "0" and m.group(1) not in CHRIS_ROOMS):
+                continue
+            blob = room_player_blob(open(os.path.join(root, f), "rb").read())
+            if blob is None:
+                continue
+            open(os.path.join(d, "r%s%s" % (m.group(1).lower(), m.group(2))), "wb").write(
+                soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+            n += 1
+    return n
+
+
 def write(re1, out, types):
     """Write the models for these enemy types into the SoH folder; returns the ones written."""
     done = []

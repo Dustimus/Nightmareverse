@@ -81,6 +81,7 @@ typedef struct {
     s16 counter[4];
     u8 entKind; // the character it drives (state 0's 0x04): 0 the player, 1 an enemy slot
     u8 entIdx;
+    const u8* hold; // it waits here until let go (10F's piano: seated, before the playing)
 } NvEvt;
 
 static u32 sNvFlags[10][8];
@@ -279,7 +280,7 @@ static s32 NvScd_Len(const u8* p) {
     return (op <= 0x50) ? sNvScdLen[op] : 0;
 }
 
-static void NvEvt_Create(s32 slot, s32 script);
+static s32 NvEvt_Create(s32 slot, s32 script);
 static void NvScd_Message(s32 id, u32 pause);
 static void NvVoice_Play(s32 id);
 static void NvAot_Run(s32 i, s32 handler);
@@ -316,6 +317,17 @@ static u8 sNvLightMode; // its blend: 0 half, 1 added, 2 taken away, 3 a quarter
 static u8 sNvLightR;
 static u8 sNvLightG;
 static u8 sNvLightB;
+
+/**
+ * The room's own player animations for the scenes (re1/tools/soh_enemy.py write_room_players:
+ * "re1/player/r<stage><room><0 Chris|1 Jill>"), or NULL when the mod has none for this room.
+ */
+const char* NvScript_RoomPlayerPath(s32 chris) {
+    static char sPath[32];
+
+    snprintf(sPath, sizeof(sPath), "re1/player/r%x%02x%d", (int)(sNvStage + 1), (int)sNvRoom, chris ? 0 : 1);
+    return ResourceMgr_FileExists(sPath) ? sPath : NULL;
+}
 
 /** A new RE1 run (z_nv_save.c): the flags and the state block as a new game has them. */
 void NvScript_NewRun(void) {
@@ -490,11 +502,13 @@ static u8 sNvLastEnemyFlags; // g_scdLastEnemyFlags
 static s32 sNvDeskAsk = -1; // check_desk: the desk whose "use the key?" is open
 static s32 sNvPianoAsk; // 10F's piano: its "play it?" is open
 static void NvPiano_Listen(PlayState* play);
+static void NvPiano_Sit(PlayState* play);
 static s32 NvPiano_Offer(PlayState* play, s32 i);
 static void NvSonata_Learn(void);
 static s32 NvPiano_Note(PlayState* play, u8 button);
 static void NvSonata_Midnight(PlayState* play);
 static void NvPiano_Update(PlayState* play);
+static void NvPiano_Phase(PlayState* play);
 static s32 sNvDeskCam;      // the desk's camera is up while its item is offered
 static u8 sNvChoice; // the last yes / no a room's message asked: 0 yes, 1 no (g_menu_choice_id)
 static s32 sNvAsk;   // such a question is open
@@ -1261,6 +1275,7 @@ static void NvEvt_Init(NvEvt* e, s32 script) {
     e->state = 0;
     e->depth = -1;
     e->ip = sNvEvtTable + off;
+    e->hold = NULL;
     // ScdEventEntry_Init hands it the current entity: the creating event's character
     e->entKind = (sNvEvtCur != NULL) ? sNvEvtCur->entKind : 0xFF;
     e->entIdx = (sNvEvtCur != NULL) ? sNvEvtCur->entIdx : 0;
@@ -1548,7 +1563,7 @@ static s32 NvEvt_Move(NvEvt* e, const u8* p) {
 }
 
 /** ScdEventEntry_Create: a slot past 7 takes the first free one. */
-static void NvEvt_Create(s32 slot, s32 script) {
+static s32 NvEvt_Create(s32 slot, s32 script) {
     s32 i;
 
     if (slot >= NV_EVT_SLOTS) {
@@ -1558,7 +1573,7 @@ static void NvEvt_Create(s32 slot, s32 script) {
             }
         }
         if (i == NV_EVT_SLOTS) {
-            return;
+            return -1;
         }
         slot = i;
     }
@@ -1567,6 +1582,7 @@ static void NvEvt_Create(s32 slot, s32 script) {
         printf("NVEVT event %d starts in slot %d\n", (int)script, (int)slot);
         fflush(stdout);
     }
+    return slot;
 }
 
 /** One slot until it yields (room_events_check's per-slot loop). */
@@ -1577,6 +1593,10 @@ static void NvEvt_Step(NvEvt* e) {
     while (e->active && (++guard < 256)) {
         const u8* p = e->ip;
         s8 d = e->depth;
+
+        if ((e->hold != NULL) && (p == e->hold)) {
+            return; // (held until let go)
+        }
 
         if (getenv("NV_EVT_TRACE") != NULL) { // dev: each op an event runs, once per place in it
             static const u8* sLast[NV_EVT_SLOTS];
@@ -2325,7 +2345,7 @@ static void NvAsk_Update(PlayState* play) {
             sNvPianoAsk = false;
             Message_CloseTextbox(play);
             if (sNvChoice == 0) {
-                NvPiano_Listen(play);
+                NvPiano_Sit(play);
             }
             return;
         }
@@ -2471,6 +2491,49 @@ static s32 NvPiano_Offer(PlayState* play, s32 i) {
     return true;
 }
 
+static s32 sNvPianoPhase; // 1 sitting down (event 6 up to its playing), 2 the score, 3 the wrong notes
+static s32 sNvPianoSlot = -1; // event 6's slot, held where the playing starts
+static s32 sNvPianoStep;
+static s32 sNvPianoWait;
+
+void NvCast_SetRoomSet(const char* path);
+const char* NvScript_RoomPlayerPath(s32 chris);
+
+/**
+ * Yes at the piano: RE1's own scene up to the keys (event 0's flags, then event 6: she walks over,
+ * sits, the camera cuts to the keyboard), held there, just before its music, for the score.
+ */
+static void NvPiano_Sit(PlayState* play) {
+    const u8* at;
+
+    NvFlags_Op(6, 0x17, 1); // (event 0's: the pad held, the scene's flag up)
+    NvFlags_Op(5, 0x0F, 0);
+    sNvPianoSlot = NvEvt_Create(9, 6);
+    if (sNvPianoSlot < 0) {
+        NvPiano_Listen(play);
+        return;
+    }
+    at = sNvEvt[sNvPianoSlot].ip + 68; // (its "start the music" command: the playing follows it)
+    if ((at[0] == 0x07) && (at[1] == 0x04) && (at[2] == 0x15)) {
+        sNvEvt[sNvPianoSlot].hold = at;
+    } else { // (not the event 6 we know: the score at once)
+        sNvEvt[sNvPianoSlot].active = 0;
+        sNvPianoSlot = -1;
+        NvFlags_Op(6, 0x17, 0);
+        NvFlags_Op(5, 0x0F, 1);
+        NvPiano_Listen(play);
+        return;
+    }
+    sNvPianoPhase = 1;
+    printf("NVSONG sitting down at the piano\n");
+    fflush(stdout);
+}
+
+/** At the piano, free play's staff shows with the notes on it (z_message_PAL.c). */
+s32 NvPiano_Score(void) {
+    return sNvPianoListening || (sNvPianoResult != 0);
+}
+
 static void NvPiano_Listen(PlayState* play) {
     sNvPianoListening = true;
     sNvPianoCount = 0;
@@ -2523,13 +2586,90 @@ static void NvPiano_Update(PlayState* play) {
         return;
     }
     if (sNvPianoResult == 1) {
-        Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
-        NvEvt_Create(9, 0); // the room's own: "It's 'Moonlight Sonata'.", then the playing and the wall
+        Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME); // (OoT's stinger for a song that opens the way)
+        if ((sNvPianoSlot >= 0) && sNvEvt[sNvPianoSlot].active) {
+            NvFlags_Op(6, 0x17, 1);
+            sNvEvt[sNvPianoSlot].hold = NULL; // RE1's scene goes on: the music, the playing, the wall
+        } else {
+            NvEvt_Create(9, 0);
+        }
+        sNvPianoPhase = 0;
+        sNvPianoSlot = -1;
     } else {
         Sfx_PlaySfxCentered(NA_SE_SY_OCARINA_ERROR);
-        NvMsg_Show(play, "%cHey!%w That's not how it went...&Look at the sheet music again!");
+        if (sNvPianoSlot >= 0) {
+            sNvEvt[sNvPianoSlot].active = 0;
+            sNvPianoSlot = -1;
+        }
+        NvFlags_Op(6, 0x17, 1);
+        NvCast_SetRoomSet(NvScript_RoomPlayerPath(true)); // Chris's hesitant notes (his 10F event 1)
+        sNvPianoPhase = 3;
+        sNvPianoStep = 0;
+        sNvPianoWait = 0;
     }
     sNvPianoResult = 0;
+}
+
+/**
+ * The phases around the score: seated (event 6 held where the playing starts), the score opens;
+ * wrong, Chris's moves from his own 10F scene (a key, another, a long pause, a last one, then he
+ * gets up: animations 0x38, 0x39, 0x38, 0x2E of his room set), then she's hers again and the
+ * hint.
+ */
+static void NvPiano_Phase(PlayState* play) {
+    static const u8 sChris[4][2] = { { 0x38, 15 }, { 0x39, 95 }, { 0x38, 10 }, { 0x2E, 0 } }; // anim, RE1 ticks after
+    NvRe1Entity* e = NvCast_Player();
+
+    if (sNvPianoPhase == 1) {
+        if ((sNvPianoSlot < 0) || !sNvEvt[sNvPianoSlot].active) {
+            sNvPianoPhase = 0;
+            return;
+        }
+        if ((sNvEvt[sNvPianoSlot].ip == sNvEvt[sNvPianoSlot].hold) && ((e->action_behavior != 1) || (e->action_state >= 2))) {
+            NvFlags_Op(6, 0x17, 0); // (the score takes the pad)
+            NvPiano_Listen(play);
+            sNvPianoPhase = 2;
+        }
+        return;
+    }
+    if (sNvPianoPhase != 3) {
+        return;
+    }
+    if (sNvPianoWait > 0) {
+        sNvPianoWait--;
+        return;
+    }
+    if ((sNvPianoStep > 0) && (sChris[sNvPianoStep - 1][1] == 0) && (e->action_state < 2)) {
+        return; // (an animation played to its end)
+    }
+    if (sNvPianoStep < 4) {
+        e->state = 8;
+        e->ignore_player_flag = 0;
+        e->action_behavior = 1;
+        e->action_state = 0;
+        e->animationId = sChris[sNvPianoStep][0];
+        e->scd_anim_param = 0x20;
+        e->scd_entity_flags = 0;
+        e->scd_timer = 0;
+        sNvPianoWait = sChris[sNvPianoStep][1] * 2 / 3; // (RE1's ticks, 30 a second, in frames)
+        sNvPianoStep++;
+        return;
+    }
+    { // done: hers again, the camera back, and the hint
+        void NvCamera_CutRestore(void);
+        void NvCamera_Lock(s32 on);
+
+        NvCast_SetRoomSet(NULL);
+        e->state = 1;
+        e->action_behavior = 0;
+        e->action_state = 2;
+        NvFlags_Op(6, 0x17, 0);
+        NvFlags_Op(5, 0x0F, 1);
+        NvCamera_CutRestore();
+        NvCamera_Lock(0);
+        NvMsg_Show(play, "%cHey!%w That's not how it went...&Look at the sheet music again!");
+        sNvPianoPhase = 0;
+    }
 }
 
 /** Outside the mansion, the song in free play turns the clock to midnight (mod1's Easter egg). */
@@ -3041,6 +3181,34 @@ s32 NvAot_DoorSlot(s32 slot, f32* r, u8* flags) {
     return true;
 }
 
+/** dev (NV_AOT_TRACE): an action entry's handler or flags changing, and which event changed it. */
+static void NvAot_WatchFlags(s32 slot) {
+    static u8 sSeen[NV_AOT_SLOTS][2];
+    static s32 sRoom = -1;
+    s32 i;
+
+    if (getenv("NV_AOT_TRACE") == NULL) {
+        return;
+    }
+    if (sRoom != sNvStage * 0x100 + sNvRoom) {
+        sRoom = sNvStage * 0x100 + sNvRoom;
+        for (i = 0; i < NV_AOT_SLOTS; i++) {
+            sSeen[i][0] = sNvAot[i].handler;
+            sSeen[i][1] = sNvAot[i].flags;
+        }
+        return;
+    }
+    for (i = 0; i < NV_AOT_SLOTS; i++) {
+        if ((sSeen[i][0] != sNvAot[i].handler) || (sSeen[i][1] != sNvAot[i].flags)) {
+            printf("NVAOTFLAG %d: handler %d flags %02X -> handler %d flags %02X (event slot %d)\n", (int)i, sSeen[i][0],
+                   sSeen[i][1], sNvAot[i].handler, sNvAot[i].flags, (int)slot);
+            fflush(stdout);
+            sSeen[i][0] = sNvAot[i].handler;
+            sSeen[i][1] = sNvAot[i].flags;
+        }
+    }
+}
+
 /** dev: the room's live action entries and placed objects, logged (to pick "aot:N" steps). */
 void NvAot_DevList(void) {
     s32 i;
@@ -3417,6 +3585,7 @@ void NvScript_Update(PlayState* play) {
     gNvSunSongSeen = false;
     NvPickup_Update(play); // an item prompt's answer
     NvPiano_Update(play);  // the piano's song, once its staff has closed
+    NvPiano_Phase(play);   // sitting down to it, and the wrong notes
     NvAsk_Update(play);    // a room message's yes / no
     NvMf_Update(play);     // what a message holds still, and the pad
     if (sNvDeskCam && (sNvPickup < 0) && (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE)) {
@@ -3535,8 +3704,10 @@ void NvScript_Update(PlayState* play) {
                 }
                 NvEvt_Step(&sNvEvt[i]);
                 sNvEvtCur = NULL;
+                NvAot_WatchFlags(i);
             }
         }
+        NvAot_WatchFlags(-1);
         // room_state_reset, after the scripts and the events each frame: the item used and the
         // one picked up are seen once, and the system flags 0x20-0x3F (what the room's walk-in
         // zones raise for them) start again
@@ -3550,6 +3721,7 @@ void NvScript_Update(PlayState* play) {
             for (i = 0; i < NV_EVT_SLOTS; i++) {
                 live |= sNvEvt[i].active;
             }
+            live |= (sNvPianoPhase == 3); // (the wrong notes' moves: no event, still a scene)
             NvCast_Update(play, live); // the player, while a scene walks her
         }
     }

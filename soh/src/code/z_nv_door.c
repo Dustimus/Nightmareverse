@@ -65,6 +65,7 @@ s32 NvClimb_TryStart(PlayState* play, Player* player, f32 nearD, f32 farD, s32 s
 
 #define NV_DOOR_ACTION 0x80   // opens with the action button
 #define NV_DOOR_AT_PLAYER 0x40 // tested at the player's position, not in front of him
+#define NV_DOOR_PLAYER 0x01    // her probe tests it (without NV_DOOR_ACTION: each frame, by walking into it)
 // RE1's staircases between rooms are doors with a stairs scene (kai01..kai03: the foyer to 203,
 // 101 to 201, 10B to 207). Walking into one takes it, no A needed (the user's choice: RE1 wants
 // the action button); every other door opens on A only
@@ -207,8 +208,8 @@ static s32 NvDoor_Find(PlayState* play, Player* player, NvDoor* out) {
         } else if (!NvAot_DoorLive(door.x0, door.z0, door.x1, door.z1)) {
             continue;
         }
-        if (!(door.flags & NV_DOOR_ACTION) && !(door.flags & NV_DOOR_AT_PLAYER)) {
-            continue;
+        if (!(door.flags & (NV_DOOR_ACTION | NV_DOOR_AT_PLAYER | NV_DOOR_PLAYER))) {
+            continue; // (a zone no prober of hers tests: dead)
         }
         if (door.flags & NV_DOOR_AT_PLAYER) {
             px = player->actor.world.pos.x;

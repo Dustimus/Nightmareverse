@@ -22,6 +22,7 @@ s32 NvSong_Pending(void);
 void NvSong_PlayClip(void);
 void NvSong_Playback(void);
 void NvSong_Fanfare(void);
+s32 NvPiano_Score(void);
 
 // #region SOH [NTSC] - Allows custom messages to work on japanese
 static bool sDisplayNextMessageAsEnglish = false;
@@ -3008,7 +3009,9 @@ void Message_StartOcarina(PlayState* play, u16 ocarinaActionId) {
     osSyncPrintf("演奏開始\n");
     if (ocarinaActionId == OCARINA_ACTION_FREE_PLAY || ocarinaActionId == OCARINA_ACTION_CHECK_NOWARP) {
         msgCtx->msgMode = MSGMODE_OCARINA_STARTING;
-        msgCtx->textBoxType = 0x63;
+        if (!NvPiano_Score()) { // Nightmareverse: at RE1's piano, free play shows the staff (z_nv_script.c)
+            msgCtx->textBoxType = 0x63;
+        }
     } else if (ocarinaActionId == OCARINA_ACTION_FROGS) {
         msgCtx->msgMode = MSGMODE_FROGS_START;
         msgCtx->textBoxType = TEXTBOX_TYPE_BLUE;
@@ -4229,7 +4232,8 @@ void Message_DrawMain(PlayState* play, Gfx** p) {
         }
 
         if (msgCtx->msgMode >= MSGMODE_OCARINA_PLAYING && msgCtx->msgMode < MSGMODE_TEXT_AWAIT_NEXT &&
-            msgCtx->ocarinaAction != OCARINA_ACTION_FREE_PLAY && msgCtx->ocarinaAction != OCARINA_ACTION_CHECK_NOWARP) {
+            ((msgCtx->ocarinaAction != OCARINA_ACTION_FREE_PLAY && msgCtx->ocarinaAction != OCARINA_ACTION_CHECK_NOWARP) ||
+             NvPiano_Score())) {
             Gfx_SetupDL_39Ptr(&gfx);
 
             gDPSetCombineLERP(gfx++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0, PRIMITIVE,

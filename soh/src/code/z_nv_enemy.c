@@ -1618,6 +1618,108 @@ void NvCast_Placed(void) {
 }
 
 /** Every frame (NvScript_Update): Link walked by the script while it holds her, else followed. */
+/*
+ * The scenes' player animations (cmd 0x84's 0x10-0x3D: player_scd_behavior_01 plays them from the
+ * room's own set, RDT+0x6C/0x70): the stand-in takes its timing from them, so a scene waits as long
+ * as RE1's does, and Link plays the same one on his own skeleton (z_nv_linkanim.c), held at the
+ * stand-in's step. NvCast_SetRoomSet swaps in another set for a while (10F's wrong notes: Chris's).
+ */
+const char* NvScript_RoomPlayerPath(s32 chris);
+s32 NvLinkAnim_PlayFrom(const char* path, s32 skip, s32 anim, s32 hold, s32 mirror);
+void NvLinkAnim_Stop(void);
+void NvLinkAnim_Pin(s32 step);
+
+static NvRe1Anim sNvCastBank;
+static char sNvCastBankPath[40];
+static s32 sNvCastBankOk;
+static const char* sNvCastSetOverride; // another set's path (NULL: the room's own)
+static s32 sNvCastShown = -1;          // the animation Link is playing for the scene (-1: none)
+static char sNvCastShownPath[40];
+
+void NvCast_SetRoomSet(const char* path) {
+    sNvCastSetOverride = path;
+}
+
+static const char* NvCast_SetPath(void) {
+    return (sNvCastSetOverride != NULL) ? sNvCastSetOverride : NvScript_RoomPlayerPath(false);
+}
+
+/** The set as RE1's animation bank ("RPLA": bones, then frames and the list), or NULL. */
+static const NvRe1Anim* NvCast_Bank(const char* path) {
+    const u8* d;
+    u16 n, nf, na;
+    s32 i;
+
+    if (path == NULL) {
+        return NULL;
+    }
+    if (strcmp(path, sNvCastBankPath) == 0) {
+        return sNvCastBankOk ? &sNvCastBank : NULL;
+    }
+    snprintf(sNvCastBankPath, sizeof(sNvCastBankPath), "%s", path);
+    sNvCastBankOk = false;
+    memset(&sNvCastBank, 0, sizeof(sNvCastBank));
+    d = (const u8*)ResourceGetDataByName(path);
+    if ((d == NULL) || (memcmp(d, "RPLA", 4) != 0)) {
+        return NULL;
+    }
+    memcpy(&n, d + 4, 2);
+    d += 6 + n * 8;
+    memcpy(&nf, d, 2);
+    d += 2;
+    sNvCastBank.numJoints = MIN(n, NV_RE1_JOINTS);
+    sNvCastBank.frameShorts = 6 + 3 * n;
+    sNvCastBank.numFrames = nf;
+    sNvCastBank.frames = (const s16*)d;
+    d += nf * sNvCastBank.frameShorts * 2;
+    memcpy(&na, d, 2);
+    d += 2;
+    sNvCastBank.numAnims = MIN(na, 64);
+    for (i = 0; i < sNvCastBank.numAnims; i++) {
+        u16 ns;
+
+        memcpy(&ns, d, 2);
+        d += 2;
+        sNvCastBank.numSteps[i] = ns;
+        sNvCastBank.steps[i] = (const u16*)d;
+        d += ns * 4;
+    }
+    sNvCastBankOk = true;
+    return &sNvCastBank;
+}
+
+/** The bank for the stand-in's behaviour now: the set when it's playing one of the set's animations. */
+static const NvRe1Anim* NvCast_SceneBank(NvRe1Entity* e) {
+    const NvRe1Anim* b;
+
+    if ((e->state != 8) || (e->action_behavior != 1) || (e->animationId < 0x10) || (e->animationId >= 0x3E) ||
+        getenv("NV_NOSCENEANIM")) {
+        return NULL;
+    }
+    b = NvCast_Bank(NvCast_SetPath());
+    return ((b != NULL) && (e->animationId < b->numAnims) && (b->numSteps[e->animationId] > 0)) ? b : NULL;
+}
+
+/** Link shows the stand-in's scene animation, at its step; stops when it has none. */
+static void NvCast_ShowScene(NvRe1Entity* e) {
+    const char* path = NvCast_SetPath();
+
+    if ((e->anim != NULL) && (path != NULL)) {
+        if ((sNvCastShown != e->animationId) || (strcmp(path, sNvCastShownPath) != 0)) {
+            sNvCastShown = NvLinkAnim_PlayFrom(path, 0, e->animationId, true, false) ? e->animationId : -1;
+            snprintf(sNvCastShownPath, sizeof(sNvCastShownPath), "%s", path);
+            if (getenv("NV_LOG")) {
+                printf("NVCAST Link plays %s animation 0x%02X\n", path, e->animationId);
+                fflush(stdout);
+            }
+        }
+        NvLinkAnim_Pin(e->animation_frame_id);
+    } else if (sNvCastShown >= 0) {
+        NvLinkAnim_Stop();
+        sNvCastShown = -1;
+    }
+}
+
 void NvCast_Update(PlayState* play, s32 eventsLive) {
     Player* player = GET_PLAYER(play);
     NvRe1Entity* e = &sNvCastPlayer;
@@ -1635,6 +1737,11 @@ void NvCast_Update(PlayState* play, s32 eventsLive) {
         e->state = 1; // (the scene ended with her still held: she's let go)
     }
     if (e->state != 8) {
+        if (sNvCastShown >= 0) {
+            NvLinkAnim_Stop();
+            sNvCastShown = -1;
+        }
+        e->anim = NULL;
         sNvCastHeldFrames = 0;
         if (sNvCastHeld) {
             sNvCastHeld = false;
@@ -1670,8 +1777,11 @@ void NvCast_Update(PlayState* play, s32 eventsLive) {
         ticks = (sNvCastPhase ^= 1) ? 1 : 2;
         for (t = 0; t < ticks; t++) {
             NvRe1_TickBegin();
+            e->anim = NvCast_SceneBank(e); // (RE1's timing for a scene's animation; else the fixed hold)
             NvNpc_PlayerTick(e);
         }
+        e->anim = NvCast_SceneBank(e);
+        NvCast_ShowScene(e);
         if (getenv("NV_LOG") && ((sNvCastHeldFrames % 20) == 1)) {
             printf("NVCASTP held %d beh %d/%d at %d,%d target %d,%d flag %02X angle %d\n", (int)sNvCastHeldFrames,
                    e->action_behavior, e->action_state, (int)e->t[0], (int)e->t[2], e->unk_c6, e->unk_c8,

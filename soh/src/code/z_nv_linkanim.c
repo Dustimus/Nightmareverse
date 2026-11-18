@@ -25,7 +25,7 @@
 #include <string.h>
 
 #define NV_LA_MAX_BONES 24
-#define NV_LA_MAX_ANIMS 32
+#define NV_LA_MAX_ANIMS 64 // (a room's player set: up to 0x3D, indexed by the scripts' numbers)
 #define NV_LA_PI 3.14159265f
 
 typedef struct {
@@ -53,6 +53,7 @@ static s32 sNvLaAnim;
 static s32 sNvLaStep;
 static s32 sNvLaHold; // stop at the last step instead of looping
 static u8 sNvLaPhase;
+static s32 sNvLaPin = -1; // the step the caller holds it at (the cast: the scene's own step), or -1
 
 /* ---- small 3x3 math ---- */
 
@@ -366,6 +367,7 @@ s32 NvLinkAnim_Play(s32 type, s32 anim, s32 hold) {
  */
 s32 NvLinkAnim_PlayFrom(const char* path, s32 skip, s32 anim, s32 hold, s32 mirror) {
     sNvLaMirror = mirror;
+    sNvLaPin = -1;
     if (!NvLa_LoadPath(path, skip)) {
         sNvLaActive = false;
         return false;
@@ -383,6 +385,12 @@ s32 NvLinkAnim_Step(s32* numSteps) {
 
 void NvLinkAnim_Stop(void) {
     sNvLaActive = false;
+    sNvLaPin = -1;
+}
+
+/** Hold the animation at this step (the cast: RE1's own step for the scene), or let it run (-1). */
+void NvLinkAnim_Pin(s32 step) {
+    sNvLaPin = step;
 }
 
 s32 NvLinkAnim_Playing(void) {
@@ -439,9 +447,13 @@ void NvLinkAnim_Apply(Player* player, PlayState* play) {
         s32 ticks = (sPhase ^= 1) ? 1 : 2;
         s32 last = sNvLa.numSteps[sNvLaAnim] - 1;
 
-        sNvLaStep += ticks;
-        if (sNvLaStep > last) {
-            sNvLaStep = sNvLaHold ? last : (sNvLaStep % (last + 1));
+        if (sNvLaPin >= 0) {
+            sNvLaStep = MIN(sNvLaPin, last);
+        } else {
+            sNvLaStep += ticks;
+            if (sNvLaStep > last) {
+                sNvLaStep = sNvLaHold ? last : (sNvLaStep % (last + 1));
+            }
         }
         frame = sNvLa.steps[sNvLaAnim][sNvLaStep * 2];
         if (frame >= sNvLa.numFrames) {
