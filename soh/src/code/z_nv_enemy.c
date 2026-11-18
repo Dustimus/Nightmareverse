@@ -1747,6 +1747,7 @@ void NvCast_Update(PlayState* play, s32 eventsLive) {
             sNvCastHeld = false;
             gNvCastHolding = false;
             Player_SetCsAction(play, NULL, 7);
+            Interface_ChangeHudVisibilityMode(HUD_VISIBILITY_ALL); // (the scene's over: the HUD back)
         }
         e->t[0] = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
         e->t[1] = (s32)lroundf(-player->actor.world.pos.y / NV_RE1_SCALE);
@@ -1768,6 +1769,11 @@ void NvCast_Update(PlayState* play, s32 eventsLive) {
         Player_SetCsAction(play, NULL, 8);
     }
     sNvCastHeldFrames++;
+    // RE1 has no HUD: a scene that holds her plays without OoT's, as OoT's own cutscenes do; the
+    // ocarina's modes keep theirs (the piano's staff and its "Stop")
+    if ((play->msgCtx.msgMode < MSGMODE_OCARINA_STARTING) || (play->msgCtx.msgMode >= MSGMODE_TEXT_AWAIT_NEXT)) {
+        Interface_ChangeHudVisibilityMode(HUD_VISIBILITY_NOTHING);
+    }
     {
         s32 x0 = e->t[0];
         s32 z0 = e->t[2];
