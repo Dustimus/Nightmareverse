@@ -57,11 +57,20 @@ RE1 pieces that MM's plans run into, to raise with the user before building the 
     agreed first.
   - None of MM's songs is the mansion song.
 - **The Moonlight Sonata Easter egg.** RE1's Sonata (A, C-Down, C-Right, twice) sets OoT's
-  clock to midnight in free play outside the mansion. Once RE1's scene check has an upper end,
-  it would also run in Termina and jump the 3-day clock to midnight. Decide whether Termina
-  takes that as a time skip or ignores it.
-  - The Sonata's notes are the Song of Time shifted by one note. The Song of Time is played
-    constantly in MM, so test that the two can't trigger each other.
+  clock to midnight in free play outside the mansion.
+  - **Decided with the user (2026-11-19): in Termina it's a time skip.** It jumps the 3-day
+    clock to that day's midnight. Warping by the Song of Time's variants alone often isn't
+    enough, and MM3D has a similar choose-your-hour feature.
+  - **A clash, reported to the RE1 chat.** Its listener keeps the last 8 notes across ocarina
+    uses and clears them only on its own match. So the Song of Time (R A D R A D), then the
+    Song of Time started again (R), completes A D R A D R: midnight. `tools/nv_songs.py`
+    finds it.
+- **Songs from every game: one list, checked for clashes** (`tools/nv_songs.py`, decided with
+  the user that clashes matter, 2026-11-19: probably at least one song per game).
+  - A song clashes when its notes appear in a row inside another's, since the ocarina listens
+    as the notes are played.
+  - Today: OoT's 12, RE1's 2 and MM's 9 new ones, with no clashes, apart from the leftover-notes
+    case above.
 - **Pause menu.** RE1 replaces the map page with its status and map screens in RE1's rooms
   (z_kaleido_scope_PAL.c, z_kaleido_setup.c). MM's mask screen and Bomber's Notebook would hook
   the same place, gated by Termina's scenes the same way.
@@ -90,6 +99,7 @@ scenes from 0x10E and entrances from 0xF64, after RE1's. Run it when the scene l
   matrices) and writes Torch's declarations for them.
 - `mm_scene.py`: the scene and room headers, as SoH XML.
 - `soh_tables.py`: the scene and entrance tables.
+- `nv_songs.py`: every game's ocarina songs, checked for clashes (cross-game; add a new song here first).
 
 - `mm_rom.py`: checks the ROM against known releases (US N64 1.0 so far) and finds files in
   its file table. `python mm/tools/mm_rom.py <rom>` lists Clock Town's files.
