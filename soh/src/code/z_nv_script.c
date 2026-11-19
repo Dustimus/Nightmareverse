@@ -501,6 +501,8 @@ static u8 sNvLastEnemyFlags; // g_scdLastEnemyFlags
 static s32 sNvDeskAsk = -1; // check_desk: the desk whose "use the key?" is open
 static s32 sNvPianoAsk; // 10F's piano: its "play it?" is open
 static void NvPiano_Listen(PlayState* play);
+static void NvPickup_Map(s32 i);
+static void NvMap_Visited(s32 stage, s32 room);
 static void NvPiano_Sit(PlayState* play);
 static s32 NvPiano_Offer(PlayState* play, s32 i);
 static void NvSonata_Learn(void);
@@ -2005,8 +2007,10 @@ static void NvAot_Run(s32 i, s32 handler) {
         case 2:
             NvScd_Message(a->param[0] & 0x7F, a->param[1]);
             break;
-        case 4:
         case 0x0F:
+            NvPickup_Map((s32)(a - sNvAot));
+            break;
+        case 4:
             if ((Message_GetState(&sNvPlay->msgCtx) == TEXT_STATE_NONE) && (a->item != 0)) {
                 NvPickup_Prompt(a->item);
                 sNvMsgText = sNvPrompt;
@@ -2065,7 +2069,11 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         return false;
     }
     sNvActFrame = play->gameplayFrames;
-    if ((sNvAot[i].handler == 4) || (sNvAot[i].handler == 0x0F)) { // an item or a map: take it?
+    if (sNvAot[i].handler == 0x0F) { // a map: RE1 takes it at once
+        NvPickup_Map(i);
+        return true;
+    }
+    if (sNvAot[i].handler == 4) { // an item: take it?
         NvPickup_Prompt(sNvAot[i].item);
         sNvMsgText = sNvPrompt;
         sNvPickup = i;
@@ -2877,6 +2885,65 @@ s32 NvScript_RoomNum(void) {
     return sNvRoom;
 }
 
+/** Where she is in RE1's terms (g_stageId, g_roomId, g_roomCameraId), for the map (z_nv_map.c). */
+void NvScript_Where(s32* stage, s32* room, s32* camera) {
+    *stage = sNvStage;
+    *room = sNvRoom;
+    *camera = sNvCamera;
+}
+
+/*
+ * The map's flags, bank 8 (g_RoomFlags): room_set_visited_flag (0x00488570) raises the room's bit
+ * as it loads, g_StageRoomFlagOffset[stage % 5] + room (the second visit's stages share the first's);
+ * a map taken raises 0x7C + its map index (set_room_item_seen_flag, 0x004885a0).
+ */
+static const u8 sNvRoomFlagBase[5] = { 0, 32, 63, 82, 100 };
+
+static void NvMap_Visited(s32 stage, s32 room) {
+    if ((stage >= 0) && (room >= 0) && (room < 32)) {
+        NvFlags_Op(8, sNvRoomFlagBase[stage % 5] + room, 0);
+    }
+}
+
+static void NvMap_Owned(s32 item) {
+    if ((item >= 0x4E) && (item <= 0x53)) {
+        NvFlags_Op(8, 0x7C + item - 0x4E, 0);
+    }
+}
+
+/**
+ * pickup_key_event (0x0041be70, room action 0x0F): a map is taken at once, without a question and
+ * into no slot: the entry goes, the item's taken flag is set, the map is owned, and the item is
+ * what the scripts' picked_item_test sees (the room's script says what was found).
+ */
+static void NvPickup_Map(s32 i) {
+    NvAot* a = &sNvAot[i];
+
+    NvItems_SetTaken(a->itemFlag);
+    NvFx_Kill(a->sparkle);
+    a->sparkle = 0xFF;
+    a->handler = 0;
+    NvMap_Owned(a->item);
+    sNvPickedItem = a->item;
+    printf("NVITEM took the map %02X (flag %d)\n", a->item, a->itemFlag);
+    fflush(stdout);
+}
+
+/** An older save's maps in Jill's slots or the box (maps were once taken as items): owned instead. */
+static void NvMap_FromSlots(void) {
+    s32 NvItems_RemoveMaps(void);
+    s32 found = NvItems_RemoveMaps();
+    s32 k;
+
+    for (k = 0; k < 6; k++) {
+        if (found & (1 << k)) {
+            NvMap_Owned(0x4E + k);
+            printf("NVITEM an older save's map %02X: owned, out of the slots\n", 0x4E + k);
+            fflush(stdout);
+        }
+    }
+}
+
 void NvScript_RoomInit(PlayState* play) {
     NvFlags_NewGame();
     sNvLightState = -1; // (room_set: the special light off)
@@ -2904,6 +2971,7 @@ void NvScript_RoomInit(PlayState* play) {
     NvCast_RoomLoad();
     sNvUsedItem = sNvPickedItem = 0; // (room_set clears them)
     sNvSprOff = 0;
+    NvMap_FromSlots();
     if (getenv("NV_TEXT_TEST") != NULL) { // dev: the executable's text as the game shows it
         NvPickup_Prompt(0x1F);
         printf("NVTEXT prompt: %s\nNVTEXT carry: %s\nNVTEXT msg 8: %s\nNVTEXT name 0x41: %s\nNVTEXT desc 2: %s\n", sNvPrompt,
@@ -2975,6 +3043,7 @@ void NvScript_RoomInit(PlayState* play) {
             sNvFreshRoom = false;
             sNvStage = stage;
             sNvRoom = (u8)room;
+            NvMap_Visited(stage, room);
         }
     }
     sNvCamera = GET_ACTIVE_CAM(play)->camDataIdx;

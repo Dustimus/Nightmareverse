@@ -22,7 +22,7 @@ endings follow from the same scripts' flags). In it:
 You get in from Hyrule by playing the mansion's song on the ocarina (below). Chris's game isn't
 playable: Link plays Jill.
 
-Open, in the sections below: the status screen's map and radio; blood from hits, shadows and the
+Open, in the sections below: the status screen's radio; blood from hits, shadows and the
 muzzle flash; a few gun rules (line of sight, low aim, the launcher's rounds, loading by Combine,
 per-enemy ranges); items hung on the player (taken, not drawn); the box's sliding list and its
 Hyrule side; stereo panning; the Japanese release's text; ceilings; a way in through the Lost Woods.
@@ -258,7 +258,9 @@ Japanese release's text (its own font encoding).
 
 Pickups (2026-10-30): the scripts' item_set (0x18) puts each item lying in a room into the room
 action table (handler 4 an item, 0x0F a map, 0x0D a document; none once taken). A on one asks RE1's own
-"Will you take the <item>?" (its shared message 0) with OoT's yes/no (`soh/src/code/z_nv_items.c`); yes takes it by RE1's rules (room_event_item_pickup: ammo and ink
+"Will you take the <item>?" (its shared message 0) with OoT's yes/no (`soh/src/code/z_nv_items.c`);
+a map (handler 0x0F) is RE1's pickup_key_event instead: no slot, it's owned (8:0x7C + its index),
+usually through its room's event asking first ("A dormitory sketch. Will you take it?"); yes takes it by RE1's rules (room_event_item_pickup: ammo and ink
 ribbons merge into a carried stack up to 250, the rest a new slot; with no room it stays where it
 lies) and sets the item's taken flag, so it's gone from the room. Jill's 8 slots, the item box and
 the taken flags are saved with the game. The items lying in a room are drawn
@@ -299,7 +301,22 @@ box: Equip (weapons only; RE1's g_EquippedItemId, which follows its slot as slot
 Weapons), Use (heals by RE1's g_ItemHealTable: a third, two thirds or
 all of Link's hearts; an item that would do nothing isn't used up), Check, Combine (then the second
 item: RE1's herb mixes). Up from the top slots reaches the tabs: Exit closes the pause menu, File
-lists the files found, Map still says "No map of this area." (RE1's maps aren't in yet).
+lists the files found, and Map opens RE1's map screen (below).
+
+Map screen (2026-11-19, `soh/src/code/z_nv_map.c`, MainMenu.cpp's menu_init_map_screen,
+menu_map_state_machine, map_tab_* and map_display_*): RE1's two views under the tabs. The browser
+shows the section overview (item_m2/map0d, 0c, 00 or 0e: the highest section known), the known
+sections' markers, the section's name and the floor's label, and blinking arrows to the floors
+beside it; up/down change the floor, left/right the section, A opens the floor's map, B leaves. The
+floor's map (map01..0b by RE1's area, over Map_blue.tim) opens and closes with RE1's stretch and has
+a scan line at rest; B closes it. What it shows is RE1's: each room owns six colours of the floor
+picture's palette (from entry 13), cleared when it hasn't been visited (wholly without the area's
+map, the fill only with it), and the room she's in drawn again in red, blinking. Visited is bank 8's
+g_StageRoomFlagOffset[stage % 5] + room, raised as each room loads (room_set_visited_flag); owned is
+8:0x7C + the map's index. Jill's serum objective blinks on the 1F map with RE1's marker while it's
+outstanding. The pictures are the player's own, kept with their palettes (`re1/ui/map`,
+`tools/soh_ui.py` map_blob) so the colours can be edited as RE1 does. Saves from before this have
+no visited rooms yet: the map fills in from here on.
 
 Files (2026-11-03): a document lying in a room (item 0x5F + its file number, handler 0x0D) is
 taken with A and, as in RE1, read at once on its own screen: the room holds and the pages show over

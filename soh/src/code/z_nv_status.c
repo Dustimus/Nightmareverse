@@ -56,7 +56,7 @@ static const char* NvSt_Description(s32 id) {
 }
 s32 NvItems_Combine(s32 a, s32 b);
 
-typedef enum { NV_ST_BROWSE, NV_ST_ACTIONS, NV_ST_COMBINE, NV_ST_FILES } NvStMode;
+typedef enum { NV_ST_BROWSE, NV_ST_ACTIONS, NV_ST_COMBINE, NV_ST_FILES, NV_ST_MAP } NvStMode;
 
 /** RE1's item icons ("re1/ui/icons", re1/tools/soh_ui.py): "RICN", u16 count, w, h, RGBA5551. */
 static const u8* NvSt_Icons(void) {
@@ -236,6 +236,10 @@ const char* NvFiles_Name(s32 k);
 s32 NvFiles_Reading(void);
 s32 NvFiles_Update(Input* input, s32 stickX);
 Gfx* NvFiles_Draw(Gfx* gfx);
+s32 NvMap_Ready(void);
+void NvMap_Open(void);
+s32 NvMap_Update(s8 dir, s32 pressA, s32 pressB);
+Gfx* NvMap_Draw(Gfx* gfx);
 
 #define NV_ST_TABS_ROW NV_ST_SLOTS // the cursor on the tabs
 
@@ -338,9 +342,16 @@ static void NvSt_ClosePause(PlayState* play) {
 
 static void NvSt_TabAction(PlayState* play) {
     switch (sNvStTab) {
-        case NV_TAB_MAP:
-            snprintf(sNvStLine, sizeof(sNvStLine), "No map of this area.");
-            NvSt_Sfx(NA_SE_SY_ERROR);
+        case NV_TAB_MAP: // RE1's map screen (z_nv_map.c), under the tabs
+            if (NvMap_Ready()) {
+                NvMap_Open();
+                sNvStMode = NV_ST_MAP;
+                sNvStLine[0] = '\0';
+                NvSt_Sfx(NA_SE_SY_DECIDE);
+            } else {
+                snprintf(sNvStLine, sizeof(sNvStLine), "No map of this area.");
+                NvSt_Sfx(NA_SE_SY_ERROR);
+            }
             break;
         case NV_TAB_FILE:
             if (NvFiles_Count() == 0) {
@@ -370,6 +381,11 @@ static void NvSt_Input(PlayState* play) {
     s32 id;
 
     switch (sNvStMode) {
+        case NV_ST_MAP:
+            if (NvMap_Update(dir, pressA, CHECK_BTN_ALL(input->press.button, BTN_B)) < 0) {
+                sNvStMode = NV_ST_BROWSE;
+            }
+            break;
         case NV_ST_BROWSE:
             NvSt_MoveCursor(dir, true);
             if (!pressA) {
@@ -547,7 +563,7 @@ void NvStatus_DrawItem(Gfx** gfxP, s32 id, s32 qty, s32 x, s32 y) {
 
 /** Whether B is the status screen's (a file open): not the pause menu's save prompt. */
 s32 NvStatus_HoldsB(void) {
-    return NvFiles_Reading();
+    return NvFiles_Reading() || (sNvStMode == NV_ST_MAP); // (B steps back through the map, as RE1's cancel)
 }
 
 /**
@@ -610,6 +626,9 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
                 NvSt_Pic(&gfx, NV_SPR_TAB_CUR, 0, 0, 0, NV_ST_TAB_X(i), NV_ST_TAB_Y, 255, 90);
             }
         }
+        if (sNvStMode == NV_ST_MAP) { // the map under the tabs, in the face's and slots' place
+            gfx = NvMap_Draw(gfx);
+        } else {
         // the face, the condition, and the equipped weapon
         NvSt_Pic(&gfx, NV_SPR_FACE, 0, 0, 0, NV_ST_FACE_X, NV_ST_FACE_Y, 255, 255);
         NvSt_Pic(&gfx, NV_SPR_COND, NvSt_ConditionRow(), 1, 8, NV_ST_FACE_X + 38, NV_ST_FACE_Y + 11, 255, 255);
@@ -636,6 +655,7 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
             NvSt_Pic(&gfx, NV_SPR_ACT_CUR, 0, 0, 0, NV_ST_ACT_X, NV_ST_ACT_Y + (sNvStAction - first) * 24, 255,
                      255);
         }
+        }
     }
     gDPPipeSync(gfx++);
 
@@ -652,7 +672,7 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
             GfxPrint_Printf(&printer, "%.6s", (id == 0) ? "-" : NvItems_Name(id));
         }
     }
-    if (pics && (NvItems_Equipped() >= 0)) {
+    if (pics && (NvItems_Equipped() >= 0) && (sNvStMode != NV_ST_MAP)) {
         GfxPrint_SetColor(&printer, 255, 210, 60, 255);
         GfxPrint_SetPos(&printer, (NV_ST_X(NvItems_Equipped()) + 32) / 8, NV_ST_Y(NvItems_Equipped()) / 8);
         GfxPrint_Printf(&printer, "E");
@@ -669,7 +689,9 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
     }
     // the message line: the item under the cursor's name, or what just happened
     GfxPrint_SetPos(&printer, 5, 20);
-    if (sNvStLine[0] != '\0') {
+    if (sNvStMode == NV_ST_MAP) {
+        // (the map has the page)
+    } else if (sNvStLine[0] != '\0') {
         // word-wrapped to 19 columns, up to four lines; RE1's colour (%r / %w) and box (^) codes
         // are left out here
         char plain[200];

@@ -15,6 +15,8 @@ action box): "RSPR", u16 count, then per sprite u16 width, height and its RGBA55
 decomp's menu tables): STATUS.TIM and ITEMBOXN.TIM, each in its first CLUT: "RSHT", u16 count,
 then per sheet u16 width, height and its RGBA5551 pixels (big-endian; colour 0 clear).
 
+"re1/ui/map": the map screen's pictures (item_m2/map*.tim), raw: see map_blob.
+
 "re1/ui/file<n>": file n's pages (z_nv_files.c), from the player's item_m2/filem_*.pix (RE1's
 g_filemPixNames order: l to z, then 00; each a table of u32 offsets to PAK-packed 4 bpp TIMs):
 "RFIL", u16 pages, width, height, then each page as RGBA5551, big-endian.
@@ -140,6 +142,47 @@ def write_sheets(re1, out):
     open(os.path.join(d, "sheets"), "wb").write(
         soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
     return len(SHEETS)
+
+
+# The map screen's pictures (MainMenu.cpp g_MapTabFileNames, g_MapFileNames, g_MapBlueFileName), in
+# z_nv_map.c's order: the four section overviews (layouts 0-3: the mansion; with the courtyard; with
+# the guardhouse; with the lab), the eleven floor maps by RE1's area number, and the blue grid.
+MAP_TIMS = (["map0d.tim", "map0c.tim", "map00.tim", "map0e.tim"] +
+            ["map0%s.tim" % c for c in "12345ab6789"] + ["Map_blue.tim"])
+
+
+def map_blob(re1):
+    """ "re1/ui/map": "RMAP", u16 count, then per picture u16 width, height, its 256 colours as RE1
+    has them (PS1 BGR555 with the STP bit, little-endian) and its 8 bpp pixels: z_nv_map.c edits the
+    colours as RE1 does (a room's six entries cleared to hide it) before it builds the picture."""
+    d = rdt.find_file(re1, "ITEM_M2")
+    out = bytearray(b"RMAP" + struct.pack("<H", len(MAP_TIMS)))
+    for name in MAP_TIMS:
+        raw = open(rdt.find_file(d, name), "rb").read()
+        _tag, flags = struct.unpack_from("<2I", raw, 0)
+        if (flags & 7) != 1 or not (flags & 8):
+            raise IndexError("%s: not an 8 bpp TIM with a palette" % name)
+        p = 8
+        ln, _x, _y, cw, ch = struct.unpack_from("<I4H", raw, p)
+        clut = raw[p + 12:p + 12 + 512]
+        p += ln
+        ln, _x, _y, ww, h = struct.unpack_from("<I4H", raw, p)
+        w = ww * 2
+        out += struct.pack("<2H", w, h) + clut + raw[p + 12:p + 12 + w * h]
+    return bytes(out)
+
+
+def write_map(re1, out):
+    """Write the map screen's pictures; returns how many (0 when the files aren't there)."""
+    try:
+        blob = map_blob(re1)
+    except (OSError, IndexError, struct.error):
+        return 0
+    d = os.path.join(out, "re1", "ui")
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, "map"), "wb").write(
+        soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    return len(MAP_TIMS)
 
 
 FILE_PIX = ["filem_%s0.pix" % c for c in "lmnopqrstuvwxyz"] + ["filem_00.pix"]
