@@ -142,6 +142,60 @@ close to the current shape:
 Handed to the RE1 chat, as the user said. RE2 and RE3 share most of RE1's room formats, so they
 reuse almost everything.
 
+## Majora's Mask merged into OoT (talked over with the user, 2026-11-19)
+
+The user wants MM's content to become part of OoT's game: one Link, one inventory, one save.
+They don't want the usual approach, a door that swaps to the other game.
+
+**How:** the RE1 pattern.
+- Termina's scenes are converted from the player's own MM copy and registered after RE1's.
+- MM's actors are ported one at a time to OoT's engine, which SoH runs.
+- Where OoT already has an equivalent actor (many are shared), OoT's version is used.
+
+The alternative was to compile 2Ship's whole engine inside SoH next to OoT's. Two engines with
+the same names everywhere is the bigger mess, so not that.
+
+**Problems to solve (in roughly this order):**
+1. **Scene loading.** MM's scene and room format is close to OoT's, with some new commands.
+   Both ports use `.o2r`, so this is the cheapest part.
+2. **Actors.** Each one needs its MM code ported to OoT's actor API. There are a lot of them,
+   but they're independent, so it can go room by room.
+3. **The 3-day clock.**
+   - Option: it runs only in Termina, and the Song of Time resets only Termina's flags, so
+     OoT's progress is never wiped.
+   - Open questions: does time pass while Link is in Hyrule? Is adult Link allowed in Termina?
+4. **Items and masks.**
+   - MM's items, the Bomber's Notebook and the mask screen go into OoT's inventory and pause
+     menu (`z_kaleido_*`, a hook point shared with RE1).
+   - Masks that are just items come first.
+5. **Transformations (Deku, Goron, Zora, Fierce Deity).**
+   - The biggest piece, and the one that makes it feel like MM: porting MM's player code for
+     each form into `z_player.c`.
+   - That's the shared file most at risk of clashing with RE1's branch, so the plan for it gets
+     raised with the user, and timed against RE1's work, before anything is written.
+6. **Save.** MM's state is added to OoT's save, not kept as a separate file.
+
+**Reference:** the OoT+MM combo randomizer (OoTMM) already merges the two games' item pools and
+flags. It still switches between the two games underneath, but it's a useful map of which items
+and flags line up.
+
+**Suggested start:** one region (Clock Town, or the entry through the Lost Woods): scene,
+actors, a clock that runs in Termina only. No transformations yet.
+
+## Pokémon system (talked over with the user, 2026-11-19)
+
+The user's idea: bring Colosseum's Pokémon system into the world, not necessarily Orre itself.
+Their worry: Colosseum's own roster is small (its Shadow Pokémon).
+
+- **Data:** I believe the roster isn't actually limited. Colosseum's battle mode takes Pokémon
+  traded in from the GBA games, so its engine and disc should cover all 386 Gen 3 species
+  (stats, moves, models), not just the Shadow ones. Worth confirming in the decomp.
+- **Design:** which Pokémon appear, and where, becomes a design choice (wild encounters in
+  Hyrule's fields, trainers, Shadow Pokémon as a story thread), not a data limit. So XD isn't
+  needed to start.
+- **Catching:** Colosseum has no wild catching, only snagging from trainers. The catch formula
+  is the same Gen 3 one, so wild catching in Hyrule is a design addition, not new rules.
+
 ## Ideas that cross games
 
 - **Cross-game randomizer.**
