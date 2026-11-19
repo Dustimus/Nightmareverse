@@ -2440,7 +2440,7 @@ static const u8 sNvSongNotes[] = { OCARINA_BTN_C_DOWN, OCARINA_BTN_C_RIGHT, OCAR
 s16 NvDoor_Entrance(const char* sceneFile, s32 spawn);
 static s32 sNvWarpIn;     // a warp song into the mansion is on its way
 static s32 sNvSongPlayed; // the mansion's song was just played (the warp sequence is running)
-static u8 sNvSongHeard[8]; // the last notes played in free play, newest last
+static u8 sNvSongHeard[8] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }; // the last notes played in free play, newest last (0xFF none)
 static void NvSong_Restore(void);
 
 /*
@@ -2696,6 +2696,17 @@ static void NvSonata_Midnight(PlayState* play) {
     Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
     printf("NVSONG the Moonlight Sonata: midnight\n");
     fflush(stdout);
+}
+
+/**
+ * The notes heard so far go (z_message_PAL.c): as the ocarina comes out, and when OoT recognises
+ * one of its own songs. A song of ours is matched only from notes played in one go: the Moonlight
+ * Sonata (A, C-Down, C-Right twice) is the Song of Time shifted by a note, and leftovers from one
+ * Song of Time would complete it on the next one's first note. (Before the first, the buffer read
+ * as A notes: 0 is OCARINA_BTN_A.)
+ */
+void NvSong_Reset(void) {
+    memset(sNvSongHeard, 0xFF, sizeof(sNvSongHeard));
 }
 
 /** A note played in free play (z_message_PAL.c): true when it completes the mansion's song. */

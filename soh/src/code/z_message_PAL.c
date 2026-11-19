@@ -22,6 +22,7 @@ s32 NvSong_Pending(void);
 void NvSong_PlayClip(void);
 void NvSong_Playback(void);
 void NvSong_Fanfare(void);
+void NvSong_Reset(void);
 s32 NvPiano_Score(void);
 
 // #region SOH [NTSC] - Allows custom messages to work on japanese
@@ -2922,6 +2923,7 @@ void Message_StartOcarina(PlayState* play, u16 ocarinaActionId) {
     s16 noStop;
     s32 k;
 
+    NvSong_Reset(); // Nightmareverse: a song is matched from notes played in one go (z_nv_script.c)
     osSyncPrintf(VT_FGCOL(GREEN));
 
     for (i = sOcarinaSongBitFlags = 0; i < (QUEST_KOKIRI_EMERALD - QUEST_SONG_MINUET); i++) {
@@ -3450,6 +3452,7 @@ void Message_DrawMain(PlayState* play, Gfx** p) {
                         sLastPlayedSong = msgCtx->unk_E3F2 = msgCtx->lastPlayedSong = msgCtx->ocarinaStaff->state;
                         msgCtx->msgMode = MSGMODE_OCARINA_CORRECT_PLAYBACK;
                         msgCtx->stateTimer = 20;
+                        NvSong_Reset(); // (one of OoT's: its notes start nothing of ours)
                         if (msgCtx->ocarinaAction == OCARINA_ACTION_CHECK_NOWARP) {
                             if (msgCtx->ocarinaStaff->state < OCARINA_SONG_SARIAS ||
                                 msgCtx->ocarinaStaff->state == OCARINA_SONG_SCARECROW_SPAWN) {

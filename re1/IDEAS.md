@@ -71,15 +71,21 @@ here is agreed or scheduled.
   - the notes A, C-down, C-right, A, C-down, C-right (the opening triplet twice);
   - learned for good when the Music Notes (item 0x23) are picked up (event flag 0xD8); their Check
     shows the buttons;
-  - examining the piano once it's learned asks to play it, and OoT's free-play staff opens with no
-    notes shown (the puzzle is remembering them); six notes and it's judged;
-  - right: OoT's correct chime, then the room's own event 0 ("It's 'Moonlight Sonata'.", then event
-    6: the playing, the wall, 1:A5);
-  - wrong: OoT's error sound and a word pointing back to the sheet music;
+  - examining the piano once it's learned asks to play it; yes seats Link as RE1 seats Jill (the
+    room's event 6, held where the playing starts) and opens OoT's ocarina staff, the notes
+    showing as they're played (the puzzle is remembering them); six notes and it's judged;
+  - right: OoT's correct chime, then RE1's scene goes on (the playing, the wall, 1:A5);
+  - wrong: OoT's error sound, Chris's hesitant presses from his 10F set, then a word pointing back
+    to the sheet music;
+  - RE1's own way (Use the notes at the piano) still works too;
   - played freely in the bar it does nothing; outside the mansion it turns the clock to midnight
-    (the Easter egg; not yet tried in play).
-  Still open: Link seated as Jill is (event 6 plays its own staging), Chris's hesitant presses (his
-  10F event 1: Chris's game), and RE1's own way (Use the notes at the piano) still works too.
+    (the Easter egg; not yet tried in play). Decided with the user (2026-11-19, from the Majora's
+    Mask side): in Termina it's a time skip to that day's midnight.
+  - A song matches only from notes played in one go (2026-11-19): the heard notes are cleared as
+    the ocarina comes out and when OoT recognises one of its own songs. The Sonata is the Song of
+    Time shifted by a note, so leftovers from one Song of Time used to complete it on the next.
+  - The other branch keeps one list of every ocarina song across the games with a clash check
+    (`mm/tools/nv_songs.py` on the Majora's Mask branch): new RE1 songs go there too.
 - Both songs as two more notes on the Quest screen next to OoT's songs.
 - Decided (2026-10-29): after the first time, the warp song plays the opening movie's own audio
   from just after the narration ends, where the cast list starts (the user will give the exact
