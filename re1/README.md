@@ -346,7 +346,9 @@ Later: the mansion's way in through a Lost Woods wrong turn instead of a replace
 
 ## Walking the game headless (2026-11-14 to 11-17)
 
-The walkthrough runs from a typewriter-style checkpoint (`NV_BOOT_ENTRANCE=warp` with a slot copied
+The scripts are in `tools/headless/` (`walk.sh` one segment, `regress.sh` every room's
+checkpoint, `flagdump.py` the story flags between saves; each says how it's laid out). The
+walkthrough runs from a typewriter-style checkpoint (`NV_BOOT_ENTRANCE=warp` with a slot copied
 in) and an `NV_WALK` step list, `;`-separated: `x,z` walks, `pos:`, `face:`, `wait:N`, `a`, `b`,
 `doorto:XXX` / `door:N` / `aot:N` (walk into a door or action entry and press A), `use:XX`,
 `check:XX`, `drop:XX`, `equip:XX`, `faceenemy` (turn to the nearest of RE1's enemies), `cl:N`
@@ -354,7 +356,8 @@ in) and an `NV_WALK` step list, `;`-separated: `x,z` walks, `pos:`, `face:`, `wa
 `NV_GODMODE`, `NV_GIVE` / `NV_EQUIP`, `NV_FLAGS="bank:bit,-bank:bit"` (set or clear, on a new game
 or a loaded save), `NV_WORD="i:v"` (a state word, also on a loaded save: 4 restarts the countdown),
 `NV_ANSWERS="yes,no,..."` (the yes/no questions in turn), `NV_FLAG_TRACE` (the system flags as the
-scripts move them), `NV_EVT_TRACE`, `NV_LOG`.
+scripts move them), `NV_EVT_TRACE`, `NV_AOT_TRACE` (action entries as the scripts change them),
+`NV_NOSCENEANIM` (scenes without Link's RE1 animations), `NV_LOG`.
 
 What the run showed about RE1's story (Jill), all from the rooms' own scripts:
 
