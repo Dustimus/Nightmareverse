@@ -15,9 +15,9 @@
  *
  * Termina's rooms carry no time increment (mm_scene.py), so OoT's own clock doesn't move here.
  * Anything else that moves OoT's clock (the Sun's Song's fast-forward, RE1's Moonlight Sonata
- * setting midnight) moves Termina's forward by as much: the Sun's Song acts as MM's Song of
- * Double Time (to the next 6:00 or 18:00), and the Sonata skips to the next midnight (decided
- * with the user, 2026-11-19).
+ * setting its hour) moves Termina's forward by as much: the Sun's Song acts as MM's Song of
+ * Double Time (to the next 6:00 or 18:00), and the Sonata skips to the hour it sets (midnight
+ * today; the user wants 18:00, an RE1-side change, 2026-11-19).
  *
  * Not yet: MM's clock on the HUD (a text line for now), its saving (nv_mm_<file>.sav), the
  * Song of Double Time's and the Inverted Song of Time's own notes, the final hours' music and

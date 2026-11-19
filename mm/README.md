@@ -31,7 +31,8 @@ Running in Termina's scenes only (`NvMm_IsScene`). Hyrule's time is put aside on
 and given back on the way out: each place's days work their own way (the user, 2026-11-19).
 The user would consider Hyrule taking on longer days one day too, "carefully weighed". The
 user's take (2026-11-19): MM's days are shorter than expected (about 18 minutes, against OoT's
-4 or so in Hyrule Field), so not much trouble conceptually. The places to check are what waits
+4 or so in Hyrule Field), so not much trouble conceptually; "probably going to be the solution",
+not yet, with a few base-game tweaks where needed. The places to check are what waits
 for a time that isn't a clean noon or dusk, and the Weird Egg, which hatches at the next dawn
 (early in the game, before the Sun's Song). It
 could also be a base for other games' time systems (Monster Rancher's weeks).
@@ -44,7 +45,8 @@ could also be a base for other games' time systems (Monster Rancher's weeks).
   there, and the clock gives OoT its time each frame, sky included.
 - Anything else that moves OoT's clock moves Termina's forward by as much:
   - **the Sun's Song works as the Song of Double Time** (to the next 6:00 or 18:00);
-  - **RE1's Moonlight Sonata skips to the next midnight.**
+  - **RE1's Moonlight Sonata skips to the hour it sets:** midnight today, 18:00 once RE1 changes
+    it (below).
 - **The Song of Time** (once its message closes) goes back to the dawn of the first day, at
   South Clock Town's clock tower door.
 
@@ -99,6 +101,10 @@ RE1 pieces that MM's plans run into, to raise with the user before building the 
   - None of MM's songs is the mansion song.
 - **The Moonlight Sonata Easter egg.** RE1's Sonata (A, C-Down, C-Right, twice) sets OoT's
   clock to midnight in free play outside the mansion.
+  - **The user, later the same day: the Sonata should go to 18:00, not midnight, everywhere.**
+    That fixes most of the waiting that longer days would add in Hyrule (Dampé's tour, evening
+    setups), and suits the name. RE1's side sets the hour. Termina's clock follows whatever it
+    sets, with no change needed here.
   - **Decided with the user (2026-11-19): in Termina it's a time skip.** It jumps the 3-day
     clock to that day's midnight. Warping by the Song of Time's variants alone often isn't
     enough, and MM3D has a similar choose-your-hour feature.
