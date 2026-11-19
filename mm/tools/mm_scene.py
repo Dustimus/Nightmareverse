@@ -1,0 +1,174 @@
+"""MM scenes as SoH scenes: headers in SoH's XML formats, models through Torch.
+
+The scene and room headers are read from the player's MM ROM and written as SoH XML
+(soh/soh/resource/importer/scenecommand/*Factory.cpp, the XML readers), keeping what OoT's
+engine already understands and leaving out MM's own pieces until something uses them:
+- actors and objects (MM's ids), doors, exits, paths, cutscenes;
+- the minimap, actor cutscenes and texture animation.
+
+The meshes and collision come from Torch (mm2torch.py declares them), under mm/scenes/.
+
+Layout (SoH loads scenes from scenes/shared/<file>/<file>, z_play_otr.cpp):
+    scenes/shared/mm_<scene>_scene/mm_<scene>_scene       scene header (XML)
+    scenes/shared/mm_<scene>_scene/mm_<scene>_room_NN     room header (XML)
+    mm/scenes/<SCENE>_scene/...                           display lists, vertices, textures,
+                                                          collision (Torch)
+"""
+
+import os
+import struct
+from xml.sax.saxutils import quoteattr
+
+import mm_rom
+import yaz0
+from mm2torch import commands, room_headers
+
+
+def _el(tag, **attrs):
+    return "<%s %s/>" % (tag, " ".join("%s=%s" % (k, quoteattr(str(v))) for k, v in attrs.items()))
+
+
+def soh_name(scene):
+    """Z2_CLOCKTOWER -> mm_z2_clocktower (our scene file names)."""
+    return "mm_" + scene.lower()
+
+
+def mm_rot(r):
+    """MM actor entries keep spawn flags in a rotation's low 7 bits; the angle is in degrees
+    above them (the decomp's ActorEntry)."""
+    return (((r & 0xFFFF) >> 7) & 0x1FF) * 0x10000 // 360 & 0xFFFF
+
+
+def _s16(v):
+    return v - 0x10000 if v & 0x8000 else v
+
+
+def collision_offset(sdata):
+    for cmd, _, w1 in commands(sdata, 0):
+        if cmd == 0x03:
+            return w1 & 0xFFFFFF
+    raise ValueError("scene has no collision")
+
+
+def scene_xml(scene, sdata, rooms):
+    """The scene header, from MM's main header."""
+    base = soh_name(scene) + "_scene"
+    cmds = {cmd: (a1, w1) for cmd, a1, w1 in commands(sdata, 0)}
+    S = ['<Room Version="0">']
+
+    S.append("    " + _el("SetSoundSettings", Reverb=0, NatureAmbienceId=0x13, SeqId=0x7F))  # music: later
+    S.append("    <SetRoomList>")
+    for r in range(rooms):
+        S.append("        " + _el("RoomEntry", Path=f"scenes/shared/{base}/{soh_name(scene)}_room_{r:02d}",
+                                   VromStart=0, VromEnd=0))
+    S.append("    </SetRoomList>")
+    S.append("    " + _el("SetCameraSettings", CameraMovement=0, WorldMapArea=0))
+    col = collision_offset(sdata)
+    S.append("    " + _el("SetCollisionHeader", FileName=f"mm/scenes/{scene}_scene/{scene}_sceneCollisionHeader_{col:06X}"))
+
+    # spawns (0x00) and the entrance list (0x06) that picks among them
+    n, w1 = cmds[0x00]
+    spawns = [struct.unpack_from(">8h", sdata, (w1 & 0xFFFFFF) + 16 * i) for i in range(n)]
+    entrances = []
+    if 0x06 in cmds:
+        p = cmds[0x06][1] & 0xFFFFFF
+        while len(entrances) < 32 and p + 2 <= len(sdata):
+            spawn, room = sdata[p], sdata[p + 1]
+            if spawn >= n or room >= rooms:
+                break
+            entrances.append((spawn, room))
+            p += 2
+    S.append("    <SetEntranceList>")
+    for spawn, room in entrances or [(0, 0)]:
+        S.append("        " + _el("EntranceEntry", Spawn=spawn, Room=room))
+    S.append("    </SetEntranceList>")
+    S.append("    " + _el("SetSpecialObjects", ElfMessage=0, GlobalObject=0))
+    S.append("    <SetStartPositionList>")
+    for _id, x, y, z, rx, ry, rz, params in spawns:
+        # OoT's player (actor 0); MM's params mean the same start modes in the top nibble
+        S.append("        " + _el("StartPositionEntry", Id=0, PosX=x, PosY=y, PosZ=z, RotX=0, RotY=mm_rot(ry),
+                                   RotZ=0, Params=(13 << 8) | 0xFF))  # PLAYER_START_MODE_IDLE, no bg camera
+    S.append("    </SetStartPositionList>")
+
+    if 0x11 in cmds:
+        w1 = cmds[0x11][1]
+        S.append("    " + _el("SetSkyboxSettings", Unknown=0, SkyboxId=(w1 >> 24) & 0xFF, Weather=0,
+                               Indoors=(w1 >> 8) & 0xFF))
+
+    # lighting (0x0F): MM's EnvLightSettings, the same 22 bytes as OoT's
+    if 0x0F in cmds:
+        n, w1 = cmds[0x0F]
+        S.append("    <SetLightingSettings>")
+        for i in range(n):
+            b = sdata[(w1 & 0xFFFFFF) + 22 * i:(w1 & 0xFFFFFF) + 22 * (i + 1)]
+            sb = [_s16(x | 0xFF00) if x & 0x80 else x for x in b]  # signed bytes for directions
+            near, far = struct.unpack_from(">hh", b, 18)
+            S.append("        " + _el(
+                "LightingSetting", AmbientColorR=b[0], AmbientColorG=b[1], AmbientColorB=b[2],
+                Light1DirX=sb[3], Light1DirY=sb[4], Light1DirZ=sb[5],
+                Light1ColorR=b[6], Light1ColorG=b[7], Light1ColorB=b[8],
+                Light2DirX=sb[9], Light2DirY=sb[10], Light2DirZ=sb[11],
+                Light2ColorR=b[12], Light2ColorG=b[13], Light2ColorB=b[14],
+                FogColorR=b[15], FogColorG=b[16], FogColorB=b[17], FogNear=near & 0xFFFF, FogFar=far))
+        S.append("    </SetLightingSettings>")
+    S.append("    <EndMarker/>")
+    S.append("</Room>")
+    return "\n".join(S) + "\n"
+
+
+def room_xml(scene, r, rdata):
+    """A room header: its behaviour, time, skybox and mesh. No actors or objects yet."""
+    name = f"{scene}_room_{r:02d}"
+    cmds = {cmd: (a1, w1) for cmd, a1, w1 in commands(rdata, 0)}
+    R = ['<Room Version="0">']
+    R.append("    " + _el("SetRoomBehavior", GameplayFlags1=0, GameplayFlags2=0))
+    if 0x16 in cmds:
+        R.append("    " + _el("SetEchoSettings", Echo=cmds[0x16][1] & 0xFF))
+    if 0x10 in cmds:
+        w1 = cmds[0x10][1]
+        R.append("    " + _el("SetTimeSettings", Hour=(w1 >> 24) & 0xFF, Minute=(w1 >> 16) & 0xFF,
+                               TimeIncrement=(w1 >> 8) & 0xFF))
+    if 0x12 in cmds:
+        w1 = cmds[0x12][1]
+        R.append("    " + _el("SetSkyboxModifier", SkyboxDisabled=(w1 >> 24) & 0xFF,
+                               SunMoonDisabled=(w1 >> 16) & 0xFF))
+
+    off = cmds[0x0A][1] & 0xFFFFFF
+    kind, count = rdata[off], rdata[off + 1]
+    start = struct.unpack_from(">I", rdata, off + 4)[0] & 0xFFFFFF
+
+    def path(dl):
+        return f"mm/scenes/{scene}_scene/{name}DL_{dl & 0xFFFFFF:06X}" if dl else ""
+
+    if kind == 0:
+        R.append(f'    <SetMesh Data="0" MeshHeaderType="0" PolyNum="{count}">')
+        for i in range(count):
+            opa, xlu = struct.unpack_from(">II", rdata, start + 8 * i)
+            R.append("        " + _el("Polygon", PolyType=0, MeshOpa=path(opa), MeshXlu=path(xlu)))
+    elif kind == 2:
+        R.append(f'    <SetMesh Data="0" MeshHeaderType="2" PolyNum="{count}">')
+        for i in range(count):
+            x, y, z, radius, opa, xlu = struct.unpack_from(">4hII", rdata, start + 16 * i)
+            R.append("        " + _el("Polygon", PolyType=2, PosX=x, PosY=y, PosZ=z, Unknown=radius,
+                                       MeshOpa=path(opa), MeshXlu=path(xlu)))
+    else:
+        raise ValueError(f"{name}: room mesh type {kind} not handled yet")
+    R.append("    </SetMesh>")
+    R.append("    <EndMarker/>")
+    R.append("</Room>")
+    return "\n".join(R) + "\n"
+
+
+def write_scene(rom, scene, rooms, out):
+    """The scene's XML headers into <out>/scenes/shared/..."""
+    def load(name):
+        _, _, ps, pe = rom.entry(name)
+        return yaz0.decompress(rom.data[ps:pe])
+
+    d = os.path.join(out, "scenes", "shared", soh_name(scene) + "_scene")
+    os.makedirs(d, exist_ok=True)
+    sdata = load(scene)
+    open(os.path.join(d, soh_name(scene) + "_scene"), "w").write(scene_xml(scene, sdata, rooms))
+    for r in range(rooms):
+        rdata = load(f"{scene}_room_{r:02d}")
+        open(os.path.join(d, f"{soh_name(scene)}_room_{r:02d}"), "w").write(room_xml(scene, r, rdata))

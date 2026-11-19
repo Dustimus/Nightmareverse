@@ -1,0 +1,12 @@
+# Torch configs for the player's own Majora's Mask ROM (generated scene ymls go in mm_us/).
+d6133ace5afaa0882cf214cf88daba39e266c078:
+  name: Legend of Zelda, The - Majora's Mask (USA)
+  path: mm_us
+  config:
+    gbi: F3DEX2_OoT
+    sort: OFFSET
+    logging: INFO
+    primary_virtual_segment: 0x80
+    strict_declarations: false
+    output:
+      binary: mm.o2r

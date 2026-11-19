@@ -122,3 +122,5 @@
 /* 0x6D */ DEFINE_SCENE(testroom_scene, none, SCENE_TESTROOM, SDC_DEFAULT, 0, 0)
 /* Nightmareverse: RE1 rooms (re1/tools/soh_tables.py) */
 #include "tables/nv_re1_scene_table.h"
+/* Nightmareverse: MM scenes (mm/tools/soh_tables.py) */
+#include "tables/nv_mm_scene_table.h"

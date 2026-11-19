@@ -1934,3 +1934,5 @@
 /* 0x613 */ DEFINE_ENTRANCE(ENTR_DESERT_COLOSSUS_8_3, SCENE_DESERT_COLOSSUS, 8, false, true, TRANS_TYPE_FADE_WHITE, TRANS_TYPE_FADE_WHITE)
 /* Nightmareverse: RE1 rooms (re1/tools/soh_tables.py) */
 #include "tables/nv_re1_entrance_table.h"
+/* Nightmareverse: MM scenes (mm/tools/soh_tables.py) */
+#include "tables/nv_mm_entrance_table.h"
