@@ -201,10 +201,13 @@ The default is shared or carried over. A Termina-only piece needs a reason.
   - Proposal: the forms don't depend on age. The mask makes Link that creature whoever wears
     it, and he changes back into whichever age he was. The forms are their own size anyway
     (MM's Zora Link is about adult height), so there's no separate "adult Deku".
-  - The full transformation scene plays only the first time, as in MM. After that it's the
-    quick flash.
+  - The transformation scene: the user remembers it playing on every use in MM, skippable.
+    Check the MM decomp for the real rule. Proposal: skipped by default, with a setting to
+    watch it.
   - Possibly a setting, "adult can transform", on by default.
   - Still open: plain masks (Bunny Hood and so on) on adult.
+- **Trivial is fine (the user, 2026-11-19).** Link breezing through is half the fun, the same
+  as in RE1. The forms don't need to be balanced against the other games.
 - **Water Temple as Zora (the user likes it).** Zora diving does part of the Iron Boots' job.
   Zora Link can't use the Hookshot or Longshot, though, so the temple still needs switching
   forms. Switching becomes part of the puzzle, without making the temple trivial.
@@ -215,6 +218,15 @@ The default is shared or carried over. A Termina-only piece needs a reason.
   left, otherwise a randomizer-style reward (hearts, rupees, or an item from another loaded
   game).
 - So the extra checks become what fills the combined item pool.
+- **Exception (the user, 2026-11-19): items that add something, even when they don't quite
+  make sense, are kept.** The rest are decided case by case.
+  - **MM's Hookshot:** a child-sized Hookshot for young Link. In OoT only adult Link can use
+    one.
+  - **MM's Hero's Bow:** a bow for young Link, next to the Slingshot. Adult keeps OoT's Fairy
+    Bow, and MM's child-sized model would look small on him anyway. Probably one shared
+    quiver.
+  - **Anything else in both games** gets the same question: does the second copy give one of
+    the ages something new? If so, keep it. If not, it becomes a reward.
 
 **Reference:** the OoT+MM combo randomizer (OoTMM) already merges the two games' item pools and
 flags. It still switches between the two games underneath, but it's a useful map of which items
