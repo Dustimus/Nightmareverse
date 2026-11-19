@@ -126,8 +126,8 @@ def room_xml(scene, r, rdata):
         R.append("    " + _el("SetEchoSettings", Echo=cmds[0x16][1] & 0xFF))
     if 0x10 in cmds:
         w1 = cmds[0x10][1]
-        R.append("    " + _el("SetTimeSettings", Hour=(w1 >> 24) & 0xFF, Minute=(w1 >> 16) & 0xFF,
-                               TimeIncrement=(w1 >> 8) & 0xFF))
+        # no increment: Termina's clock is ours (z_nv_mm_clock.c), and OoT's must stand still here
+        R.append("    " + _el("SetTimeSettings", Hour=0xFF, Minute=0xFF, TimeIncrement=0))
     if 0x12 in cmds:
         w1 = cmds[0x12][1]
         R.append("    " + _el("SetSkyboxModifier", SkyboxDisabled=(w1 >> 24) & 0xFF,

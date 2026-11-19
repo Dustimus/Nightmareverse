@@ -25,6 +25,43 @@ Steps:
 2. The clock (`soh/src/code/z_nv_mm_clock.c`).
 3. Actors.
 
+### The 3-day clock (2026-11-19, `soh/src/code/z_nv_mm_clock.c`)
+
+Running in Termina's scenes only (`NvMm_IsScene`). Hyrule's time is put aside on the way in
+and given back on the way out: each place's days work their own way (the user, 2026-11-19).
+The user would consider Hyrule taking on longer days one day too, "carefully weighed". It
+could also be a base for other games' time systems (Monster Rancher's weeks).
+
+**MM's rules, from its decomp (our own code):**
+- Time moves 3 units a frame (`R_TIME_SPEED`), about 18 real minutes a day, and stands still
+  while paused, in a message, during a scene change or game over.
+- The day counts up at 6:00. Dawn of the fourth day is the moon's fall.
+- The Termina rooms carry no time increment (`mm_scene.py`), so OoT's own clock stands still
+  there, and the clock gives OoT its time each frame, sky included.
+- Anything else that moves OoT's clock moves Termina's forward by as much:
+  - **the Sun's Song works as the Song of Double Time** (to the next 6:00 or 18:00);
+  - **RE1's Moonlight Sonata skips to the next midnight.**
+- **The Song of Time** (once its message closes) goes back to the dawn of the first day, at
+  South Clock Town's clock tower door.
+
+**On screen:** a text line, "Day N hh:mm", and "Dawn of the ... Day" as each day starts.
+Placeholders for MM's clock and its day titles.
+
+**Checked headless (`NV_MM_SPEED`):** three full days, then the moon's fall resets to Day 1
+at the tower. The light follows the time.
+
+**Not yet:**
+- the night sky (the sky's own colour stays daytime; the lighting does follow);
+- saving (`nv_mm_<file>.sav`, RE1's pattern);
+- the Inverted Song of Time and the Song of Double Time's own notes (the shared song listener
+  comes first);
+- the final hours (music, the countdown);
+- the moon's fall itself (for now it's a Song of Time);
+- what resets with the Song of Time (Termina's flags, once there are any);
+- headless checks of the songs (they need ocarina steps in `NV_WALK`).
+
+Dev: `NV_MM_TIME="day,hhmm"`, `NV_MM_SPEED=n`, `NV_LOG` ("NVMM ...").
+
 ### Where it stands (2026-11-19)
 
 **Step 1 works.** All six scenes load in SoH (headless dev boot, `NV_BOOT_ENTRANCE=mm_z2_clocktower`

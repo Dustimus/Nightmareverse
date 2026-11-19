@@ -1,0 +1,220 @@
+/*
+ * Nightmareverse: Termina's 3-day clock (Majora's Mask), running in MM's scenes only.
+ *
+ * Decided with the user (mm/README.md, NV_GAMES.md): Termina keeps its own day and time.
+ * Hyrule's time is put aside on the way in and given back on the way out, so each place's days
+ * work its own way and the Song of Time resets only Termina.
+ *
+ * MM's rules (zeldaret/mm: the save's time and day, R_TIME_SPEED, timeSpeedOffset), our own code:
+ * - time is OoT's and MM's shared unit: 0x10000 per day, 0x4000 = 6:00, 0x8000 = noon;
+ * - it moves 3 units a frame (R_TIME_SPEED), plus the speed offset (-2 under the Inverted Song of
+ *   Time), and stands still while paused, in a message, during a scene change or game over;
+ * - the day counts up at 6:00: Day 1 starts at 6:00 on the first day, and 6:00 after the third
+ *   night is the moon's fall;
+ * - the Song of Time takes Link back to the dawn of the first day, in South Clock Town.
+ *
+ * Termina's rooms carry no time increment (mm_scene.py), so OoT's own clock doesn't move here.
+ * Anything else that moves OoT's clock (the Sun's Song's fast-forward, RE1's Moonlight Sonata
+ * setting midnight) moves Termina's forward by as much: the Sun's Song acts as MM's Song of
+ * Double Time (to the next 6:00 or 18:00), and the Sonata skips to the next midnight (decided
+ * with the user, 2026-11-19).
+ *
+ * Not yet: MM's clock on the HUD (a text line for now), its saving (nv_mm_<file>.sav), the
+ * Song of Double Time's and the Inverted Song of Time's own notes, the final hours' music and
+ * the moon's fall itself (for now it's a Song of Time).
+ *
+ * Dev: NV_MM_TIME="day,hhmm" sets the clock on the first Termina frame; NV_MM_SPEED=n
+ * multiplies its speed (headless tests); NV_LOG prints its changes ("NVMM ...").
+ */
+#include "global.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MM_DAWN 0x4000      // 6:00
+#define MM_TIME_SPEED 3     // R_TIME_SPEED
+#define MM_TELOP_FRAMES 60  // "Dawn of the ... Day" on screen
+#define MM_ENTRANCE_CLOCK_TOWN 0xF64 // ENTR_MM_Z2_CLOCKTOWER_0: South Clock Town, the clock tower's door
+
+static s32 sMmDay = 1;          // 1-3; 4 for an instant, as the moon falls
+static u16 sMmTime = MM_DAWN;
+static s16 sMmSpeedOffset = 0;  // -2 under the Inverted Song of Time
+static s32 sMmInTermina;        // the last frame was in Termina
+static u16 sMmHyruleTime;       // Hyrule's time, put aside while in Termina
+static u16 sMmWritten;          // the time this clock last gave OoT
+static s32 sMmTelop;            // frames left of the day's title
+static s32 sMmSongOfTime;       // the Song of Time was played: act when its message closes
+static s32 sMmDevSet;           // NV_MM_TIME applied
+
+static s32 NvMm_Log(void) {
+    return getenv("NV_LOG") != NULL;
+}
+
+static s32 NvMm_Hour(u16 t) {
+    return (t * 24) >> 16;
+}
+
+static s32 NvMm_Minute(u16 t) {
+    return ((t * 24 * 60) >> 16) % 60;
+}
+
+/** Back to the dawn of the first day (the Song of Time; for now, the moon's fall too). */
+static void NvMmClock_Reset(PlayState* play, const char* why) {
+    sMmDay = 1;
+    sMmTime = MM_DAWN;
+    sMmSpeedOffset = 0;
+    sMmTelop = MM_TELOP_FRAMES;
+    if (NvMm_Log()) {
+        printf("NVMM reset (%s): day 1 06:00\n", why);
+        fflush(stdout);
+    }
+    if (play != NULL) {
+        play->nextEntranceIndex = MM_ENTRANCE_CLOCK_TOWN;
+        play->transitionTrigger = TRANS_TRIGGER_START;
+        play->transitionType = TRANS_TYPE_FADE_WHITE;
+    }
+}
+
+/** Moves the clock forward by d units, counting a day at every 6:00 it passes. */
+static void NvMmClock_Advance(PlayState* play, u32 d) {
+    while (d > 0) {
+        u32 toDawn = (u16)(MM_DAWN - sMmTime);
+
+        if (toDawn == 0) {
+            toDawn = 0x10000;
+        }
+        if (d < toDawn) {
+            sMmTime += d;
+            return;
+        }
+        d -= toDawn;
+        sMmTime = MM_DAWN;
+        sMmDay++;
+        if (sMmDay > 3) {
+            if (NvMm_Log()) {
+                printf("NVMM dawn of the fourth day: the moon falls\n");
+                fflush(stdout);
+            }
+            NvMmClock_Reset(play, "the moon fell");
+            return;
+        }
+        sMmTelop = MM_TELOP_FRAMES;
+        if (NvMm_Log()) {
+            printf("NVMM dawn of day %d\n", (int)sMmDay);
+            fflush(stdout);
+        }
+    }
+}
+
+static s32 NvMmClock_Running(PlayState* play) {
+    return (play->pauseCtx.state == 0) && (play->gameOverCtx.state == GAMEOVER_INACTIVE) &&
+           (play->msgCtx.msgLength == 0) && (play->msgCtx.msgMode == MSGMODE_NONE) &&
+           (play->transitionMode == TRANS_MODE_OFF) && (play->transitionTrigger == TRANS_TRIGGER_OFF);
+}
+
+static void NvMmClock_DevSet(void) {
+    const char* s = getenv("NV_MM_TIME");
+    int day, hhmm;
+
+    sMmDevSet = true;
+    if ((s != NULL) && (sscanf(s, "%d,%d", &day, &hhmm) == 2) && (day >= 1) && (day <= 3)) {
+        sMmDay = day;
+        sMmTime = (u16)((((hhmm / 100) * 60 + (hhmm % 100)) << 16) / (24 * 60));
+    }
+}
+
+/** Every frame of play (z_play.c). */
+void NvMmClock_Update(PlayState* play) {
+    s32 hour = NvMm_Hour(sMmTime);
+    u16 now;
+
+    if (!NvMm_IsScene(play->sceneNum)) {
+        if (sMmInTermina) { // leaving Termina: Hyrule's time back as it was
+            gSaveContext.dayTime = sMmHyruleTime;
+            sMmInTermina = false;
+        }
+        return;
+    }
+    if (!sMmDevSet) {
+        NvMmClock_DevSet();
+    }
+    if (!sMmInTermina) { // arriving: Hyrule's time aside, Termina's in its place
+        sMmHyruleTime = gSaveContext.dayTime;
+        sMmInTermina = true;
+        gSaveContext.dayTime = gSaveContext.skyboxTime = sMmWritten = sMmTime;
+        return;
+    }
+
+    // something else moved OoT's clock (the Sun's Song, the Sonata): Termina's goes with it
+    now = gSaveContext.dayTime;
+    if (now != sMmWritten) {
+        u32 d = (u16)(now - sMmWritten);
+
+        if (NvMm_Log()) {
+            printf("NVMM skip +%04X\n", (unsigned)d);
+            fflush(stdout);
+        }
+        NvMmClock_Advance(play, d);
+    }
+    if (NvMmClock_Running(play)) {
+        s32 step = MM_TIME_SPEED + sMmSpeedOffset;
+        const char* mult = getenv("NV_MM_SPEED");
+
+        if (mult != NULL) {
+            step *= atoi(mult);
+        }
+        if (step > 0) {
+            NvMmClock_Advance(play, step);
+        }
+    }
+    // (OoT moves the sky's time only while its own clock runs, and here it doesn't: kankyo)
+    gSaveContext.dayTime = gSaveContext.skyboxTime = sMmWritten = sMmTime;
+
+    // the Song of Time: once its message has closed, back to the first dawn
+    if ((play->msgCtx.msgMode == MSGMODE_SONG_PLAYED) && (play->msgCtx.lastPlayedSong == OCARINA_SONG_TIME)) {
+        sMmSongOfTime = true;
+    } else if (sMmSongOfTime && (play->msgCtx.msgMode == MSGMODE_NONE)) {
+        sMmSongOfTime = false;
+        NvMmClock_Reset(play, "the Song of Time");
+    }
+
+    if (sMmTelop > 0) {
+        sMmTelop--;
+    }
+    if (NvMm_Log() && (NvMm_Hour(sMmTime) != hour)) {
+        printf("NVMM day %d %02d:00\n", (int)sMmDay, (int)NvMm_Hour(sMmTime));
+        fflush(stdout);
+    }
+}
+
+/** Over the HUD (z_play.c): the day and time, and the day's title as it dawns. */
+void NvMmClock_Draw(PlayState* play) {
+    static const char* sDayNames[] = { "", "First", "Second", "Final" };
+    GfxPrint printer;
+    Gfx* opa;
+    Gfx* gfx;
+
+    if (!NvMm_IsScene(play->sceneNum) || !sMmInTermina || (sMmDay < 1) || (sMmDay > 3) ||
+        (gSaveContext.gameMode != GAMEMODE_NORMAL) || (play->pauseCtx.state != 0)) {
+        return;
+    }
+    OPEN_DISPS(play->state.gfxCtx);
+    opa = POLY_OPA_DISP;
+    gfx = Graph_GfxPlusOne(opa);
+    gSPDisplayList(OVERLAY_DISP++, gfx);
+    GfxPrint_Init(&printer);
+    GfxPrint_Open(&printer, gfx);
+    GfxPrint_SetColor(&printer, 255, 255, 255, 255);
+    GfxPrint_SetPos(&printer, 14, 27);
+    GfxPrint_Printf(&printer, "Day %d  %02d:%02d", (int)sMmDay, (int)NvMm_Hour(sMmTime), (int)NvMm_Minute(sMmTime));
+    if (sMmTelop > 0) {
+        GfxPrint_SetColor(&printer, 255, 255, 200, 255);
+        GfxPrint_SetPos(&printer, 9, 12);
+        GfxPrint_Printf(&printer, "Dawn of the %s Day", sDayNames[sMmDay]);
+    }
+    gfx = GfxPrint_Close(&printer);
+    GfxPrint_Destroy(&printer);
+    gSPEndDisplayList(gfx++);
+    Graph_BranchDlist(opa, gfx);
+    POLY_OPA_DISP = gfx;
+    CLOSE_DISPS(play->state.gfxCtx);
+}
