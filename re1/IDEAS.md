@@ -160,3 +160,17 @@ here is agreed or scheduled.
   lines (all of Navi's) would need a voice. Cloning the original actress's voice without her
   consent is the uncomfortable route, even for friends only; a sound-alike performer who agrees
   to it (with a similar filter on top) is the clean one, and the only one for a wider release.
+
+## Longer days in Hyrule (from the user, 2026-11-19; for later, not planned)
+
+- MM-length days in Hyrule (if Termina's clock ever comes over) would break less than expected:
+  the Moonlight Sonata already jumps to 19:01, so the evening's windows stay quick to reach.
+- The pain points are before the Sun's Song: being stuck in Hyrule Field at night, and the Weird
+  Egg. OoT hatches it at dawn, either natural morning (z_kankyo.c's day change) or the Sun's Song
+  (z_play.c's nextDayTime). It's not a timer or a script, so a longer night means a longer wait
+  on the way to Zelda.
+- The user dislikes the Switch version's fix: it stays day until Zelda is first met, the
+  drawbridge stays down at night, and the egg hatches partway to the castle for no visible
+  reason. It's an overcorrection. The original's short wait felt right, and it's what makes you
+  enter the castle by day, so the night patrol doesn't confuse you. Any change here should keep
+  that.
