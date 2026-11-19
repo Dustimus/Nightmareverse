@@ -91,6 +91,26 @@ and the user's design decisions (`re1/README.md`, "Design notes"; `re1/IDEAS.md`
 yet planned). Things the user still has to do or decide (playtesting, their recordings, design
 calls) are what most open RE1 work waits on.
 
+## Working in parallel
+
+RE1 work goes on in its own chat on `re1/foyer`, at the same time as work on other games. To keep
+the two out of each other's way:
+
+- **Branches.** Each line of work has its own branch, and nothing is pushed to another's branch.
+  Branches come together only when the user asks for it.
+- **Files.** New work goes in new files with its own names: `<game>/` for tools and notes, and
+  `soh/src/code/z_nv_<game>_*.c` for engine code. RE1's files (`re1/`, the RE1 `z_nv_*.c`) are
+  edited from RE1's branch only.
+- **Shared files.** The OoT hook points (`z_play.c`, `z_player.c`, `z_message_PAL.c`,
+  `z_parameter.c`, the scene and entrance tables, CMake source lists) are where both lines add
+  code. Keep additions there small and self-contained, a call into the game's own file guarded
+  by its own scenes, so they merge cleanly. A change that would rework a shared piece (the
+  dev boot, the headless harness, Link's animation player, the fixed cameras) gets raised with
+  the user first.
+- **Scene and entrance numbers.** RE1's take OoT's tables from scene 0x6E and entrance 0x614
+  (`soh/include/tables/nv_re1_*.h`). Another game's go after them, in its own table files,
+  starting past the last number RE1's tables use at the time.
+
 ## Ideas that cross games
 
 `re1/IDEAS.md` already has some: getting to the mansion from Hyrule (the Lost Woods), RE1 items
