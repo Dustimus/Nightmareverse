@@ -40,11 +40,36 @@ Not done yet:
 - **Spawns:** they start Link idle, without MM's start modes or cameras.
 
 **To raise with the user and the RE1 chat (shared code):** RE1's code tests "an RE1 room" as
-`play->sceneNum >= SCENE_RE1_100` in about 17 places (`z_nv_*.c`, `z_player.c`, `z_actor.c`,
+`play->sceneNum >= SCENE_RE1_100` in 18 places (`z_nv_*.c`, `NvActors.cpp`, `z_player.c`, `z_actor.c`,
 `z_parameter.c`). Every scene after RE1's, MM's included, passes that test. A range check, for
 example a helper `NvRe1_IsScene()` up to `SCENE_RE1_71C`, fixes it. It's RE1's code, so the
 change belongs on RE1's branch. Without `re1.o2r` loaded nothing visible goes wrong in Clock
 Town, but with both games installed RE1's systems would treat Termina as part of the mansion.
+
+### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
+
+RE1 is close to finished: the whole game plays, from the opening to the endings. These are the
+RE1 pieces that MM's plans run into, to raise with the user before building the MM side:
+- **Getting there.** RE1's way in is its own warp song (8 notes, in free play), riding OoT's
+  warp-song sequence in Nocturne's slot (`z_nv_script.c`, NvSong).
+  - MM's songs (Soaring, Double Time, Inverted, Healing, ...) need the same kind of listener.
+    One shared "custom song" mechanism, instead of a second listener next to RE1's, should be
+    agreed first.
+  - None of MM's songs is the mansion song.
+- **The Moonlight Sonata Easter egg.** RE1's Sonata (A, C-Down, C-Right, twice) sets OoT's
+  clock to midnight in free play outside the mansion. Once RE1's scene check has an upper end,
+  it would also run in Termina and jump the 3-day clock to midnight. Decide whether Termina
+  takes that as a time skip or ignores it.
+  - The Sonata's notes are the Song of Time shifted by one note. The Song of Time is played
+    constantly in MM, so test that the two can't trigger each other.
+- **Pause menu.** RE1 replaces the map page with its status and map screens in RE1's rooms
+  (z_kaleido_scope_PAL.c, z_kaleido_setup.c). MM's mask screen and Bomber's Notebook would hook
+  the same place, gated by Termina's scenes the same way.
+- **Saving.** RE1 keeps its state in its own file next to each SoH save
+  (`Save/nv_re1_<file>.sav`, NvSaveFile.cpp). MM can follow the same pattern
+  (`nv_mm_<file>.sav`). It also uses OoT event flag 0xD7 ("opening seen"); MM's flags should
+  live in its own file, not in OoT's spare flags.
+- **The scene check** (above): in 18 places on re1/foyer now. The RE1 chat has taken it on.
 
 ## Building `mm.o2r`
 
