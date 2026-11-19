@@ -23,8 +23,7 @@ You get in from Hyrule by playing the mansion's song on the ocarina (below). Chr
 playable: Link plays Jill.
 
 Open, in the sections below: the status screen's radio; blood from hits, shadows and the
-muzzle flash; a few gun rules (line of sight, low aim, the launcher's rounds, loading by Combine,
-per-enemy ranges); items hung on the player (taken, not drawn); the box's sliding list and its
+muzzle flash; the launcher's rounds and loading ammo by Combine; items hung on the player (taken, not drawn); the box's sliding list and its
 Hyrule side; stereo panning; the Japanese release's text; ceilings; a way in through the Lost Woods.
 
 ## Reference: RE1's own code
@@ -361,16 +360,24 @@ up to its capacity, fire_consume_ammo_stack), Jill's fire animation, and RE1's h
 shotgun and Pythons (weapon_hit_detect_gun) an enemy in a band straight ahead, from 650 out to any
 distance, as wide as the weapon's range (her half of weapons_ranges: the shotgun's 2600 is its
 spread) plus the enemy's radius; for the knife (weapon_hit_detect_knife) the enemy's place within
-its radius + the reach of the blade, 600 ahead of her at the thrust; and damage (the zombies' hit
-records: the Beretta 9, the shotgun 53, ...; the spider web has its own row). The aim follows the
+its radius + the reach of the blade, 600 ahead of her at the thrust; and RE1's damage and hit state
+from its hit records per enemy type and weapon (`re1/hits`, read from the player's executable by
+`tools/soh_weapons.py`: found by the hash of the zombies' row; without the executable every enemy
+takes the zombies'). apply_weapon_damage's other rules (2026-11-19): a shot hits an enemy only at
+the heights its status flags allow (the aim: up, level, down), and the hit state is raised by a level
+or low aim; the per-enemy reach changes (the Black Tiger's -1000, Plant 42's +2000; the knife's own)
+and skips (no zombie aimed down at but with the shotgun; the knife misses a dog on the ground or a
+spider at the level, and what's on the ceiling); and the knife and the guns don't hit through walls
+(check_weapon_line_of_sight, the room's sight-blocking boxes). With the stick level and the aim on
+an enemy, the aim takes its height, as RE1's auto-aim points her arm at it (auto_aim_pitch_update):
+down at a snake, up at a chimera on the ceiling. The aim follows the
 Z-target when it's one of RE1's enemies, else RE1's auto-aim: the nearest enemy ahead in reach.
 The gun is RE1's item-viewer model (ITEM_M2/I<nn>V.IVM by the item record's model byte) in Link's
 left fist, which closes round it, placed as Mod1 placed its Beretta in his right hand (that looked
 right in play), mirrored across the hand; it's drawn only while the gun is up, so another item (the
 ocarina) replaces it, and another C button puts it down. Each weapon fires with RE1's own sound
-(see Sound). Not yet: the muzzle flash, the line of sight through walls, aiming down only hitting crawlers, the
-launcher's rounds, ammo loading by Combine, the per-enemy range adjustments (the Black Tiger's
--1000, Plant 42's +2000). Dev: `NV_EQUIP=n` equips slot n
+(see Sound). Not yet: the muzzle flash, the launcher's rounds (its projectile and blast), ammo
+loading by Combine. Dev: `NV_EQUIP=n` equips slot n
 of NV_GIVE's items; NV_WALK `cl:N` holds C-Left N frames; `NV_GUN_FIT="x,y,z,rx,ry,rz,size%"` and
 `NV_GUN_MIRROR=x|y|z|none` move the gun in the fist.
 
