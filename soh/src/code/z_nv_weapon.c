@@ -41,6 +41,7 @@ s32 NvEnemy_GunTarget(Actor* a, s32* x, s32* z, s32* radius);
 void NvEnemy_GunHit(Actor* a, s32 item, u8 aim);
 s32 NvEnemy_ShotRules(Actor* a, s32 item, u8 aim, s32* reachAdj);
 s32 NvRe1_ShotBlocked(s32 x, s32 z, s32 tx, s32 tz);
+u8 NvEnemy_AimHeights(Actor* a);
 void* NvModel_Parse(const u8* d);
 void NvModel_Bounds(void* model, s16 mn[3], s16 mx[3]);
 void NvModel_Draw(GraphicsContext* gfxCtx, void* model);
@@ -371,8 +372,18 @@ void NvWeapon_PreUpdate(Player* player, PlayState* play, Input* input) {
     if ((sNvGunState == NV_GUN_NONE) && !held) {
         return;
     }
-    // the aim's direction: up/down on the stick, as RE1's D-pad
+    // the aim's direction: up/down on the stick, as RE1's D-pad; with the stick level and the aim on an
+    // enemy, its height (auto_aim_pitch_update: RE1's auto-aim points her arm at the target, and the
+    // shot's height is where the arm points: up at a chimera on the ceiling, down at a snake)
     dir = (input->rel.stick_y > 45) ? NV_AIM_UP : (input->rel.stick_y < -45) ? NV_AIM_DOWN : NV_AIM_LEVEL;
+    if (dir == NV_AIM_LEVEL) {
+        Actor* aimed = NvGun_Target(play, player, item, sNvGunRange[CLAMP(item - 1, 0, 9)], true);
+        u8 heights = (aimed != NULL) ? NvEnemy_AimHeights(aimed) : 0x40;
+
+        if (!(heights & 0x40)) {
+            dir = (heights & 0x80) ? NV_AIM_DOWN : (heights & 0x20) ? NV_AIM_UP : NV_AIM_LEVEL;
+        }
+    }
     NvGun_Anims(item, dir, &raise, &fire, &hold);
 
     switch (sNvGunState) {

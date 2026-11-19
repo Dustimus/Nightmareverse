@@ -559,6 +559,14 @@ static const NvHitRecord* NvEnemy_HitRecord(s32 type, s32 item) {
  * weapon `item` aimed `aim` (the player's flags: 0x20 up, 0x40 level, 0x80 down), and what its
  * reach changes by. False also for anything but RE1's enemies.
  */
+/** The heights an enemy can be hit at now (its status flags' 0x20 up, 0x40 level, 0x80 down). */
+u8 NvEnemy_AimHeights(Actor* a) {
+    if ((a == NULL) || (a->id != NvActor_EnemyId())) {
+        return 0;
+    }
+    return ((NvEnemy*)a)->e.status_flags & 0xE0;
+}
+
 s32 NvEnemy_ShotRules(Actor* a, s32 item, u8 aim, s32* reachAdj) {
     NvEnemy* this = (NvEnemy*)a;
     NvRe1Entity* e = &this->e;
