@@ -175,6 +175,35 @@ the same names everywhere is the bigger mess, so not that.
      raised with the user, and timed against RE1's work, before anything is written.
 6. **Save.** MM's state is added to OoT's save, not kept as a separate file.
 
+**How much carries back into Hyrule (proposal, not decided).** The user doesn't want MM
+walled off. Every MM piece goes into one of three bins:
+- **Shared:** one thing across both games. Items both games have, songs, the ocarina, bottles,
+  hearts.
+- **Carried over:** an MM thing that also works in Hyrule. Masks and forms everywhere, the
+  Song of Soaring with owl statues in Hyrule, the Bomber's Notebook as a quest log for every
+  game (RE1's files too).
+- **Termina-only:** only what would break Hyrule. The 3-day reset is the main one.
+
+The default is shared or carried over. A Termina-only piece needs a reason.
+
+**Movement.**
+- **One Link.** He moves the same everywhere. OoT's own movement is the base, and anything
+  that differs between the games is picked move by move, with the user.
+- **What's new is the forms and masks.** Each form is an extra set of actions added to Link
+  (in `z_player.c`), working anywhere. MM's form models and animations come from the player's
+  MM archive, played through the animation player RE1 already uses (`z_nv_linkanim.c`).
+- **Balance goes in the randomizer's logic, not in taking the moves away.** Zora swimming past
+  the Iron Boots, a Deku flower launch skipping a climb, a Goron roll across Hyrule Field: the
+  logic counts them as ways to reach checks.
+- **Open:** can adult Link transform? Fierce Deity is the obvious case.
+
+**Items both games have (bow, hookshot, bombs, bottles, elemental arrows, Lens, several masks).**
+- One item, one slot.
+- MM's checks that would hand out a second copy give something else: an upgrade if there's one
+  left, otherwise a randomizer-style reward (hearts, rupees, or an item from another loaded
+  game).
+- So the extra checks become what fills the combined item pool.
+
 **Reference:** the OoT+MM combo randomizer (OoTMM) already merges the two games' item pools and
 flags. It still switches between the two games underneath, but it's a useful map of which items
 and flags line up.
