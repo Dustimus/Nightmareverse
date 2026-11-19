@@ -78,9 +78,10 @@ here is agreed or scheduled.
   - wrong: OoT's error sound, Chris's hesitant presses from his 10F set, then a word pointing back
     to the sheet music;
   - RE1's own way (Use the notes at the piano) still works too;
-  - played freely in the bar it does nothing; outside the mansion it turns the clock to midnight
-    (the Easter egg; not yet tried in play). Decided with the user (2026-11-19, from the Majora's
-    Mask side): in Termina it's a time skip to that day's midnight.
+  - played freely in the bar it does nothing; outside the mansion it turns the clock to 19:01 (the
+    Easter egg; not yet tried in play). Decided with the user (2026-11-19): 19:01, not midnight,
+    so it's fully dark and the evening's windows (Dampe's tour, the evening doors, night-only
+    Gold Skulltulas) are open at once; in Termina, the clock moves forward to that hour.
   - A song matches only from notes played in one go (2026-11-19): the heard notes are cleared as
     the ocarina comes out and when OoT recognises one of its own songs. The Sonata is the Song of
     Time shifted by a note, so leftovers from one Song of Time used to complete it on the next.

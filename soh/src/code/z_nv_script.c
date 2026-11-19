@@ -507,7 +507,7 @@ static void NvPiano_Sit(PlayState* play);
 static s32 NvPiano_Offer(PlayState* play, s32 i);
 static void NvSonata_Learn(void);
 static s32 NvPiano_Note(PlayState* play, u8 button);
-static void NvSonata_Midnight(PlayState* play);
+static void NvSonata_Night(PlayState* play);
 static void NvPiano_Update(PlayState* play);
 static void NvPiano_Phase(PlayState* play);
 static s32 sNvDeskCam;      // the desk's camera is up while its item is offered
@@ -2451,7 +2451,7 @@ static void NvSong_Restore(void);
  * with no notes shown: the six notes right, OoT's correct chime and the room's own event 0 ("It's
  * 'Moonlight Sonata'.", then event 6: the playing, the wall, 1:A5); wrong, OoT's error and a word
  * pointing back to the sheet music. Played freely in the bar it does nothing; outside the mansion
- * it turns the clock to midnight.
+ * it turns the clock to 19:01, full night.
  * Not yet: Link seated as Jill is for event 6, the song on the Quest screen.
  */
 #define NV_SONATA_INDEX (0xD8 >> 4)
@@ -2679,8 +2679,14 @@ static void NvPiano_Phase(PlayState* play) {
     }
 }
 
-/** Outside the mansion, the song in free play turns the clock to midnight (mod1's Easter egg). */
-static void NvSonata_Midnight(PlayState* play) {
+/**
+ * Outside the mansion, the song in free play turns the clock to 19:01 (mod1's Easter egg, with the
+ * user's hour, 2026-11-19): full night lighting starts at 0xCAAC (z_kankyo.c; CLOCK_TIME(19, 0) is
+ * 0xCAAB, one short), and it's past OoT's evening checks (dayTime > 0xC000: nightFlag, Dampe's tour,
+ * the evening doors) without waiting. The night setup shows at the next scene change, as OoT's own.
+ * Termina's clock (the Majora's Mask branch) follows whatever it sets.
+ */
+static void NvSonata_Night(PlayState* play) {
     s32 k;
 
     if (!NvSonata_Known() || (NvRe1_IsScene(play->sceneNum))) {
@@ -2692,9 +2698,9 @@ static void NvSonata_Midnight(PlayState* play) {
         }
     }
     memset(sNvSongHeard, 0xFF, sizeof(sNvSongHeard));
-    gSaveContext.dayTime = 0; // midnight
+    gSaveContext.dayTime = CLOCK_TIME(19, 1);
     Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
-    printf("NVSONG the Moonlight Sonata: midnight\n");
+    printf("NVSONG the Moonlight Sonata: 19:01\n");
     fflush(stdout);
 }
 
@@ -2728,7 +2734,7 @@ s32 NvSong_Note(PlayState* play, u8 button) {
     if (NvPiano_Note(play, button)) { // (at the piano, the notes are the piano's)
         return false;
     }
-    NvSonata_Midnight(play);
+    NvSonata_Night(play);
     for (k = 0; k < n; k++) {
         if (sNvSongHeard[sizeof(sNvSongHeard) - n + k] != sNvSongNotes[k]) {
             return false;
