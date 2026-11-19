@@ -13,8 +13,9 @@
  * (Flg_on(g_SysFlags, scd_anim_param)), which the script waits on.
  *
  * The same behaviours walk the player's stand-in (NvNpc_Player, z_nv_enemy.c moves Link with it).
- * The player has no RE1 model here, so an animation she would play just takes NV_NPC_PLAYER_ANIM
- * ticks.
+ * The player has no RE1 model here: an animation she would play is stepped on the set it comes from
+ * (z_nv_enemy.c, NvCast_SceneBank: the room's, or her body or hand set) and shown on Link; one
+ * with no set (a few rooms' unreachable ones) just takes NV_NPC_PLAYER_ANIM ticks.
  *
  * Left out, each a note where it would be: the head tracking (state-1 opcode 0x81's look-at), the
  * held weapon's joint, the footsteps, the shadow, the follow-the-player pathfinding (state 9).

@@ -9,16 +9,15 @@
  * (cmd_if pushes where its block ends; a failed test returns 0 and resumes there), the event
  * control bytes 0xF6-0xFF in any state, state 0's commands.
  *
- * What runs so far: if/else/end if, the flag banks (test, set/clear/toggle), the state byte test
- * (stage, room, camera), Enemy_set (z_nv_enemy.c), enemy_prop_set's behaviour, enemy_pos_set, events (create,
- * kill), movies (cmd_fmv_set: z_nv_movie.c). Every other command is stepped over at its RE1 length;
- * the other tests are false. Events' animation (state 1) and movement (state 2) opcodes are
- * stepped over too: nothing is animated or moved by them yet.
+ * Everything runs but the visual extras (mirror, tints, lights, effect flags, costume: re1/README.md,
+ * "Room scripts"), which are stepped over at their RE1 length (NV_LOG names them). The events'
+ * character opcodes (state 1, animation; state 2, movement) drive the enemies and characters and,
+ * for the player, the stand-in that walks Link (z_nv_enemy.c, NvCast).
  *
  * Ticks are RE1's 30 Hz: three every two of OoT's frames.
  *
  * The flags are RE1's ten banks with RE1's bit numbering (bit n: dword n / 32, mask
- * 0x80000000 >> n % 32). They last for the session; saving them comes with the save system.
+ * 0x80000000 >> n % 32). They're saved with the game (z_nv_save.c).
  */
 #include "global.h"
 #include "soh/OTRGlobals.h"
