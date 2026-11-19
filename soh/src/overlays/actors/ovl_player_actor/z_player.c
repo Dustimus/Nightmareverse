@@ -12294,7 +12294,7 @@ void Player_Update(Actor* thisx, PlayState* play) {
 
         // Nightmareverse: an RE1 room's scripts keep the pad from the player (z_nv_script.c NvMf_Update)
         if ((this->stateFlags1 & (PLAYER_STATE1_INPUT_DISABLED | PLAYER_STATE1_IN_CUTSCENE)) ||
-            (gNvInputLock && (play->sceneNum >= SCENE_RE1_100))) {
+            (gNvInputLock && (NvRe1_IsScene(play->sceneNum)))) {
             memset(&input, 0, sizeof(input));
         } else {
             input = play->state.input[0];

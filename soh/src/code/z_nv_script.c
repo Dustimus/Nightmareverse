@@ -454,7 +454,7 @@ s32 gNvInputLock;       // the pad is kept from the player now (z_player.c, z_nv
 
 /** g_message_flags now: all on outside RE1's rooms. */
 u32 NvScript_MsgFlags(void) {
-    if ((sNvMain == NULL) || (sNvPlay == NULL) || (sNvPlay->sceneNum < SCENE_RE1_100)) {
+    if ((sNvMain == NULL) || (sNvPlay == NULL) || (!NvRe1_IsScene(sNvPlay->sceneNum))) {
         return 0xFFFF;
     }
     return sNvFlags[6][0] & 0xFFFF;
@@ -2683,7 +2683,7 @@ static void NvPiano_Phase(PlayState* play) {
 static void NvSonata_Midnight(PlayState* play) {
     s32 k;
 
-    if (!NvSonata_Known() || (play->sceneNum >= SCENE_RE1_100)) {
+    if (!NvSonata_Known() || (NvRe1_IsScene(play->sceneNum))) {
         return;
     }
     for (k = 0; k < 6; k++) {
@@ -2952,7 +2952,7 @@ void NvScript_RoomInit(PlayState* play) {
     }
     sNvLightDelta = 0;
     NvWarp_Arrive(play);
-    if (play->sceneNum < SCENE_RE1_100) {
+    if (!NvRe1_IsScene(play->sceneNum)) {
         NvBgm_Leave(); // out of the mansion: RE1's sounds stop
     }
     char path[256];
@@ -3497,7 +3497,7 @@ static void NvObj_Update(PlayState* play) {
         }
         NvFlags_Op(5, NV_MSF_ON_OBJECT, up ? 0 : 1);
     }
-    if ((player == NULL) || (play->sceneNum < SCENE_RE1_100)) {
+    if ((player == NULL) || (!NvRe1_IsScene(play->sceneNum))) {
         return;
     }
     px = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
@@ -3664,7 +3664,7 @@ void NvScript_Update(PlayState* play) {
     }
     NvSave_Update(play);   // the typewriter's answer, a loaded save's spot (z_nv_save.c)
     NvPanel_Update(play);  // a screen the room's script put up (z_nv_panel.c)
-    if ((play->sceneNum >= SCENE_RE1_100) && !NvDoorScene_Covering()) { // off the boxes its scripts moved
+    if ((NvRe1_IsScene(play->sceneNum)) && !NvDoorScene_Covering()) { // off the boxes its scripts moved
         s32 NvRe1_PushPlayer(s32* x, s32* z);
         Player* player = GET_PLAYER(play);
         s32 x = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
@@ -3675,7 +3675,7 @@ void NvScript_Update(PlayState* play) {
             player->actor.world.pos.z = -z * NV_RE1_SCALE;
         }
     }
-    if (!NvDoorScene_Covering() && !NvMovie_Playing() && (play->pauseCtx.state == 0) && (play->sceneNum >= SCENE_RE1_100)) {
+    if (!NvDoorScene_Covering() && !NvMovie_Playing() && (play->pauseCtx.state == 0) && (NvRe1_IsScene(play->sceneNum))) {
         void NvPoison_Update(PlayState* play);
 
         NvPoison_Update(play); // RE1's poison wearing her down (z_nv_items.c)
@@ -3811,7 +3811,7 @@ void NvLight_Draw(PlayState* play) {
     s32 st = sNvStage;
     s32 rm = sNvRoom;
 
-    if ((sNvLightState < 0) || (play->sceneNum < SCENE_RE1_100) || (sNvMain == NULL)) {
+    if ((sNvLightState < 0) || (!NvRe1_IsScene(play->sceneNum)) || (sNvMain == NULL)) {
         return;
     }
     if ((st == 2) && ((rm <= 2) || ((rm == 5) && (sNvCamera == 0)) || ((rm == 0x0F) && (sNvCamera == 1)) ||

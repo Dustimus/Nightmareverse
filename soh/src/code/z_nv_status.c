@@ -253,7 +253,7 @@ static s8 sNvStHeld;         // the stick's last direction (moves happen on a ne
 
 /** Whether the pause menu shows RE1's screen: Link is in one of RE1's rooms. */
 s32 NvStatus_InMansion(PlayState* play) {
-    return play->sceneNum >= SCENE_RE1_100;
+    return NvRe1_IsScene(play->sceneNum);
 }
 
 static void NvSt_Rect(Gfx** gfxP, s32 x, s32 y, s32 w, s32 h, u8 r, u8 g, u8 b, u8 a) {

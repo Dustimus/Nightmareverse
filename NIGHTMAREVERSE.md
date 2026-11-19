@@ -109,7 +109,10 @@ the two out of each other's way:
   the user first.
 - **Scene and entrance numbers.** RE1's take OoT's tables from scene 0x6E and entrance 0x614
   (`soh/include/tables/nv_re1_*.h`). Another game's go after them, in its own table files,
-  starting past the last number RE1's tables use at the time.
+  starting past the last number RE1's tables use at the time. Test "is this one of my game's
+  scenes" with both ends of its range, never with a lower bound alone: RE1's code uses
+  `NvRe1_IsScene()` (`soh/include/z64scene.h`, its range from `nv_re1_scene_range.h`, which
+  `soh_tables.py` writes), and another game's tables should give it the same kind of helper.
 
 ## Ideas that cross games
 

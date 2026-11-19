@@ -2633,7 +2633,7 @@ void Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
         unkCondition = (*sp80 & player->stateFlags1);
         // Nightmareverse: an RE1 scene walking the player (z_nv_enemy.c NvCast_Update) holds Link in a
         // cutscene, but RE1's characters and enemies go on meanwhile (its scripts wait on them)
-        if (gNvCastHolding && (play->sceneNum >= SCENE_RE1_100)) {
+        if (gNvCastHolding && (NvRe1_IsScene(play->sceneNum))) {
             unkCondition &= ~PLAYER_STATE1_IN_CUTSCENE;
         }
 

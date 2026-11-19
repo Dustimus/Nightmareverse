@@ -276,7 +276,7 @@ s32 NvEnding_Update(PlayState* play) {
     s32 ticks;
     s32 t;
 
-    if (play->sceneNum < SCENE_RE1_100) {
+    if (!NvRe1_IsScene(play->sceneNum)) {
         if (sNvEnd == NV_END_GONE) { // (back in Hyrule)
             sNvEnd = NV_END_NONE;
         }
@@ -418,7 +418,7 @@ void NvEnding_Draw(PlayState* play) {
     Gfx* gfx;
 
     if ((sNvEnd != NV_END_RESULT) && (sNvEnd != NV_END_EPILOGUE) && (sNvEnd != NV_END_LEAVE) &&
-        ((sNvEnd != NV_END_GONE) || (play->sceneNum < SCENE_RE1_100))) {
+        ((sNvEnd != NV_END_GONE) || (!NvRe1_IsScene(play->sceneNum)))) {
         return;
     }
     OPEN_DISPS(gfxCtx);
@@ -502,7 +502,7 @@ void NvCountdown_Draw(PlayState* play) {
     GfxPrint printer;
     Gfx* gfx;
 
-    if ((play->sceneNum < SCENE_RE1_100) || !NvFlags_Test(5, NV_MSF2_COUNTDOWN_ACTIVE) || (w >= NV_COUNTDOWN_END) ||
+    if ((!NvRe1_IsScene(play->sceneNum)) || !NvFlags_Test(5, NV_MSF2_COUNTDOWN_ACTIVE) || (w >= NV_COUNTDOWN_END) ||
         NvMovie_Playing()) {
         return;
     }
