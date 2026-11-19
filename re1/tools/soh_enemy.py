@@ -140,6 +140,49 @@ def room_player_blob(raw):
     return bytes(out)
 
 
+def _rpla(sk, anims):
+    out = bytearray(b"RPLA" + struct.pack("<H", len(sk.relpos)))
+    for i in range(len(sk.relpos)):
+        out += struct.pack("<4h", *sk.relpos[i], sk.parents[i])
+    out += bank(sk, anims)
+    return bytes(out)
+
+
+# Jill's hand sets for the scripts' animations below 0x10 (g_ScdAnimRemap: 0-4 her body's own
+# set, 5-9 the set of the weapon in her hand, 0-4 of it), by RE1's item id (EntityModelLoader's
+# g_weaponPathTable, Jill's row): unarmed, knife, Beretta, shotgun, both Pythons, flamethrower,
+# the grenade launcher's three rounds, the rocket launcher
+JILL_HAND_SETS = ["W10", "W11", "W12", "W13", "W14", "W15", "W16", "W17"]
+
+
+def write_player_sets(re1, out):
+    """Jill's body set (EM1021's own animations: "re1/player/b1") and her hand sets
+    ("re1/player/w1x" for PLAYERS/W1x.EMW), as room_player_blob writes a room's; how many."""
+    d = os.path.join(out, "re1", "player")
+    os.makedirs(d, exist_ok=True)
+
+    def put(name, blob):
+        open(os.path.join(d, name), "wb").write(
+            soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+
+    n = 0
+    jill = enemy_file(re1, 0x21)
+    if os.path.exists(jill):
+        e = emd.load(jill)
+        put("b1", _rpla(e.skeleton, e.animations))
+        n += 1
+    players = rdt.find_file(re1, "PLAYERS")
+    for w in JILL_HAND_SETS:
+        path = rdt.find_file(players, w + ".EMW") if os.path.isdir(players) else ""
+        if not os.path.exists(path):
+            continue
+        raw = open(path, "rb").read()
+        anim_off, _mesh_off = struct.unpack_from("<2I", raw, len(raw) - 8)
+        put(w.lower(), _rpla(emd.parse_skeleton(raw, 0, anim_off), emd.parse_anim_list(raw, anim_off)))
+        n += 1
+    return n
+
+
 # Chris's rooms whose player animations Jill's game borrows (10F: his hesitant notes at the piano,
 # Link's wrong notes; z_nv_script.c NvPiano)
 CHRIS_ROOMS = {"10F"}

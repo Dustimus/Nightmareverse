@@ -237,6 +237,17 @@ the end of Player_Update. The zombie's grab plays its three player animations pe
 (zombie_attack_player_anim_tbl) and holds Link until the last ends. Dev: `NV_LOG_LA=1` logs both
 skeletons per frame; `tools/linkanim_debug.py soh.log out.png` draws them side by side.
 
+Scenes (2026-11-17 to 11-19): when a room's script takes the player (an event's character 0, its
+state-1 opcodes), Link is walked by a stand-in RE1 entity (`NvCast`, `z_nv_enemy.c`) and plays what
+RE1 would play on Jill, by player_scd_behavior_01's sets: 0x10-0x3D the room's own set (RDT+0x6C/0x70,
+`re1/player/r<room><0|1>`); below 0x10 g_ScdAnimRemap's pairs, 0-4 Jill's body set (EM1021's own
+animations, `re1/player/b1`) and 5-9 the set of the weapon in her hand (`re1/player/w1x`, PLAYERS/W1x.EMW
+by g_weaponPathTable; unarmed W10). Its timing is the animation's, so a scene waits as long as RE1's.
+Behaviours that move her pick OoT's nearest: 2 walks, 3 runs, 4 and 5 step back, the turns on the spot
+step. The HUD is hidden while a scene holds her (the ocarina keeps its own). A scan of Jill's 159 room
+files (2026-11-19) found 571 such requests in 58 rooms; 10 aren't in their room's set (eight in 408,
+602's 0x2F, 619's 0x28) and keep a fixed hold, and 0x3E and up are never asked of Jill.
+
 Status screen (2026-10-31): in RE1's rooms the pause menu's map page is RE1's status screen
 (`soh/src/code/z_nv_status.c`, hooked into z_kaleido_scope_PAL.c where the world map is drawn) and
 the pause menu opens on it there (z_kaleido_setup.c). It is drawn in RE1's own pictures, cut at
