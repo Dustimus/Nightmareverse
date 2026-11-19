@@ -195,7 +195,19 @@ The default is shared or carried over. A Termina-only piece needs a reason.
 - **Balance goes in the randomizer's logic, not in taking the moves away.** Zora swimming past
   the Iron Boots, a Deku flower launch skipping a climb, a Goron roll across Hyrule Field: the
   logic counts them as ways to reach checks.
-- **Open:** can adult Link transform? Fierce Deity is the obvious case.
+- **Adult Link and the forms (leaning yes, talked over with the user, 2026-11-19).**
+  - Most of OoT is played as adult, so locking adult Link out would waste the forms. The user
+    is uneasy about how it reads, though: in the original OoT, adult Link can't wear masks.
+  - Proposal: the forms don't depend on age. The mask makes Link that creature whoever wears
+    it, and he changes back into whichever age he was. The forms are their own size anyway
+    (MM's Zora Link is about adult height), so there's no separate "adult Deku".
+  - The full transformation scene plays only the first time, as in MM. After that it's the
+    quick flash.
+  - Possibly a setting, "adult can transform", on by default.
+  - Still open: plain masks (Bunny Hood and so on) on adult.
+- **Water Temple as Zora (the user likes it).** Zora diving does part of the Iron Boots' job.
+  Zora Link can't use the Hookshot or Longshot, though, so the temple still needs switching
+  forms. Switching becomes part of the puzzle, without making the temple trivial.
 
 **Items both games have (bow, hookshot, bombs, bottles, elemental arrows, Lens, several masks).**
 - One item, one slot.
