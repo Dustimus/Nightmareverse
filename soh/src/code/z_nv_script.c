@@ -9,16 +9,15 @@
  * (cmd_if pushes where its block ends; a failed test returns 0 and resumes there), the event
  * control bytes 0xF6-0xFF in any state, state 0's commands.
  *
- * What runs so far: if/else/end if, the flag banks (test, set/clear/toggle), the state byte test
- * (stage, room, camera), Enemy_set (z_nv_enemy.c), enemy_prop_set's behaviour, enemy_pos_set, events (create,
- * kill), movies (cmd_fmv_set: z_nv_movie.c). Every other command is stepped over at its RE1 length;
- * the other tests are false. Events' animation (state 1) and movement (state 2) opcodes are
- * stepped over too: nothing is animated or moved by them yet.
+ * Everything runs but the visual extras (mirror, tints, lights, effect flags, costume: re1/README.md,
+ * "Room scripts"), which are stepped over at their RE1 length (NV_LOG names them). The events'
+ * character opcodes (state 1, animation; state 2, movement) drive the enemies and characters and,
+ * for the player, the stand-in that walks Link (z_nv_enemy.c, NvCast).
  *
  * Ticks are RE1's 30 Hz: three every two of OoT's frames.
  *
  * The flags are RE1's ten banks with RE1's bit numbering (bit n: dword n / 32, mask
- * 0x80000000 >> n % 32). They last for the session; saving them comes with the save system.
+ * 0x80000000 >> n % 32). They're saved with the game (z_nv_save.c).
  */
 #include "global.h"
 #include "soh/OTRGlobals.h"
@@ -455,7 +454,7 @@ s32 gNvInputLock;       // the pad is kept from the player now (z_player.c, z_nv
 
 /** g_message_flags now: all on outside RE1's rooms. */
 u32 NvScript_MsgFlags(void) {
-    if ((sNvMain == NULL) || (sNvPlay == NULL) || (sNvPlay->sceneNum < SCENE_RE1_100)) {
+    if ((sNvMain == NULL) || (sNvPlay == NULL) || (!NvRe1_IsScene(sNvPlay->sceneNum))) {
         return 0xFFFF;
     }
     return sNvFlags[6][0] & 0xFFFF;
@@ -502,6 +501,8 @@ static u8 sNvLastEnemyFlags; // g_scdLastEnemyFlags
 static s32 sNvDeskAsk = -1; // check_desk: the desk whose "use the key?" is open
 static s32 sNvPianoAsk; // 10F's piano: its "play it?" is open
 static void NvPiano_Listen(PlayState* play);
+static void NvPickup_Map(s32 i);
+static void NvMap_Visited(s32 stage, s32 room);
 static void NvPiano_Sit(PlayState* play);
 static s32 NvPiano_Offer(PlayState* play, s32 i);
 static void NvSonata_Learn(void);
@@ -2006,8 +2007,10 @@ static void NvAot_Run(s32 i, s32 handler) {
         case 2:
             NvScd_Message(a->param[0] & 0x7F, a->param[1]);
             break;
-        case 4:
         case 0x0F:
+            NvPickup_Map((s32)(a - sNvAot));
+            break;
+        case 4:
             if ((Message_GetState(&sNvPlay->msgCtx) == TEXT_STATE_NONE) && (a->item != 0)) {
                 NvPickup_Prompt(a->item);
                 sNvMsgText = sNvPrompt;
@@ -2066,7 +2069,11 @@ s32 NvAot_Act(PlayState* play, Player* player) {
         return false;
     }
     sNvActFrame = play->gameplayFrames;
-    if ((sNvAot[i].handler == 4) || (sNvAot[i].handler == 0x0F)) { // an item or a map: take it?
+    if (sNvAot[i].handler == 0x0F) { // a map: RE1 takes it at once
+        NvPickup_Map(i);
+        return true;
+    }
+    if (sNvAot[i].handler == 4) { // an item: take it?
         NvPickup_Prompt(sNvAot[i].item);
         sNvMsgText = sNvPrompt;
         sNvPickup = i;
@@ -2433,7 +2440,7 @@ static const u8 sNvSongNotes[] = { OCARINA_BTN_C_DOWN, OCARINA_BTN_C_RIGHT, OCAR
 s16 NvDoor_Entrance(const char* sceneFile, s32 spawn);
 static s32 sNvWarpIn;     // a warp song into the mansion is on its way
 static s32 sNvSongPlayed; // the mansion's song was just played (the warp sequence is running)
-static u8 sNvSongHeard[8]; // the last notes played in free play, newest last
+static u8 sNvSongHeard[8] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }; // the last notes played in free play, newest last (0xFF none)
 static void NvSong_Restore(void);
 
 /*
@@ -2676,7 +2683,7 @@ static void NvPiano_Phase(PlayState* play) {
 static void NvSonata_Midnight(PlayState* play) {
     s32 k;
 
-    if (!NvSonata_Known() || (play->sceneNum >= SCENE_RE1_100)) {
+    if (!NvSonata_Known() || (NvRe1_IsScene(play->sceneNum))) {
         return;
     }
     for (k = 0; k < 6; k++) {
@@ -2689,6 +2696,17 @@ static void NvSonata_Midnight(PlayState* play) {
     Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
     printf("NVSONG the Moonlight Sonata: midnight\n");
     fflush(stdout);
+}
+
+/**
+ * The notes heard so far go (z_message_PAL.c): as the ocarina comes out, and when OoT recognises
+ * one of its own songs. A song of ours is matched only from notes played in one go: the Moonlight
+ * Sonata (A, C-Down, C-Right twice) is the Song of Time shifted by a note, and leftovers from one
+ * Song of Time would complete it on the next one's first note. (Before the first, the buffer read
+ * as A notes: 0 is OCARINA_BTN_A.)
+ */
+void NvSong_Reset(void) {
+    memset(sNvSongHeard, 0xFF, sizeof(sNvSongHeard));
 }
 
 /** A note played in free play (z_message_PAL.c): true when it completes the mansion's song. */
@@ -2878,6 +2896,65 @@ s32 NvScript_RoomNum(void) {
     return sNvRoom;
 }
 
+/** Where she is in RE1's terms (g_stageId, g_roomId, g_roomCameraId), for the map (z_nv_map.c). */
+void NvScript_Where(s32* stage, s32* room, s32* camera) {
+    *stage = sNvStage;
+    *room = sNvRoom;
+    *camera = sNvCamera;
+}
+
+/*
+ * The map's flags, bank 8 (g_RoomFlags): room_set_visited_flag (0x00488570) raises the room's bit
+ * as it loads, g_StageRoomFlagOffset[stage % 5] + room (the second visit's stages share the first's);
+ * a map taken raises 0x7C + its map index (set_room_item_seen_flag, 0x004885a0).
+ */
+static const u8 sNvRoomFlagBase[5] = { 0, 32, 63, 82, 100 };
+
+static void NvMap_Visited(s32 stage, s32 room) {
+    if ((stage >= 0) && (room >= 0) && (room < 32)) {
+        NvFlags_Op(8, sNvRoomFlagBase[stage % 5] + room, 0);
+    }
+}
+
+static void NvMap_Owned(s32 item) {
+    if ((item >= 0x4E) && (item <= 0x53)) {
+        NvFlags_Op(8, 0x7C + item - 0x4E, 0);
+    }
+}
+
+/**
+ * pickup_key_event (0x0041be70, room action 0x0F): a map is taken at once, without a question and
+ * into no slot: the entry goes, the item's taken flag is set, the map is owned, and the item is
+ * what the scripts' picked_item_test sees (the room's script says what was found).
+ */
+static void NvPickup_Map(s32 i) {
+    NvAot* a = &sNvAot[i];
+
+    NvItems_SetTaken(a->itemFlag);
+    NvFx_Kill(a->sparkle);
+    a->sparkle = 0xFF;
+    a->handler = 0;
+    NvMap_Owned(a->item);
+    sNvPickedItem = a->item;
+    printf("NVITEM took the map %02X (flag %d)\n", a->item, a->itemFlag);
+    fflush(stdout);
+}
+
+/** An older save's maps in Jill's slots or the box (maps were once taken as items): owned instead. */
+static void NvMap_FromSlots(void) {
+    s32 NvItems_RemoveMaps(void);
+    s32 found = NvItems_RemoveMaps();
+    s32 k;
+
+    for (k = 0; k < 6; k++) {
+        if (found & (1 << k)) {
+            NvMap_Owned(0x4E + k);
+            printf("NVITEM an older save's map %02X: owned, out of the slots\n", 0x4E + k);
+            fflush(stdout);
+        }
+    }
+}
+
 void NvScript_RoomInit(PlayState* play) {
     NvFlags_NewGame();
     sNvLightState = -1; // (room_set: the special light off)
@@ -2886,7 +2963,7 @@ void NvScript_RoomInit(PlayState* play) {
     }
     sNvLightDelta = 0;
     NvWarp_Arrive(play);
-    if (play->sceneNum < SCENE_RE1_100) {
+    if (!NvRe1_IsScene(play->sceneNum)) {
         NvBgm_Leave(); // out of the mansion: RE1's sounds stop
     }
     char path[256];
@@ -2905,6 +2982,7 @@ void NvScript_RoomInit(PlayState* play) {
     NvCast_RoomLoad();
     sNvUsedItem = sNvPickedItem = 0; // (room_set clears them)
     sNvSprOff = 0;
+    NvMap_FromSlots();
     if (getenv("NV_TEXT_TEST") != NULL) { // dev: the executable's text as the game shows it
         NvPickup_Prompt(0x1F);
         printf("NVTEXT prompt: %s\nNVTEXT carry: %s\nNVTEXT msg 8: %s\nNVTEXT name 0x41: %s\nNVTEXT desc 2: %s\n", sNvPrompt,
@@ -2976,6 +3054,7 @@ void NvScript_RoomInit(PlayState* play) {
             sNvFreshRoom = false;
             sNvStage = stage;
             sNvRoom = (u8)room;
+            NvMap_Visited(stage, room);
         }
     }
     sNvCamera = GET_ACTIVE_CAM(play)->camDataIdx;
@@ -3429,7 +3508,7 @@ static void NvObj_Update(PlayState* play) {
         }
         NvFlags_Op(5, NV_MSF_ON_OBJECT, up ? 0 : 1);
     }
-    if ((player == NULL) || (play->sceneNum < SCENE_RE1_100)) {
+    if ((player == NULL) || (!NvRe1_IsScene(play->sceneNum))) {
         return;
     }
     px = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
@@ -3596,7 +3675,7 @@ void NvScript_Update(PlayState* play) {
     }
     NvSave_Update(play);   // the typewriter's answer, a loaded save's spot (z_nv_save.c)
     NvPanel_Update(play);  // a screen the room's script put up (z_nv_panel.c)
-    if ((play->sceneNum >= SCENE_RE1_100) && !NvDoorScene_Covering()) { // off the boxes its scripts moved
+    if ((NvRe1_IsScene(play->sceneNum)) && !NvDoorScene_Covering()) { // off the boxes its scripts moved
         s32 NvRe1_PushPlayer(s32* x, s32* z);
         Player* player = GET_PLAYER(play);
         s32 x = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
@@ -3607,7 +3686,7 @@ void NvScript_Update(PlayState* play) {
             player->actor.world.pos.z = -z * NV_RE1_SCALE;
         }
     }
-    if (!NvDoorScene_Covering() && !NvMovie_Playing() && (play->pauseCtx.state == 0) && (play->sceneNum >= SCENE_RE1_100)) {
+    if (!NvDoorScene_Covering() && !NvMovie_Playing() && (play->pauseCtx.state == 0) && (NvRe1_IsScene(play->sceneNum))) {
         void NvPoison_Update(PlayState* play);
 
         NvPoison_Update(play); // RE1's poison wearing her down (z_nv_items.c)
@@ -3743,7 +3822,7 @@ void NvLight_Draw(PlayState* play) {
     s32 st = sNvStage;
     s32 rm = sNvRoom;
 
-    if ((sNvLightState < 0) || (play->sceneNum < SCENE_RE1_100) || (sNvMain == NULL)) {
+    if ((sNvLightState < 0) || (!NvRe1_IsScene(play->sceneNum)) || (sNvMain == NULL)) {
         return;
     }
     if ((st == 2) && ((rm <= 2) || ((rm == 5) && (sNvCamera == 0)) || ((rm == 0x0F) && (sNvCamera == 1)) ||

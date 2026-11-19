@@ -26,12 +26,11 @@ WEAPONS = {
     0x02: ("W12.EMW", "I00V.IVM"),  # Beretta
     0x03: ("W13.EMW", "I02V.IVM"),  # shotgun
     0x04: ("W14.EMW", "I04V.IVM"),  # Colt Python (DumDum)
-    0x05: ("W15.EMW", "I04V.IVM"),  # Colt Python
-    0x07: ("W17.EMW", "I08V.IVM"),  # grenade launcher (explosive rounds)
-    0x08: ("W17.EMW", "I08V.IVM"),  # (acid rounds)
-    0x09: ("W17.EMW", "I08V.IVM"),  # (flame rounds)
-    # the rocket launcher: its model is item 10's (I07V); Jill's W1B holds only her moves with it,
-    # no aim or fire, so she aims and fires it as the grenade launcher
+    0x05: ("W14.EMW", "I04V.IVM"),  # Colt Python (both Pythons are W14; W15 is the flamethrower's)
+    0x07: ("W16.EMW", "I08V.IVM"),  # grenade launcher (explosive rounds)
+    0x08: ("W16.EMW", "I08V.IVM"),  # (acid rounds)
+    0x09: ("W16.EMW", "I08V.IVM"),  # (flame rounds)
+    # the rocket launcher: its model is item 10's (I07V), its moves Jill's W17
     0x0A: ("W17.EMW", "I07V.IVM"),
 }
 

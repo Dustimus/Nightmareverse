@@ -1181,11 +1181,13 @@ def _pack_soh(folder, re1, anims, jpn=None, exe=None):
     print("soh: status sprites %d" % soh_ui.write_status(re1, folder))
     print("soh: files %d%s" % (soh_ui.write_files(re1, folder, jpn), " (with the Japanese backdrops)" if jpn else ""))
     print("soh: sheets %d" % soh_ui.write_sheets(re1, folder))
+    print("soh: map pictures %d" % soh_ui.write_map(re1, folder))
     print("soh: slides %d" % soh_ui.write_slides(re1, folder))
     print("soh: results %d" % soh_ui.write_result(re1, folder))
     print("soh: computer %d" % soh_ui.write_computer(re1, folder))
     print("soh: weapons %s" % soh_weapons.write(re1, folder))
     print("soh: room player animations %d" % soh_enemy.write_room_players(re1, folder))
+    print("soh: player body and hand sets %d" % soh_enemy.write_player_sets(re1, folder))
     import soh_sound
     print("soh: sounds, voices %s" % (soh_sound.write(re1, folder),))
     print("soh: voice names %d%s" % (soh_sound.write_voice_names(exe, folder), "" if exe else " (no executable: --exe)"))

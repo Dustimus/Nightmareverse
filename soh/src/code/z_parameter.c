@@ -1390,7 +1390,7 @@ void Interface_SetSceneRestrictions(PlayState* play) {
 
     // Nightmareverse: RE1's rooms are indoors with time stopped, so the Sun's Song works as in a
     // dungeon (it stuns, z_nv_enemy.c) instead of turning the day and reloading the room
-    if (play->sceneNum >= SCENE_RE1_100) {
+    if (NvRe1_IsScene(play->sceneNum)) {
         interfaceCtx->restrictions.sunsSong = 3;
     }
 }

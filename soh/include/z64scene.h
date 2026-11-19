@@ -322,6 +322,13 @@ enum SceneID {
 
 #undef DEFINE_SCENE
 
+/* Nightmareverse: whether a scene is one of RE1's rooms (re1/tools/soh_tables.py writes the range;
+ * other games' scenes follow RE1's in the tables, so the test has both ends) */
+#include "tables/nv_re1_scene_range.h"
+static inline int NvRe1_IsScene(int scene) {
+    return (scene >= SCENE_RE1_FIRST) && (scene <= SCENE_RE1_LAST);
+}
+
 // Entrance Index Enum
 #define DEFINE_ENTRANCE(enum, _1, _2, _3, _4, _5, _6) enum,
 

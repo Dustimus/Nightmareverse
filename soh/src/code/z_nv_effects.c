@@ -1362,7 +1362,7 @@ void NvFx_Draw(PlayState* play) {
 
     MtxF sBill; // facing the view: its right, its up (from the view's eye and target, the rooms' fixed cameras)
 
-    if (!sNvFxReady || (play->sceneNum < SCENE_RE1_100)) {
+    if (!sNvFxReady || (!NvRe1_IsScene(play->sceneNum))) {
         return;
     }
     {

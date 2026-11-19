@@ -138,6 +138,11 @@ static s32 NvGun_Load(s32 item) {
     return true;
 }
 
+/** The RE1 item id of the weapon in her hand (0: none), for the scenes' hand set (z_nv_enemy.c). */
+s32 NvWeapon_EquippedItem(void) {
+    return NvGun_Equipped();
+}
+
 /** Whether the equipped RE1 weapon has C-Left here (z_player.c, z_parameter.c). */
 s32 NvWeapon_OwnsCLeft(PlayState* play) {
     return NvStatus_InMansion(play) && (NvGun_Equipped() != 0);

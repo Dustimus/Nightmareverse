@@ -181,7 +181,7 @@ s16 NvSave_Enter(void) {
 s16 NvSave_Died(PlayState* play) {
     s16 e;
 
-    if (play->sceneNum < SCENE_RE1_100) {
+    if (!NvRe1_IsScene(play->sceneNum)) {
         return -1;
     }
     e = NvSave_Enter();
@@ -217,7 +217,7 @@ void NvSave_Typewriter(PlayState* play) {
 void NvSave_Update(PlayState* play) {
     Player* player = GET_PLAYER(play);
 
-    if (sNvSavePending && (player != NULL) && (play->sceneNum >= SCENE_RE1_100) &&
+    if (sNvSavePending && (player != NULL) && (NvRe1_IsScene(play->sceneNum)) &&
         (play->transitionTrigger == TRANS_TRIGGER_OFF) && (play->loadedScene != NULL) &&
         (play->loadedScene->sceneFile.fileName != NULL) &&
         (strcmp(play->loadedScene->sceneFile.fileName, sNvSaveWhere.scene) == 0)) { // (in its room)

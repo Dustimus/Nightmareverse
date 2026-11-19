@@ -770,6 +770,29 @@ s32 NvItems_Reload(s32 gun) {
 /* ---- the item box (RE1's g_itemboxSlots: one box, linked across every box in the mansion) ---- */
 
 /** Box slot i's item (0: empty) and count. */
+/**
+ * Maps were once taken as items (RE1 never puts one in a slot: pickup_key_event only marks it
+ * owned): an older save's, in Jill's slots or the box, go. Returns their map indices as bits.
+ */
+s32 NvItems_RemoveMaps(void) {
+    s32 found = 0;
+    s32 i;
+
+    for (i = 0; i < NV_BOX_SLOTS; i++) {
+        if ((sNvBox[i].id >= 0x4E) && (sNvBox[i].id <= 0x53)) {
+            found |= 1 << (sNvBox[i].id - 0x4E);
+            sNvBox[i].id = sNvBox[i].qty = 0;
+        }
+    }
+    for (i = 0x4E; i <= 0x53; i++) {
+        while (NvItems_Find(i) >= 0) {
+            found |= 1 << (i - 0x4E);
+            NvItems_Remove(i);
+        }
+    }
+    return found;
+}
+
 s32 NvItems_BoxSlot(s32 i, s32* qty) {
     if ((i < 0) || (i >= NV_BOX_SLOTS)) {
         return 0;

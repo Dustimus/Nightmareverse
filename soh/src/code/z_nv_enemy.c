@@ -1688,28 +1688,70 @@ static const NvRe1Anim* NvCast_Bank(const char* path) {
     return &sNvCastBank;
 }
 
+s32 NvWeapon_EquippedItem(void);
+
+/*
+ * Where a scene's animation comes from (player_scd_behavior_01): 0x10-0x3D the room's set, at that
+ * number; below 0x10 g_ScdAnimRemap's pairs, 0-4 Jill's body set (EM1021's own animations) and
+ * 5-9 her hand set (the weapon in her hand, unarmed W10), each at 0-4; 0x0A-0x0F the body's 0.
+ * The file, and the animation in it (*src); NULL for one it has no set for (0x3E and up: the
+ * model's own section, which Jill's has none of).
+ */
+static const char* NvCast_ScenePath(s32 anim, s32* src) {
+    static const char* sHand[11] = { "re1/player/w10", "re1/player/w11", "re1/player/w12", "re1/player/w13",
+                                     "re1/player/w14", "re1/player/w14", "re1/player/w15", "re1/player/w16",
+                                     "re1/player/w16", "re1/player/w16", "re1/player/w17" };
+    s32 item;
+
+    *src = anim;
+    if ((anim >= 0x10) && (anim < 0x3E)) {
+        return NvCast_SetPath();
+    }
+    if ((anim < 0) || (anim >= 0x10)) {
+        return NULL;
+    }
+    if ((anim >= 5) && (anim < 10)) {
+        *src = anim - 5;
+        item = NvWeapon_EquippedItem();
+        return sHand[((item >= 0) && (item < 11)) ? item : 0];
+    }
+    *src = (anim < 5) ? anim : 0;
+    return "re1/player/b1";
+}
+
 /** The bank for the stand-in's behaviour now: the set when it's playing one of the set's animations. */
 static const NvRe1Anim* NvCast_SceneBank(NvRe1Entity* e) {
     const NvRe1Anim* b;
+    const char* path;
+    s32 src;
 
-    if ((e->state != 8) || (e->action_behavior != 1) || (e->animationId < 0x10) || (e->animationId >= 0x3E) ||
-        getenv("NV_NOSCENEANIM")) {
+    if ((e->state != 8) || (e->action_behavior != 1) || getenv("NV_NOSCENEANIM")) {
         return NULL;
     }
-    b = NvCast_Bank(NvCast_SetPath());
-    return ((b != NULL) && (e->animationId < b->numAnims) && (b->numSteps[e->animationId] > 0)) ? b : NULL;
+    path = NvCast_ScenePath(e->animationId, &src);
+    b = NvCast_Bank(path);
+    if ((b == NULL) || (src >= b->numAnims) || (b->numSteps[src] == 0) || (e->animationId >= 64)) {
+        return NULL;
+    }
+    if (src != e->animationId) { // (the stand-in steps it at the script's number: the remapped one there)
+        sNvCastBank.steps[e->animationId] = sNvCastBank.steps[src];
+        sNvCastBank.numSteps[e->animationId] = sNvCastBank.numSteps[src];
+        sNvCastBank.numAnims = MAX(sNvCastBank.numAnims, e->animationId + 1);
+    }
+    return b;
 }
 
 /** Link shows the stand-in's scene animation, at its step; stops when it has none. */
 static void NvCast_ShowScene(NvRe1Entity* e) {
-    const char* path = NvCast_SetPath();
+    s32 src;
+    const char* path = NvCast_ScenePath(e->animationId, &src);
 
     if ((e->anim != NULL) && (path != NULL)) {
         if ((sNvCastShown != e->animationId) || (strcmp(path, sNvCastShownPath) != 0)) {
-            sNvCastShown = NvLinkAnim_PlayFrom(path, 0, e->animationId, true, false) ? e->animationId : -1;
+            sNvCastShown = NvLinkAnim_PlayFrom(path, 0, src, true, false) ? e->animationId : -1;
             snprintf(sNvCastShownPath, sizeof(sNvCastShownPath), "%s", path);
             if (getenv("NV_LOG")) {
-                printf("NVCAST Link plays %s animation 0x%02X\n", path, e->animationId);
+                printf("NVCAST Link plays %s animation 0x%02X\n", path, src);
                 fflush(stdout);
             }
         }

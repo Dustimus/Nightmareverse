@@ -9,6 +9,9 @@ OoT's own entries:
     soh/include/tables/nv_re1_entrance_table.h   per room and start position, four entrances
                                                  (OoT's child/adult x day/night setups; all
                                                  four load the same room)
+    soh/include/tables/nv_re1_scene_range.h      SCENE_RE1_FIRST / SCENE_RE1_LAST, the rooms'
+                                                 range (z64scene.h's NvRe1_IsScene: other games'
+                                                 scenes follow RE1's in the tables)
 
 Only room numbers and start-position counts end up in the headers (no RE1 data).
 
@@ -64,6 +67,9 @@ def main():
               % (name, FIRST_SCENE + i, entr - 4 * nspawn, nspawn))
     open(os.path.join(TABLES, "nv_re1_scene_table.h"), "w").write("".join(sc))
     open(os.path.join(TABLES, "nv_re1_entrance_table.h"), "w").write("".join(en))
+    open(os.path.join(TABLES, "nv_re1_scene_range.h"), "w").write(
+        head + "#define SCENE_RE1_FIRST SCENE_%s\n#define SCENE_RE1_LAST SCENE_%s\n"
+        % (rs[0][0].upper(), rs[-1][0].upper()))
 
 
 if __name__ == "__main__":

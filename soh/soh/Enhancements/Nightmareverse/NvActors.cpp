@@ -73,7 +73,7 @@ extern "C" s32 NvActor_EnemyId(void) {
                 va_end(args);
                 // (and nothing in RE1's rooms starts it: the mansion's music is RE1's, z_nv_sound.c)
                 if (((actor != nullptr) && (actor->id == id)) ||
-                    ((gPlayState != nullptr) && (gPlayState->sceneNum >= SCENE_RE1_100))) {
+                    ((gPlayState != nullptr) && (NvRe1_IsScene(gPlayState->sceneNum)))) {
                     *should = false;
                 }
             });
