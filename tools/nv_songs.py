@@ -1,11 +1,11 @@
-"""Every ocarina song across the games, checked for clashes (a cross-game check: it lives here
-until there's a shared place for it).
+"""Every ocarina song across Nightmareverse's games (OoT, RE1, MM, and any game after them),
+checked for clashes.
 
 The ocarina listens to the notes as they're played, so song X clashes with song Y when Y's
 notes appear anywhere inside X's in a row: playing X sets off Y partway through. A game adding
 a song adds it here first and runs this.
 
-    python mm/tools/nv_songs.py
+    python tools/nv_songs.py
 
 Notes: A, D (C-Down), R (C-Right), L (C-Left), U (C-Up). The notes are the games' own (OoT's
 and MM's songs as the games teach them; RE1's are ours, from z_nv_script.c).
@@ -76,4 +76,5 @@ if __name__ == "__main__":
     print("\n".join(c) if c else f"{len(SONGS)} songs, no clashes")
     n = near_misses(SONGS)
     if n:
-        print("set off by the Song of Time played twice, or with one note more: " + ", ".join(n))
+        print("would be set off if notes carried over after the Song of Time (they don't: every ocarina use and "
+              "every recognised song starts clean, NvSong_Reset): " + ", ".join(n))

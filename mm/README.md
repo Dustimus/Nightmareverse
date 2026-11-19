@@ -61,11 +61,11 @@ RE1 pieces that MM's plans run into, to raise with the user before building the 
   - **Decided with the user (2026-11-19): in Termina it's a time skip.** It jumps the 3-day
     clock to that day's midnight. Warping by the Song of Time's variants alone often isn't
     enough, and MM3D has a similar choose-your-hour feature.
-  - **A clash, reported to the RE1 chat.** Its listener keeps the last 8 notes across ocarina
+  - **A clash, fixed on RE1's side (re1/foyer 7cc6721b, NvSong_Reset).** Its listener keeps the last 8 notes across ocarina
     uses and clears them only on its own match. So the Song of Time (R A D R A D), then the
-    Song of Time started again (R), completes A D R A D R: midnight. `tools/nv_songs.py`
+    Song of Time started again (R), completes A D R A D R: midnight. `../tools/nv_songs.py`
     finds it.
-- **Songs from every game: one list, checked for clashes** (`tools/nv_songs.py`, decided with
+- **Songs from every game: one list, checked for clashes** (`../tools/nv_songs.py`, decided with
   the user that clashes matter, 2026-11-19: probably at least one song per game).
   - A song clashes when its notes appear in a row inside another's, since the ocarina listens
     as the notes are played.
@@ -78,7 +78,10 @@ RE1 pieces that MM's plans run into, to raise with the user before building the 
   (`Save/nv_re1_<file>.sav`, NvSaveFile.cpp). MM can follow the same pattern
   (`nv_mm_<file>.sav`). It also uses OoT event flag 0xD7 ("opening seen"); MM's flags should
   live in its own file, not in OoT's spare flags.
-- **The scene check** (above): in 18 places on re1/foyer now. The RE1 chat has taken it on.
+- **The scene check** (above): fixed on RE1's side (a50cbcca): `NvRe1_IsScene()` with both ends.
+  MM has the same, `NvMm_IsScene()` (`soh/include/z64scene.h`, its range written by
+  `soh_tables.py` to `nv_mm_scene_range.h`). Merged re1/foyer into this branch (2026-11-19,
+  with the user's okay) to pick both up.
 
 ## Building `mm.o2r`
 
@@ -99,7 +102,6 @@ scenes from 0x10E and entrances from 0xF64, after RE1's. Run it when the scene l
   matrices) and writes Torch's declarations for them.
 - `mm_scene.py`: the scene and room headers, as SoH XML.
 - `soh_tables.py`: the scene and entrance tables.
-- `nv_songs.py`: every game's ocarina songs, checked for clashes (cross-game; add a new song here first).
 
 - `mm_rom.py`: checks the ROM against known releases (US N64 1.0 so far) and finds files in
   its file table. `python mm/tools/mm_rom.py <rom>` lists Clock Town's files.

@@ -328,6 +328,11 @@ enum SceneID {
 static inline int NvRe1_IsScene(int scene) {
     return (scene >= SCENE_RE1_FIRST) && (scene <= SCENE_RE1_LAST);
 }
+// Nightmareverse: Majora's Mask's scenes (mm/tools/soh_tables.py)
+#include "tables/nv_mm_scene_range.h"
+static inline int NvMm_IsScene(int scene) {
+    return (scene >= SCENE_MM_FIRST) && (scene <= SCENE_MM_LAST);
+}
 
 // Entrance Index Enum
 #define DEFINE_ENTRANCE(enum, _1, _2, _3, _4, _5, _6) enum,

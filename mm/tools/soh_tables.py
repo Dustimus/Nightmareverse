@@ -4,6 +4,7 @@
 Writes the two X-macro fragments scene_table.h and entrance_table.h include after RE1's:
 
     soh/include/tables/nv_mm_scene_table.h      one DEFINE_SCENE per scene
+    soh/include/tables/nv_mm_scene_range.h      SCENE_MM_FIRST / SCENE_MM_LAST (NvMm_IsScene)
     soh/include/tables/nv_mm_entrance_table.h   per scene and start position, four entrances
                                                 (OoT's child/adult x day/night setups; all four
                                                 load the same spot, as RE1's do)
@@ -56,6 +57,10 @@ def main():
                 entr += 1
     open(os.path.join(TABLES, "nv_mm_scene_table.h"), "w").write("".join(S))
     open(os.path.join(TABLES, "nv_mm_entrance_table.h"), "w").write("".join(E))
+    first = "SCENE_" + soh_name(list(mm_rom.CLOCK_TOWN)[0]).upper()
+    last = "SCENE_" + soh_name(list(mm_rom.CLOCK_TOWN)[-1]).upper()
+    open(os.path.join(TABLES, "nv_mm_scene_range.h"), "w").write(
+        head + f"#define SCENE_MM_FIRST {first}\n#define SCENE_MM_LAST {last}\n")
     print(f"{len(S) - 1} scenes from 0x{FIRST_SCENE:X}, {entr - FIRST_ENTRANCE} entrances from 0x{FIRST_ENTRANCE:X}")
 
 

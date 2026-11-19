@@ -114,6 +114,15 @@ the two out of each other's way:
   `NvRe1_IsScene()` (`soh/include/z64scene.h`, its range from `nv_re1_scene_range.h`, which
   `soh_tables.py` writes), and another game's tables should give it the same kind of helper.
 
+## Shared across the games
+
+- **Ocarina songs:** `tools/nv_songs.py` lists every song from every game and checks them for
+  clashes (one song's notes in a row inside another's sets it off partway through). A game
+  adding a song adds it there first.
+- **"Is this one of a game's scenes":** `NvRe1_IsScene()`, `NvMm_IsScene()`
+  (`soh/include/z64scene.h`), each a range written by that game's `soh_tables.py`. Never test
+  `sceneNum >= <first scene>` alone: the next game's scenes come after.
+
 ## Ideas that cross games
 
 `re1/IDEAS.md` already has some: getting to the mansion from Hyrule (the Lost Woods), RE1 items
