@@ -45,8 +45,8 @@ could also be a base for other games' time systems (Monster Rancher's weeks).
   there, and the clock gives OoT its time each frame, sky included.
 - Anything else that moves OoT's clock moves Termina's forward by as much:
   - **the Sun's Song works as the Song of Double Time** (to the next 6:00 or 18:00);
-  - **RE1's Moonlight Sonata skips to the hour it sets:** midnight today, 18:00 once RE1 changes
-    it (below).
+  - **RE1's Moonlight Sonata skips to the hour it sets:** midnight today, 19:01 once RE1 changes
+    it (below; Termina may get its own target).
 - **The Song of Time** (once its message closes) goes back to the dawn of the first day, at
   South Clock Town's clock tower door.
 
@@ -101,7 +101,13 @@ RE1 pieces that MM's plans run into, to raise with the user before building the 
   - None of MM's songs is the mansion song.
 - **The Moonlight Sonata Easter egg.** RE1's Sonata (A, C-Down, C-Right, twice) sets OoT's
   clock to midnight in free play outside the mansion.
-  - **The user, later the same day: the Sonata should go to 18:00, not midnight, everywhere.**
+  - **Termina may want its own target** (the user, 2026-11-19): a clean midnight, as the user
+    remembers MM3D doing, against Hyrule's 19:01. To settle when MM's songs are built. The
+    clock can't tell the Sonata from the Sun's Song by the time alone, so a Termina-only
+    target needs RE1's Sonata to hand the skip to the MM clock in Termina's scenes (one call)
+    instead of setting OoT's time itself.
+  - **The user, later the same day: the Sonata should go to 19:01 (passed to the RE1 chat),
+    not midnight, in Hyrule.**
     That fixes most of the waiting that longer days would add in Hyrule (Dampé's tour, evening
     setups), and suits the name. RE1's side sets the hour. Termina's clock follows whatever it
     sets, with no change needed here.
