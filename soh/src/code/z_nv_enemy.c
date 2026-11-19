@@ -1794,16 +1794,34 @@ void NvCast_Update(PlayState* play, s32 eventsLive) {
                    e->scd_anim_param, e->angle);
             fflush(stdout);
         }
-        // Link walks while the script walks her, and stands once she stops (the hold loops
-        // whatever he's playing): OoT's walk at about her pace
+        // Link moves as the script moves her (player_scd_behavior_02..06), with OoT's nearest
+        // animation at about her pace: 2 walks, 3 runs, 4 and 5 step back (her back to the
+        // target), and the turns on the spot (2 and 3 before they set off, 6) step as RE1's do,
+        // on her walk cycle; standing once she stops (the hold loops whatever he's playing)
         step = sqrtf(SQ((f32)(e->t[0] - x0)) + SQ((f32)(e->t[2] - z0))) * NV_RE1_SCALE;
-        want = (LinkAnimationHeader*)((step > 0.3f) ? gPlayerAnim_link_normal_walk : gPlayerAnim_link_normal_wait);
-        if ((sNvCastHeldFrames > 2) && (player->skelAnime.animation != want)) {
-            LinkAnimation_Change(play, &player->skelAnime, want, 1.0f, 0.0f, Animation_GetLastFrame(want),
-                                 ANIMMODE_LOOP, -4.0f);
-        }
-        if (want == (LinkAnimationHeader*)gPlayerAnim_link_normal_walk) {
-            player->skelAnime.playSpeed = CLAMP(step / 3.0f, 0.5f, 2.0f);
+        {
+            s32 beh = e->action_behavior;
+            s32 turning = (e->state == 8) && (e->action_state == 1) && ((beh == 2) || (beh == 3) || (beh == 6));
+            f32 speed;
+
+            if ((step > 0.3f) && ((beh == 4) || (beh == 5))) {
+                want = (LinkAnimationHeader*)gPlayerAnim_link_normal_back_walk;
+                speed = CLAMP(step / 2.0f, 0.5f, 2.0f);
+            } else if ((step > 0.3f) && (beh == 3)) {
+                want = (LinkAnimationHeader*)gPlayerAnim_link_normal_run;
+                speed = CLAMP(step / 6.0f, 0.7f, 1.5f);
+            } else if ((step > 0.3f) || turning) {
+                want = (LinkAnimationHeader*)gPlayerAnim_link_normal_walk;
+                speed = (step > 0.3f) ? CLAMP(step / 3.0f, 0.5f, 2.0f) : 0.6f;
+            } else {
+                want = (LinkAnimationHeader*)gPlayerAnim_link_normal_wait;
+                speed = 1.0f;
+            }
+            if ((sNvCastHeldFrames > 2) && (player->skelAnime.animation != want)) {
+                LinkAnimation_Change(play, &player->skelAnime, want, 1.0f, 0.0f, Animation_GetLastFrame(want),
+                                     ANIMMODE_LOOP, -4.0f);
+            }
+            player->skelAnime.playSpeed = speed;
         }
     }
     player->actor.world.pos.x = e->t[0] * NV_RE1_SCALE;
