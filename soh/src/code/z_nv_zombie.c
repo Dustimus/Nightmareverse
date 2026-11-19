@@ -741,6 +741,27 @@ static u32 room_check_sight_blocked(s32 dx, s32 dz, u8 cell) {
     return 0;
 }
 
+/**
+ * check_weapon_line_of_sight (0x0048a530) for a shot: from the player's place (x, z) to the target
+ * (tx, tz), room_check_sight_blocked over the room's four layers (3 down to 0); true if any blocks it.
+ */
+s32 NvRe1_ShotBlocked(s32 x, s32 z, s32 tx, s32 tz) {
+    static NvRe1Entity sFrom; // (ENTITY is the player when RE1 tests it)
+    NvRe1Entity* keep = E;
+    u32 blocked = 0;
+    s32 layer;
+
+    sFrom.t[0] = x;
+    sFrom.t[2] = z;
+    sFrom.id = 1;
+    E = &sFrom;
+    for (layer = 3; layer >= 0; layer--) {
+        blocked |= room_check_sight_blocked(tx - x, tz - z, (u8)layer);
+    }
+    E = keep;
+    return blocked != 0;
+}
+
 /* ---- the entity helpers (EntityCommon.cpp) ---- */
 
 static u8 check_line_of_sight(s32 x, s32 z) {

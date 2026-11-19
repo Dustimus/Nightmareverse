@@ -10,7 +10,13 @@
   - u32 length, then the gun as RE1's item viewer shows it (ITEM_M2/I<nn>V.IVM: a TIM and a TMD
     after it), packed as soh_scene.py model_bytes: drawn in Link's fist, not Jill's low-poly
     weapon mesh (the EMW's own mesh is her hand and the gun in one).
+
+"re1/hits" (with the executable): RE1's weapon hit records (WeaponDamage.cpp's first-playthrough
+table: per enemy type and weapon, 12 bytes: knockback x, y, z, damage, the post-hit kind and data,
+the hit state), found by the hash of its first row (the zombie's) and copied as they are: "RHIT",
+u16 count, then the records. z_nv_enemy.c looks a shot up by enemy type * 10 + weapon id - 1.
 """
+import hashlib
 import os
 import struct
 
@@ -76,3 +82,32 @@ def write(re1, out):
             soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
         done.append(item)
     return done
+
+
+# the hit records' first row (the zombie's, 10 weapons x 12 bytes): its hash, so the table is found in
+# any build of the executable without its numbers written here; type 1's row is the same, so the first
+HIT_ROW0_SHA1 = "218de2eda5a8c4d45471aada4d3a860574f0af3b"
+HIT_RECORDS = 200  # 20 enemy types x 10 weapons
+
+
+def hits_blob(exe_path):
+    """RE1's hit records from its executable, or None when they aren't found."""
+    if not exe_path:
+        return None
+    d = open(exe_path, "rb").read()
+    for o in range(0, len(d) - HIT_RECORDS * 12, 2):
+        if d[o + 11] == 0 and d[o + 23] == 0 and hashlib.sha1(d[o:o + 120]).hexdigest() == HIT_ROW0_SHA1:
+            return b"RHIT" + struct.pack("<H", HIT_RECORDS) + d[o:o + HIT_RECORDS * 12]
+    return None
+
+
+def write_hits(exe_path, out):
+    """Write the hit records; how many (0 without the executable or when they aren't in it)."""
+    blob = hits_blob(exe_path)
+    if blob is None:
+        return 0
+    d = os.path.join(out, "re1")
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, "hits"), "wb").write(
+        soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    return HIT_RECORDS

@@ -38,7 +38,9 @@ s32 NvLinkAnim_PlayFrom(const char* path, s32 skip, s32 anim, s32 hold, s32 mirr
 void NvLinkAnim_Stop(void);
 s32 NvLinkAnim_Done(void);
 s32 NvEnemy_GunTarget(Actor* a, s32* x, s32* z, s32* radius);
-void NvEnemy_GunHit(Actor* a, s32 item);
+void NvEnemy_GunHit(Actor* a, s32 item, u8 aim);
+s32 NvEnemy_ShotRules(Actor* a, s32 item, u8 aim, s32* reachAdj);
+s32 NvRe1_ShotBlocked(s32 x, s32 z, s32 tx, s32 tz);
 void* NvModel_Parse(const u8* d);
 void NvModel_Bounds(void* model, s16 mn[3], s16 mx[3]);
 void NvModel_Draw(GraphicsContext* gfxCtx, void* model);
@@ -50,6 +52,10 @@ s32 NvActor_EnemyId(void);
 
 typedef enum { NV_GUN_NONE, NV_GUN_RAISE, NV_GUN_AIM, NV_GUN_FIRE } NvGunState;
 typedef enum { NV_AIM_LEVEL, NV_AIM_UP, NV_AIM_DOWN } NvAimDir;
+
+// the aim as RE1's player flags have it (0x20 up, 0x40 level, 0x80 down): what an enemy's status
+// flags are tested against, and what raises a hit's state
+static const u8 sNvAimFlags[3] = { 0x40, 0x20, 0x80 };
 
 // Jill's range with each weapon (WeaponDamage.cpp weapons_ranges, her half), by item id - 1; the
 // rocket launcher's 1100 is its blast's: its rocket flies (effect_behavior_rocket) until it meets
@@ -204,13 +210,18 @@ static void NvGun_Relative(Player* player, s32 ex, s32 ez, f32* ahead, f32* side
 
 /** The enemy the aim is on: the Z-target if it's RE1's, else the nearest ahead in reach. */
 static Actor* NvGun_Target(PlayState* play, Player* player, s32 item, s32 reach, s32 autoAim) {
+    s32 reachHere;
     Actor* best = NULL;
     f32 bestAhead = 1e9f;
     Actor* a;
     s32 ex, ez, r;
 
     if ((player->focusActor != NULL) && NvEnemy_GunTarget(player->focusActor, &ex, &ez, &r)) {
-        return player->focusActor;
+        s32 adj;
+
+        if (autoAim || NvEnemy_ShotRules(player->focusActor, item, sNvAimFlags[sNvGunDir], &adj)) {
+            return player->focusActor;
+        }
     }
     for (a = play->actorCtx.actorLists[ACTORCAT_ENEMY].head; a != NULL; a = a->next) {
         f32 ahead, side;
@@ -219,9 +230,19 @@ static Actor* NvGun_Target(PlayState* play, Player* player, s32 item, s32 reach,
         if (!NvEnemy_GunTarget(a, &ex, &ez, &r)) {
             continue;
         }
+        if (!autoAim) { // apply_weapon_damage's own rules for the shot: the heights it's hit at, its reach
+            s32 adj;
+
+            if (!NvEnemy_ShotRules(a, item, sNvAimFlags[sNvGunDir], &adj)) {
+                continue;
+            }
+            reachHere = reach + adj;
+        } else {
+            reachHere = reach;
+        }
         NvGun_Relative(player, ex, ez, &ahead, &side, &yaw);
         if (autoAim) { // RE1's reticle: ahead within about 45 degrees and in reach
-            if ((ahead <= 0.0f) || (ahead > reach + r) || (fabsf(side) > ahead + r)) {
+            if ((ahead <= 0.0f) || (ahead > reachHere + r) || (fabsf(side) > ahead + r)) {
                 continue;
             }
         } else if (item == 1) {
@@ -229,17 +250,17 @@ static Actor* NvGun_Target(PlayState* play, Player* player, s32 item, s32 reach,
             // at the thrust, here 600 ahead of her), the enemy's place within its radius + the reach
             f32 dh = ahead - 600.0f;
 
-            if ((ahead <= 0.0f) || ((dh * dh + side * side) > (f32)(r + reach) * (f32)(r + reach))) {
+            if ((ahead <= 0.0f) || ((dh * dh + side * side) > (f32)(r + reachHere) * (f32)(r + reachHere))) {
                 continue;
             }
         } else if ((item >= 2) && (item <= 5)) {
             // weapon_hit_detect_gun (WeaponDamage.cpp 0x0043d410) / checkEntityInRangeCone: the guns' range
             // is the half-width of a band straight ahead (the shotgun's the widest: its spread), from 650
             // in front of her on, however far; the nearest in it is hit
-            if ((ahead < 650.0f) || (fabsf(side) > r + reach)) {
+            if ((ahead < 650.0f) || (fabsf(side) > r + reachHere)) {
                 continue;
             }
-        } else if ((ahead <= 0.0f) || (ahead > reach + r) || (fabsf(side) > r + 200)) {
+        } else if ((ahead <= 0.0f) || (ahead > reachHere + r) || (fabsf(side) > r + 200)) {
             continue; // the knife and the launchers: in front, within its reach
         }
         if (ahead < bestAhead) {
@@ -301,10 +322,19 @@ static void NvGun_Fire(PlayState* play, Player* player) {
         }
     }
     fflush(stdout);
+    if ((hit != NULL) && (item <= 5)) { // check_weapon_line_of_sight: the knife and the guns, not through walls
+        s32 px, pz, ex, ez, r;
+
+        NvGun_Re1Pos(player, &px, &pz);
+        if (NvEnemy_GunTarget(hit, &ex, &ez, &r) && NvRe1_ShotBlocked(px, pz, ex, ez)) {
+            printf("NVGUN   blocked: a wall between\n");
+            hit = NULL;
+        }
+    }
     if (hit != NULL) {
         Vec3f at = hit->focus.pos;
 
-        NvEnemy_GunHit(hit, item);
+        NvEnemy_GunHit(hit, item, sNvAimFlags[sNvGunDir]);
         EffectSsHitMark_SpawnFixedScale(play, EFFECT_HITMARK_WHITE, &at);
     }
 }

@@ -519,6 +519,81 @@ static void NvEnemy_Hits(NvEnemy* this, PlayState* play) {
 static const s16 sNvGunDamage[10] = { 8, 9, 53, 50, 130, 20, 201, 95, 95, 900 };
 static const u8 sNvGunHitState[10] = { 1, 1, 2, 2, 2, 1, 2, 1, 1, 2 };
 
+/*
+ * RE1's hit records ("re1/hits", re1/tools/soh_weapons.py, from the player's executable):
+ * apply_weapon_damage's first-playthrough table, per enemy type and weapon (type * 10 + weapon id
+ * - 1), 12 bytes: knockback x, y, z, damage, the post-hit kind and data, the hit state. Without
+ * them (a mod made without the executable) every enemy takes the zombie's row above.
+ */
+typedef struct {
+    s16 kx, ky, kz;
+    s16 dmg;
+    u8 kind, data, hit, pad;
+} NvHitRecord;
+
+static const NvHitRecord* NvEnemy_HitRecord(s32 type, s32 item) {
+    static const u8* sHits;
+    static s32 sTried;
+    u16 n;
+    s32 k = type * 10 + item - 1;
+
+    if (!sTried) {
+        sTried = true;
+        if (ResourceMgr_FileExists("re1/hits")) {
+            sHits = (const u8*)ResourceGetDataByName("re1/hits");
+            if ((sHits != NULL) && (memcmp(sHits, "RHIT", 4) != 0)) {
+                sHits = NULL;
+            }
+        }
+    }
+    if ((sHits == NULL) || (item < 1) || (item > 10) || (type < 0)) {
+        return NULL;
+    }
+    memcpy(&n, sHits + 4, 2);
+    return (k < n) ? (const NvHitRecord*)(sHits + 6 + k * 12) : NULL;
+}
+
+/**
+ * The per-enemy rules of RE1's hit tests for a shot (WeaponDamage.cpp: apply_weapon_damage's aim
+ * filter, then weapon_hit_detect_knife / _gun / _projectile's own): whether actor a can be hit by
+ * weapon `item` aimed `aim` (the player's flags: 0x20 up, 0x40 level, 0x80 down), and what its
+ * reach changes by. False also for anything but RE1's enemies.
+ */
+s32 NvEnemy_ShotRules(Actor* a, s32 item, u8 aim, s32* reachAdj) {
+    NvEnemy* this = (NvEnemy*)a;
+    NvRe1Entity* e = &this->e;
+    s32 t = this->type;
+    s32 zombie = (t == 0x00) || (t == 0x01) || (t == 0x11);
+
+    *reachAdj = 0;
+    if ((a == NULL) || (a->id != NvActor_EnemyId())) {
+        return false;
+    }
+    if ((e->status_flags & aim & 0xE0) == 0) { // (the heights it can be hit at: its status flags)
+        return false;
+    }
+    if (item == 1) { // the knife
+        if (zombie && (aim & 0x80)) {
+            return false;
+        }
+        if ((((t == 0x02) && (e->t[1] > -400)) || (t == 0x03)) && (aim & 0x40)) {
+            return false; // (a dog on the ground, a spider: not at the level)
+        }
+        if (((t == 0x05) || (t == 0x07) || (t == 0x09)) && (e->t[1] < -4800)) {
+            return false; // (on the ceiling)
+        }
+        *reachAdj = (t == 0x04) ? -800 : (t == 0x08) ? 2000 : ((t == 0x07) || (t == 0x0A)) ? 100 : 0;
+    } else if (item <= 5) { // the guns
+        if (zombie && (aim & 0x80) && (item != 3)) {
+            return false; // (a zombie aimed down at: only the shotgun)
+        }
+        *reachAdj = (t == 0x04) ? -1000 : (t == 0x08) ? 2000 : 0;
+    } else { // the flame and the launchers
+        *reachAdj = (t == 0x04) ? -1000 : 0;
+    }
+    return true;
+}
+
 static s32 NvEnemy_Parked(const NvRe1Entity* e);
 static void NvEnemy_JointsWorld(NvEnemy* this);
 
@@ -543,18 +618,38 @@ s32 NvEnemy_GunTarget(Actor* a, s32* x, s32* z, s32* radius) {
     return true;
 }
 
-/** A round from weapon item (RE1's item id) hits it. */
-void NvEnemy_GunHit(Actor* a, s32 item) {
+/**
+ * A round from weapon item (RE1's item id), aimed `aim`, hits it (apply_weapon_damage): the damage
+ * and hit state from RE1's record for its type and the weapon, the hit state raised by the aim
+ * unless it was up (0x20); RE1's characters (type 0x14 and up) take no damage.
+ */
+void NvEnemy_GunHit(Actor* a, s32 item, u8 aim) {
     NvEnemy* this = (NvEnemy*)a;
     s32 k = CLAMP(item - 1, 0, 9);
+    const NvHitRecord* rec = NvEnemy_HitRecord(this->type, item);
 
     // the spider web's row of the hit records: the knife cuts it, fire and the launchers burn it, bullets don't
     static const s16 sNvWebDamage[10] = { 10, 0, 0, 0, 0, 2, 30, 30, 30, 900 };
-    s16 dmg = NvEnemy_IsWeb(this->type) ? sNvWebDamage[k] : sNvGunDamage[k];
+    s16 dmg;
+    u8 hit;
 
+    if (this->type >= 0x14) {
+        return;
+    }
+    if (rec != NULL) {
+        dmg = rec->dmg;
+        hit = rec->hit;
+    } else {
+        dmg = NvEnemy_IsWeb(this->type) ? sNvWebDamage[k] : sNvGunDamage[k];
+        hit = sNvGunHitState[k];
+    }
+    if ((aim & 0xE0) != 0x20) {
+        hit += (u8)(aim >> 5);
+    }
     Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 8);
-    NvZombie_Hit(&this->e, dmg, sNvGunHitState[k], (u8)item);
-    printf("NVENEMY shot (weapon %d): %d damage, health %d\n", (int)item, dmg, this->e.health);
+    NvZombie_Hit(&this->e, dmg, hit, (u8)item);
+    printf("NVENEMY shot (weapon %d, aim %02X): %d damage, hit %d, health %d\n", (int)item, aim, dmg, hit,
+           this->e.health);
     fflush(stdout);
 }
 
