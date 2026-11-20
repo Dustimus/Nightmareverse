@@ -591,9 +591,42 @@ void NvModel_Draw(GraphicsContext* gfxCtx, void* model) {
 #define NV_PSX_ANGLE(a) ((a) * (2.0f * M_PI / 4096.0f))
 
 /**
+ * The frame of a carrier that isn't a room object, in RE1's space (InitScaMatrix on the player's
+ * or an enemy's scaMatrixData): 0xFE the player (Link, where he stands, turned as he faces), 0x80 +
+ * n the enemy in slot n. False for anything else (or an empty slot).
+ */
+static s32 NvIt_ApplyCarrier(s32 parent) {
+    extern PlayState* gPlayState;
+    s32 NvEnemy_Place(s32 slot, s32* t, s16* angle);
+    s32 t[3];
+    s16 angle;
+
+    if (parent == 0xFE) {
+        Player* p = (gPlayState != NULL) ? GET_PLAYER(gPlayState) : NULL;
+
+        if (p == NULL) {
+            return false;
+        }
+        t[0] = (s32)(p->actor.world.pos.x / NV_RE1_SCALE);
+        t[1] = (s32)(-p->actor.world.pos.y / NV_RE1_SCALE);
+        t[2] = (s32)(-p->actor.world.pos.z / NV_RE1_SCALE);
+        angle = (s16)(((0x4000 - p->actor.shape.rot.y) & 0xFFFF) >> 4); // (RE1's facing)
+    } else if ((parent >= 0x80) && (parent < 0xFE)) {
+        if (!NvEnemy_Place(parent & 0x7F, t, &angle)) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+    Matrix_Translate(t[0], t[1], t[2], MTXMODE_APPLY);
+    Matrix_RotateY(NV_PSX_ANGLE(angle), MTXMODE_APPLY);
+    return true;
+}
+
+/**
  * Apply room object i's place in RE1's space to the current matrix, its parents' first
- * (InitScaMatrix: an object on another object moves with it). Objects on the player or an enemy
- * are placed in the room for now. False when it isn't placed.
+ * (InitScaMatrix: an object on another object moves with it, one on the player or an enemy with
+ * them). False when it isn't placed.
  */
 static s32 NvIt_ApplyObject(s32 i, s32 depth) {
     s32 parent;
@@ -606,6 +639,8 @@ static s32 NvIt_ApplyObject(s32 i, s32 depth) {
     }
     if (parent < 0x80) {
         NvIt_ApplyObject(parent, depth + 1);
+    } else if (parent != 0xFF) {
+        NvIt_ApplyCarrier(parent);
     }
     Matrix_Translate(pos[0], pos[1], pos[2], MTXMODE_APPLY);
     // RotMatrix: x, then y, then z
@@ -666,11 +701,11 @@ void NvItemsActor_Draw(Actor* thisx, PlayState* play) {
         Matrix_Scale(NV_RE1_SCALE, -NV_RE1_SCALE, -NV_RE1_SCALE, MTXMODE_NEW);
         if (parent == 0xFF) {
             Matrix_Translate(pos[0], pos[1], pos[2], MTXMODE_APPLY);
-        } else if ((parent < 0x80) && NvIt_ApplyObject(parent, 0)) {
-            Matrix_Translate(pos[0], pos[1], pos[2], MTXMODE_APPLY);
+        } else if (((parent < 0x80) && NvIt_ApplyObject(parent, 0)) || ((parent == 0xFE) && NvIt_ApplyCarrier(parent))) {
+            Matrix_Translate(pos[0], pos[1], pos[2], MTXMODE_APPLY); // (an offset in its carrier's frame)
         } else {
             Matrix_Pop();
-            continue; // (on the player: not yet)
+            continue;
         }
         NvIt_DrawModel(gfxCtx, &sNvItModels[model]);
         Matrix_Pop();

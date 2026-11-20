@@ -22,7 +22,7 @@ endings follow from the same scripts' flags). In it:
 You get in from Hyrule by playing the mansion's song on the ocarina (below). Chris's game isn't
 playable: Link plays Jill.
 
-Open, in the sections below: items hung on the player (taken, not drawn); the box's sliding list and its
+Open, in the sections below: the box's sliding list and its
 Hyrule side; the Japanese release's text; ceilings; a way in through the Lost Woods.
 
 ## Reference: RE1's own code
@@ -270,8 +270,13 @@ lies) and sets the item's taken flag, so it's gone from the room. Jill's 8 slots
 the taken flags are saved with the game. The items lying in a room are drawn
 with RE1's own item models (RDT+0x54, `<name>_items`, `tools/soh_scene.py` items_blob) at the
 item_set's position, by one actor (`Nv_Items`, `z_nv_items.c`), with RE1's glint
-(`z_nv_effects.c`), and vanish when taken. Items RE1 hangs on a room object draw on it. Not yet:
-one hung on the player (scaParent 0xFE) isn't drawn, though it's taken as usual.
+(`z_nv_effects.c`), and vanish when taken. Items RE1 hangs on a room object draw on it, and one
+hung on the player (scaParent 0xFE, 2026-11-20) at its offset in Link's frame, moving and turning
+with him; objects ride the player or an enemy (0x80 + its slot) the same way. Whether an item's
+model shows is RE1's byte per item model (g_item_model_table[n][0]: item_set shows it, the
+scripts' 0x19 and 0x35 hide or show it), kept by model, not by action entry: before, the two were
+mixed up, so those scripts hid the wrong item or none (303's flare, which RE1 hangs on the player
+and its script hides, floated in front of Link).
 
 RE1's player animations on Link (2026-10-31): each enemy's EMD carries the player's side of its
 grabs (`re1/enemies/em<type>_pl`, `tools/soh_enemy.py`); `soh/src/code/z_nv_linkanim.c` poses
@@ -355,7 +360,7 @@ item box's lid; RDT object models, `<name>_objs`, `tools/soh_scene.py` items_blo
 are drawn as RE1 places them: the scripts' omodel_set (0x1F: position, y turn, flags, parent) and
 obj_flag_set (0x35: shown or hidden), drawn when bit 0 is set (render_room_objects), turned by
 RotMatrix's x, y, z, and carried by their parent object (InitScaMatrix). Items lying on a room
-object now draw on it too. Objects on the player or an enemy are placed in the room for now.
+object now draw on it too, and objects on the player or an enemy ride with them (see Pickups).
 `NV_NO_OBJS` hides them for comparisons.
 
 Item box (2026-11-01): A at a box (room action type 8, open_itembox) swings its lid (the object

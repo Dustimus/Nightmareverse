@@ -141,7 +141,7 @@ typedef struct {
     s16 turn[3];  // and its turn (0x06 sets it, 0x03 / 0x04 add it: x, y, z)
 } NvObj;
 static NvObj sNvObj[NV_OBJ_SLOTS];
-static u8 sNvItemHidden[NV_AOT_SLOTS]; // obj_flag_set on an item model: bit 0 clear hides it
+static u8 sNvItemHidden[NV_AOT_SLOTS]; // by item model (g_item_model_table[n][0]): obj_flag_set / model_flag_set, bit 0 clear hides it
 static const u8* sNvMsg; // the room's messages ("<name>_msg", re1/tools/soh_scene.py)
 
 // run_command_functions' state
@@ -780,6 +780,7 @@ static s32 NvScd_Cmd(void) {
                 a->flags = p[0x17];
                 a->isItem = true;
                 a->model = p[12];
+                sNvItemHidden[a->model % NV_AOT_SLOTS] = false; // (item_set: its model shown, modelPtr[0])
                 a->parent = p[13];
                 memcpy(a->pos, p + 0xE, sizeof(a->pos));
                 a->param[0] = (p[0x18] | (p[0x19] << 8)) & 1;
@@ -1859,7 +1860,7 @@ s32 NvAot_Item(s32 i, s32* model, s32* parent, s16* pos) {
         return false;
     }
     a = &sNvAot[i];
-    if (!a->isItem || (a->handler == 0) || sNvItemHidden[i]) {
+    if (!a->isItem || (a->handler == 0) || sNvItemHidden[a->model % NV_AOT_SLOTS]) { // (by its model, as RE1's)
         return false;
     }
     *model = a->model;
