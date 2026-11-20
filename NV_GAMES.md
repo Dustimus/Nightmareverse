@@ -217,6 +217,11 @@ The default is shared or carried over. A Termina-only piece needs a reason.
   - a separate mechanic jumps between the two timelines (child and adult), in place of OoT's own
     Master Sword travel.
 
+  - **The Fierce Deity's sword (the user, 2026-11-20):** in MM he can only use his own (the
+    Double Helix Sword). Here he'd equip swords from the menu as adult Link does: the Master
+    Sword (or Biggoron's) as well as the Double Helix. That also keeps him from being
+    overpowered everywhere. To work out then: his hand's attachment point for OoT's sword models,
+    and the damage following the equipped sword.
   Some work on OoT's side (the ending, the Door of Time, the swap), likely not complicated.
   Open: what becomes of adult-only items and places after the finale, how the jump works and
   is reached, and what it means for a randomizer's logic.
