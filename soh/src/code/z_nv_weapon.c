@@ -274,6 +274,19 @@ static Actor* NvGun_Target(PlayState* play, Player* player, s32 item, s32 reach,
     return best;
 }
 
+/** Link's hand (the gun's), RE1's units: RE1's joint 14 for the fire effects. */
+static void NvGun_HandRe1(Player* player, s32* at) {
+    if (sNvGunHandSet) {
+        at[0] = (s32)lroundf(sNvGunHand.xw / NV_RE1_SCALE);
+        at[1] = (s32)lroundf(-sNvGunHand.yw / NV_RE1_SCALE);
+        at[2] = (s32)lroundf(-sNvGunHand.zw / NV_RE1_SCALE);
+    } else {
+        at[0] = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
+        at[1] = (s32)lroundf(-(player->actor.world.pos.y + 30.0f) / NV_RE1_SCALE);
+        at[2] = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
+    }
+}
+
 /**
  * A flying round (the launcher's: z_nv_effects.c fx_bullet) at (x, z), RE1's units, its height
  * giving the aim flags: apply_weapon_damage with weapon_hit_detect_projectile, the nearest enemy
@@ -345,19 +358,19 @@ static void NvGun_Fire(PlayState* play, Player* player) {
     NvGun_Play(fire);
     sNvGunState = NV_GUN_FIRE;
     NvSound_Shot(item); // RE1's shot for the weapon (z_nv_sound.c)
+    {
+        void NvFx_FireGun(s32 item, const s32* hand, s32 angle, s32 pitch);
+        s32 at[3];
+
+        NvGun_HandRe1(player, at);
+        NvFx_FireGun(item, at, ((0x4000 - player->actor.shape.rot.y) & 0xFFFF) >> 4,
+                     (sNvGunDir == NV_AIM_UP) ? 0x200 : (sNvGunDir == NV_AIM_DOWN) ? -0x200 : 0);
+    }
     if ((item >= 7) && (item <= 9)) { // the launcher: RE1's round flies from the gun (z_nv_effects.c)
         s32 NvFx_FireRound(s32 item, const s32* hand, s32 angle);
         s32 at[3];
 
-        if (sNvGunHandSet) {
-            at[0] = (s32)lroundf(sNvGunHand.xw / NV_RE1_SCALE);
-            at[1] = (s32)lroundf(-sNvGunHand.yw / NV_RE1_SCALE);
-            at[2] = (s32)lroundf(-sNvGunHand.zw / NV_RE1_SCALE);
-        } else {
-            at[0] = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
-            at[1] = (s32)lroundf(-(player->actor.world.pos.y + 30.0f) / NV_RE1_SCALE);
-            at[2] = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
-        }
+        NvGun_HandRe1(player, at);
         if (NvFx_FireRound(item, at, ((0x4000 - player->actor.shape.rot.y) & 0xFFFF) >> 4)) {
             printf("NVGUN fire weapon %d: the round flies from %d,%d,%d\n", (int)item, (int)at[0], (int)at[1],
                    (int)at[2]);

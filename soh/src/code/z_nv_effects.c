@@ -1147,29 +1147,116 @@ static void fx_bullet(void) {
 }
 
 /**
+ * The gun as it fires (RE1's joint 14, Link's hand here): at hand (RE1 units), its barrel (the
+ * local y) the way Link faces (angle, RE1's) tilted up by pitch (RE1's units, 4096 a turn; up is
+ * positive), its local x square to it, upward.
+ */
+static void NvFx_Barrel(NvMtx* m, const s32* hand, s32 angle, s32 pitch) {
+    s32 s = NvFx_Sin(angle);
+    s32 c = NvFx_Cos(angle);
+    s32 sp = NvFx_Sin(pitch);
+    s32 cp = NvFx_Cos(pitch);
+
+    memset(m, 0, sizeof(*m));
+    m->m[0][1] = (s16)((c * cp) >> 12); // its y: the barrel
+    m->m[1][1] = (s16)-sp;
+    m->m[2][1] = (s16)((-s * cp) >> 12);
+    m->m[0][0] = (s16)((-c * sp) >> 12); // its x: up from it
+    m->m[1][0] = (s16)-cp;
+    m->m[2][0] = (s16)((s * sp) >> 12);
+    m->m[0][2] = (s16)s; // its z: to the side
+    m->m[2][2] = (s16)c;
+    m->t[0] = hand[0];
+    m->t[1] = hand[1];
+    m->t[2] = hand[2];
+}
+
+/**
  * The launcher fires (z_nv_weapon.c): RE1's round at the gun, Link's hand (RE1 units) facing angle
  * (RE1's, 4096 a turn). False when the effects aren't there (the shot then hits at once).
  */
 s32 NvFx_FireRound(s32 item, const s32* hand, s32 angle) {
     static const s32 sMuzzle[3] = { 400, 660, 0 }; // (g_weaponFireBillboard's, from joint 14)
-    s16 s = NvFx_Sin(angle);
-    s16 c = NvFx_Cos(angle);
 
     if (!sNvFxReady || (sNvFxInfo[8] == NULL)) {
         return false;
     }
-    memset(&sNvFxGunMtx, 0, sizeof(sNvFxGunMtx));
-    sNvFxGunMtx.m[1][0] = -0x1000; // its x: up
-    sNvFxGunMtx.m[0][1] = c;       // its y: the way Link faces
-    sNvFxGunMtx.m[2][1] = -s;
-    sNvFxGunMtx.m[0][2] = s;
-    sNvFxGunMtx.m[2][2] = c;
-    sNvFxGunMtx.t[0] = hand[0];
-    sNvFxGunMtx.t[1] = hand[1];
-    sNvFxGunMtx.t[2] = hand[2];
+    NvFx_Barrel(&sNvFxGunMtx, hand, angle, 0);
     sNvFxShotWeapon = (u8)item;
     sNvFxShotFlags = 0x40;
     return NvFx_Create(8, 7, 0, &sNvFxGunMtx, sMuzzle, 0) != 0xFF;
+}
+
+/*
+ * A gun's fire effects (player_behavior_14_autoaim_fire): its fire billboard at the gun, the big
+ * muzzle flash in the player's frame and the second flash at the gun, each by the weapon's entry
+ * of RE1's tables ("re1/weaponfx", re1/tools/soh_weapons.py, from the player's executable: 10 bytes,
+ * the frame (99: never), the type, the group, a pad, x, y, z; the tables 144 bytes apart). They come as the shot goes, not on
+ * their frames of Jill's fire.
+ */
+static const u8* NvFx_WeaponFx(void) {
+    static const u8* sFx;
+    static s32 sTried;
+
+    if (!sTried) {
+        sTried = true;
+        if (ResourceMgr_FileExists("re1/weaponfx")) {
+            sFx = (const u8*)ResourceGetDataByName("re1/weaponfx");
+            if ((sFx != NULL) && (memcmp(sFx, "RWFX", 4) != 0)) {
+                sFx = NULL;
+            }
+        }
+    }
+    return sFx;
+}
+
+void NvFx_FireGun(s32 item, const s32* hand, s32 angle, s32 pitch) {
+    static NvMtx sBarrel;
+    const u8* fx = NvFx_WeaponFx();
+    s32 idx = item - 2; // (the tables' index: weapons 2 up)
+    const u8* r;
+    s32 at[3];
+    u8 k;
+
+    if (!sNvFxReady || (fx == NULL) || (idx < 0) || (idx > 8)) {
+        return;
+    }
+    fx += 4;
+    NvFx_Barrel(&sBarrel, hand, angle, pitch);
+    // the fire billboard (the launchers' is their round, the rocket's its rocket: theirs fly elsewhere)
+    r = fx + idx * 10;
+    if ((idx < 5) && (r[1] != 0)) {
+        at[0] = *(const s16*)(r + 4);
+        at[1] = *(const s16*)(r + 6);
+        at[2] = *(const s16*)(r + 8);
+        NvFx_Create(r[1], r[2], 0, &sBarrel, at, 0);
+    }
+    // the big flash, in the player's frame (Jill's own lift for the handgun: 300)
+    r = fx + 144 + idx * 10;
+    if ((r[0] != 99) && (r[1] != 0)) {
+        s32 yaw = idx - 8;
+
+        yaw += ((u16)yaw < 1) ? 1 : 0;
+        yaw -= 1;
+        at[0] = *(const s16*)(r + 4);
+        at[1] = *(const s16*)(r + 6) + ((idx == 8) ? 500 : (1 - idx) * 300);
+        at[2] = *(const s16*)(r + 8);
+        k = NvFx_Create(r[1], r[2], (s16)(yaw & 0x555), &sNvFxPlayerMtx, at, 0); // (it follows her)
+        if (k != 0xFF) {
+            sNvFx[k].animHeader[(idx == 8) ? 0 : 3] = (u8)idx;
+        }
+    }
+    // the second flash, at the gun
+    r = fx + 288 + idx * 10;
+    if ((r[0] != 99) && (r[1] != 0)) {
+        at[0] = *(const s16*)(r + 4);
+        at[1] = *(const s16*)(r + 6);
+        at[2] = *(const s16*)(r + 8);
+        k = NvFx_Create(r[1], r[2], 0, &sBarrel, at, 0);
+        if (k != 0xFF) {
+            sNvFx[k].animHeader[0] = (u8)idx;
+        }
+    }
 }
 
 static void (*const sNvFxBehaviour[64])(void) = {
@@ -1302,6 +1389,39 @@ static void NvFx_ParentMatrices(void) {
             sNvFxObjMtx[i].t[2] = pos[2];
         }
     }
+}
+
+/**
+ * A hit's effect on enemy slot (apply_weapon_damage's billboards on enemy->scaMatrixData): at
+ * off (RE1 units) in the enemy's own frame, turned rot. Its slot, or 0xFF.
+ */
+u8 NvFx_OnEnemy(u8 type, u8 group, s16 rot, s32 slot, const s32* off, u8 lf) {
+    s32 NvEnemy_Place(s32 slot, s32* t, s16* angle);
+    s32 t[3];
+    s16 a;
+
+    if (!sNvFxReady || (slot < 0) || (slot >= 16) || !NvEnemy_Place(slot, t, &a)) {
+        return 0xFF;
+    }
+    NvFx_RotY(a, &sNvFxEnemyMtx[slot]);
+    sNvFxEnemyMtx[slot].t[0] = t[0];
+    sNvFxEnemyMtx[slot].t[1] = t[1];
+    sNvFxEnemyMtx[slot].t[2] = t[2];
+    return NvFx_Create(type, group, rot, &sNvFxEnemyMtx[slot], off, lf);
+}
+
+/** One at Link's hand (RE1's joint 14: the knife's blood), at off in his frame. */
+u8 NvFx_AtHand(u8 type, u8 group, const s32* hand, const s32* off) {
+    static NvMtx sHand;
+
+    if (!sNvFxReady) {
+        return 0xFF;
+    }
+    sHand = sNvFxPlayerMtx;
+    sHand.t[0] = hand[0];
+    sHand.t[1] = hand[1];
+    sHand.t[2] = hand[2];
+    return NvFx_Create(type, group, 0, &sHand, off, 0);
 }
 
 /** A tick of update_2d_effects (z_nv_script.c's tick loop). */

@@ -23,6 +23,11 @@ what the other becomes, the effect}, with g_ItemCombinePtrs' places), the record
 by the hashes of their first bytes, the pointers by being consecutive places in the tables: "RCMB",
 u16 item count, the records, u16 table count, u16 offset per table, u16 data length, the data.
 z_nv_items.c's combine runs RE1's menu_item_check_combine on them.
+
+"re1/weaponfx" (with the executable): each weapon's fire effects (PlayerAnimations.cpp's
+g_weaponFireBillboard, g_weaponMuzzleFlash and g_weaponFlash2, 14 entries of 10 bytes each: the
+frame, the effect type and group, a pad, x, y, z; each table 144 bytes), found by the hash of the
+first's start: "RWFX", then the three tables. z_nv_weapon.c fires them as the shot goes.
 """
 import hashlib
 import os
@@ -134,6 +139,38 @@ def _find_hash(d, sha1, n=64):
         if hashlib.sha1(d[o:o + n]).hexdigest() == sha1:
             return o
     return -1
+
+
+# the weapons' fire effects (PlayerAnimations.cpp g_weaponFireBillboard, g_weaponMuzzleFlash,
+# g_weaponFlash2: three tables of 14 entries of 10 bytes, each padded to 144 bytes, one after
+# another), found by their start's hash
+WEAPON_FX_SHA1 = "5c12e0c4691f2d79e6aa89a49cc189da28053139"
+WEAPON_FX_BYTES = 3 * 144
+
+
+def weapon_fx_blob(exe_path):
+    """RE1's fire billboard, muzzle flash and second flash per weapon: "RWFX" + the three tables."""
+    if not exe_path:
+        return None
+    d = open(exe_path, "rb").read()
+    if d[:2] != b"MZ":
+        return None
+    o = _find_hash(d, WEAPON_FX_SHA1)
+    if o < 0:
+        return None
+    return b"RWFX" + d[o:o + WEAPON_FX_BYTES]
+
+
+def write_weapon_fx(exe_path, out):
+    """Write re1/weaponfx; how many weapons' entries (0 without the executable)."""
+    blob = weapon_fx_blob(exe_path)
+    if blob is None:
+        return 0
+    d = os.path.join(out, "re1")
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, "weaponfx"), "wb").write(
+        soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    return 14
 
 
 def combine_blob(exe_path):

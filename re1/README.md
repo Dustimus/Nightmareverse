@@ -22,8 +22,7 @@ endings follow from the same scripts' flags). In it:
 You get in from Hyrule by playing the mansion's song on the ocarina (below). Chris's game isn't
 playable: Link plays Jill.
 
-Open, in the sections below: the status screen's radio; blood from hits, shadows and the
-muzzle flash; items hung on the player (taken, not drawn); the box's sliding list and its
+Open, in the sections below: the status screen's radio; shadows; items hung on the player (taken, not drawn); the box's sliding list and its
 Hyrule side; stereo panning; the Japanese release's text; ceilings; a way in through the Lost Woods.
 
 ## Reference: RE1's own code
@@ -399,8 +398,18 @@ giving the aim it hits at; it hits the nearest enemy whose radius plus the weapo
 state for the round), and where it lands, on the floor or in a wall (effect_probe_ground on RE1's
 collision), it bursts as RE1's effect_shot_impact has it: fire for the explosive round, a splash for
 acid, flames for the flame round, each with its own sound. (RE1 also runs an instant hit for the
-explosive round, measured from a point near the room's origin, not the round: left out.) Not yet:
-the muzzle flash, the hit's blood and burst on the enemy (the post-hit effects). Dev: `NV_EQUIP=n` equips slot n
+explosive round, measured from a point near the room's origin, not the round: left out.)
+
+Each shot fires RE1's own effects from its tables in the executable (`re1/weaponfx`,
+`tools/soh_weapons.py`: g_weaponFireBillboard, g_weaponMuzzleFlash, g_weaponFlash2): the spark at
+the gun, the case flying out, the smoke, at Link's hand along his aim; they come as the shot goes
+rather than on their frames of Jill's fire. A hit runs RE1's post-hit for the weapon and the enemy
+(2026-11-20, `z_nv_enemy.c` NvEnemy_GunHitFrom, WeaponDamage.cpp's PTR_post_hit_callbacks and
+g_enemy_hit_reactions): its rules (a zombie's head blown off by the shotgun inside 3000 aimed level
+or down, or by the Python at the level; Jill's handgun 3 more, 7 more on a dog; the shotgun from
+past 9000 10 less and a hit state lower; Plant 42 shrugging off half the shots from past 7000), and
+its billboards on the enemy from the hit record (blood, the bursts and sparks of the launcher's
+rounds, the head's). Left out: the joints' red tint and the spurts from the joints. Dev: `NV_EQUIP=n` equips slot n
 of NV_GIVE's items; NV_WALK `cl:N` holds C-Left N frames; `NV_GUN_FIT="x,y,z,rx,ry,rz,size%"` and
 `NV_GUN_MIRROR=x|y|z|none` move the gun in the fist.
 

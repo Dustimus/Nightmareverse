@@ -785,6 +785,15 @@ s32 NvRe1_EffectProbe(s32 x, s32 z, s32 radius) {
     return false;
 }
 
+/** Snd_em for enemy e (apply_weapon_damage's head explosion: its sound 6). */
+void NvRe1_EnemySound(NvRe1Entity* e, u8 id) {
+    NvRe1Entity* keep = E;
+
+    E = e;
+    Snd_em(id);
+    E = keep;
+}
+
 /* ---- the entity helpers (EntityCommon.cpp) ---- */
 
 static u8 check_line_of_sight(s32 x, s32 z) {
