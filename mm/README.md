@@ -155,6 +155,15 @@ Clock Town places 67 kinds of actor (233 in all) and 14 doors. In order of work:
 - the 14 wooden doors, as OoT's scene-exit doors. Their way out is the exit behind them, so a
   door into a building not built yet brings Link back with the note.
 
+**Models, checked against the two ROMs (2026-11-20):**
+- **Pots:** MM's `object_tsubo` is byte for byte OoT's, so the same pot.
+- **Torches:** `object_syokudai` has 2 bytes in 15,504 different, effectively the same.
+- **Crates:** Clock Town's use MM's own `object_kibako`, which OoT doesn't have. Stood in by
+  OoT's dungeon crate until MM's objects come over.
+- **Doors:** MM gives each building its own door object (`object_wdor01`-`05`: the Inn and
+  school, the Post Office and Trading Post, the Milk Bar, ...), picked per door. Stood in by
+  OoT's generic door until MM's objects come over.
+
 **Held back:**
 - **Chests and signs.** They wait for the item rules and MM's text.
 
