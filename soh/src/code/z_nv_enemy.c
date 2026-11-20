@@ -715,6 +715,7 @@ static void NvPh_Reaction(NvPostHit* h) {
                     s32 headAt[3];
 
                     e->health = -300;
+                    e->headless = true; // (z_nv_enemy.c draws it gone, with the burst)
                     if (e->death_event_id != 0xFF) {
                         NvFlags_Op(3, e->death_event_id, 0);
                     }
@@ -1646,6 +1647,127 @@ static void NvEnemy_JointsWorld(NvEnemy* this) {
     this->e.numJoints = (u8)MIN(m->numBones, NV_RE1_JOINTS);
 }
 
+/*
+ * The ground shadow (FadeSprite.cpp entity_add_fade_sprite / DrawFadeSpr): RE1's shadow mask
+ * ("re1/ui/kage", re1/tools/soh_ui.py) on a quad flat on the floor under the entity, turned as it
+ * faces, its half sizes the ones each enemy's init gives FUN_004565f0 (the zombie 700 x 900, the
+ * dog 0x550 x 0x200, ...; the chimera and the adder none), darkening the floor as RE1's page does.
+ */
+typedef struct {
+    u8 type;
+    s16 w, h;
+    u8 tint; // (0x80: RE1's 0x808080)
+} NvShadowSize;
+
+static const NvShadowSize sNvShadowSizes[] = {
+    { 0x00, 700, 900, 0x80 },   { 0x01, 700, 900, 0x80 },   { 0x11, 700, 900, 0x80 },
+    { 0x02, 0x550, 0x200, 0x80 }, { 0x03, 0x4B0, 0x4B0, 0x80 }, { 0x04, 0x9C4, 0x9C4, 0x80 },
+    { 0x05, 200, 200, 0x80 },   { 0x06, 1000, 1000, 0x80 }, { 0x07, 100, 100, 0x60 },
+    { 0x0B, 1000, 150, 0x80 },  { 0x0C, 1000, 1000, 0x80 }, { 0x10, 1000, 1000, 0x80 },
+    { 0x0D, 1000, 1000, 0x80 }, { 0x12, 1000, 1000, 0x80 }, { 0x0F, 500, 100, 0x80 },
+};
+
+static const u8* NvEnemy_Kage(void) {
+    static const u8* sKage;
+    static s32 sTried;
+
+    if (!sTried) {
+        sTried = true;
+        if (ResourceMgr_FileExists("re1/ui/kage")) {
+            sKage = (const u8*)ResourceGetDataByName("re1/ui/kage");
+            if ((sKage != NULL) && (memcmp(sKage, "RKAG", 4) != 0)) {
+                sKage = NULL;
+            }
+        }
+    }
+    return sKage;
+}
+
+static void NvEnemy_DrawShadow(NvEnemy* this, PlayState* play) {
+    const u8* kage = NvEnemy_Kage();
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    CollisionPoly* poly;
+    Vec3f at;
+    f32 floorY;
+    s32 hw = 500; // (RE1's characters: Jill's own 500 x 700)
+    s32 hh = 700;
+    u8 tint = 0x80;
+    u16 kw, kh;
+    s32 c;
+    s32 k;
+    s16 sn;
+    s16 cs;
+    Vtx* vtx;
+    Mtx* mtx;
+    MtxF mf;
+
+    if (kage == NULL) {
+        return;
+    }
+    if (this->type < 0x14) {
+        hw = 0;
+        for (k = 0; k < (s32)ARRAY_COUNT(sNvShadowSizes); k++) {
+            if (sNvShadowSizes[k].type == this->type) {
+                hw = sNvShadowSizes[k].w;
+                hh = sNvShadowSizes[k].h;
+                tint = sNvShadowSizes[k].tint;
+            }
+        }
+        if (hw == 0) {
+            return;
+        }
+    }
+    memcpy(&kw, kage + 4, 2);
+    memcpy(&kh, kage + 6, 2);
+    at = this->actor.world.pos;
+    at.y += 20.0f;
+    floorY = BgCheck_EntityRaycastFloor1(&play->colCtx, &poly, &at);
+    if (floorY <= BGCHECK_Y_MIN) {
+        return;
+    }
+    // the quad: corners (-w, +h) (+w, +h) (+w, -h) (-w, -h) in its own frame (RE1's RotMatrixY of its
+    // facing), to OoT's axes (x, -z), at 1/16 OoT units a vertex step
+    sn = (s16)(Math_SinS(this->e.angle * 16) * 4096.0f);
+    cs = (s16)(Math_CosS(this->e.angle * 16) * 4096.0f);
+    vtx = Graph_Alloc(gfxCtx, sizeof(Vtx) * 4);
+    for (c = 0; c < 4; c++) {
+        s32 cx = ((c == 0) || (c == 3)) ? -hw : hw;
+        s32 cz = (c < 2) ? hh : -hh;
+        f32 rx = (cs * cx + sn * cz) / 4096.0f;
+        f32 rz = (-sn * cx + cs * cz) / 4096.0f;
+        s32 u = ((cx + hw) * kw * 32) / (2 * hw);
+        s32 v = ((hh - cz) * kh * 32) / (2 * hh);
+
+        vtx[c] = (Vtx)VTX((s16)(rx * NV_RE1_SCALE * 16.0f), 0, (s16)(-rz * NV_RE1_SCALE * 16.0f), u, v, 0, 0, 0,
+                          255);
+    }
+    SkinMatrix_SetTranslate(&mf, this->actor.world.pos.x, floorY + 0.5f, this->actor.world.pos.z);
+    mf.xx = mf.yy = mf.zz = 1.0f / 16.0f;
+    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mf);
+    if (mtx == NULL) {
+        return;
+    }
+    OPEN_DISPS(gfxCtx);
+    gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0x19);
+    gDPPipeSync(POLY_XLU_DISP++);
+    gSPClearGeometryMode(POLY_XLU_DISP++, G_LIGHTING | G_FOG | G_CULL_BOTH);
+    gDPSetCycleType(POLY_XLU_DISP++, G_CYC_1CYCLE);
+    gDPSetTextureLUT(POLY_XLU_DISP++, G_TT_NONE);
+    // black, the mask's darkening as its alpha (times the shadow's tint: 0x80 whole)
+    gDPSetCombineLERP(POLY_XLU_DISP++, 0, 0, 0, 0, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, 0, TEXEL0, 0, PRIMITIVE, 0);
+    gDPSetRenderMode(POLY_XLU_DISP++, G_RM_ZB_CLD_SURF, G_RM_ZB_CLD_SURF2);
+    gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, (u8)MIN(255, tint * 255 / 0x80));
+    gSPTexture(POLY_XLU_DISP++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
+    gDPSetTexturePersp(POLY_XLU_DISP++, G_TP_PERSP);
+    gDPSetTextureFilter(POLY_XLU_DISP++, G_TF_BILERP);
+    gDPLoadTextureBlock(POLY_XLU_DISP++, kage + 8, G_IM_FMT_I, G_IM_SIZ_8b, 32, 32, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                        G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+    gSPVertex(POLY_XLU_DISP++, vtx, 4, 0);
+    gSP2Triangles(POLY_XLU_DISP++, 0, 1, 2, 0, 0, 2, 3, 0);
+    CLOSE_DISPS(gfxCtx);
+}
+
 void NvEnemy_Draw(Actor* thisx, PlayState* play) {
     NvEnemy* this = (NvEnemy*)thisx;
     NvEmModel* m = this->model;
@@ -1664,6 +1786,7 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
     if (thisx->colorFilterTimer != 0) {
         tint = 80;
     }
+    NvEnemy_DrawShadow(this, play);
     // the entity: RotMatrix(pitch, facing, roll), then to OoT's axes and scale (x, -y, -z)
     NvEnemy_RotMatrix(this->e.pitch, this->e.angle, this->e.roll, M);
     for (n = 0; n < 3; n++) {

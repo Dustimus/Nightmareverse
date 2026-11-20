@@ -22,7 +22,7 @@ endings follow from the same scripts' flags). In it:
 You get in from Hyrule by playing the mansion's song on the ocarina (below). Chris's game isn't
 playable: Link plays Jill.
 
-Open, in the sections below: shadows; items hung on the player (taken, not drawn); the box's sliding list and its
+Open, in the sections below: items hung on the player (taken, not drawn); the box's sliding list and its
 Hyrule side; stereo panning; the Japanese release's text; ceilings; a way in through the Lost Woods.
 
 ## Reference: RE1's own code
@@ -214,7 +214,7 @@ end of `z_nv_zombie.c` to share its helpers: its states (behave, hit, death) and
 (patrol, chase with its skid and wall following, the leap and bite, strafe, alert, close snap,
 stalk), steering by probing 500 units ahead. Its bite takes 12 of RE1's health (the same share of
 Link's hearts) and knocks Link back; RE1's player flinch is a second's gate on the next bite.
-The maul (RE1's kill of a badly hurt player) is in. Left out for now: blood, the shadow.
+The maul (RE1's kill of a badly hurt player) is in.
 A dog its room's script still holds (behaviour 0x80, 108's two behind the windows) isn't drawn
 or hit until the script lets it go. Dev: `NV_TEST_ENEMY="type,x,z,behaviour,slot"` (slot 15,
 the default, has no hit collider; another slot can be fought).
@@ -236,7 +236,13 @@ places is now a port of its own code (`z_nv_*.inc`: the dog, spider, Black Tiger
 wasp, the greenhouse vines, Plant 42, chimera, adder, Neptune, Tyrant, Yawn, the spider web), with
 its sounds; the characters (Barry, Wesker, Richard, Enrico, ...) are driven by their events
 (`z_nv_npc.inc`).
-Not yet: blood from hits and the shadows. Dev hook:
+Each casts RE1's ground shadow (2026-11-20, `z_nv_enemy.c` NvEnemy_DrawShadow, FadeSprite.cpp's
+entity_add_fade_sprite and DrawFadeSpr): RE1's shadow mask (data/kage.tim, `re1/ui/kage` from
+`tools/soh_ui.py`) on a quad flat on the floor under it, turned as it faces, at the half sizes each
+enemy's own init gives it (the zombie 700 x 900, the dog 0x550 x 0x200, the Tiger 2500, the
+characters Jill's 500 x 700; the chimera and the adder none), darkening the floor as RE1's shadow
+page does (to about 61% at its core: a soft shadow, not a black one). Left out: the corpse's
+pool and the shadows of Plant 42, its roots and the web. A hit's blood: see Weapons. Dev hook:
 `NV_TEST_ENEMY="type,x,z"` (OoT units) adds a held, non-solid enemy. The headless checks run with
 `NV_NO_ENEMIES=1` (no scripts).
 
