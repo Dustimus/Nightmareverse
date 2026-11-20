@@ -48,7 +48,7 @@ def icons_blob(re1):
 
 # (file, CLUT, u, v, width, height), in z_nv_status.c's NvStSprite order
 STATUS_SPRITES = [
-    ("STATUS.TIM", 0, 0, 0, 48, 64),     # the tabs: Map, Radio, File, Exit (16 rows each)
+    ("STATUS.TIM", 0, 0, 0, 48, 80),     # the tabs: Map, Radio, File, Exit, the blank (no radio) (16 rows each)
     ("STATUS.TIM", 0, 0, 80, 48, 16),    # the tab cursor
     ("STATUS.TIM", 0, 48, 0, 48, 96),    # the action box: Equip, Use, Check, Combn (24 rows each)
     ("STATUS.TIM", 0, 48, 96, 48, 24),   # the action cursor

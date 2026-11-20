@@ -22,7 +22,7 @@ endings follow from the same scripts' flags). In it:
 You get in from Hyrule by playing the mansion's song on the ocarina (below). Chris's game isn't
 playable: Link plays Jill.
 
-Open, in the sections below: the status screen's radio; shadows; items hung on the player (taken, not drawn); the box's sliding list and its
+Open, in the sections below: shadows; items hung on the player (taken, not drawn); the box's sliding list and its
 Hyrule side; stereo panning; the Japanese release's text; ceilings; a way in through the Lost Woods.
 
 ## Reference: RE1's own code
@@ -291,7 +291,7 @@ Status screen (2026-10-31): in RE1's rooms the pause menu's map page is RE1's st
 the pause menu opens on it there (z_kaleido_setup.c). It is drawn in RE1's own pictures, cut at
 mod-making time out of the player's STATUS.TIM, BLUE.TIM and STATFACE.TIM (`re1/ui/status`,
 `tools/soh_ui.py` STATUS_SPRITES, at the places MainMenu.cpp draws them from): the Map/File/Exit
-tabs (no radio yet), the face (the user's Link portrait in Jill's place) and her condition
+tabs, the face (the user's Link portrait in Jill's place) and her condition
 (Fine/Caution/Danger by Link's hearts in RE1's quarters, Poison!), the equipped weapon, and the 2 x 4 slots on RE1's blue ground with RE1's icons
 (`re1/ui/icons`: ITEM_ALL.PIX in STATUS.TIM's third CLUT, by the item record's icon byte, so the
 mixed herbs have theirs), RE1's digits for counts and RE1's cursors. A on an item opens RE1's action
@@ -299,7 +299,12 @@ box: Equip (weapons only; RE1's g_EquippedItemId, which follows its slot as slot
 Weapons), Use (heals by RE1's g_ItemHealTable: a third, two thirds or
 all of Link's hearts; an item that would do nothing isn't used up), Check, Combine (then the second
 item; below). Up from the top slots reaches the tabs: Exit closes the pause menu, File
-lists the files found, and Map opens RE1's map screen (below).
+lists the files found, Map opens RE1's map screen (below), and Radio (2026-11-20, menu_tab_radio)
+is RE1's blank plate until Jill has the radio (bank 0 flag 0x7F); with it, where the room lets her
+call (an action entry raising item-use flag 0x3F: the courtyard's 300 and 304, at their moment) it's
+used on the room as item 0x4D and the menu closes, and elsewhere it shows RE1's line for the radio
+(RE1 shows the radio in its item viewer). The four tabs are RE1's, narrowed to fit left of the
+slots.
 
 Combine (2026-11-20, `z_nv_items.c` NvItems_Combine, MainMenu.cpp's menu_item_check_combine and
 menu_item_apply_combine): RE1's own combine tables, read from the player's executable

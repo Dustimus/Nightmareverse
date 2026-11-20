@@ -119,7 +119,7 @@ static const u16* NvSt_Icon(s32 id) {
 
 // RE1's status pictures ("re1/ui/status", re1/tools/soh_ui.py STATUS_SPRITES, in this order)
 typedef enum {
-    NV_SPR_TABS,     // Map, Radio, File, Exit: 48 x 16 each, one under another
+    NV_SPR_TABS,     // Map, Radio, File, Exit, the blank: 48 x 16 each, one under another
     NV_SPR_TAB_CUR,  // the tab cursor
     NV_SPR_ACTIONS,  // Equip, Use, Check, Combn: 48 x 24 each
     NV_SPR_ACT_CUR,  // the action cursor
@@ -195,6 +195,27 @@ static void NvSt_Pic(Gfx** gfxP, s32 pic, s32 row, s32 rows, s32 rowH, s32 x, s3
     *gfxP = gfx;
 }
 
+/** One row of a picture drawn dw pixels wide (squeezed or stretched across). */
+static void NvSt_PicW(Gfx** gfxP, s32 pic, s32 row, s32 rowH, s32 x, s32 y, s32 dw, u8 shade, u8 alpha) {
+    Gfx* gfx = *gfxP;
+    const NvStPic* sp = &sNvStPics[pic];
+    const u16* px = sp->px + row * rowH * sp->w;
+    s32 strip = MAX(1, 4096 / (sp->w * 2));
+    s32 r;
+
+    gDPSetPrimColor(gfx++, 0, 0, shade, shade, shade, alpha);
+    for (r = 0; r < rowH; r += strip) {
+        s32 n = MIN(strip, rowH - r);
+
+        gDPLoadTextureBlock(gfx++, px + r * sp->w, G_IM_FMT_RGBA, G_IM_SIZ_16b, sp->w, n, 0,
+                            G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
+                            G_TX_NOLOD, G_TX_NOLOD);
+        gSPTextureRectangle(gfx++, x << 2, (y + r) << 2, (x + dw) << 2, (y + r + n) << 2, G_TX_RENDERTILE, 0, 0,
+                            (sp->w << 10) / dw, 1 << 10);
+    }
+    *gfxP = gfx;
+}
+
 static void NvSt_Icon16(Gfx** gfxP, const u16* icon, s32 x, s32 y) {
     Gfx* gfx = *gfxP;
 
@@ -225,7 +246,8 @@ static void NvSt_Count(Gfx** gfxP, s32 id, s32 qty, s32 x, s32 y) {
 // the page's layout (screen pixels; GfxPrint's text grid is 8), inside the map page's border
 #define NV_ST_PANEL_X 36
 #define NV_ST_PANEL_Y 60
-#define NV_ST_TAB_X(t) (42 + (t) * 50)
+#define NV_ST_TAB_W 37                  // (RE1's 48-wide tabs, four of them narrowed to fit left of the slots)
+#define NV_ST_TAB_X(t) (42 + (t) * (NV_ST_TAB_W + 2))
 #define NV_ST_TAB_Y 64
 #define NV_ST_FACE_X 42
 #define NV_ST_FACE_Y 86
@@ -234,8 +256,19 @@ static void NvSt_Count(Gfx** gfxP, s32 id, s32 qty, s32 x, s32 y) {
 #define NV_ST_ACT_X 140
 #define NV_ST_ACT_Y 86
 
-typedef enum { NV_TAB_MAP, NV_TAB_FILE, NV_TAB_EXIT, NV_TAB_COUNT } NvStTab;
-static const u8 sNvStTabRow[NV_TAB_COUNT] = { 0, 2, 3 }; // their rows in the tab picture (no radio)
+// RE1's tabs in its order (g_MenuTabActions: Map, File, Radio, Exit), and their rows in the tab
+// picture (Map, Radio, File, Exit; then the blank plate RE1 shows in the radio's place before she
+// has it)
+typedef enum { NV_TAB_MAP, NV_TAB_FILE, NV_TAB_RADIO, NV_TAB_EXIT, NV_TAB_COUNT } NvStTab;
+static const u8 sNvStTabRow[NV_TAB_COUNT] = { 0, 2, 1, 3 };
+#define NV_ST_TAB_RADIO_OFF 4
+
+/** RE1's radio: hers once bank 0 flag 0x7F is up (menu_init: DAT_00ae9f1f, Jill's case). */
+static s32 NvSt_HasRadio(void) {
+    s32 NvFlags_Test(s32 bank, s32 bit);
+
+    return NvFlags_Test(0, 0x7F);
+}
 
 // the item actions, RE1's box: Equip only for what can be equipped (the box then starts at Use)
 typedef enum { NV_ACT_EQUIP, NV_ACT_USE, NV_ACT_CHECK, NV_ACT_COMBINE, NV_ACT_COUNT } NvStAction;
@@ -368,6 +401,27 @@ static void NvSt_TabAction(PlayState* play) {
                 NvSt_Sfx(NA_SE_SY_ERROR);
             }
             break;
+        case NV_TAB_RADIO: { // menu_tab_radio
+            s32 NvFlags_Test(s32 bank, s32 bit);
+            void NvScript_SetUsedItem(s32 id);
+
+            if (!NvSt_HasRadio()) { // (dimmed: nothing)
+                NvSt_Sfx(NA_SE_SY_ERROR);
+            } else if (NvFlags_Test(9, 0x3F)) { // the room lets her call: the radio used, as an item
+                NvScript_SetUsedItem(0x4D);
+                printf("NVITEM used the radio on the room\n");
+                fflush(stdout);
+                sNvStLine[0] = '\0';
+                NvSt_Sfx(NA_SE_SY_DECIDE);
+                NvSt_ClosePause(play);
+            } else { // RE1 shows the radio in its viewer: here, what it says of it
+                const char* t = NvSt_Description(0x4D);
+
+                snprintf(sNvStLine, sizeof(sNvStLine), "%s", (t != NULL) ? t : "The radio. No one answers.");
+                NvSt_Sfx(NA_SE_SY_DECIDE);
+            }
+            break;
+        }
         case NV_TAB_FILE:
             if (NvFiles_Count() == 0) {
                 snprintf(sNvStLine, sizeof(sNvStLine), "No files.");
@@ -719,9 +773,15 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
         for (i = 0; i < NV_TAB_COUNT; i++) {
             s32 on = (sNvStCursor == NV_ST_TABS_ROW) && (sNvStTab == i);
 
-            NvSt_Pic(&gfx, NV_SPR_TABS, sNvStTabRow[i], 1, 16, NV_ST_TAB_X(i), NV_ST_TAB_Y, on ? 255 : 150, 255);
+            s32 row = sNvStTabRow[i];
+
+            if ((i == NV_TAB_RADIO) && !NvSt_HasRadio()) { // (RE1's blank plate, texV 0x40)
+                row = (sNvStPics[NV_SPR_TABS].h >= (NV_ST_TAB_RADIO_OFF + 1) * 16) ? NV_ST_TAB_RADIO_OFF : row;
+            }
+            NvSt_PicW(&gfx, NV_SPR_TABS, row, 16, NV_ST_TAB_X(i), NV_ST_TAB_Y, NV_ST_TAB_W,
+                      on ? 255 : ((i == NV_TAB_RADIO) && !NvSt_HasRadio()) ? 90 : 150, 255);
             if (on && (sNvStMode == NV_ST_BROWSE)) {
-                NvSt_Pic(&gfx, NV_SPR_TAB_CUR, 0, 0, 0, NV_ST_TAB_X(i), NV_ST_TAB_Y, 255, 90);
+                NvSt_PicW(&gfx, NV_SPR_TAB_CUR, 0, 16, NV_ST_TAB_X(i), NV_ST_TAB_Y, NV_ST_TAB_W, 255, 90);
             }
         }
         if (sNvStMode == NV_ST_MAP) { // the map under the tabs, in the face's and slots' place
