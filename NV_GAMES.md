@@ -235,12 +235,11 @@ and flags line up.
 **Suggested start:** one region (Clock Town, or the entry through the Lost Woods): scene,
 actors, a clock that runs in Termina only. No transformations yet.
 
-**Termina on OoT's map (the user, 2026-11-20, "maybe").** Put Termina somewhere on OoT's world
-map, so it reads as a place in the same world rather than a separate game. Open:
-- whether that's the pause menu's map (see `NV_PAUSE_MENU.md`: the Map side's column already
-  has Termina's own map), Hyrule's map with Termina drawn in at an edge, or both;
-- where it sits geographically (MM's way in is through the Lost Woods, so beyond them is the
-  natural spot).
+**Termina's Clock Tower somewhere in OoT's world (the user, 2026-11-20, "maybe").** The
+Clock Tower as a landmark placed in OoT's own map, a hint of Termina from Hyrule. MM already has
+a small, distant version of it for Termina Field: the clock tower actor's Termina Field types
+(scaled to 0.15, the tower walls among them), which the clock tower port can use. Open: where
+(seen from Hyrule Field, past the Lost Woods, ...) and whether its clock runs on Termina's time.
 
 ## Pokémon system (talked over with the user, 2026-11-19)
 
