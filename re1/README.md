@@ -546,6 +546,13 @@ What the run showed about RE1's story (Jill), all from the rooms' own scripts:
 - Not on the grid: keys (RE1 slots only), the radio (a story flag in RE1; maybe a Quest screen
   icon), the pick axe (unused in RE1), the serum (a story item).
 
+- Sound (2026-11-20): RE1's effects stay mono, as RE1's PC version plays them (volume by its own
+  camera-relative rule, no left/right panning). Stereo (the PlayStation's) stays possible later.
+- The Hyrule side of the items (2026-11-20): the tab above may be reworked. With other games coming
+  in, the guns might go in with something else's, or on a weapons screen of their own; the user is
+  looking at Majora's Mask's menus (in the other chat) before deciding. Until then the guns are
+  equipped from RE1's status screen, which is enough to test both ways.
+
 - Link takes Jill's place; Jill stays only where the FMVs need her.
 - Guns (when they come back): Link is left-handed, as in OoT, so the Beretta and the rest
   are held and fired with his left hand (mod1 had them in the right).
