@@ -22,6 +22,9 @@ from xml.sax.saxutils import quoteattr
 import yaz0
 from mm2torch import commands, room_headers
 from mm_entrances import Layout, soh_name
+import mm_actors
+
+SKIPPED = {}  # MM actors left out of the rooms so far: {id: count} (make_mod.py reports it)
 
 
 def _el(tag, **attrs):
@@ -117,6 +120,16 @@ def scene_xml(scene, sdata, rooms, lay):
         S.append("        " + _el("EntranceEntry", Spawn=spawn, Room=room))
     S.append("    </SetEntranceList>")
     S.append("    " + _el("SetSpecialObjects", ElfMessage=0, GlobalObject=0))
+    if 0x0E in cmds:
+        n, w1 = cmds[0x0E]
+        ds, skipped = mm_actors.doors(sdata, w1 & 0xFFFFFF, n)
+        for k, v in skipped.items():
+            SKIPPED[k] = SKIPPED.get(k, 0) + v
+        if ds:
+            S.append("    <SetTransitionActorList>")
+            for d in ds:
+                S.append("        " + _el("TransitionActorEntry", **d))
+            S.append("    </SetTransitionActorList>")
     ex = exits(scene, sdata, lay, spawns)
     if ex:
         S.append("    <SetExitList>")
@@ -157,7 +170,8 @@ def scene_xml(scene, sdata, rooms, lay):
 
 
 def room_xml(scene, r, rdata):
-    """A room header: its behaviour, time, skybox and mesh. No actors or objects yet."""
+    """A room header: its behaviour, time, skybox, mesh, and the actors OoT has a version of
+    (mm_actors.py; MM's own actors are left out until ported)."""
     name = f"{scene}_room_{r:02d}"
     cmds = {cmd: (a1, w1) for cmd, a1, w1 in commands(rdata, 0)}
     R = ['<Room Version="0">']
@@ -172,6 +186,23 @@ def room_xml(scene, r, rdata):
         w1 = cmds[0x12][1]
         R.append("    " + _el("SetSkyboxModifier", SkyboxDisabled=(w1 >> 24) & 0xFF,
                                SunMoonDisabled=(w1 >> 16) & 0xFF))
+
+    if 0x01 in cmds:
+        n, w1 = cmds[0x01]
+        acts, objs, skipped = mm_actors.actors(rdata, w1 & 0xFFFFFF, n)
+        for k, v in skipped.items():
+            SKIPPED[k] = SKIPPED.get(k, 0) + v
+        if objs:
+            R.append("    <SetObjectList>")
+            for o in objs:
+                R.append("        " + _el("ObjectEntry", Id=o))
+            R.append("    </SetObjectList>")
+        if acts:
+            R.append("    <SetActorList>")
+            for aid, p, x, y, z, rx, ry, rz in acts:
+                R.append("        " + _el("ActorEntry", Id=aid, PosX=x, PosY=y, PosZ=z, RotX=rx, RotY=ry, RotZ=rz,
+                                           Params=p))
+            R.append("    </SetActorList>")
 
     off = cmds[0x0A][1] & 0xFFFFFF
     kind, count = rdata[off], rdata[off + 1]

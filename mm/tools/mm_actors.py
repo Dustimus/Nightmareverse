@@ -1,0 +1,104 @@
+"""MM's placed actors as OoT's: the ones OoT already has a version of (group 1, mm/README.md).
+
+MM's room actor lists and scene door lists hold MM's actor ids and MM's params. Where OoT has the
+same thing (pots, crates, torches, collectibles, doors), the converter writes OoT's actor with the
+params translated, and the OoT object it needs in the room's object list. Anything else is left
+out until it's ported (counted, so it's clear what's missing).
+
+MM's own rules followed here (zeldaret/mm, z_actor.c Actor_SpawnEntry):
+- an entry's id carries three flags (0x8000, 0x4000, 0x2000 for Y, X, Z): set, the rotation's
+  top 9 bits are used as a raw value; clear, they're degrees;
+- its rotations' low bits are the half-days it appears in (rot.x & 7 and rot.z & 0x7F, ten bits,
+  day 0 night to day 4 night); 0 means always. MM spawns an entry only in its half-days. OoT has
+  no such rule yet, so only entries present in every half-day come over for now.
+"""
+
+import struct
+
+HALFDAYBIT_ALL = 0x3FF
+
+# OoT's ids (soh/include/tables/actor_table.h, object_table.h)
+ACTOR_EN_DOOR, ACTOR_EN_ITEM00, ACTOR_OBJ_SYOKUDAI, ACTOR_OBJ_KIBAKO, ACTOR_OBJ_TSUBO = 0x09, 0x15, 0x5E, 0x110, 0x111
+OBJECT_GAMEPLAY_DANGEON_KEEP, OBJECT_SYOKUDAI, OBJECT_TSUBO = 0x03, 0xA4, 0x12C
+DOOR_SCENEEXIT = 3
+
+# MM's ids (the decomp's actor table)
+MM_EN_DOOR, MM_EN_ITEM00, MM_OBJ_SYOKUDAI, MM_OBJ_KIBAKO, MM_OBJ_TSUBO = 0x005, 0x00E, 0x039, 0x081, 0x082
+
+# MM's collectible types (ITEM00_*) as OoT's: the same numbers up to 0x14, then MM's own
+ITEM00_OOT = {i: i for i in range(0x10)}
+ITEM00_OOT.update({0x11: 0x11, 0x12: 0x12, 0x13: 0x13, 0x14: 0x14, 0x15: 0x03, 0x16: 0x16, 0x17: 0x0C})
+ITEM00_HEART_PIECE, ITEM00_HEART_CONTAINER = 0x06, 0x07
+
+
+def item00(params):
+    """MM's En_Item00 as OoT's, or None. Heart pieces and containers wait for Termina's own
+    collectible flags (new scenes' flags aren't saved yet, z_nv_scene.c, so they'd come back)."""
+    t = params & 0xFF
+    if t in (ITEM00_HEART_PIECE, ITEM00_HEART_CONTAINER) or t not in ITEM00_OOT:
+        return None
+    flag = (params >> 8) & 0x3F  # MM's 7-bit flag in OoT's 6
+    return ITEM00_OOT[t] | (flag << 8)
+
+
+def _drop(t):
+    """A pot's or crate's drop: MM's collectible type as OoT's (none if OoT has no such)."""
+    return ITEM00_OOT.get(t & 0x1F, 0x1F) & 0x1F
+
+
+MAP = {
+    # actor: (OoT actor, params from MM's, OoT objects it needs)
+    MM_OBJ_TSUBO: (ACTOR_OBJ_TSUBO,  # pot: drop, object_tsubo (bit 8), collectible flag
+                   lambda p: _drop(p) | (1 << 8) | (((p >> 9) & 0x3F) << 9), (OBJECT_TSUBO,)),
+    MM_OBJ_KIBAKO: (ACTOR_OBJ_KIBAKO,  # small crate: drop, collectible flag (gameplay_dangeon_keep)
+                    lambda p: _drop(p) | (((p >> 8) & 0x3F) << 8), (OBJECT_GAMEPLAY_DANGEON_KEEP,)),
+    MM_OBJ_SYOKUDAI: (ACTOR_OBJ_SYOKUDAI,  # torch: type, lit, group size, switch flag
+                      lambda p: (p & 0xF000) | (0x400 if p & 0x800 else 0) | (((p >> 7) & 0xF) << 6) | (p & 0x3F),
+                      (OBJECT_SYOKUDAI,)),
+    MM_EN_ITEM00: (ACTOR_EN_ITEM00, item00, ()),
+}
+
+
+def _rot(raw, flag):
+    v = ((raw & 0xFFFF) >> 7) & 0x1FF
+    if flag:
+        return v - 360 if v > 180 else v
+    return (v * 0x10000 // 360) & 0xFFFF
+
+
+def actors(data, off, count):
+    """A room's actor list (0x01) as OoT entries: [(id, params, x, y, z, rx, ry, rz)], the OoT
+    objects they need, and what was left out ({MM actor id: count})."""
+    out, objects, skipped = [], [], {}
+    for i in range(count):
+        aid_raw, x, y, z, rx, ry, rz, params = struct.unpack_from(">H3h3hH", data, off + 16 * i)
+        aid = aid_raw & 0x1FFF
+        halfdays = ((rx & 7) << 7) | (rz & 0x7F)
+        m = MAP.get(aid)
+        p = m[1](params) if m else None
+        if m is None or p is None or (halfdays not in (0, HALFDAYBIT_ALL)):
+            skipped[aid] = skipped.get(aid, 0) + 1
+            continue
+        out.append((m[0], p, x, y, z, _rot(rx, aid_raw & 0x4000), _rot(ry, aid_raw & 0x8000),
+                    _rot(rz, aid_raw & 0x2000)))
+        for o in m[2]:
+            if o not in objects:
+                objects.append(o)
+    return out, objects, skipped
+
+
+def doors(data, off, count):
+    """The scene's transition actors (0x0E): MM's wooden doors as OoT's scene-exit doors. Their
+    way out is the exit polygon behind them (the scene's exit list), as in both games; a door
+    into a place not built yet brings Link back with the note (z_nv_mm.c)."""
+    out, skipped = [], {}
+    for i in range(count):
+        fr, fc, br, bc, aid, x, y, z, ry, params = struct.unpack_from(">4bh3hhH", data, off + 16 * i)
+        aid &= 0x1FFF
+        if aid != MM_EN_DOOR:
+            skipped[aid] = skipped.get(aid, 0) + 1
+            continue
+        out.append(dict(Id=ACTOR_EN_DOOR, Params=DOOR_SCENEEXIT << 7, PosX=x, PosY=y, PosZ=z,
+                        RotY=_rot(ry, False), FrontSideRoom=fr, FrontSideEffects=fc & 0xFF,
+                        BackSideRoom=br, BackSideEffects=bc & 0xFF))
+    return out, skipped

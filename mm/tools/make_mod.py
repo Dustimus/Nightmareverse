@@ -73,6 +73,9 @@ def main():
                 p = os.path.join(root, f)
                 z.write(p, os.path.relpath(p, res).replace(os.sep, "/"))
     print(f"{a.out}: {len(scenes)} scenes")
+    if mm_scene.SKIPPED:
+        print("MM actors not brought over yet (MM id: count): " +
+              ", ".join(f"0x{k:03X}: {v}" for k, v in sorted(mm_scene.SKIPPED.items(), key=lambda kv: -kv[1])))
     if not a.keep:
         shutil.rmtree(work)
 

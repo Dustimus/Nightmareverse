@@ -132,6 +132,46 @@ out of the south gate (Termina Field) comes back to the gate, with the note.
 Not yet: doors (MM's door actors, 0x0E transition actors, need actors first); the ways in
 that need a form or an event (the clock tower's door opens on the final night).
 
+### Actors, group 1: what OoT already has (2026-11-20, `tools/mm_actors.py`)
+
+Clock Town places 67 kinds of actor (233 in all) and 14 doors. In order of work:
+1. **What OoT has its own version of:** pots, crates, torches, collectibles, wooden doors.
+2. **The clock tower and the moon:** MM's own, tied to the clock.
+3. **The townsfolk on their schedules.**
+
+**Group 1:**
+- **The converter writes OoT's actor in place of MM's** (`mm_actors.py`, MAP: the actor, its
+  params translated, the OoT objects it needs), in the rooms' actor and object lists and the
+  scenes' door lists.
+- **Rotations follow MM's own rule:** the id's three flags say raw value or degrees.
+- **Anything not mapped is left out.** `make_mod.py` lists what's missing by MM id.
+
+**In now:**
+- the pots on the rooftop and the crates in East Clock Town;
+- the 14 wooden doors, as OoT's scene-exit doors. Their way out is the exit behind them, so a
+  door into a building not built yet brings Link back with the note.
+
+**Held back:**
+- **Torches.** They come in day/night pairs (lit ones night-only, half-day mask 0x155; unlit ones
+  day-only, 0x2AA). They need the half-day rule below.
+- **Heart pieces** (two, South and North). Termina's per-scene flags aren't saved yet (new scenes
+  get scratch flags, `z_nv_scene.c`), so they'd come back on every visit. They wait for Termina's
+  collectible flags in the save's `permanent` part.
+- **Chests and signs.** They wait for the item rules and MM's text.
+
+**MM's half-days (to build next, needed for the townsfolk too).** Every placed MM actor has ten
+half-day bits (day 0 night to day 4 night, in its rotations' low bits; 0 means always). MM
+spawns it only in those half-days, and when the half-day turns (6:00, 18:00) it spawns the
+newly due and removes the ones whose time is up. OoT has no such rule. Plan:
+- the converter writes each room's masks as a small resource beside it;
+- a hook where OoT spawns a room's actors skips the entries out of their time;
+- the clock, at each turn, respawns and removes. Until then, only entries present in every
+  half-day come over.
+
+**Hearts (decided with the user, 2026-11-20): they stack.** OoT's 20 and MM's 20 give 37 in all
+(3 to start), and SoH already draws more rows and moves the magic meter. Balance can come later.
+The same goes for Double Defense being in both games.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the
