@@ -187,6 +187,9 @@ static s32 sNvBxSlot;    // Jill's slot under the cursor
 static s32 sNvBxBox;     // DAT_00ae9f24: the box slot in the preview
 static s8 sNvBxHeld;     // the stick's last direction
 static s8 sNvBxOpen;
+static s32 sNvBxSlide;   // SUBMENU_STATE_ID: the list's slide, 0-14 (0: still)
+static s32 sNvBxStep;    // DAT_00ae9f1c: its step a frame (+ on, - back; 3 once held a while)
+static s32 sNvBxHoldT;   // DAT_00ae9f26: frames the direction's been held, to the faster slide
 
 void NvSound_Menu(u16 sfx);
 
@@ -247,6 +250,8 @@ s32 NvBoxUi_Update(PlayState* play) {
         sNvBxSlot = 0;
         sNvBxBox = 0;
         sNvBxHeld = 0;
+        sNvBxSlide = sNvBxStep = 0;
+        sNvBxHoldT = 0;
         return true; // (the button that opened it is still down)
     }
     dir = NvBx_Dir(input);
@@ -278,7 +283,50 @@ s32 NvBoxUi_Update(PlayState* play) {
         }
         return true;
     }
-    // choosing the box's slot
+    // choosing the box's slot. The list slides (menu_itembox_interaction's states 2 and 3): on (down,
+    // RE1's R1) the names rise a row over 15 steps and the next box place comes in when it's done;
+    // back (up, L1) the place goes back at once and the list slides down to it. Held, it goes on,
+    // three steps a frame after the first half second.
+    {
+        s32 held = ((input->rel.stick_y < -30) || CHECK_BTN_ALL(input->cur.button, BTN_DDOWN))  ? 1
+                   : ((input->rel.stick_y > 30) || CHECK_BTN_ALL(input->cur.button, BTN_DUP)) ? -1
+                                                                                                : 0;
+
+        if ((held != 0) && ((sNvBxStep == 0) || ((held > 0) == (sNvBxStep > 0)))) {
+            sNvBxHoldT++;
+        } else {
+            sNvBxHoldT = 0;
+        }
+        if (sNvBxStep != 0) { // state 3: sliding
+            sNvBxSlide += sNvBxStep;
+            if (sNvBxSlide >= 15) {
+                sNvBxSlide = 0;
+            }
+            if (sNvBxSlide <= 0) {
+                sNvBxSlide = 0;
+                if (sNvBxStep > 0) {
+                    sNvBxBox = (sNvBxBox + 1) % size;
+                }
+                sNvBxStep = 0;
+            }
+            return true;
+        }
+        if (held != 0) { // state 2 to 3: a slide starts
+            s32 fast = (sNvBxHoldT > 15) ? 3 : 1;
+
+            sNvBxHeld = (held > 0) ? 4 : 3; // (the edge-triggered direction stays quiet for it)
+            if (held > 0) {
+                sNvBxSlide = 0;
+                sNvBxStep = fast;
+            } else {
+                sNvBxBox = (sNvBxBox + size - 1) % size;
+                sNvBxSlide = 15;
+                sNvBxStep = -fast;
+            }
+            NvBx_Sfx(NA_SE_SY_CURSOR);
+            return true;
+        }
+    }
     if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
         sNvBxMode = 1;
         NvBx_Sfx(NA_SE_SY_DECIDE);
@@ -293,13 +341,6 @@ s32 NvBoxUi_Update(PlayState* play) {
             NvBx_Sfx(NA_SE_SY_DECIDE);
         }
         return true;
-    }
-    if (dir == 3) { // the list turns back (L1), round from the first to the last
-        sNvBxBox = (sNvBxBox + size - 1) % size;
-        NvBx_Sfx(NA_SE_SY_CURSOR);
-    } else if (dir == 4) { // and on
-        sNvBxBox = (sNvBxBox + 1) % size;
-        NvBx_Sfx(NA_SE_SY_CURSOR);
     }
     return true;
 }
@@ -393,19 +434,25 @@ void NvBoxUi_Draw(PlayState* play) {
 
             NvBx_Piece(&gfx, NV_SHEET_ITEMBOX, p->x, p->y, p->w, p->h, p->u, p->v, false);
         }
-        {
+        // the preview: the box place, and while sliding the next coming up under it (2 px a step),
+        // clipped to the preview's window
+        gDPPipeSync(gfx++);
+        gDPSetScissor(gfx++, G_SC_NON_INTERLACE, 0x5C, 0x58, 0x5C + 40, 0x58 + 30);
+        for (k = 0; k < ((sNvBxSlide != 0) ? 2 : 1); k++) {
             s32 qty = 0;
-            s32 id = NvItems_BoxSlot(sNvBxBox, &qty);
+            s32 id = NvItems_BoxSlot((sNvBxBox + k) % size, &qty);
 
-            NvStatus_DrawItem(&gfx, id, qty, 0x5C, 0x58);
+            NvStatus_DrawItem(&gfx, id, qty, 0x5C, 0x58 + k * 30 - sNvBxSlide * 2);
         }
+        gDPPipeSync(gfx++);
+        gDPSetScissor(gfx++, G_SC_NON_INTERLACE, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
         gDPPipeSync(gfx++);
         gDPSetCombineLERP(gfx++, TEXEL0, 0, PRIMITIVE, 0, TEXEL0, 0, PRIMITIVE, 0, TEXEL0, 0, PRIMITIVE, 0, TEXEL0,
                           0, PRIMITIVE, 0);
         gDPSetPrimColor(gfx++, 0, 0, 255, 255, 255, 255);
         // where the list is: a 3-place marker beside it (the 48 places down the strip)
         for (k = 0; k < 3; k++) {
-            s32 at = (sNvBxBox + size - 1 + k) % size;
+            s32 at = (sNvBxBox + size - 1 + k + ((sNvBxStep < 0) ? 1 : 0)) % size; // (back: where it was)
 
             NvBx_Piece(&gfx, NV_SHEET_ITEMBOX, 0xB0, at + 0x21, 6, 1, 0x40, 0x38, false);
         }
@@ -414,16 +461,24 @@ void NvBoxUi_Draw(PlayState* play) {
 
     // the names: the box's three places (the one before, the preview's, the one after), and the
     // chosen item of Jill's along the bottom
+    // (the list's names, four while it slides, a pixel a step, clipped to the list's window)
+    gDPSetScissor(gfx++, G_SC_NON_INTERLACE, 42, 34, 168, 80);
     GfxPrint_Init(&printer);
     GfxPrint_Open(&printer, gfx);
-    for (k = 0; k < 3; k++) {
+    for (k = 0; k < ((sNvBxSlide != 0) ? 4 : 3); k++) {
         s32 at = (sNvBxBox + size - 1 + k) % size;
         s32 id = NvItems_BoxSlot(at, NULL);
 
-        GfxPrint_SetPosPx(&printer, 0x2A, 0x23 + k * 15 + 3);
+        GfxPrint_SetPosPx(&printer, 0x2A, 0x23 - sNvBxSlide + k * 15 + 3);
         GfxPrint_SetColor(&printer, (id != 0) ? 230 : 140, (id != 0) ? 230 : 140, (id != 0) ? 230 : 150, 255);
         GfxPrint_Printf(&printer, "%.15s", (id != 0) ? NvItems_Name(id) : "Nothing");
     }
+    gfx = GfxPrint_Close(&printer);
+    GfxPrint_Destroy(&printer);
+    gDPPipeSync(gfx++);
+    gDPSetScissor(gfx++, G_SC_NON_INTERLACE, 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+    GfxPrint_Init(&printer);
+    GfxPrint_Open(&printer, gfx);
     {
         s32 id = NvItems_Slot(sNvBxSlot, NULL);
 

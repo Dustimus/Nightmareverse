@@ -22,8 +22,7 @@ endings follow from the same scripts' flags). In it:
 You get in from Hyrule by playing the mansion's song on the ocarina (below). Chris's game isn't
 playable: Link plays Jill.
 
-Open, in the sections below: the box's sliding list and its
-Hyrule side; the Japanese release's text; ceilings; a way in through the Lost Woods.
+Open, in the sections below: the box's Hyrule side; the Japanese release's text; ceilings; a way in through the Lost Woods.
 
 ## Reference: RE1's own code
 
@@ -375,7 +374,12 @@ list with up/down (48 places, wrapping) and A to exchange (Jill's slots stay pac
 away is unequipped); B steps back, and B on Jill's side (or START) closes it and the lid shuts.
 One box, shared by every box in the mansion. Names are RE1's own (from its executable), drawn in
 OoT's small font for now (RE1's 8x14 font, which the results screen already uses, is a later step).
-Not yet: the list's sliding animation, Hyrule's side.
+The list slides as RE1's does (2026-11-20, menu_itembox_interaction's states 2 and 3,
+draw_itembox_menu): on (down, RE1's R1) the names rise a row over 15 steps and the preview's icon
+slides up with the next coming in under it, the place moving on as it ends; back (up, L1) the place
+steps back first and the list slides down to it; held, it goes on, three steps a frame after half a
+second; the names and the preview are clipped to their windows. Not yet: Hyrule's side (see the
+design notes).
 
 Weapons (2026-11-03, first pass): in RE1's rooms the weapon equipped on the status screen takes
 C-Left (RE1's icon on the button; the OoT item there is back outside the mansion), in
