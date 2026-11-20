@@ -237,6 +237,12 @@ return quest and trade items after the Song of Time. Here, the user leans toward
 resetting at all (OoT's rupees are plentiful and ammo isn't taken), to be weighed when chests
 are ported.
 
+**To check when MM's item models come over (the user, 2026-11-20): the Deku Stick.** As the user
+remembers it, OoT's stick draws with the wrong texture: one that sits in Link's own object (part
+of his hair?), so it looks different again with adult Link's object loaded. MM's stick has its
+own. Compare the two games' stick display lists and where their textures point, and use MM's (or
+fix OoT's) if that's right.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the
