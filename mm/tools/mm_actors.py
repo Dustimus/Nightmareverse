@@ -27,6 +27,7 @@ DOOR_SCENEEXIT = 3
 NV_MM_ACTOR_MARKER = 0x7000
 PORTED = {
     0x19C,  # Obj_Tokeidai: the clock tower (z_nv_mm_tokeidai.c)
+    0x17C,  # En_Fall: the moon (z_nv_mm_fall.c)
 }
 
 # MM's ids (the decomp's actor table)

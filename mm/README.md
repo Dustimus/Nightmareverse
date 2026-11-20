@@ -283,6 +283,23 @@ night the lit torches stand beside it (half-days).
 - the minute ring's tick (MM's own sound, not in OoT's banks);
 - a close look at each piece in motion (the headless camera doesn't reach the tower's face).
 
+### The moon (2026-11-20, `soh/src/code/z_nv_mm_fall.c`, MM's En_Fall)
+
+Ported closely, with MM's models (`object_lodmoon`, `object_fall`):
+- **Over Clock Town** (type 6, the far, low-detail moon, in all four town scenes): it grows
+  each day (2.4, 3.6 times its 0.16 base), and on the final day it sinks towards the town as
+  the hours pass, by MM's own formula. Past 9000 units from the camera it's drawn pulled in to
+  9000 along the same line, so the far plane never clips it.
+- **On the clock tower's rooftop:** the moon over the tower (type 9) stands still for now (its
+  cutscene cues aren't in). The stopped moon (type 7) waits for its event, after the giants.
+- **Checked headless:** its numbers on Day 1 (scale 0.384) and at 05:40 on Day 3 (scale 0.576,
+  down from 11,000 to about 4,390 high), both MM's. Its model renders: shown once by a temporary
+  test that drew it in front of the camera, not committed. The headless camera can't look up at
+  it where it really hangs (some 80 degrees overhead in South Clock Town), so its look in the
+  sky wants a check in play.
+- **Not yet:** the crash (its cutscene, fire balls, debris, fire ring), the Moon's Tear, the
+  open-mouthed moon, and the eyes' glow (only cutscenes change it).
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

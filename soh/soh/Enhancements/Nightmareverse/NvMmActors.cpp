@@ -13,12 +13,17 @@ void NvMmTokeidai_Init(Actor* thisx, PlayState* play);
 void NvMmTokeidai_Destroy(Actor* thisx, PlayState* play);
 void NvMmTokeidai_Update(Actor* thisx, PlayState* play);
 extern const size_t gNvMmTokeidaiSize;
+void NvMmFall_Init(Actor* thisx, PlayState* play);
+void NvMmFall_Destroy(Actor* thisx, PlayState* play);
+void NvMmFall_Update(Actor* thisx, PlayState* play);
+extern const size_t gNvMmFallSize;
 }
 
 struct NvMmActorDef {
     const char* name;
     const char* desc;
     int category;
+    u32 flags;
     const size_t* size;
     ActorFunc init, destroy, update;
 };
@@ -26,8 +31,12 @@ struct NvMmActorDef {
 // by MM's actor id
 static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x19C,
-      { "Mm_Obj_Tokeidai", "MM: the clock tower and wall clocks", ACTORCAT_BG, &gNvMmTokeidaiSize, NvMmTokeidai_Init,
-        NvMmTokeidai_Destroy, NvMmTokeidai_Update } },
+      { "Mm_Obj_Tokeidai", "MM: the clock tower and wall clocks", ACTORCAT_BG, 0, &gNvMmTokeidaiSize,
+        NvMmTokeidai_Init, NvMmTokeidai_Destroy, NvMmTokeidai_Update } },
+    { 0x17C,
+      { "Mm_En_Fall", "MM: the moon", ACTORCAT_ITEMACTION,
+        ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmFallSize, NvMmFall_Init,
+        NvMmFall_Destroy, NvMmFall_Update } },
 };
 
 /** The SoH actor id for one of MM's actor ids, or -1 if it isn't ported. */
@@ -46,7 +55,7 @@ extern "C" s32 NvMmActor_Id(s32 mmId) {
     entry.name = def->second.name;
     entry.desc = def->second.desc;
     entry.category = def->second.category;
-    entry.flags = 0;
+    entry.flags = def->second.flags;
     entry.objectId = OBJECT_GAMEPLAY_KEEP; // (MM's models are drawn by path: no object slot needed)
     entry.instanceSize = *def->second.size;
     entry.init = def->second.init;

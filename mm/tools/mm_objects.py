@@ -30,6 +30,13 @@ OBJECTS = {
         "gClockTowerClockFaceDL": 0xE818,
         "gWallClockClockFaceDL": 0xF518,
     }),
+    "object_lodmoon": (1020, {  # the far, low-detail moon (En_Fall)
+        "gLodmoonEyesDL": 0x10E0,
+        "gLodmoonMoonDL": 0x1158,
+    }),
+    "object_fall": (882, {  # the full moon, and the crash's pieces (En_Fall)
+        "gMoonDL": 0x77F0,
+    }),
 }
 
 
