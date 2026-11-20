@@ -123,6 +123,10 @@ the two out of each other's way:
   (`soh/include/z64scene.h`), each a range written by that game's `soh_tables.py`. Never test
   `sceneNum >= <first scene>` alone: the next game's scenes come after.
 
+- **The pause menu:** a design for every game's pages in OoT's four-sided box, with alternates
+  stacked above and below each side (`NV_PAUSE_MENU.md`). Not built yet; to agree with the RE1
+  chat first, since RE1's screens live there.
+
 ## Ideas that cross games
 
 `re1/IDEAS.md` already has some: getting to the mansion from Hyrule (the Lost Woods), RE1 items
