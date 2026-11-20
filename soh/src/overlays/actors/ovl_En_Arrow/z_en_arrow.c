@@ -390,6 +390,11 @@ void EnArrow_Fly(EnArrow* this, PlayState* play) {
             Math_Vec3f_Copy(&posCopy, &this->actor.world.pos);
             Math_Vec3f_Copy(&this->actor.world.pos, &hitPoint);
         }
+        if (!this->touchedPoly) { // Nightmareverse: RE1's rooms' bomb layer stops it as a wall (z_nv_bombwall.c)
+            s32 NvBombWall_Check(PlayState* play, Actor* a);
+
+            this->touchedPoly = NvBombWall_Check(play, &this->actor);
+        }
 
         if (this->actor.params <= ARROW_0E) {
             this->actor.shape.rot.x = Math_Atan2S(this->actor.speedXZ, -this->actor.velocity.y);

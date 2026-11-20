@@ -792,6 +792,9 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     # per zone u16 x, z, width, depth (its high byte too) and the sound byte (the room bank's slot)
     blob = ftzones_blob(room)
     open(os.path.join(d, name + "_ftzones"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    # the bomb layer: "<name>_bombwall" (z_nv_bombwall.c), the room's filled floor plan
+    blob = floor.bombwall_blob()
+    open(os.path.join(d, name + "_bombwall"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
     # and its object models: "<name>_objs" (z_nv_items.c, placed by the scripts' omodel_set)
     blob = items_blob(room, 2, b"ROBJ")
     open(os.path.join(d, name + "_objs"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)

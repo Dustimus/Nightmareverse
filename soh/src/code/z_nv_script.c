@@ -3118,6 +3118,12 @@ void NvScript_RoomInit(PlayState* play) {
         snprintf(path, sizeof(path), "scenes/shared/%s/%.*s_ftzones", file, (int)(len - 6), file);
         NvSnd_SetFootstepZones(ResourceMgr_FileExists(path) ? (const u8*)ResourceGetDataByName(path) : NULL);
     }
+    {
+        void NvBombWall_RoomLoad(const u8* d); // (z_nv_bombwall.c: the bomb layer)
+
+        snprintf(path, sizeof(path), "scenes/shared/%s/%.*s_bombwall", file, (int)(len - 6), file);
+        NvBombWall_RoomLoad(ResourceMgr_FileExists(path) ? (const u8*)ResourceGetDataByName(path) : NULL);
+    }
     NvBgm_RoomEnter(sNvStage, sNvRoom); // RE1's room music (z_nv_sound.c), after the init chain set its state
     printf("NVSCRIPT %s init: stage %d room %d camera %d\n", file, sNvStage, sNvRoom, sNvCamera);
     fflush(stdout);

@@ -346,6 +346,46 @@ class Floor:
     def cell(self, x, z):
         return (int(x // CELL), int(z // CELL))
 
+    def bombwall_blob(self):
+        """The bomb layer (z_nv_bombwall.c): the room's floor plan as a grid of CELL squares, the
+        floor (both levels, the ramps) with its holes filled (furniture, pillars: bombs fly over
+        them) and grown by WALL_INSET (out to where the outer walls stand). Bombs and arrows stop
+        where they'd leave it, at any height. "RBWL", s32 x0, z0 (RE1 units: its corner), u16 w, h
+        (cells), then w * h bits, row by row (z), bit 0 of each byte first."""
+        inside = set(self.cells) | set(self.ramp_cells)
+        if not inside:
+            return b"RBWL" + struct.pack("<2i2H", 0, 0, 0, 0)
+        grow = int(round(WALL_INSET / CELL))
+        gx0 = min(k[0] for k in inside) - grow - 1
+        gz0 = min(k[1] for k in inside) - grow - 1
+        gx1 = max(k[0] for k in inside) + grow + 1
+        gz1 = max(k[1] for k in inside) + grow + 1
+        # the outside: flooded from the grid's border round what's inside (what it can't reach,
+        # holes and all, is the room)
+        outside = set()
+        todo = [(gx0, gz0)]
+        while todo:
+            k = todo.pop()
+            if k in outside or k in inside or not (gx0 <= k[0] <= gx1 and gz0 <= k[1] <= gz1):
+                continue
+            outside.add(k)
+            todo += [(k[0] + 1, k[1]), (k[0] - 1, k[1]), (k[0], k[1] + 1), (k[0], k[1] - 1)]
+        room = {(x, z) for x in range(gx0, gx1 + 1) for z in range(gz0, gz1 + 1) if (x, z) not in outside}
+        # grown out to the walls (a square of the inset round each cell at the room's edge)
+        edge = [k for k in room if any(n not in room for n in ((k[0] + 1, k[1]), (k[0] - 1, k[1]),
+                                                                  (k[0], k[1] + 1), (k[0], k[1] - 1)))]
+        for kx, kz in edge:
+            for dx in range(-grow, grow + 1):
+                for dz in range(-grow, grow + 1):
+                    room.add((kx + dx, kz + dz))
+        w, h = gx1 - gx0 + 1, gz1 - gz0 + 1
+        bits = bytearray((w * h + 7) // 8)
+        for (x, z) in room:
+            if gx0 <= x <= gx1 and gz0 <= z <= gz1:
+                i = (z - gz0) * w + (x - gx0)
+                bits[i >> 3] |= 1 << (i & 7)
+        return b"RBWL" + struct.pack("<2i2H", gx0 * CELL, gz0 * CELL, w, h) + bytes(bits)
+
     def in_extent(self, k):
         return self.gx0 - 1 <= k[0] <= self.gx1 + 1 and self.gz0 - 1 <= k[1] <= self.gz1 + 1
 
