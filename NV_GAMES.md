@@ -222,6 +222,12 @@ The default is shared or carried over. A Termina-only piece needs a reason.
     Sword (or Biggoron's) as well as the Double Helix. That also keeps him from being
     overpowered everywhere. To work out then: his hand's attachment point for OoT's sword models,
     and the damage following the equipped sword.
+  - **Magic:** the Double Helix Sword is what uses magic (its energy beams), not the mask. That's
+    already how MM has it: the Fierce Deity's sword beams cost magic, and wearing the mask
+    doesn't.
+  - **Outside a randomizer, adult Link can't come back until MM's part is done.** The user likes
+    that: MM isn't balanced around adult Link, and finding the bow again fits, MM's Hero's Bow
+    being young Link's own (already decided: it doesn't replace the adult's Fairy Bow).
   Some work on OoT's side (the ending, the Door of Time, the swap), likely not complicated.
   Open: what becomes of adult-only items and places after the finale, how the jump works and
   is reached, and what it means for a randomizer's logic.
