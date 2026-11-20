@@ -9,8 +9,8 @@ MM's own rules followed here (zeldaret/mm, z_actor.c Actor_SpawnEntry):
 - an entry's id carries three flags (0x8000, 0x4000, 0x2000 for Y, X, Z): set, the rotation's
   top 9 bits are used as a raw value; clear, they're degrees;
 - its rotations' low bits are the half-days it appears in (rot.x & 7 and rot.z & 0x7F, ten bits,
-  day 0 night to day 4 night); 0 means always. MM spawns an entry only in its half-days. OoT has
-  no such rule yet, so only entries present in every half-day come over for now.
+  day 0 night to day 4 night); 0 means always. MM spawns an entry only in its half-days: each
+  entry's mask goes to the room's "_halfdays" resource, which z_nv_mm_halfday.c follows.
 """
 
 import struct
@@ -67,8 +67,8 @@ def _rot(raw, flag):
 
 
 def actors(data, off, count):
-    """A room's actor list (0x01) as OoT entries: [(id, params, x, y, z, rx, ry, rz)], the OoT
-    objects they need, and what was left out ({MM actor id: count})."""
+    """A room's actor list (0x01) as OoT entries: [(id, params, x, y, z, rx, ry, rz, halfdays)],
+    the OoT objects they need, and what was left out ({MM actor id: count})."""
     out, objects, skipped = [], [], {}
     for i in range(count):
         aid_raw, x, y, z, rx, ry, rz, params = struct.unpack_from(">H3h3hH", data, off + 16 * i)
@@ -76,11 +76,11 @@ def actors(data, off, count):
         halfdays = ((rx & 7) << 7) | (rz & 0x7F)
         m = MAP.get(aid)
         p = m[1](params) if m else None
-        if m is None or p is None or (halfdays not in (0, HALFDAYBIT_ALL)):
+        if m is None or p is None:
             skipped[aid] = skipped.get(aid, 0) + 1
             continue
         out.append((m[0], p, x, y, z, _rot(rx, aid_raw & 0x4000), _rot(ry, aid_raw & 0x8000),
-                    _rot(rz, aid_raw & 0x2000)))
+                    _rot(rz, aid_raw & 0x2000), halfdays))
         for o in m[2]:
             if o not in objects:
                 objects.append(o)

@@ -2,7 +2,7 @@
  * Nightmareverse: Majora's Mask in OoT, the per-frame entry for Termina (z_play.c calls these two).
  * Everything here acts in MM's scenes only (NvMm_IsScene).
  *
- * - the 3-day clock (z_nv_mm_clock.c);
+ * - the 3-day clock (z_nv_mm_clock.c), and MM's half-days in the rooms (z_nv_mm_halfday.c);
  * - exits into places not built yet: mm_scene.py points them at a "back" entrance
  *   (ENTR_MM_BACK_FIRST..LAST, nv_mm_scene_range.h), which puts Link at the spot that place's own
  *   exit would bring him to, and here a note says the way isn't built, as RE1's unbuilt doors do.
@@ -18,6 +18,7 @@
 
 void NvMmClock_Update(PlayState* play);
 void NvMmClock_Draw(PlayState* play);
+void NvMmHalfDay_Update(PlayState* play);
 void NvMsg_Show(PlayState* play, const char* text);
 void Save_SaveFile(void);
 void Save_LoadFile(void);
@@ -73,6 +74,7 @@ void NvMm_Update(PlayState* play) {
     }
     sNvMmFrames = play->state.frames + 1; // (+1: never 0 once in Termina)
     NvMmClock_Update(play);
+    NvMmHalfDay_Update(play);
     NvMm_SaveTest(play);
 }
 

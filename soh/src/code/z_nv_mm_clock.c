@@ -270,3 +270,13 @@ void NvMmClock_LogState(const char* when) {
            (unsigned)sMmHyruleTime);
     fflush(stdout);
 }
+
+/** MM's half-day bit for the clock's day and time (z64actor.h HALFDAYBIT_*: day 0 dawn is bit 9,
+ * then night, down to day 4 night at bit 0). The day turns at 6:00, so a night belongs to the day
+ * before it, as in MM. */
+u16 NvMmClock_HalfDayBit(void) {
+    s32 night = (sMmTime >= 0xC000) || (sMmTime < MM_DAWN);
+    s32 day = CLAMP(sMmDay, 0, 4);
+
+    return 1 << (9 - 2 * day - night);
+}

@@ -148,25 +148,33 @@ Clock Town places 67 kinds of actor (233 in all) and 14 doors. In order of work:
 
 **In now:**
 - the pots on the rooftop and the crates in East Clock Town;
+- the torches, in their day/night pairs (lit ones night-only, half-day mask 0x155; unlit ones
+  day-only, 0x2AA), by the half-day rule below;
 - the 14 wooden doors, as OoT's scene-exit doors. Their way out is the exit behind them, so a
   door into a building not built yet brings Link back with the note.
 
 **Held back:**
-- **Torches.** They come in day/night pairs (lit ones night-only, half-day mask 0x155; unlit ones
-  day-only, 0x2AA). They need the half-day rule below.
 - **Heart pieces** (two, South and North). Termina's per-scene flags aren't saved yet (new scenes
   get scratch flags, `z_nv_scene.c`), so they'd come back on every visit. They wait for Termina's
   collectible flags in the save's `permanent` part.
 - **Chests and signs.** They wait for the item rules and MM's text.
 
-**MM's half-days (to build next, needed for the townsfolk too).** Every placed MM actor has ten
-half-day bits (day 0 night to day 4 night, in its rotations' low bits; 0 means always). MM
-spawns it only in those half-days, and when the half-day turns (6:00, 18:00) it spawns the
-newly due and removes the ones whose time is up. OoT has no such rule. Plan:
-- the converter writes each room's masks as a small resource beside it;
-- a hook where OoT spawns a room's actors skips the entries out of their time;
-- the clock, at each turn, respawns and removes. Until then, only entries present in every
-  half-day come over.
+**MM's half-days (built 2026-11-20, `soh/src/code/z_nv_mm_halfday.c`).** Every placed MM actor
+has ten half-day bits (day 0 night to day 4 night, in its rotations' low bits; 0 means always).
+MM spawns it only in those half-days, and when the half-day turns (6:00, 18:00) it spawns the
+newly due and removes the ones whose time is up. Here, to MM's rules:
+- **The masks:** the converter writes each room's masks beside it, `<room>_halfdays` ("MHDY",
+  a count, one u16 per actor entry). Only rooms with a limited entry get one.
+- **Spawning:** OoT's room spawn (`z_actor.c`, one hook) skips the entries not due in the
+  clock's half-day (`NvMmClock_HalfDayBit`: the day turns at 6:00, so a night belongs to the
+  day before it, as in MM).
+- **At each turn**, the room's actors whose entry isn't due any more are removed (found by SoH's
+  actor list index), and the entries due now that weren't before are spawned. As in MM, a pot
+  broken earlier stays broken.
+- **Checked headless:** West Clock Town from 17:45, sped up. At 18:00 the three unlit daytime
+  torches went and the three lit night ones came; loaded at 20:00 it starts with the night ones.
+- **Not yet:** MM's extra rule for actors flagged 0x800 after a Song of Time (EVENTINF_17), and
+  half-days for the doors (MM's door types close shops by day; they're all open here).
 
 **Hearts (decided with the user, 2026-11-20): they stack.** OoT's 20 and MM's 20 give 37 in all
 (3 to start), and SoH already draws more rows and moves the magic meter. Balance can come later.

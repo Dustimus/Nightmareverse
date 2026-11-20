@@ -9,6 +9,7 @@
 #include "objects/object_bdoor/object_bdoor.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "soh/ObjectExtension/ActorListIndex.h"
+s32 NvMmHalfDay_Skip(PlayState* play, s32 i); // Nightmareverse (z_nv_mm_halfday.c)
 #include "soh/frame_interpolation.h"
 #include "soh/Enhancements/cosmetics/cosmeticsTypes.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
@@ -2598,6 +2599,10 @@ void Actor_UpdateAll(PlayState* play, ActorContext* actorCtx) {
     if (play->numSetupActors != 0) {
         actorEntry = &play->setupActorList[0];
         for (i = 0; i < play->numSetupActors; i++) {
+            if (NvMmHalfDay_Skip(play, i)) { // Nightmareverse: MM's half-days in Termina (z_nv_mm_halfday.c)
+                actorEntry++;
+                continue;
+            }
             Actor* spawnedActor = Actor_SpawnEntry(&play->actorCtx, actorEntry++, play);
 
             // #region SOH [ObjectExtension] ActorListIndex tracking

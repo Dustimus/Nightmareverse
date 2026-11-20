@@ -169,6 +169,16 @@ def scene_xml(scene, sdata, rooms, lay):
     return "\n".join(S) + "\n"
 
 
+HALFDAYS = {}  # room file -> its entries' half-day masks (write_scene writes them beside the room)
+
+LUS_BLOB = 0x4F424C42  # "OBLB", libultraship ResourceType.h
+
+
+def _otr_header(res_type):
+    """libultraship's 64-byte binary resource header (as re1/tools/soh_scene.py writes it)."""
+    return struct.pack("<BB2xIIQ", 0, 1, res_type, 0, 0).ljust(64, b"\0")
+
+
 def room_xml(scene, r, rdata):
     """A room header: its behaviour, time, skybox, mesh, and the actors OoT has a version of
     (mm_actors.py; MM's own actors are left out until ported)."""
@@ -197,9 +207,10 @@ def room_xml(scene, r, rdata):
             for o in objs:
                 R.append("        " + _el("ObjectEntry", Id=o))
             R.append("    </SetObjectList>")
+        HALFDAYS[f"{soh_name(scene)}_room_{r:02d}"] = [hd for *_x, hd in acts]
         if acts:
             R.append("    <SetActorList>")
-            for aid, p, x, y, z, rx, ry, rz in acts:
+            for aid, p, x, y, z, rx, ry, rz, _hd in acts:
                 R.append("        " + _el("ActorEntry", Id=aid, PosX=x, PosY=y, PosZ=z, RotX=rx, RotY=ry, RotZ=rz,
                                            Params=p))
             R.append("    </SetActorList>")
@@ -242,4 +253,11 @@ def write_scene(rom, scene, rooms, out):
     open(os.path.join(d, soh_name(scene) + "_scene"), "w").write(scene_xml(scene, sdata, rooms, Layout(rom)))
     for r in range(rooms):
         rdata = load(f"{scene}_room_{r:02d}")
-        open(os.path.join(d, f"{soh_name(scene)}_room_{r:02d}"), "w").write(room_xml(scene, r, rdata))
+        room = f"{soh_name(scene)}_room_{r:02d}"
+        open(os.path.join(d, room), "w").write(room_xml(scene, r, rdata))
+        masks = HALFDAYS.get(room, [])
+        if any(m not in (0, mm_actors.HALFDAYBIT_ALL) for m in masks):
+            # "MHDY", a count, one u16 per actor entry (z_nv_mm_halfday.c)
+            blob = b"MHDY" + struct.pack("<i", len(masks)) + struct.pack(f"<{len(masks)}H", *masks)
+            open(os.path.join(d, room + "_halfdays"), "wb").write(
+                _otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
