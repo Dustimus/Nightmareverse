@@ -208,6 +208,18 @@ The default is shared or carried over. A Termina-only piece needs a reason.
   - Still open: plain masks (Bunny Hood and so on) on adult.
 - **Trivial is fine (the user, 2026-11-19).** Link breezing through is half the fun, the same
   as in RE1. The forms don't need to be balanced against the other games.
+- **Another way round the adult-Link question (the user's idea, 2026-11-20, not to start yet).**
+  Instead of letting adult Link wear masks, sequence it through OoT's ending:
+  - after OoT's finale the Door of Time closes, Link is a child again, and he's given a mask (the
+    way into MM's part, as MM itself follows OoT);
+  - possibly the Fierce Deity takes adult Link's place from then on, as the "big" Link, so the
+    question of adult Link and masks never comes up;
+  - a separate mechanic jumps between the two timelines (child and adult), in place of OoT's own
+    Master Sword travel.
+
+  Some work on OoT's side (the ending, the Door of Time, the swap), likely not complicated.
+  Open: what becomes of adult-only items and places after the finale, how the jump works and
+  is reached, and what it means for a randomizer's logic.
 - **Water Temple as Zora (the user likes it).** Zora diving does part of the Iron Boots' job.
   Zora Link can't use the Hookshot or Longshot, though, so the temple still needs switching
   forms. Switching becomes part of the puzzle, without making the temple trivial.
