@@ -202,6 +202,24 @@ Saved by scene name, so renumbering doesn't break saves.
   holds its flag (`permanent`, flag 10);
 - loading that save and walking back onto the deck, it doesn't come back (the count stays 1).
 
+### What the Song of Time takes (decided with the user, 2026-11-20)
+
+**Nothing from Link's inventory by default.** Rupees, ammo, bottle contents, items and heart
+pieces all carry over, OoT's and MM's alike. The Song of Time only turns Termina back: the clock,
+the per-cycle scene flags (chests, switches, cleared rooms), and later the town's events. The
+user never liked MM taking rupees and ammo (keeping the bow but losing its arrows), and dropping
+it makes MM's bank pointless but breaks nothing.
+
+**A short list of event items that do reset with the cycle**, decided one by one as they're
+ported. These are only items tied to an event the cycle undoes, where keeping them would leave
+the world contradicting the player:
+- Zora Eggs and the Deku Princess in bottles;
+- small keys, since the dungeon's doors relock;
+- the trade items (Room Key, Title Deeds, letters).
+
+Rewards can't be duplicated either way, since they'll be permanent checks. Some are balance
+questions for later, such as Powder Kegs. None of these items exist yet.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the
