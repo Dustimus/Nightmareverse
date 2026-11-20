@@ -235,6 +235,13 @@ and flags line up.
 **Suggested start:** one region (Clock Town, or the entry through the Lost Woods): scene,
 actors, a clock that runs in Termina only. No transformations yet.
 
+**Termina on OoT's map (the user, 2026-11-20, "maybe").** Put Termina somewhere on OoT's world
+map, so it reads as a place in the same world rather than a separate game. Open:
+- whether that's the pause menu's map (see `NV_PAUSE_MENU.md`: the Map side's column already
+  has Termina's own map), Hyrule's map with Termina drawn in at an edge, or both;
+- where it sits geographically (MM's way in is through the Lost Woods, so beyond them is the
+  natural spot).
+
 ## Pokémon system (talked over with the user, 2026-11-19)
 
 The user's idea: bring Colosseum's Pokémon system into the world, not necessarily Orre itself.
