@@ -21,7 +21,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 clean = Image.open(sys.argv[1]).convert("RGB")
 with_hud = Image.open(sys.argv[2]).convert("RGB")
 W, H = clean.size
-L, R, T, B = 61, 564, 75, 389  # the page's outer border (the frame), Items side
+L, R, T, B = 73, 562, 75, 388  # the page's outer border (the frame), Items side, measured per row on the clean capture
 GAP = 60                        # wood between pages: at rest the neighbours show only a thin
                                 # strip at the screen's very top and bottom, clear of the page
 board = clean.crop((L, T, R, B))
