@@ -55,8 +55,22 @@ static const char* NvSt_Description(s32 id) {
     return ((t != NULL) && (t[0] != '\0')) ? t : NULL;
 }
 s32 NvItems_Combine(s32 a, s32 b);
+s32 NvItems_CombineHerbs(s32 a, s32 b);
+s32 NvItems_CombineAfter(void);
+s32 NvItems_Combinable(s32 id);
 
-typedef enum { NV_ST_BROWSE, NV_ST_ACTIONS, NV_ST_COMBINE, NV_ST_FILES, NV_ST_MAP } NvStMode;
+/** RE1's shared message id (0xF2 ...: its exe's text), else the fallback. */
+static const char* NvSt_Message(s32 id, const char* fallback) {
+    const char* t = NvText_Get(0, id & 0x3F);
+
+    return ((t != NULL) && (t[0] != '\0')) ? t : fallback;
+}
+
+// NV_ST_ASK: RE1's herb question (Yes / No); NV_ST_MESSAGE: one of its messages, until A
+typedef enum { NV_ST_BROWSE, NV_ST_ACTIONS, NV_ST_COMBINE, NV_ST_FILES, NV_ST_MAP, NV_ST_ASK, NV_ST_MESSAGE } NvStMode;
+
+// after a message (NV_ST_MESSAGE): what comes next
+typedef enum { NV_ST_THEN_BROWSE, NV_ST_THEN_COMBINE, NV_ST_THEN_CLOSE } NvStThen;
 
 /** RE1's item icons ("re1/ui/icons", re1/tools/soh_ui.py): "RICN", u16 count, w, h, RGBA5551. */
 static const u8* NvSt_Icons(void) {
@@ -248,6 +262,7 @@ static s32 sNvStTab;
 static s32 sNvStMode;
 static s32 sNvStAction;      // the action box's cursor (an NvStAction)
 static s32 sNvStFirst;       // Combine: the first item's slot
+static s32 sNvStThen;        // NV_ST_MESSAGE: an NvStThen
 static char sNvStLine[200];  // the message line (RE1's descriptions run to a few lines)
 static s8 sNvStHeld;         // the stick's last direction (moves happen on a new push)
 
@@ -480,24 +495,107 @@ static void NvSt_Input(PlayState* play) {
                     break;
             }
             break;
-        case NV_ST_COMBINE:
+        case NV_ST_COMBINE: // menu_item_move_item's case 2 and menu_item_check_combine (MainMenu.cpp)
             NvSt_MoveCursor(dir, false);
             if (!pressA) {
                 break;
             }
-            sNvStMode = NV_ST_BROWSE;
             if (sNvStCursor == sNvStFirst) { // the same item again: never mind
+                sNvStMode = NV_ST_BROWSE;
                 sNvStLine[0] = '\0';
                 NvSt_Sfx(NA_SE_SY_CURSOR);
-            } else if (NvItems_Combine(sNvStFirst, sNvStCursor)) {
-                // the mix takes the first item's slot; the second may have moved up
-                id = NvItems_Slot(sNvStFirst, NULL);
-                sNvStCursor = sNvStFirst;
-                snprintf(sNvStLine, sizeof(sNvStLine), "Made a %s.", NvItems_Name(id));
+                break;
+            }
+            if ((NvItems_Slot(sNvStCursor, NULL) == 0) || !NvItems_Combinable(NvItems_Slot(sNvStFirst, NULL))) {
+                NvSt_Sfx(NA_SE_SY_ERROR); // (RE1 takes no notice)
+                break;
+            }
+            first = NvItems_Combine(sNvStFirst, sNvStCursor);
+            printf("NVITEM combine slot %d with %d: %d\n", (int)sNvStFirst, (int)sNvStCursor, (int)first);
+            switch (first) {
+                case 1: // the chemicals, outside the drug storehouse
+                    snprintf(sNvStLine, sizeof(sNvStLine), "%s", NvSt_Message(0xF2, "Too dangerous to mix here."));
+                    sNvStMode = NV_ST_MESSAGE;
+                    sNvStThen = NV_ST_THEN_BROWSE;
+                    NvSt_Sfx(NA_SE_SY_DECIDE);
+                    break;
+                case 2: // the herbs: asked first
+                    snprintf(sNvStLine, sizeof(sNvStLine), "%s", NvSt_Message(0xF5, "Will you mix the herbs?"));
+                    sNvStMode = NV_ST_ASK;
+                    sNvStAction = 0;
+                    NvSt_Sfx(NA_SE_SY_DECIDE);
+                    break;
+                case 3: // herbs that don't mix
+                    snprintf(sNvStLine, sizeof(sNvStLine), "%s",
+                             NvSt_Message(0xF6, "Mixing these does not seem to work."));
+                    sNvStMode = NV_ST_MESSAGE;
+                    sNvStThen = NV_ST_THEN_COMBINE;
+                    NvSt_Sfx(NA_SE_SY_ERROR);
+                    break;
+                case 4: // done: the first item's slot holds what's made (the slots closed up)
+                    sNvStCursor = MIN(sNvStFirst, NV_ST_SLOTS - 1);
+                    while ((sNvStCursor > 0) && (NvItems_Slot(sNvStCursor, NULL) == 0)) {
+                        sNvStCursor--;
+                    }
+                    sNvStMode = NV_ST_BROWSE;
+                    sNvStLine[0] = '\0';
+                    NvSt_Sfx(NA_SE_SY_DECIDE);
+                    if (NvItems_CombineAfter() == 2) { // the gas: then the menu closes
+                        snprintf(sNvStLine, sizeof(sNvStLine), "%s",
+                                 NvSt_Message(0xF3, "The poison gas enveloped."));
+                        sNvStMode = NV_ST_MESSAGE;
+                        sNvStThen = NV_ST_THEN_CLOSE;
+                    } else if (NvItems_CombineAfter() == 3) {
+                        snprintf(sNvStLine, sizeof(sNvStLine), "%s",
+                                 NvSt_Message(0xF4, "The mixing seems to have failed. It disappeared."));
+                        sNvStMode = NV_ST_MESSAGE;
+                        sNvStThen = NV_ST_THEN_BROWSE;
+                    }
+                    break;
+                default: // they don't combine: still choosing
+                    NvSt_Sfx(NA_SE_SY_ERROR);
+                    break;
+            }
+            break;
+        case NV_ST_ASK: // menu_item_apply_combine
+            if (((dir == 1) || (dir == 3)) && (sNvStAction != 0)) {
+                sNvStAction = 0;
+                NvSt_Sfx(NA_SE_SY_CURSOR);
+            } else if (((dir == 2) || (dir == 4)) && (sNvStAction != 1)) {
+                sNvStAction = 1;
+                NvSt_Sfx(NA_SE_SY_CURSOR);
+            }
+            if (!pressA) {
+                break;
+            }
+            if ((sNvStAction == 0) && NvItems_CombineHerbs(sNvStFirst, sNvStCursor)) {
+                sNvStCursor = MIN(sNvStFirst, NV_ST_SLOTS - 1);
+                while ((sNvStCursor > 0) && (NvItems_Slot(sNvStCursor, NULL) == 0)) {
+                    sNvStCursor--;
+                }
+                sNvStMode = NV_ST_BROWSE;
+                sNvStLine[0] = '\0';
                 NvSt_Sfx(NA_SE_SY_DECIDE);
+            } else { // no: choosing the second item again
+                sNvStMode = NV_ST_COMBINE;
+                snprintf(sNvStLine, sizeof(sNvStLine), "Combine with?");
+                NvSt_Sfx(NA_SE_SY_CANCEL);
+            }
+            break;
+        case NV_ST_MESSAGE:
+            if (!pressA) {
+                break;
+            }
+            NvSt_Sfx(NA_SE_SY_DECIDE);
+            if (sNvStThen == NV_ST_THEN_COMBINE) {
+                sNvStMode = NV_ST_COMBINE;
+                snprintf(sNvStLine, sizeof(sNvStLine), "Combine with?");
             } else {
-                snprintf(sNvStLine, sizeof(sNvStLine), "They don't combine.");
-                NvSt_Sfx(NA_SE_SY_ERROR);
+                sNvStMode = NV_ST_BROWSE;
+                sNvStLine[0] = '\0';
+                if (sNvStThen == NV_ST_THEN_CLOSE) {
+                    NvSt_ClosePause(play);
+                }
             }
             break;
     }
@@ -641,7 +739,9 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
         for (i = 0; i < NV_ST_SLOTS; i++) {
             NvSt_DrawSlot(&gfx, i, NV_ST_X(i), NV_ST_Y(i));
         }
-        if ((sNvStMode == NV_ST_COMBINE) && (sNvStFirst != sNvStCursor)) {
+        if (((sNvStMode == NV_ST_COMBINE) || (sNvStMode == NV_ST_ASK) ||
+             ((sNvStMode == NV_ST_MESSAGE) && (sNvStThen == NV_ST_THEN_COMBINE))) &&
+            (sNvStFirst != sNvStCursor)) {
             NvSt_Pic(&gfx, NV_SPR_SLOT_CUR2, 0, 0, 0, NV_ST_X(sNvStFirst), NV_ST_Y(sNvStFirst), 255, 255);
         }
         if (sNvStCursor < NV_ST_SLOTS) {
@@ -731,6 +831,16 @@ void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive) {
                 start++;
             }
             row++;
+        }
+        if (sNvStMode == NV_ST_ASK) { // the herbs' question: Yes / No
+            GfxPrint_SetPos(&printer, 7, 20 + MIN(row, 3) + 1);
+            GfxPrint_SetColor(&printer, (sNvStAction == 0) ? 255 : 150, (sNvStAction == 0) ? 210 : 150,
+                              (sNvStAction == 0) ? 60 : 160, 255);
+            GfxPrint_Printf(&printer, "%cYes", (sNvStAction == 0) ? '>' : ' ');
+            GfxPrint_SetPos(&printer, 13, 20 + MIN(row, 3) + 1);
+            GfxPrint_SetColor(&printer, (sNvStAction == 1) ? 255 : 150, (sNvStAction == 1) ? 210 : 150,
+                              (sNvStAction == 1) ? 60 : 160, 255);
+            GfxPrint_Printf(&printer, "%cNo", (sNvStAction == 1) ? '>' : ' ');
         }
     } else if (sNvStMode == NV_ST_ACTIONS) {
         GfxPrint_SetColor(&printer, 230, 230, 230, 255);

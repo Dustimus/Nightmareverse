@@ -1193,6 +1193,7 @@ def _pack_soh(folder, re1, anims, jpn=None, exe=None):
     print("soh: voice names %d%s" % (soh_sound.write_voice_names(exe, folder), "" if exe else " (no executable: --exe)"))
     import soh_text
     print("soh: weapon hit records %d%s" % (soh_weapons.write_hits(exe, folder), "" if exe else " (no executable: --exe)"))
+    print("soh: combine tables %d%s" % (soh_weapons.write_combine(exe, folder), "" if exe else " (no executable: --exe)"))
     counts = soh_text.write(exe, folder)
     print("soh: the executable's text %s" % (counts if counts else "(none: needs the English executable)",))
     soh_scene.pack_o2r(folder, folder.rstrip("/") + ".o2r")

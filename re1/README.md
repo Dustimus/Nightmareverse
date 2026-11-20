@@ -23,7 +23,7 @@ You get in from Hyrule by playing the mansion's song on the ocarina (below). Chr
 playable: Link plays Jill.
 
 Open, in the sections below: the status screen's radio; blood from hits, shadows and the
-muzzle flash; the launcher's rounds and loading ammo by Combine; items hung on the player (taken, not drawn); the box's sliding list and its
+muzzle flash; the launcher's rounds; items hung on the player (taken, not drawn); the box's sliding list and its
 Hyrule side; stereo panning; the Japanese release's text; ceilings; a way in through the Lost Woods.
 
 ## Reference: RE1's own code
@@ -299,8 +299,22 @@ mixed herbs have theirs), RE1's digits for counts and RE1's cursors. A on an ite
 box: Equip (weapons only; RE1's g_EquippedItemId, which follows its slot as slots close up; see
 Weapons), Use (heals by RE1's g_ItemHealTable: a third, two thirds or
 all of Link's hearts; an item that would do nothing isn't used up), Check, Combine (then the second
-item: RE1's herb mixes). Up from the top slots reaches the tabs: Exit closes the pause menu, File
+item; below). Up from the top slots reaches the tabs: Exit closes the pause menu, File
 lists the files found, and Map opens RE1's map screen (below).
+
+Combine (2026-11-20, `z_nv_items.c` NvItems_Combine, MainMenu.cpp's menu_item_check_combine and
+menu_item_apply_combine): RE1's own combine tables, read from the player's executable
+(`re1/combine`, `tools/soh_weapons.py` combine_blob: the 35 tables and the item records, found by
+their hashes; nothing of them in the repository). The first item's table names what it combines
+with, what each becomes and the effect: a gun loads from its clip or shells up to the gun's
+capacity (g_ItemMaxQty; the rest stays a smaller stack), two stacks of ammo merge (to 250), the
+grenade launcher takes a kind of round only when it's empty, herbs mix after RE1's question
+("Will you mix the herbs?", Yes / No), herbs that don't mix say so, and the chemicals mix only in
+the guardhouse's drug storehouse (409; elsewhere "Too dangerous to mix here."): a wrong mix there
+fails ("It disappeared.") or makes the poison gas (bank 0 flag 0x16, "The poison gas enveloped.",
+the menu closes and the room's own script takes over). The messages are RE1's, from its
+executable. Slots close up after a combine, the equipped weapon moving with its slot. Without the
+executable's tables (an older re1.o2r) only the herbs mix, as before.
 
 Map screen (2026-11-19, `soh/src/code/z_nv_map.c`, MainMenu.cpp's menu_init_map_screen,
 menu_map_state_machine, map_tab_* and map_display_*): RE1's two views under the tabs. The browser
@@ -376,8 +390,8 @@ The gun is RE1's item-viewer model (ITEM_M2/I<nn>V.IVM by the item record's mode
 left fist, which closes round it, placed as Mod1 placed its Beretta in his right hand (that looked
 right in play), mirrored across the hand; it's drawn only while the gun is up, so another item (the
 ocarina) replaces it, and another C button puts it down. Each weapon fires with RE1's own sound
-(see Sound). Not yet: the muzzle flash, the launcher's rounds (its projectile and blast), ammo
-loading by Combine. Dev: `NV_EQUIP=n` equips slot n
+(see Sound). Ammo is loaded by Combine (see the status screen) or, on an empty gun, by the
+trigger. Not yet: the muzzle flash, the launcher's rounds (its projectile and blast). Dev: `NV_EQUIP=n` equips slot n
 of NV_GIVE's items; NV_WALK `cl:N` holds C-Left N frames; `NV_GUN_FIT="x,y,z,rx,ry,rz,size%"` and
 `NV_GUN_MIRROR=x|y|z|none` move the gun in the fist.
 

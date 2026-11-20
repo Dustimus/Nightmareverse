@@ -1141,7 +1141,7 @@ s32 NvItems_Use(PlayState* play, s32 i) {
     return 1;
 }
 
-/** RE1's herb mixes: the item made by combining a with b (either order), or 0. */
+/** RE1's herb mixes, for a re1.o2r made without the executable: the item a + b make, or 0. */
 static s32 NvItems_Mix(s32 a, s32 b) {
     static const u8 sMixes[][3] = {
         { 0x44, 0x44, 0x47 }, // green + green
@@ -1163,19 +1163,264 @@ static s32 NvItems_Mix(s32 a, s32 b) {
     return 0;
 }
 
-/** Combine slot a with slot b: the mix replaces a, b is used up. True when they combined. */
+/**
+ * RE1's item records and combine tables ("re1/combine", re1/tools/soh_weapons.py combine_blob):
+ * "RCMB", u16 n, n item records of 4 bytes (g_ItemMaxQty: the most a slot holds, the icon, the
+ * combine table or 0x80+ for none, flags), u16 t, t u16 offsets into the data, u16 size, the data.
+ * A table is a count, then { the other item, the first's new id, the other's new id, the effect }.
+ */
+static const u8* sNvCmbItems;
+static u16 sNvCmbItemCount;
+static const u8* sNvCmbData;
+static u16 sNvCmbOffs[64];
+static u16 sNvCmbTables;
+static u16 sNvCmbSize;
+
+static s32 NvItems_CombineReady(void) {
+    static s32 sState; // 0 untried, 1 loaded, -1 missing
+    const u8* d;
+    s32 p;
+
+    if (sState != 0) {
+        return sState > 0;
+    }
+    sState = -1;
+    if (!ResourceMgr_FileExists("re1/combine")) {
+        return false;
+    }
+    d = (const u8*)ResourceGetDataByName("re1/combine");
+    if ((d == NULL) || (memcmp(d, "RCMB", 4) != 0)) {
+        return false;
+    }
+    memcpy(&sNvCmbItemCount, d + 4, 2);
+    sNvCmbItems = d + 6;
+    p = 6 + sNvCmbItemCount * 4;
+    memcpy(&sNvCmbTables, d + p, 2);
+    if (sNvCmbTables > ARRAY_COUNT(sNvCmbOffs)) {
+        return false;
+    }
+    memcpy(sNvCmbOffs, d + p + 2, sNvCmbTables * 2);
+    p += 2 + sNvCmbTables * 2;
+    memcpy(&sNvCmbSize, d + p, 2);
+    sNvCmbData = d + p + 2;
+    sState = 1;
+    return true;
+}
+
+/** The most item id's slot holds (g_ItemMaxQty's byte 0). */
+static s32 NvItems_MaxQty(s32 id) {
+    if (!NvItems_CombineReady() || (id < 0) || (id >= sNvCmbItemCount)) {
+        return NV_STACK_MAX;
+    }
+    return sNvCmbItems[id * 4];
+}
+
+/** Item id's combine record with other (4 bytes), or NULL. */
+static const u8* NvItems_CombineRecord(s32 id, s32 other) {
+    s32 t;
+    s32 n;
+    s32 off;
+
+    if (!NvItems_CombineReady() || (id <= 0) || (id >= sNvCmbItemCount)) {
+        return NULL;
+    }
+    t = sNvCmbItems[id * 4 + 2];
+    if ((t >= 0x80) || (t >= sNvCmbTables)) {
+        return NULL;
+    }
+    off = sNvCmbOffs[t];
+    for (n = sNvCmbData[off], off++; (n > 0) && (off + 4 <= sNvCmbSize); n--, off += 4) {
+        if (sNvCmbData[off] == other) {
+            return sNvCmbData + off;
+        }
+    }
+    return NULL;
+}
+
+/** Whether the first item can be combined at all (it has a table; RE1 ignores the press if not). */
+s32 NvItems_Combinable(s32 id) {
+    if (!NvItems_CombineReady()) {
+        return true; // (the herbs' list)
+    }
+    return (id > 0) && (id < sNvCmbItemCount) && (sNvCmbItems[id * 4 + 2] < 0x80);
+}
+
+/** rearrange_item_slots (SaveLoadScreen.cpp): emptied slots close up, the equipped one moving with them. */
+static void NvItems_Compact(void) {
+    s32 n = NvItems_SlotCount();
+    s32 eq = sNvEquipped - 1;
+    s32 r;
+    s32 w = 0;
+
+    for (r = 0; r < n; r++) {
+        if (sNvSlots[r].id == 0) {
+            if (eq == r) {
+                eq = -1; // (its item is gone)
+            }
+            continue;
+        }
+        if (w != r) {
+            sNvSlots[w] = sNvSlots[r];
+            if (eq == r) {
+                eq = w;
+            }
+        }
+        w++;
+    }
+    for (; w < n; w++) {
+        sNvSlots[w].id = sNvSlots[w].qty = 0;
+    }
+    sNvEquipped = eq + 1;
+}
+
+static u8 sNvCmbAfter; // the last combine's message after it (NvItems_CombineAfter)
+
+/**
+ * The combine's effect on slots a (the first chosen) and b (g_CombineEffectFunctions, MainMenu.cpp):
+ * 1 / 2 load the gun from its ammo (the first / the other is the gun), 3 two stacks merge (to 250),
+ * 4 the chemicals gas (bank 0 flag 0x16), 5 the mixing fails, 6 / 7 an empty one is filled from
+ * the other (the grenade launcher's loads). Done after the new ids are in.
+ */
+static void NvItems_CombineEffect(s32 effect, NvItemSlot* x, NvItemSlot* y) {
+    s32 cap;
+    s32 sum;
+
+    switch (effect & 7) {
+        case 2: // (as 1, the other way round)
+            NvItems_CombineEffect(1, y, x);
+            break;
+        case 1:
+            cap = NvItems_MaxQty(x->id);
+            sum = y->qty + (x->qty & 0x7F);
+            if (sum > cap) {
+                x->qty = cap;
+                y->qty = sum - cap;
+            } else {
+                x->qty = sum;
+                y->id = 0;
+            }
+            break;
+        case 3:
+            sum = x->qty + y->qty;
+            if (sum > NV_STACK_MAX) {
+                x->qty = NV_STACK_MAX;
+                y->qty = sum - NV_STACK_MAX;
+            } else {
+                x->qty = sum;
+                y->id = 0;
+            }
+            break;
+        case 4: {
+            void NvFlags_Op(s32 bank, s32 bit, s32 mode);
+
+            NvFlags_Op(0, 0x16, 0); // (mode 0 raises it)
+            sNvCmbAfter = 2;
+            break;
+        }
+        case 5:
+            sNvCmbAfter = 3;
+            break;
+        case 7:
+            NvItems_CombineEffect(6, y, x);
+            break;
+        case 6:
+            cap = NvItems_MaxQty(x->id);
+            if (y->qty > cap) {
+                x->qty = cap;
+                y->qty -= cap;
+            } else {
+                x->qty = y->qty;
+                y->id = 0;
+            }
+            break;
+    }
+}
+
+/** The ids (and the effect) of a's record with b; the slots close up. */
+static void NvItems_CombineDo(s32 a, s32 b, const u8* rec, s32 withEffect) {
+    sNvSlots[a].id = rec[1];
+    sNvSlots[b].id = rec[2];
+    if (withEffect && (rec[3] != 0)) {
+        NvItems_CombineEffect(rec[3], &sNvSlots[a], &sNvSlots[b]);
+    }
+    NvItems_Compact();
+}
+
+/**
+ * menu_item_check_combine (MainMenu.cpp 0x00401960): slot a (the first chosen) with slot b.
+ * 0: they don't combine; 1: chemicals, outside the drug storehouse (RE1's message 0xF2);
+ * 2: herbs that mix, after the question (0xF5: NvItems_CombineHerbs on yes); 3: herbs that don't
+ * (0xF6); 4: combined (NvItems_CombineAfter: a message after it).
+ */
 s32 NvItems_Combine(s32 a, s32 b) {
-    s32 mix;
+    const u8* rec;
+    s32 ida;
+    s32 idb;
+
+    sNvCmbAfter = 0;
+    if ((a == b) || (NvItems_Slot(a, NULL) == 0) || (NvItems_Slot(b, NULL) == 0)) {
+        return 0;
+    }
+    ida = sNvSlots[a].id;
+    idb = sNvSlots[b].id;
+    if (!NvItems_CombineReady()) { // (no executable's tables: the herbs alone, no question)
+        s32 mix = NvItems_Mix(ida, idb);
+
+        if (mix == 0) {
+            return 0;
+        }
+        sNvSlots[a].id = mix;
+        sNvSlots[a].qty = 1;
+        NvItems_TakeOne(b);
+        return 4;
+    }
+    rec = NvItems_CombineRecord(ida, idb);
+    if (rec == NULL) {
+        return ((ida >= 0x43) && (ida <= 0x4B) && (idb >= 0x43) && (idb <= 0x4B)) ? 3 : 0;
+    }
+    if ((rec[3] == 6) && (sNvSlots[a].qty != 0)) { // (the one being filled must be empty)
+        return 0;
+    }
+    if ((rec[3] == 7) && (sNvSlots[b].qty != 0)) {
+        return 0;
+    }
+    if ((ida >= 0x13) && (ida <= 0x1A)) { // the chemicals mix only in the drug storehouse (stage 3, room 9: 409)
+        s32 stage;
+        s32 room;
+        s32 camera;
+        void NvScript_Where(s32* stage, s32* room, s32* camera);
+
+        NvScript_Where(&stage, &room, &camera);
+        if ((stage != 3) || (room != 9)) {
+            return 1;
+        }
+    } else if ((ida >= 0x43) && (ida <= 0x4B)) {
+        return 2;
+    }
+    NvItems_CombineDo(a, b, rec, true);
+    printf("NVITEM combined %02X with %02X (effect %d)\n", ida, idb, rec[3]);
+    NvItems_Log();
+    return 4;
+}
+
+/** The herbs' question answered yes (menu_item_apply_combine): only the ids change. */
+s32 NvItems_CombineHerbs(s32 a, s32 b) {
+    const u8* rec;
 
     if ((a == b) || (NvItems_Slot(a, NULL) == 0) || (NvItems_Slot(b, NULL) == 0)) {
         return false;
     }
-    mix = NvItems_Mix(sNvSlots[a].id, sNvSlots[b].id);
-    if (mix == 0) {
+    rec = NvItems_CombineRecord(sNvSlots[a].id, sNvSlots[b].id);
+    if (rec == NULL) {
         return false;
     }
-    sNvSlots[a].id = mix;
-    sNvSlots[a].qty = 1;
-    NvItems_TakeOne(b);
+    NvItems_CombineDo(a, b, rec, false);
+    printf("NVITEM mixed the herbs\n");
+    NvItems_Log();
     return true;
+}
+
+/** After the last combine: 0 nothing, 2 the gas (0xF3, then the menu closes), 3 it failed (0xF4). */
+s32 NvItems_CombineAfter(void) {
+    return sNvCmbAfter;
 }
