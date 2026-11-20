@@ -523,12 +523,19 @@ class Floor:
         # the floor's outer edge: each straight run of cell edges as one wall (OoT's wall test
         # misjudges walls only a cell wide: one blocked Link 300 units away in the foyer)
         runs = {}
+        # (not along furniture with a top: its own faces, that tall, are its walls)
+        topped = [r for ri, r in enumerate(self.records) if ri in self.tops]
+
+        def under_top(k):
+            x, z = (k[0] + 0.5) * CELL, (k[1] + 0.5) * CELL
+            return any(inside(r, x, z) for r in topped)
+
         edge_cells = [(k, self.level.get(self.comp[k], 0), WALL_HEIGHT) for k in self.cells]
         edge_cells += [(k,) + ramp_foot(r) for k, r in self.ramp_cells.items()]
         for (gx, gz), y, h in edge_cells:
             for ddx, ddz in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                 n = (gx + ddx, gz + ddz)
-                if n in self.cells or n in self.ramp_cells:
+                if n in self.cells or n in self.ramp_cells or (topped and under_top(n)):
                     continue
                 if ddx:
                     runs.setdefault(("x", gx + (ddx > 0), ddx, y, h), []).append(gz)
