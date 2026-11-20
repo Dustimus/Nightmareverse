@@ -23,7 +23,7 @@ You get in from Hyrule by playing the mansion's song on the ocarina (below). Chr
 playable: Link plays Jill.
 
 Open, in the sections below: items hung on the player (taken, not drawn); the box's sliding list and its
-Hyrule side; stereo panning; the Japanese release's text; ceilings; a way in through the Lost Woods.
+Hyrule side; the Japanese release's text; ceilings; a way in through the Lost Woods.
 
 ## Reference: RE1's own code
 
@@ -437,10 +437,16 @@ names, `z_nv_sound_rooms.c` from the decomp's g_RoomSndData): the zombies' Snd_e
 the dragged leg, roars, bites, eating, vomit, deaths, by the enemy record's sound group), Link's
 footsteps (the room's footstep zones, RDT+0x5C, `<name>_ftzones`: the floor's two steps, alternating,
 in place of OoT's), the box lid (slot 0x20); and the doors (load_room_sfx: the door record's byte 9
-picks the pair, opening as the door scene starts and closing as it ends). Louder the nearer to Link.
+picks the pair, opening as the door scene starts and closing as it ends). How loud each is
+(2026-11-20, `z_nv_sound.c` NvSnd_Volume) is RE1's own law, from the room's camera, not from Link
+(Play3DSnd: Calc3DSndPan's two pans, lowered by the distance from the camera's eye and on one side
+by how far off its line of sight the sound is, then CalcPanVolume's volume from their average):
+the shots, the room bank's sounds and the launcher rounds' bursts.
 OoT's battle music never starts in RE1's rooms (and their scenes set no sequence). The cutscenes'
 voice lines play as the scripts call them (0x1E), and the scripts wait on them as RE1's do; every
-ported enemy has its sounds. Not yet: stereo panning.
+ported enemy has its sounds. RE1's PC version doesn't pan its effects left or right (it only
+sets their volume from the two pans; it pans only its bank 4 sounds), so neither does this. Real
+stereo, as the PlayStation's, would be a choice to make.
 
 Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad); NV_GIVE="id,qty;..." gives
 items on the first room; NV_FILE=n takes file n there.

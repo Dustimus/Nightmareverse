@@ -1020,8 +1020,10 @@ static u8 sNvFxShotFlags;  // the player's aim flags as it fires
  */
 static void fx_shot_impact(s32 hit) {
     void NvSound_Play(const char* name, s32 vol);
+    s32 NvSnd_Volume(s32 x, s32 y, s32 z);
     NvFx* e = CUR;
     s32* at = sNvFxScratch;
+    s32 vol = NvSnd_Volume(e->posX, e->posY, e->posZ); // (Play3DSnd at the round)
     u8 k;
 
     at[0] = e->posX;
@@ -1029,7 +1031,7 @@ static void fx_shot_impact(s32 hit) {
     at[2] = e->posZ;
     switch (e->animHeader[1]) {
         case 7: // explosive: three bursts of fire and the smoke
-            NvSound_Play("grbomb03", 128); // (Play3DSnd 1, 0xC: the weapon bank's)
+            NvSound_Play("grbomb03", vol); // (Play3DSnd 1, 0xC: the weapon bank's)
             if (hit) {
                 at[1] -= 0x96;
                 NvFx_Create(0xE, 3, e->yaw, NULL, at, 0x19);
@@ -1058,7 +1060,7 @@ static void fx_shot_impact(s32 hit) {
             }
             break;
         case 8: // acid: three splashes and the smoke
-            NvSound_Play("gracid03", 128);
+            NvSound_Play("gracid03", vol);
             if (hit) {
                 NvFx_Create(9, 0, e->yaw, NULL, at, 0x10);
                 NvFx_Create(9, 0, (s16)(e->yaw + 0x555), NULL, at, 0x10);
@@ -1073,7 +1075,7 @@ static void fx_shot_impact(s32 hit) {
             }
             break;
         case 9: // flame: four bursts of fire
-            NvSound_Play("grfire03", 128);
+            NvSound_Play("grfire03", vol);
             if (hit) {
                 NvFx_Create(0xE, 5, e->yaw, NULL, at, 0x1B);
                 at[0] -= 0xB4;
