@@ -132,11 +132,67 @@ s16 NvDoor_Entrance(const char* sceneFile, s32 spawn);
 
 // Nightmareverse dev boot: straight into a room, from NV_BOOT_ENTRANCE (an entrance index) or,
 // easier on Windows, a file nv_boot.txt in the SoH folder holding a room ("re1_106", its start
-// position 0) or an entrance index ("0x670")
+// position 0) or an entrance index ("0x670"). NV_BOOT_FILE=1..3: on that Ship save file instead of
+// the debug one (loaded if it's there, else made from the debug save), so the mansion's run goes
+// through the file's own section; that's done as the title goes (Title_Destroy), after its
+// Sram_InitSram, which starts the save manager over.
+static char sNvBootEntr[64];
+static s32 sNvBootFile = -1;
+
+/** The boot's room, on its file: the entrance (or -1), with the save context set for it. */
+static s32 Title_NvBootApply(const char* entr, s32 bootFile) {
+    s32 entrance;
+
+    if (bootFile >= 0) {
+        void Save_LoadFile(void);
+        void Save_SaveFile(void);
+        SaveFileMetaInfo* Save_GetSaveMetaInfo(int fileNum);
+        s32 made = !Save_GetSaveMetaInfo(bootFile)->valid;
+
+        if (!made) {
+            gSaveContext.fileNum = bootFile;
+            Save_LoadFile();
+        } else {
+            Sram_InitDebugSave();
+            gSaveContext.fileNum = bootFile;
+            Save_SaveFile();
+        }
+        printf("NVBOOT on save file %d (%s)\n", (int)bootFile + 1, made ? "made" : "loaded");
+        fflush(stdout);
+    }
+    if (strcmp(entr, "warp") == 0) { // as the mansion's warp song arrives (z_nv_script.c; the file's run)
+        s16 NvWarp_SongEntrance(s32 song, s16 entrance);
+
+        entrance = NvWarp_SongEntrance(-1, -1);
+    } else if ((entr[0] >= '0') && (entr[0] <= '9')) {
+        entrance = (s32)strtol(entr, NULL, 0);
+    } else {
+        char scene[80];
+
+        snprintf(scene, sizeof(scene), "%s_scene", entr);
+        entrance = NvDoor_Entrance(scene, 0);
+    }
+    if (entrance < 0) {
+        return -1;
+    }
+    if (bootFile < 0) {
+        Sram_InitDebugSave();
+        gSaveContext.fileNum = 0xFF;
+    }
+    gSaveContext.gameMode = GAMEMODE_NORMAL;
+    gSaveContext.entranceIndex = entrance;
+    gSaveContext.dayTime = 0x8000;
+    gSaveContext.respawnFlag = 0;
+    gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
+    gSaveContext.showTitleCard = false;
+    return entrance;
+}
+
 static s32 Title_NvDevBoot(TitleContext* this) {
     static char sLine[64];
     const char* entr = getenv("NV_BOOT_ENTRANCE");
-    s32 entrance;
+    const char* file = getenv("NV_BOOT_FILE");
+    s32 bootFile = (file != NULL) ? atoi(file) - 1 : -1;
 
     if ((entr == NULL) || (entr[0] == '\0')) {
         FILE* f = fopen("nv_boot.txt", "r");
@@ -150,29 +206,12 @@ static s32 Title_NvDevBoot(TitleContext* this) {
         fclose(f);
         entr = sLine;
     }
-    if (strcmp(entr, "warp") == 0) { // as the mansion's warp song arrives (z_nv_script.c)
-        s16 NvWarp_SongEntrance(s32 song, s16 entrance);
-
-        entrance = NvWarp_SongEntrance(-1, -1);
-    } else if ((entr[0] >= '0') && (entr[0] <= '9')) {
-        entrance = (s32)strtol(entr, NULL, 0);
-    } else {
-        char scene[80];
-
-        snprintf(scene, sizeof(scene), "%s_scene", entr);
-        entrance = NvDoor_Entrance(scene, 0);
-    }
-    if (entrance < 0) {
+    if ((bootFile >= 0) && (bootFile < 3)) { // (the file and the room as the title goes)
+        snprintf(sNvBootEntr, sizeof(sNvBootEntr), "%s", entr);
+        sNvBootFile = bootFile;
+    } else if (Title_NvBootApply(entr, -1) < 0) {
         return false;
     }
-    Sram_InitDebugSave();
-    gSaveContext.fileNum = 0xFF;
-    gSaveContext.gameMode = GAMEMODE_NORMAL;
-    gSaveContext.entranceIndex = entrance;
-    gSaveContext.dayTime = 0x8000;
-    gSaveContext.respawnFlag = 0;
-    gSaveContext.respawn[RESPAWN_MODE_DOWN].entranceIndex = ENTR_LOAD_OPENING;
-    gSaveContext.showTitleCard = false;
     this->state.running = false;
     SET_NEXT_GAMESTATE(&this->state, Play_Init, PlayState);
     return true;
@@ -204,6 +243,12 @@ void Title_Destroy(GameState* thisx) {
     TitleContext* this = (TitleContext*)thisx;
 
     Sram_InitSram(&this->state);
+    if (sNvBootFile >= 0) { // Nightmareverse dev boot on a save file (Title_NvDevBoot)
+        if (Title_NvBootApply(sNvBootEntr, sNvBootFile) < 0) {
+            Title_NvBootApply("re1_106", sNvBootFile);
+        }
+        sNvBootFile = -1;
+    }
 }
 
 void Title_Init(GameState* thisx) {

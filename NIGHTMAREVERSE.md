@@ -107,6 +107,11 @@ the two out of each other's way:
   by its own scenes, so they merge cleanly. A change that would rework a shared piece (the
   dev boot, the headless harness, Link's animation player, the fixed cameras) gets raised with
   the user first.
+- **Save data.** Each game keeps its state in its own section of the Ship save file (SoH's
+  SaveManager, each with its own version number): RE1's is `mansion`
+  (`soh/soh/Enhancements/Nightmareverse/NvSaveFile.cpp`), the Majora's Mask branch's `termina`. A game
+  reads and writes only its own section; what it needs from another game goes through that game's
+  code, not into its section.
 - **Scene and entrance numbers.** RE1's take OoT's tables from scene 0x6E and entrance 0x614
   (`soh/include/tables/nv_re1_*.h`). Another game's go after them, in its own table files,
   starting past the last number RE1's tables use at the time. Test "is this one of my game's

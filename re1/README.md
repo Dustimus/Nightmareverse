@@ -420,6 +420,19 @@ backgrounds, or marked by hand.
 
 Later: a way in through a Lost Woods wrong turn, alongside the warp song.
 
+## Saving (2026-11-20)
+
+The run (RE1's state as a typewriter writes it: the flags, the items and box, the files, the music,
+the clock, where she stood; `soh/src/code/z_nv_save.c`) lives in the Ship save file it belongs to, in
+its own section, `mansion` (`soh/soh/Enhancements/Nightmareverse/NvSaveFile.cpp`, through SoH's
+SaveManager: each game reads and writes only its own section, each with its own version number).
+A typewriter writes that section alone, so OoT's own progress isn't saved by it, as RE1's save
+screen is the mansion's only; OoT's saves write it again as it stands, so a new file never inherits
+another's run. A run from before (a file of its own, `Save/nv_re1_<file>.sav`) moves into the
+section the first time its file loads, and is kept as `.sav.migrated`; erasing or copying over a
+file removes such a leftover. The debug file (slot 255, which SoH never writes) still keeps its run
+in that file of its own: the walkthrough's checkpoints are such files.
+
 ## Walking the game headless (2026-11-14 to 11-17)
 
 The scripts are in `tools/headless/` (`walk.sh` one segment, `regress.sh` every room's
@@ -431,7 +444,9 @@ in) and an `NV_WALK` step list, `;`-separated: `x,z` walks, `pos:`, `face:`, `wa
 (aim and fire), `list` (the room's doors and live action entries), `mark:N`, `save`. Settings:
 `NV_GODMODE`, `NV_GIVE` / `NV_EQUIP`, `NV_FLAGS="bank:bit,-bank:bit"` (set or clear, on a new game
 or a loaded save), `NV_WORD="i:v"` (a state word, also on a loaded save: 4 restarts the countdown),
-`NV_ANSWERS="yes,no,..."` (the yes/no questions in turn), `NV_FLAG_TRACE` (the system flags as the
+`NV_ANSWERS="yes,no,..."` (the yes/no questions in turn), `NV_BOOT_FILE=1..3` (boot on that Ship save
+file instead of the debug one, made if it isn't there, so saving goes through its sections), the step
+`ootsave` (OoT's own save of that file), `NV_FLAG_TRACE` (the system flags as the
 scripts move them), `NV_EVT_TRACE`, `NV_AOT_TRACE` (action entries as the scripts change them),
 `NV_NOSCENEANIM` (scenes without Link's RE1 animations), `NV_LOG`.
 

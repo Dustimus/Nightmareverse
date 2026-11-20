@@ -18,6 +18,7 @@
  *                             "doorto:XXX" the same for the door to room XXX,
  *                             "door:N" / "aot:N" put Link in the room's door N's / action entry
  *                             N's rectangle, facing into it, and press A (a story walkthrough),
+ *                             "ootsave" OoT's own save of the Ship file (NV_BOOT_FILE),
  *                             "list" logs the room's doors and live action entries, "save"
  *                             writes the RE1 slot (a checkpoint, no ribbon), "use:XX" uses
  *                             item XX (hex) where he stands, as the status screen's Use
@@ -43,7 +44,7 @@ u32 NvScript_MsgFlags(void);
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE, NV_WP_CHECK, NV_WP_DROP, NV_WP_EQUIP, NV_WP_FACEENEMY } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE, NV_WP_CHECK, NV_WP_DROP, NV_WP_EQUIP, NV_WP_FACEENEMY, NV_WP_OOTSAVE } NvWaypointKind;
 
 typedef struct {
     s16 kind;
@@ -217,6 +218,9 @@ static void NvDev_ParsePath(void) {
         } else if (strncmp(s, "use:", 4) == 0) { // the status screen's Use of item XX, where he stands
             wp->kind = NV_WP_USE;
             wp->wait = (s16)strtol(s + 4, NULL, 16);
+            sNvPathLen++;
+        } else if ((strncmp(s, "ootsave", 7) == 0) && ((s[7] == ';') || (s[7] == '\0'))) {
+            wp->kind = NV_WP_OOTSAVE; // OoT's own save of the Ship file (as the pause menu's Save)
             sNvPathLen++;
         } else if ((strncmp(s, "save", 4) == 0) && ((s[4] == ';') || (s[4] == '\0'))) {
             wp->kind = NV_WP_SAVE; // the RE1 slot written (a checkpoint: NV_BOOT_ENTRANCE=warp resumes it)
@@ -596,6 +600,13 @@ void NvDev_Update(PlayState* play) {
             s32 NvItems_CheckOpen(s32 i);
 
             printf("NVSTEP check %02X -> %02X\n", wp->wait, (int)NvItems_CheckOpen(NvItems_Find(wp->wait)));
+            fflush(stdout);
+            sNvPathIdx++;
+        } else if (wp->kind == NV_WP_OOTSAVE) {
+            void Save_SaveFile(void);
+
+            Save_SaveFile();
+            printf("NVSTEP ootsave: file %d\n", (int)gSaveContext.fileNum + 1);
             fflush(stdout);
             sNvPathIdx++;
         } else if (wp->kind == NV_WP_SAVE) {
