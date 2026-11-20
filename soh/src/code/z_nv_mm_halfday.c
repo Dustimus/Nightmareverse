@@ -7,7 +7,8 @@
  * code to MM's rules:
  * - mm_scene.py writes each room's masks beside it, "<room>_halfdays" ("MHDY", a count, then one
  *   u16 per entry of the room's actor list, 0 = always);
- * - OoT's room spawn (z_actor.c, one hook) asks NvMmHalfDay_Skip for each entry;
+ * - OoT's room spawn (z_actor.c, one hook) asks NvMmHalfDay_Skip for each entry; it also spawns
+ *   the actors ported from MM (marker ids 0x7000 + MM's id, registered in NvMmActors.cpp);
  * - NvMmHalfDay_Update (z_nv_mm.c, every frame in Termina) swaps them as the half-day turns:
  *   it removes the room's actors whose entry isn't due any more (found by SoH's actor list index)
  *   and spawns the entries due now that weren't before, as MM does (one broken pot stays broken).
@@ -21,6 +22,31 @@
 #include <string.h>
 
 u16 NvMmClock_HalfDayBit(void);
+s32 NvMmActor_Id(s32 mmId);
+
+#define NV_MM_ACTOR_MARKER 0x7000 // a room entry for an actor ported from MM: 0x7000 + MM's id
+
+/** Spawns room entry i: OoT's own actor as it is, or a ported MM actor by its registered id. */
+static Actor* NvMmHalfDay_Spawn(PlayState* play, s32 i) {
+    ActorEntry* e = &play->setupActorList[i];
+    Actor* a;
+
+    if (e->id >= NV_MM_ACTOR_MARKER) {
+        s32 id = NvMmActor_Id(e->id - NV_MM_ACTOR_MARKER);
+
+        if (id < 0) {
+            return NULL;
+        }
+        a = Actor_Spawn(&play->actorCtx, play, id, e->pos.x, e->pos.y, e->pos.z, e->rot.x, e->rot.y, e->rot.z,
+                        e->params);
+    } else {
+        a = Actor_SpawnEntry(&play->actorCtx, e, play);
+    }
+    if (a != NULL) {
+        SetActorListIndex(a, (s16)i);
+    }
+    return a;
+}
 
 static const u16* sMasks;    // the room's masks, one per actor list entry
 static s32 sCount;
@@ -65,7 +91,8 @@ static s32 NvMmHalfDay_Due(s32 i, u16 bit) {
     return (mask == 0) || (mask & bit);
 }
 
-/** OoT's room spawn (z_actor.c): true to leave entry i out, as not due in this half-day. */
+/** OoT's room spawn (z_actor.c): true to leave entry i to us. Entries not due in this half-day
+ * aren't spawned at all; ported MM actors are spawned here, by their registered ids. */
 s32 NvMmHalfDay_Skip(PlayState* play, s32 i) {
     if (!NvMm_IsScene(play->sceneNum)) {
         return false;
@@ -74,7 +101,14 @@ s32 NvMmHalfDay_Skip(PlayState* play, s32 i) {
         NvMmHalfDay_Load(play);
         sHalfDay = NvMmClock_HalfDayBit();
     }
-    return !NvMmHalfDay_Due(i, sHalfDay);
+    if (!NvMmHalfDay_Due(i, sHalfDay)) {
+        return true;
+    }
+    if (play->setupActorList[i].id >= NV_MM_ACTOR_MARKER) {
+        NvMmHalfDay_Spawn(play, i);
+        return true;
+    }
+    return false;
 }
 
 /** Every frame in Termina (z_nv_mm.c): the swap as the half-day turns. */
@@ -107,10 +141,7 @@ void NvMmHalfDay_Update(PlayState* play) {
     }
     for (i = 0; i < sCount; i++) { // newly due
         if (NvMmHalfDay_Due(i, now) && !NvMmHalfDay_Due(i, before)) {
-            Actor* a = Actor_SpawnEntry(&play->actorCtx, &play->setupActorList[i], play);
-
-            SetActorListIndex(a, (s16)i);
-            spawned += (a != NULL);
+            spawned += (NvMmHalfDay_Spawn(play, i) != NULL);
         }
     }
     if (getenv("NV_LOG")) {

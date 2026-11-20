@@ -22,6 +22,13 @@ ACTOR_EN_DOOR, ACTOR_EN_ITEM00, ACTOR_OBJ_SYOKUDAI, ACTOR_OBJ_KIBAKO, ACTOR_OBJ_
 OBJECT_GAMEPLAY_DANGEON_KEEP, OBJECT_SYOKUDAI, OBJECT_TSUBO = 0x03, 0xA4, 0x12C
 DOOR_SCENEEXIT = 3
 
+# Actors ported from MM (soh/src/code/z_nv_mm_*.c, registered in NvMmActors.cpp): the room
+# names them 0x7000 + MM's id, MM's params as they are; z_nv_mm_halfday.c spawns them.
+NV_MM_ACTOR_MARKER = 0x7000
+PORTED = {
+    0x19C,  # Obj_Tokeidai: the clock tower (z_nv_mm_tokeidai.c)
+}
+
 # MM's ids (the decomp's actor table)
 MM_EN_DOOR, MM_EN_ITEM00, MM_OBJ_SYOKUDAI, MM_OBJ_KIBAKO, MM_OBJ_TSUBO = 0x005, 0x00E, 0x039, 0x081, 0x082
 
@@ -76,7 +83,10 @@ def actors(data, off, count):
         aid_raw, x, y, z, rx, ry, rz, params = struct.unpack_from(">H3h3hH", data, off + 16 * i)
         aid = aid_raw & 0x1FFF
         halfdays = ((rx & 7) << 7) | (rz & 0x7F)
-        m = MAP.get(aid)
+        if aid in PORTED:
+            m = (NV_MM_ACTOR_MARKER + aid, lambda q: q, ())
+        else:
+            m = MAP.get(aid)
         p = m[1](params) if m else None
         if m is None or p is None:
             skipped[aid] = skipped.get(aid, 0) + 1

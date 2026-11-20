@@ -285,3 +285,12 @@ u16 NvMmClock_HalfDayBit(void) {
 
     return 1 << (9 - 2 * day - night);
 }
+
+/** The clock, for Termina's actors (the day: 1-3; the time: OoT's and MM's units). */
+s32 NvMmClock_Day(void) {
+    return sMmDay;
+}
+
+u16 NvMmClock_Time(void) {
+    return sMmTime;
+}

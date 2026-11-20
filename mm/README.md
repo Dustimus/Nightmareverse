@@ -243,6 +243,41 @@ of his hair?), so it looks different again with adult Link's object loaded. MM's
 own. Compare the two games' stick display lists and where their textures point, and use MM's (or
 fix OoT's) if that's right.
 
+### MM's own actors, the first: the clock tower (2026-11-20)
+
+**How a ported actor comes in:**
+- **Its model:** MM's object file goes through Torch (`tools/mm_objects.py`). The object's
+  display lists are named and placed as in the decomp, and walked for their vertices and
+  textures. It comes out as `mm/objects/<object>/<symbol>`, and the actor draws those paths
+  directly, with no object slot.
+- **Its code:** our own C, to MM's rules (`soh/src/code/z_nv_mm_<actor>.c`), registered with
+  SoH's ActorDB on first use (`NvMmActors.cpp`, by MM's id).
+- **In the rooms:** the converter writes it as a marker id, 0x7000 + MM's id, with MM's params
+  as they are (`mm_actors.py`, PORTED). The half-day hook spawns the registered actor in its
+  place, so there's no new hook in OoT's code.
+
+**The clock tower (`z_nv_mm_tokeidai.c`, MM's Obj_Tokeidai)**, all 16 placements in Clock
+Town, following Termina's clock:
+- the tower clock: the minute ring wiggles, then turns on to the next of its 30 places an
+  hour; the clock face steps each hour; the sun and moon panel turns over at 6:00 and 18:00;
+- the two exterior gears turn with the minutes;
+- the counterweight on top turns slowly, its spotlight fading in at night and out by day;
+- from midnight on the final night the tower stands open, as MM places it when the time is
+  already past that (gear and counterweight moved, the clock face pushed in and tilted up, the
+  staircase to the rooftop there).
+
+Its other types are in too: Termina Field's small distant tower (scale 0.15), which is the one
+for the idea of the Clock Tower seen from Hyrule (`NV_GAMES.md`), and the wall clocks indoors.
+
+**Checked headless:** South Clock Town at 8:10 and 21:12. The clock face is on the tower, and at
+night the lit torches stand beside it (half-days).
+
+**Not yet:**
+- the tower opening itself (its cutscene, the fireworks);
+- the clock pieces falling as the moon crashes;
+- the minute ring's tick (MM's own sound, not in OoT's banks);
+- a close look at each piece in motion (the headless camera doesn't reach the tower's face).
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

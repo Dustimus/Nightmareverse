@@ -238,8 +238,9 @@ actors, a clock that runs in Termina only. No transformations yet.
 **Termina's Clock Tower somewhere in OoT's world (the user, 2026-11-20, "maybe").** The
 Clock Tower as a landmark placed in OoT's own map, a hint of Termina from Hyrule. MM already has
 a small, distant version of it for Termina Field: the clock tower actor's Termina Field types
-(scaled to 0.15, the tower walls among them), which the clock tower port can use. Open: where
-(seen from Hyrule Field, past the Lost Woods, ...) and whether its clock runs on Termina's time.
+(scaled to 0.15, the tower walls among them), which the clock tower port can use. Where (the user): visible
+from Hyrule Field, or in the conspicuously empty corner outside Castle Town (the one fans think
+was once a way into the castle). Open: whether its clock runs on Termina's time.
 
 ## Pokémon system (talked over with the user, 2026-11-19)
 
