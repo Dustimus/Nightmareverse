@@ -660,7 +660,8 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
 
     # floor and walls from RE1's rules (re1_floor.py)
     floor = re1_floor.Floor(room.raw, int(room_id[1:], 16),
-                            list(arrivals) + [(sx, sz, 0) for sx, sz, _ in spawns], aots)
+                            list(arrivals) + [(sx, sz, 0) for sx, sz, _ in spawns], aots,
+                            re1_floor.FURNITURE_TOPS.get(room_id.upper(), {}))
     # each floor cell's surface carries the camera a player walking there would have (only warps
     # use it: z_nv_camera.c opens rooms and switches by RE1's own rules)
     zones = camera_zone_records(room.raw, ncam)
@@ -674,7 +675,7 @@ def write_room(room, grid, stage, room_id, name, out, spawns, cell_exit=None, do
     keys = [(c, 0) for c in cams]
     wall_surface = len(keys)
     verts, polys = floor.mesh(
-        lambda k: surf_of_cam[cam_at((k[0] + 0.5) * re1_floor.CELL, (k[1] + 0.5) * re1_floor.CELL)],
+        lambda k: surf_of_cam.get(cam_at((k[0] + 0.5) * re1_floor.CELL, (k[1] + 0.5) * re1_floor.CELL), 0),
         wall_surface, r2s.to_oot)
 
     class _Col:

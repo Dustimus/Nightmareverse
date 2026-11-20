@@ -35,6 +35,15 @@ CELL = 100  # RE1 units (~2.2 OoT units)
 # thrown bombs can still leave the room over the walls until polygons are merged.
 WALL_HEIGHT = 3000
 CLIMB = (4350, 2885)
+# Furniture with a top (decided with the user, 2026-11-20: Link can stand on it, and climb up as
+# OoT lets him): by room, the collision record and its height in RE1 units, set by hand (RE1's
+# collision has no heights). Its faces are walls only that tall, with a floor on top. Heights are
+# checked by projecting the box onto the room's backgrounds (the collision boxes run a little past
+# the painted furniture, so the painted edge reads a bit high).
+FURNITURE_TOPS = {
+    "105": {8: 900},  # the dining room's long table
+    "605": {8: 900},  # (the same room on the way back)
+}
 # Where the player stops: RE1 pushes Jill out to her radius (372, the SCA record's +10) plus 18
 # past a shape's face (collision_push_rect); Link stops at his own wall radius (18 OoT units,
 # adult) from an OoT wall. So the walls sit the difference inside RE1's faces, and Link's body
@@ -106,10 +115,12 @@ def step_height(zone, x, z):
 
 
 class Floor:
-    def __init__(self, raw, room_number, arrivals, aots):
+    def __init__(self, raw, room_number, arrivals, aots, tops=None):
         """arrivals: [(x, z, y)] RE1 positions where the player enters (doors, start
-        positions); room_number: the room's id within its stage (0x05, 0x0E are shallow)."""
+        positions); room_number: the room's id within its stage (0x05, 0x0E are shallow);
+        tops: {record index: height} for furniture with a top (FURNITURE_TOPS)."""
         self.records = collision_records(raw)
+        self.tops = dict(tops or {})
         solid = [r for r in self.records if pushes(r)]
         xs = [r[0] for r in solid] + [r[2] for r in solid] + [a[0] for a in arrivals]
         zs = [r[1] for r in solid] + [r[3] for r in solid] + [a[1] for a in arrivals]
@@ -463,10 +474,12 @@ class Floor:
                 pts = [(c0, y0, a0), (c0, y1, a1), (c1, y1, a1), (c1, y0, a0)]
             quad(surf, *[to_oot(p) for p in pts], (0, 1, 0))
 
-        # the shapes' faces with floor beside them, at that floor's level
-        for r in self.records:
+        # the shapes' faces with floor beside them, at that floor's level (a piece of furniture with a
+        # top: only as tall as it is, its top a floor)
+        for ri, r in enumerate(self.records):
             if not pushes(r):
                 continue
+            top = self.tops.get(ri)
             x0, z0, x1, z1, shape, _ = r
             cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
             # the face moved in by the inset, down to the shape's middle line (a thin shape
@@ -488,10 +501,24 @@ class Floor:
                 beside = self.cell(mx + ox / ol * CELL, mz + oz / ol * CELL)
                 (ax, az), (bx, bz) = inner[i], inner[(i + 1) % len(inner)]
                 if beside in self.cells:
-                    wall(ax, az, bx, bz, self.level.get(self.comp[beside], 0), ox / ol, oz / ol)
+                    base = self.level.get(self.comp[beside], 0)
+                    wall(ax, az, bx, bz, base, ox / ol, oz / ol, top or WALL_HEIGHT)
                 elif beside in self.ramp_cells:
                     y, h = ramp_foot(self.ramp_cells[beside])
                     wall(ax, az, bx, bz, y, ox / ol, oz / ol, h)
+            if top:
+                # its top: the face's inner outline at that height above the floor round it
+                beside = [self.cell(x0 - CELL, (z0 + z1) / 2), self.cell(x1 + CELL, (z0 + z1) / 2),
+                          self.cell((x0 + x1) / 2, z0 - CELL), self.cell((x0 + x1) / 2, z1 + CELL)]
+                base = next((self.level.get(self.comp[k], 0) for k in beside if k in self.cells), 0)
+                y = base - top
+                surf = cam_of(self.cell(cx, cz))
+                if shape == 3:
+                    for i in range(1, len(inner) - 1):
+                        tri(surf, to_oot((inner[0][0], y, inner[0][1])), to_oot((inner[i + 1][0], y, inner[i + 1][1])),
+                            to_oot((inner[i][0], y, inner[i][1])), (0, 1, 0))
+                else:
+                    quad(surf, *[to_oot((px, y, pz)) for px, pz in inner], (0, 1, 0))
 
         # the floor's outer edge: each straight run of cell edges as one wall (OoT's wall test
         # misjudges walls only a cell wide: one blocked Link 300 units away in the foyer)
