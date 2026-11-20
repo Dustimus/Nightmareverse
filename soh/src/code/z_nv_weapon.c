@@ -29,6 +29,8 @@
 
 #define NV_RE1_SCALE 0.0217f
 
+extern PlayState* gPlayState;
+
 s32 NvStatus_InMansion(PlayState* play);
 s32 NvItems_Equipped(void);
 s32 NvItems_Slot(s32 i, s32* qty);
@@ -272,6 +274,46 @@ static Actor* NvGun_Target(PlayState* play, Player* player, s32 item, s32 reach,
     return best;
 }
 
+/**
+ * A flying round (the launcher's: z_nv_effects.c fx_bullet) at (x, z), RE1's units, its height
+ * giving the aim flags: apply_weapon_damage with weapon_hit_detect_projectile, the nearest enemy
+ * whose radius plus the weapon's range takes in the round, at a height it can be hit at. True if one
+ * was hit.
+ */
+s32 NvGun_RoundHit(s32 item, s32 x, s32 z, u8 aim) {
+    PlayState* play = gPlayState;
+    Actor* best = NULL;
+    f32 bestD = 1e9f;
+    Actor* a;
+
+    if ((play == NULL) || (item < 1) || (item > 10)) {
+        return false;
+    }
+    for (a = play->actorCtx.actorLists[ACTORCAT_ENEMY].head; a != NULL; a = a->next) {
+        s32 ex, ez, r, adj;
+        f32 d;
+
+        if (!NvEnemy_GunTarget(a, &ex, &ez, &r) || !NvEnemy_ShotRules(a, item, aim, &adj)) {
+            continue;
+        }
+        d = sqrtf((f32)(ex - x) * (f32)(ex - x) + (f32)(ez - z) * (f32)(ez - z));
+        if ((d < (f32)(r + sNvGunRange[item - 1] + adj)) && (d < bestD)) {
+            bestD = d;
+            best = a;
+        }
+    }
+    if (best == NULL) {
+        return false;
+    }
+    {
+        Vec3f at = best->focus.pos;
+
+        NvEnemy_GunHit(best, item, aim);
+        EffectSsHitMark_SpawnFixedScale(play, EFFECT_HITMARK_WHITE, &at);
+    }
+    return true;
+}
+
 /** A shot (apply_weapon_damage): spend a round, hit what's in the line. */
 static void NvGun_Fire(PlayState* play, Player* player) {
     s32 slot = NvItems_Equipped();
@@ -303,6 +345,26 @@ static void NvGun_Fire(PlayState* play, Player* player) {
     NvGun_Play(fire);
     sNvGunState = NV_GUN_FIRE;
     NvSound_Shot(item); // RE1's shot for the weapon (z_nv_sound.c)
+    if ((item >= 7) && (item <= 9)) { // the launcher: RE1's round flies from the gun (z_nv_effects.c)
+        s32 NvFx_FireRound(s32 item, const s32* hand, s32 angle);
+        s32 at[3];
+
+        if (sNvGunHandSet) {
+            at[0] = (s32)lroundf(sNvGunHand.xw / NV_RE1_SCALE);
+            at[1] = (s32)lroundf(-sNvGunHand.yw / NV_RE1_SCALE);
+            at[2] = (s32)lroundf(-sNvGunHand.zw / NV_RE1_SCALE);
+        } else {
+            at[0] = (s32)lroundf(player->actor.world.pos.x / NV_RE1_SCALE);
+            at[1] = (s32)lroundf(-(player->actor.world.pos.y + 30.0f) / NV_RE1_SCALE);
+            at[2] = (s32)lroundf(-player->actor.world.pos.z / NV_RE1_SCALE);
+        }
+        if (NvFx_FireRound(item, at, ((0x4000 - player->actor.shape.rot.y) & 0xFFFF) >> 4)) {
+            printf("NVGUN fire weapon %d: the round flies from %d,%d,%d\n", (int)item, (int)at[0], (int)at[1],
+                   (int)at[2]);
+            fflush(stdout);
+            return;
+        }
+    }
     hit = NvGun_Target(play, player, item, sNvGunRange[CLAMP(item - 1, 0, 9)], false);
     printf("NVGUN fire weapon %d dir %d rounds %d -> %s\n", (int)item, (int)sNvGunDir, (int)(qty - 1),
            (hit != NULL) ? "hit" : "miss");

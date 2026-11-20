@@ -762,6 +762,29 @@ s32 NvRe1_ShotBlocked(s32 x, s32 z, s32 tx, s32 tz) {
     return blocked != 0;
 }
 
+/**
+ * effect_probe_ground (EffectSystem.cpp 0x0047daf0) for an effect at (x, z): inside (grown by
+ * radius) a record of its quadrant whose flag bits 8-9 are both up, a wall it meets.
+ */
+s32 NvRe1_EffectProbe(s32 x, s32 z, s32 radius) {
+    u32 cell;
+    s32 i;
+
+    if (sBounds == NULL) {
+        return false;
+    }
+    cell = ChkOutsideCell(x, z);
+    if (cell > 3) {
+        return false;
+    }
+    for (i = sBoundGroup[cell]; i < sBoundGroup[cell + 1]; i++) {
+        if (((sBounds[i].flags & 0x300) == 0x300) && BoundInside(&sBounds[i], x, z, radius)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 /* ---- the entity helpers (EntityCommon.cpp) ---- */
 
 static u8 check_line_of_sight(s32 x, s32 z) {

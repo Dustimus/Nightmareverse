@@ -14,8 +14,9 @@
  * RE1's units; drawn here as a billboard in the room at RE1's size (the sprite's pixels times its
  * width times its light factor over 64, in RE1 units), with RE1's blend and tint.
  *
- * Left out for now: the weapon effects' hits (bullets, the rocket, the flamethrower: our weapons
- * have their own), the drops' hurting (the player's damage), effects hitting RE1's walls (no
+ * The grenade launcher's round flies as RE1's does (behaviours 42 and 43, its hits through
+ * z_nv_weapon.c). Left out for now: the other weapon effects' hits (the rocket, the flamethrower: our
+ * weapons have their own), the drops' hurting (the player's damage), effects hitting RE1's walls (no
  * ground probe: they stop at the floor, y 0), the camera-zone test, sounds, the mirror pass.
  */
 #include "global.h"
@@ -1006,6 +1007,171 @@ static void fx_fire_burst(void) { // (44: a burst of fire spawned a group at a t
     }
 }
 
+/* ---- the grenade launcher's round (PlayerAnimations.cpp player_behavior_14_autoaim_fire's fire
+ * billboard: type 8, group 7, at the gun; EffectSystem.cpp behaviours 42 and 43) ---- */
+
+static NvMtx sNvFxGunMtx;  // the gun as it fires: its barrel the round's local y, up its x (joint 14)
+static u8 sNvFxShotWeapon; // the weapon (7 explosive, 8 acid, 9 flame rounds)
+static u8 sNvFxShotFlags;  // the player's aim flags as it fires
+
+/**
+ * effect_shot_impact (0x0040f850): the round lands (hit 1: the floor or a wall) or meets an enemy
+ * (0): its sound, and where it lands, its burst by the weapon (header byte 1).
+ */
+static void fx_shot_impact(s32 hit) {
+    void NvSound_Play(const char* name, s32 vol);
+    NvFx* e = CUR;
+    s32* at = sNvFxScratch;
+    u8 k;
+
+    at[0] = e->posX;
+    at[1] = e->posY;
+    at[2] = e->posZ;
+    switch (e->animHeader[1]) {
+        case 7: // explosive: three bursts of fire and the smoke
+            NvSound_Play("grbomb03", 128); // (Play3DSnd 1, 0xC: the weapon bank's)
+            if (hit) {
+                at[1] -= 0x96;
+                NvFx_Create(0xE, 3, e->yaw, NULL, at, 0x19);
+                at[1] += 0x96;
+                at[0] -= 0xB4;
+                at[2] += 0xB4;
+                NvFx_Create(0xE, 3, e->yaw, NULL, at, 0x1E);
+                at[1] += 0x96;
+                at[0] += 0x154;
+                at[2] -= 0x168;
+                NvFx_Create(0xE, 3, e->yaw, NULL, at, 0x1C);
+                at[0] = e->posX;
+                at[2] = e->posZ;
+                at[1] = e->posY - 200;
+                k = NvFx_Create(9, 0xD, e->yaw, NULL, at, 0x14);
+                if (k != 0xFF) { // (the smoke into its resting pose)
+                    NvFx* sm = &sNvFx[k];
+
+                    sm->animId = 1;
+                    sm->updateId = 0;
+                    sm->animHeader[10] = 3;
+                    sm->animHeader[11] = 0x40;
+                    sm->animHeader[6] = sm->animHeader[7] = 0xFF;
+                    AH_S16(sm, 0xE) = AH_S16(sm, 0xC) = AH_S16(sm, 4) = 0;
+                }
+            }
+            break;
+        case 8: // acid: three splashes and the smoke
+            NvSound_Play("gracid03", 128);
+            if (hit) {
+                NvFx_Create(9, 0, e->yaw, NULL, at, 0x10);
+                NvFx_Create(9, 0, (s16)(e->yaw + 0x555), NULL, at, 0x10);
+                NvFx_Create(9, 0, (s16)(e->yaw + 0xAAA), NULL, at, 0x10);
+                k = NvFx_Create(9, 0, e->yaw, NULL, at, 0x14);
+                if (k != 0xFF) {
+                    NvFx* sm = &sNvFx[k];
+
+                    AH_S16(sm, 4) = AH_S16(sm, 0xC) = 0;
+                    AH_S16(sm, 0xE) = (s16)0xFFCE;
+                }
+            }
+            break;
+        case 9: // flame: four bursts of fire
+            NvSound_Play("grfire03", 128);
+            if (hit) {
+                NvFx_Create(0xE, 5, e->yaw, NULL, at, 0x1B);
+                at[0] -= 0xB4;
+                NvFx_Create(0xE, 4, e->yaw, NULL, at, 0x17);
+                at[0] += 0x140;
+                at[2] += 0x8C;
+                NvFx_Create(0xE, 4, e->yaw, NULL, at, 0x16);
+                at[2] -= 0x118;
+                NvFx_Create(0xE, 4, e->yaw, NULL, at, 0x15);
+            }
+            break;
+    }
+    printf("NVFX round %d %s at %d,%d,%d\n", e->animHeader[1], hit ? "landed" : "hit", e->posX, e->posY, e->posZ);
+    fflush(stdout);
+    fx_kill();
+}
+
+/** 42, effect_behavior_charge: the player's flags and weapon taken, then it leaves the gun; a trail. */
+static void fx_charge(void) {
+    NvFx* e = CUR;
+
+    switch (e->animHeader[3]) {
+        case 0:
+            e->animHeader[0] = sNvFxShotFlags;
+            e->animHeader[1] = sNvFxShotWeapon;
+            e->animHeader[3]++;
+            break;
+        case 1:
+            e->type = 2;
+            fx_freeze(e);
+            e->animHeader[3]++;
+            break;
+        case 2:
+            sNvFxScratch[0] = e->posX;
+            sNvFxScratch[1] = e->posY;
+            sNvFxScratch[2] = e->posZ;
+            NvFx_Create(8, 1, e->yaw, NULL, sNvFxScratch, 0);
+            break;
+    }
+}
+
+/**
+ * 43, effect_behavior_bullet: below the player's feet (by its next step) it lands; its height above
+ * them names the aim it hits at (within 500 0x20, within 0xAF0 0x40, else 0x80); in a wall it lands;
+ * then apply_weapon_damage from where it is (weapon_hit_detect_projectile: z_nv_weapon.c).
+ */
+static void fx_bullet(void) {
+    s32 NvRe1_EffectProbe(s32 x, s32 z, s32 radius);
+    s32 NvGun_RoundHit(s32 item, s32 x, s32 z, u8 aim);
+    NvFx* e = CUR;
+    s32 py = NvFx_PlayerY();
+    s32 gy = AH_S16(e, 0xE) + e->posY;
+    u8 aim;
+
+    if (py < gy) {
+        fx_shot_impact(1);
+        return;
+    }
+    aim = (py - 0xAF0 < gy) ? ((py - 500 < gy) ? 0x20 : 0x40) : 0x80;
+    if (NvRe1_EffectProbe(e->posX, e->posZ, 4)) {
+        fx_shot_impact(1);
+        return;
+    }
+    if (NvGun_RoundHit(e->animHeader[1], e->posX, e->posZ, aim)) {
+        fx_shot_impact(0);
+        return;
+    }
+    if (e->animHeader[2]++ > 8) {
+        e->frame = e->frames;
+    }
+}
+
+/**
+ * The launcher fires (z_nv_weapon.c): RE1's round at the gun, Link's hand (RE1 units) facing angle
+ * (RE1's, 4096 a turn). False when the effects aren't there (the shot then hits at once).
+ */
+s32 NvFx_FireRound(s32 item, const s32* hand, s32 angle) {
+    static const s32 sMuzzle[3] = { 400, 660, 0 }; // (g_weaponFireBillboard's, from joint 14)
+    s16 s = NvFx_Sin(angle);
+    s16 c = NvFx_Cos(angle);
+
+    if (!sNvFxReady || (sNvFxInfo[8] == NULL)) {
+        return false;
+    }
+    memset(&sNvFxGunMtx, 0, sizeof(sNvFxGunMtx));
+    sNvFxGunMtx.m[1][0] = -0x1000; // its x: up
+    sNvFxGunMtx.m[0][1] = c;       // its y: the way Link faces
+    sNvFxGunMtx.m[2][1] = -s;
+    sNvFxGunMtx.m[0][2] = s;
+    sNvFxGunMtx.m[2][2] = c;
+    sNvFxGunMtx.t[0] = hand[0];
+    sNvFxGunMtx.t[1] = hand[1];
+    sNvFxGunMtx.t[2] = hand[2];
+    sNvFxShotWeapon = (u8)item;
+    sNvFxShotFlags = 0x40;
+    return NvFx_Create(8, 7, 0, &sNvFxGunMtx, sMuzzle, 0) != 0xFF;
+}
+
 static void (*const sNvFxBehaviour[64])(void) = {
     fx_idle,           fx_idle,           fx_timer_refresh, fx_hold_frame,    fx_ember,
     fx_idle,           fx_timer_phase,    fx_bounce,        fx_idle,          fx_gravity_rise,
@@ -1015,7 +1181,7 @@ static void (*const sNvFxBehaviour[64])(void) = {
     fx_drift,          fx_spawn_from_header, fx_next_frame, fx_next_phase,    fx_rand_frame,
     fx_spawn_advance,  fx_set_frame,      fx_floor_phase,   fx_frame_phase,   fx_unported,
     fx_fire_wobble,    fx_fire_bounce,    fx_unported,      fx_set_tint,      fx_pair_timer,
-    fx_timer_flags,    fx_rand_anim,      fx_unported,      fx_unported,      fx_fire_burst,
+    fx_timer_flags,    fx_rand_anim,      fx_charge,        fx_bullet,        fx_fire_burst,
     fx_unported,       fx_countdown_kill, fx_kill,          fx_fade,          fx_flash_marker,
     fx_floor_stop,     fx_sysflag,        fx_to_settle,     fx_floor_stop1,   fx_random_spin,
     fx_splash_timer,   fx_fire_phases,    fx_unported,      fx_idle,          fx_unported,

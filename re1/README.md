@@ -23,7 +23,7 @@ You get in from Hyrule by playing the mansion's song on the ocarina (below). Chr
 playable: Link plays Jill.
 
 Open, in the sections below: the status screen's radio; blood from hits, shadows and the
-muzzle flash; the launcher's rounds; items hung on the player (taken, not drawn); the box's sliding list and its
+muzzle flash; items hung on the player (taken, not drawn); the box's sliding list and its
 Hyrule side; stereo panning; the Japanese release's text; ceilings; a way in through the Lost Woods.
 
 ## Reference: RE1's own code
@@ -391,7 +391,16 @@ left fist, which closes round it, placed as Mod1 placed its Beretta in his right
 right in play), mirrored across the hand; it's drawn only while the gun is up, so another item (the
 ocarina) replaces it, and another C button puts it down. Each weapon fires with RE1's own sound
 (see Sound). Ammo is loaded by Combine (see the status screen) or, on an empty gun, by the
-trigger. Not yet: the muzzle flash, the launcher's rounds (its projectile and blast). Dev: `NV_EQUIP=n` equips slot n
+trigger. The grenade launcher's round (2026-11-20) flies as RE1's does: its fire billboard (type 8,
+group 7, `z_nv_effects.c` NvFx_FireRound) leaves Link's hand along his facing on RE1's arc
+(behaviour 42 freezes it off the gun and trails it, 43 flies it), its height above Link's feet
+giving the aim it hits at; it hits the nearest enemy whose radius plus the weapon's 900 takes it in
+(weapon_hit_detect_projectile, from the round: `z_nv_weapon.c` NvGun_RoundHit, RE1's damage and hit
+state for the round), and where it lands, on the floor or in a wall (effect_probe_ground on RE1's
+collision), it bursts as RE1's effect_shot_impact has it: fire for the explosive round, a splash for
+acid, flames for the flame round, each with its own sound. (RE1 also runs an instant hit for the
+explosive round, measured from a point near the room's origin, not the round: left out.) Not yet:
+the muzzle flash, the hit's blood and burst on the enemy (the post-hit effects). Dev: `NV_EQUIP=n` equips slot n
 of NV_GIVE's items; NV_WALK `cl:N` holds C-Left N frames; `NV_GUN_FIT="x,y,z,rx,ry,rz,size%"` and
 `NV_GUN_MIRROR=x|y|z|none` move the gun in the fist.
 
