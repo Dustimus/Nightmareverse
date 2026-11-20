@@ -32,13 +32,15 @@ ITEM00_HEART_PIECE, ITEM00_HEART_CONTAINER = 0x06, 0x07
 
 
 def item00(params):
-    """MM's En_Item00 as OoT's, or None. Heart pieces and containers wait for Termina's own
-    collectible flags (new scenes' flags aren't saved yet, z_nv_scene.c, so they'd come back)."""
+    """MM's En_Item00 as OoT's, or None. Its collectible flag is kept in Termina's save
+    (z_nv_mm_scene.c, the permanent part), so a heart piece taken stays taken. OoT saves flags
+    0x00-0x1F only (0x20-0x3F are per visit) and has 6 bits where MM has 7: one past 0x1F is
+    left out rather than reappear on every visit."""
     t = params & 0xFF
-    if t in (ITEM00_HEART_PIECE, ITEM00_HEART_CONTAINER) or t not in ITEM00_OOT:
+    flag = (params >> 8) & 0x7F
+    if t not in ITEM00_OOT or (t in (ITEM00_HEART_PIECE, ITEM00_HEART_CONTAINER) and flag > 0x1F):
         return None
-    flag = (params >> 8) & 0x3F  # MM's 7-bit flag in OoT's 6
-    return ITEM00_OOT[t] | (flag << 8)
+    return ITEM00_OOT[t] | ((flag & 0x3F) << 8)
 
 
 def _drop(t):

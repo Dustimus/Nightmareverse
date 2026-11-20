@@ -148,15 +148,14 @@ Clock Town places 67 kinds of actor (233 in all) and 14 doors. In order of work:
 
 **In now:**
 - the pots on the rooftop and the crates in East Clock Town;
+- the two heart pieces (South Clock Town's on the clock tower deck, North's in the tree), now
+  that Termina's pickups are saved (below);
 - the torches, in their day/night pairs (lit ones night-only, half-day mask 0x155; unlit ones
   day-only, 0x2AA), by the half-day rule below;
 - the 14 wooden doors, as OoT's scene-exit doors. Their way out is the exit behind them, so a
   door into a building not built yet brings Link back with the note.
 
 **Held back:**
-- **Heart pieces** (two, South and North). Termina's per-scene flags aren't saved yet (new scenes
-  get scratch flags, `z_nv_scene.c`), so they'd come back on every visit. They wait for Termina's
-  collectible flags in the save's `permanent` part.
 - **Chests and signs.** They wait for the item rules and MM's text.
 
 **MM's half-days (built 2026-11-20, `soh/src/code/z_nv_mm_halfday.c`).** Every placed MM actor
@@ -179,6 +178,29 @@ newly due and removes the ones whose time is up. Here, to MM's rules:
 **Hearts (decided with the user, 2026-11-20): they stack.** OoT's 20 and MM's 20 give 37 in all
 (3 to start), and SoH already draws more rows and moves the magic meter. Balance can come later.
 The same goes for Double Defense being in both games.
+
+### Saved pickups (2026-11-20, `soh/src/code/z_nv_mm_scene.c`)
+
+OoT saves per-scene flags (chests, switches, cleared rooms, collectibles, visited rooms) for its
+own 124 scenes only. Scenes added after them get throwaway flags (`z_nv_scene.c`,
+`NvScene_SavedFlags`). Termina's scenes now get their own, kept in the `termina` save section
+(one added line in `NvScene_SavedFlags`; the RE1 chat should know, since the file is shared).
+Saved by scene name, so renumbering doesn't break saves.
+- **`permanent`:** collectibles (heart pieces and the like), visited rooms and floors. Never
+  reset.
+- **`cycle`:** chests, switches, cleared rooms. Reset by the Song of Time and the moon's fall,
+  as in MM. The scene Link is in drops its live ones too, so leaving it doesn't write them back.
+- **OoT's own limits:**
+  - collectible flags 0x00-0x1F are saved and 0x20-0x3F last one visit;
+  - MM has 7 bits where OoT has 6.
+
+  A heart piece or container with a flag past 0x1F is left out rather than reappear on every
+  visit (none in Clock Town).
+
+**Checked headless (`NV_MM_SAVETEST=save`, `load,save`):**
+- a fresh game picks up South Clock Town's heart piece on the deck (count 0 to 1), and the save
+  holds its flag (`permanent`, flag 10);
+- loading that save and walking back onto the deck, it doesn't come back (the count stays 1).
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 

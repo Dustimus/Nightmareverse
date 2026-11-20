@@ -15,6 +15,11 @@ SavedSceneFlags* NvScene_SavedFlags(s16 sceneNum) {
     if ((sceneNum >= 0) && (sceneNum < ARRAY_COUNT(gSaveContext.sceneFlags))) {
         return &gSaveContext.sceneFlags[sceneNum];
     }
+    if (NvMm_IsScene(sceneNum)) { // Termina's, kept in its save section (z_nv_mm_scene.c)
+        SavedSceneFlags* NvMmScene_SavedFlags(s16 sceneNum);
+
+        return NvMmScene_SavedFlags(sceneNum);
+    }
     memset(&sNvScratchFlags, 0, sizeof(sNvScratchFlags));
     return &sNvScratchFlags;
 }

@@ -8,8 +8,9 @@
  *   exit would bring him to, and here a note says the way isn't built, as RE1's unbuilt doors do.
  *
  * Dev: NV_MM_SAVETEST=save saves to file 1 (SoH's own save, sections and all) 100 frames into
- * Termina; NV_MM_SAVETEST=load loads file 1 on the first Termina frame (the "termina" section's
- * round trip, headless). Both log "NVMM ...".
+ * a Termina scene; NV_MM_SAVETEST=load loads file 1 on the first Termina frame; "load,save" does
+ * both, the save in a later scene (after an NV_WALK entr: step). The "termina" section's round
+ * trip, headless. Logs "NVMM ...".
  */
 #include "global.h"
 #include <stdio.h>
@@ -25,23 +26,33 @@ void Save_LoadFile(void);
 void NvMmClock_LogState(const char* when);
 
 static void NvMm_SaveTest(PlayState* play) {
-    static s32 sDone;
+    static s32 sLoaded;
+    static s32 sSaved;
     const char* t = getenv("NV_MM_SAVETEST");
 
-    if ((t == NULL) || sDone) {
+    if (t == NULL) {
         return;
     }
-    if (strcmp(t, "load") == 0) {
-        sDone = true;
+    if ((strstr(t, "load") != NULL) && !sLoaded) {
+        sLoaded = true;
         gSaveContext.fileNum = 0;
         Save_LoadFile();
+        { // a load mid-scene: the scene's live flags from the loaded save, as a scene load would
+            SavedSceneFlags* f = NvScene_SavedFlags(play->sceneNum);
+
+            play->actorCtx.flags.chest = f->chest;
+            play->actorCtx.flags.swch = f->swch;
+            play->actorCtx.flags.clear = f->clear;
+            play->actorCtx.flags.collect = f->collect;
+        }
         NvMmClock_LogState("after loading file 1");
         printf("NVMM loaded: Hyrule's time in the base save is %04X\n", (unsigned)gSaveContext.dayTime);
         fflush(stdout);
-    } else if ((strcmp(t, "save") == 0) && (play->state.frames == 100)) {
-        sDone = true;
+    } else if ((strstr(t, "save") != NULL) && !sSaved && (play->state.frames == 100)) {
+        sSaved = true;
         gSaveContext.fileNum = 0;
         NvMmClock_LogState("saving to file 1");
+        Play_SaveSceneFlags(play); // (as the pause menu's save does first)
         Save_SaveFile();
     }
 }

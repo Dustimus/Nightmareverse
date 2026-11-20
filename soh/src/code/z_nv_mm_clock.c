@@ -45,6 +45,9 @@ static s32 sMmTelop;            // frames left of the day's title
 static s32 sMmSongOfTime;       // the Song of Time was played: act when its message closes
 static s32 sMmDevSet;           // NV_MM_TIME applied
 
+void NvMmScene_SongOfTime(PlayState* play);
+void NvMmScene_NewGame(void);
+
 static s32 NvMm_Log(void) {
     return getenv("NV_LOG") != NULL;
 }
@@ -67,6 +70,7 @@ static void NvMmClock_Reset(PlayState* play, const char* why) {
         printf("NVMM reset (%s): day 1 06:00\n", why);
         fflush(stdout);
     }
+    NvMmScene_SongOfTime(play); // Termina's chests, switches and cleared rooms (z_nv_mm_scene.c)
     if (play != NULL) {
         play->nextEntranceIndex = MM_ENTRANCE_CLOCK_TOWN;
         play->transitionTrigger = TRANS_TRIGGER_START;
@@ -256,6 +260,7 @@ void NvMmClock_SetSave(const NvMmClockSave* s) {
 
 /** A new game, or a save from before Termina: the dawn of the first day. */
 void NvMmClock_NewGame(void) {
+    NvMmScene_NewGame();
     sMmDay = 1;
     sMmTime = MM_DAWN;
     sMmSpeedOffset = 0;
