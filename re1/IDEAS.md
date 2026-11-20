@@ -34,7 +34,8 @@ here is agreed or scheduled.
   affecting anything else (walls are about railing/door height now). Done 2026-11-20 (README, "The bomb layer").
 - Furniture tops (2026-11-20, from the user): collision on top of furniture, starting with the
   dining room's table (climbable is fine), with heights set by hand; the key to joining the dining
-  room and its balcony into one room, which would feel very Zelda.
+  room and its balcony into one room, which would feel very Zelda. The table's top is in
+  (README, "Furniture tops"); the join is still to try, on a branch of its own.
   - RE1's enemies don't know heights: a zombie beside the table can grab Link standing on it. The
     user's fine with that (it grabs his legs).
   - Merged with the balcony, the only zombie is the balcony's: better that it can't fall down to

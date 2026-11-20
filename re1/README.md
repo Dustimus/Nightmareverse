@@ -482,6 +482,16 @@ En_Arrow. Checked headless in 103: bombs and nuts sent over the walls stop at th
 into the room. Dev: NV_WALK `bomb:yaw,speed,vy` (a lit bomb from above Link's head, tenths) and
 `nut:yaw,pitch` (degrees).
 
+Furniture tops (2026-11-20, decided with the user: Link can climb onto them, as OoT lets him onto
+any low ledge): RE1's collision is a floor plan with no heights, so the furniture to stand on is
+listed by hand (`tools/re1_floor.py` FURNITURE_TOPS: room, collision record, height). Its faces
+become walls only that tall and its outline a floor on top; the floor's edge walls leave it be.
+The first is the dining room's long table (105, and 605 on the way back) at 900 RE1 units (about 20
+OoT units), from projecting its box onto the room's backgrounds. Checked headless: Link walking
+into its side hops up, walks along it and steps down the far side. RE1's enemies don't know heights,
+so a zombie beside it can still grab him up there (fine by the user). A step toward joining the
+dining room and its balcony into one room (IDEAS.md).
+
 Later: a way in through a Lost Woods wrong turn, alongside the warp song.
 
 ## Saving (2026-11-20)
