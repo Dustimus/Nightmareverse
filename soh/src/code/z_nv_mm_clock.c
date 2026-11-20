@@ -218,3 +218,55 @@ void NvMmClock_Draw(PlayState* play) {
     POLY_OPA_DISP = gfx;
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+/*
+ * Saving (NvMmSave.cpp): Termina lives in the "termina" section of SoH's own save file, saved and
+ * loaded in the same moment as Hyrule's, so the two can never come from different saves.
+ */
+typedef struct {
+    s32 day;
+    u16 time;
+    s16 speedOffset;
+    s32 inTermina;  // the save was made in Termina: OoT's own time in the file is Termina's
+    u16 hyruleTime; // Hyrule's time, put aside while in Termina
+} NvMmClockSave;
+
+void NvMmClock_GetSave(NvMmClockSave* s) {
+    s->day = sMmDay;
+    s->time = sMmTime;
+    s->speedOffset = sMmSpeedOffset;
+    s->inTermina = sMmInTermina;
+    s->hyruleTime = sMmHyruleTime;
+}
+
+/** A save's Termina, after its base section (Hyrule) has been read. */
+void NvMmClock_SetSave(const NvMmClockSave* s) {
+    sMmDay = ((s->day >= 1) && (s->day <= 3)) ? s->day : 1;
+    sMmTime = s->time;
+    sMmSpeedOffset = s->speedOffset;
+    if (s->inTermina) {
+        // OoT saved Termina's time as its own; a loaded game starts in Hyrule (OoT's respawn), so
+        // its time is put back
+        gSaveContext.dayTime = s->hyruleTime;
+    }
+    sMmInTermina = false;
+    sMmTelop = 0;
+    sMmSongOfTime = false;
+}
+
+/** A new game, or a save from before Termina: the dawn of the first day. */
+void NvMmClock_NewGame(void) {
+    sMmDay = 1;
+    sMmTime = MM_DAWN;
+    sMmSpeedOffset = 0;
+    sMmInTermina = false;
+    sMmTelop = 0;
+    sMmSongOfTime = false;
+}
+
+void NvMmClock_LogState(const char* when) {
+    printf("NVMM state (%s): day %d %02d:%02d speed %+d, in Termina %d, Hyrule %04X\n", when, (int)sMmDay,
+           (int)NvMm_Hour(sMmTime), (int)NvMm_Minute(sMmTime), (int)sMmSpeedOffset, (int)sMmInTermina,
+           (unsigned)sMmHyruleTime);
+    fflush(stdout);
+}

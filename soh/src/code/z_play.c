@@ -663,8 +663,8 @@ s32 NvMovie_Update(PlayState* play);
 void NvMovie_Draw(PlayState* play);
 s32 NvBoxUi_Update(PlayState* play);
 void NvBoxUi_Draw(PlayState* play);
-void NvMmClock_Update(PlayState* play); // Nightmareverse: Termina's 3-day clock (z_nv_mm_clock.c)
-void NvMmClock_Draw(PlayState* play);
+void NvMm_Update(PlayState* play); // Nightmareverse: Termina (Majora's Mask), z_nv_mm.c
+void NvMm_Draw(PlayState* play);
 void NvPanel_Draw(PlayState* play);
 s32 NvEnding_Update(PlayState* play);
 void NvEnding_Draw(PlayState* play);
@@ -727,7 +727,7 @@ void Play_Update(PlayState* play) {
     NvDoor_Update(play); // Nightmareverse: RE1 doors, A in front of them (z_nv_door.c)
     NvDoorScene_Update(play); // ...and RE1's door scenes between rooms (z_nv_doorscene.c)
     NvScript_Update(play);    // ...and the room's own scripts (z_nv_script.c)
-    NvMmClock_Update(play);   // Nightmareverse: Termina's 3-day clock, in MM's scenes only (z_nv_mm_clock.c)
+    NvMm_Update(play);        // Nightmareverse: Termina, in MM's scenes only: its clock, its exits (z_nv_mm.c)
 
     gSegments[4] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[play->objectCtx.mainKeepIndex].segment);
     gSegments[5] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[play->objectCtx.subKeepIndex].segment);
@@ -1346,7 +1346,7 @@ void Play_DrawOverlayElements(PlayState* play) {
     NvMovie_Draw(play); // Nightmareverse: an RE1 movie, over everything (z_nv_movie.c)
     NvEnding_Draw(play); // ...and RE1's results after an ending (z_nv_ending.c)
     NvBoxUi_Draw(play); // ...and RE1's item box screen (z_nv_box.c)
-    NvMmClock_Draw(play); // Nightmareverse: Termina's day and time (z_nv_mm_clock.c)
+    NvMm_Draw(play); // Nightmareverse: Termina's day and time (z_nv_mm.c)
     NvPanel_Draw(play); // ...and the keys of a room's panel (z_nv_panel.c)
     NvCountdown_Draw(play); // ...and the self-destruct's time left (z_nv_ending.c)
     NvFilesUi_Draw(play); // ...and a document being read where it was found (z_nv_files.c)

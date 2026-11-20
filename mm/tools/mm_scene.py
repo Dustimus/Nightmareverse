@@ -19,18 +19,13 @@ import os
 import struct
 from xml.sax.saxutils import quoteattr
 
-import mm_rom
 import yaz0
 from mm2torch import commands, room_headers
+from mm_entrances import Layout, soh_name
 
 
 def _el(tag, **attrs):
     return "<%s %s/>" % (tag, " ".join("%s=%s" % (k, quoteattr(str(v))) for k, v in attrs.items()))
-
-
-def soh_name(scene):
-    """Z2_CLOCKTOWER -> mm_z2_clocktower (our scene file names)."""
-    return "mm_" + scene.lower()
 
 
 def mm_rot(r):
@@ -50,7 +45,46 @@ def collision_offset(sdata):
     raise ValueError("scene has no collision")
 
 
-def scene_xml(scene, sdata, rooms):
+def exits(scene, sdata, lay, spawns):
+    """The scene's exit list (0x13): MM's entrance numbers as ours. An exit into a place that
+    isn't built yet goes "back": to this scene's start position nearest that exit's polygons
+    (the spot that place's own exit would bring Link to), shown with a note (z_nv_mm.c)."""
+    cmds = {cmd: (a1, w1) for cmd, a1, w1 in commands(sdata, 0)}
+    if 0x13 not in cmds:
+        return []
+    col = collision_offset(sdata)
+    nverts = struct.unpack_from(">H", sdata, col + 0x0C)[0]
+    vtx = struct.unpack_from(">I", sdata, col + 0x10)[0] & 0xFFFFFF
+    npolys = struct.unpack_from(">H", sdata, col + 0x14)[0]
+    polys = struct.unpack_from(">I", sdata, col + 0x18)[0] & 0xFFFFFF
+    stypes = struct.unpack_from(">I", sdata, col + 0x1C)[0] & 0xFFFFFF
+    verts = [struct.unpack_from(">3h", sdata, vtx + 6 * i) for i in range(nverts)]
+    where = {}  # exit index (1-based) -> the vertices of its polygons
+    for i in range(npolys):
+        t, a, b, c = struct.unpack_from(">4H", sdata, polys + 16 * i)
+        ex = (struct.unpack_from(">I", sdata, stypes + 8 * t)[0] >> 8) & 0x1F
+        if ex:
+            where.setdefault(ex, []).extend(verts[k & 0x1FFF] for k in (a, b, c))
+    count = max(where) if where else 0
+    base = cmds[0x13][1] & 0xFFFFFF
+    out = []
+    for i in range(count):
+        v = struct.unpack_from(">H", sdata, base + 2 * i)[0]
+        e = lay.mm_entrance(v)
+        if e is None:
+            pts = where.get(i + 1)
+            spawn = 0
+            if pts:
+                cx = sum(p[0] for p in pts) / len(pts)
+                cz = sum(p[2] for p in pts) / len(pts)
+                spawn = min(range(len(spawns)),
+                            key=lambda k: (spawns[k][1] - cx) ** 2 + (spawns[k][3] - cz) ** 2)
+            e = lay.back[(scene, spawn)]
+        out.append(e)
+    return out
+
+
+def scene_xml(scene, sdata, rooms, lay):
     """The scene header, from MM's main header."""
     base = soh_name(scene) + "_scene"
     cmds = {cmd: (a1, w1) for cmd, a1, w1 in commands(sdata, 0)}
@@ -83,6 +117,12 @@ def scene_xml(scene, sdata, rooms):
         S.append("        " + _el("EntranceEntry", Spawn=spawn, Room=room))
     S.append("    </SetEntranceList>")
     S.append("    " + _el("SetSpecialObjects", ElfMessage=0, GlobalObject=0))
+    ex = exits(scene, sdata, lay, spawns)
+    if ex:
+        S.append("    <SetExitList>")
+        for e in ex:
+            S.append("        " + _el("ExitEntry", Id=e))
+        S.append("    </SetExitList>")
     S.append("    <SetStartPositionList>")
     for _id, x, y, z, rx, ry, rz, params in spawns:
         # OoT's player (actor 0); MM's params mean the same start modes in the top nibble
@@ -168,7 +208,7 @@ def write_scene(rom, scene, rooms, out):
     d = os.path.join(out, "scenes", "shared", soh_name(scene) + "_scene")
     os.makedirs(d, exist_ok=True)
     sdata = load(scene)
-    open(os.path.join(d, soh_name(scene) + "_scene"), "w").write(scene_xml(scene, sdata, rooms))
+    open(os.path.join(d, soh_name(scene) + "_scene"), "w").write(scene_xml(scene, sdata, rooms, Layout(rom)))
     for r in range(rooms):
         rdata = load(f"{scene}_room_{r:02d}")
         open(os.path.join(d, f"{soh_name(scene)}_room_{r:02d}"), "w").write(room_xml(scene, r, rdata))

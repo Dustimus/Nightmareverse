@@ -58,7 +58,6 @@ at the tower. The light follows the time.
 
 **Not yet:**
 - the night sky (the sky's own colour stays daytime; the lighting does follow);
-- saving (`nv_mm_<file>.sav`, RE1's pattern);
 - the Inverted Song of Time and the Song of Double Time's own notes (the shared song listener
   comes first);
 - the final hours (music, the countdown);
@@ -75,7 +74,6 @@ and so on), with MM's rooms, textures and collision, and Link standing and walki
 
 Not done yet:
 - **Characters and objects:** MM's actor and object lists are left out of the rooms.
-- **Doors and exits:** nothing leads anywhere yet.
 - **Music:** none.
 - **Animated textures:** the segments 8 and 9 the game sets while running.
 - **The second billboard matrix:** MM's rooms ask for one at `0x01000040`, which OoT's engine
@@ -88,6 +86,51 @@ Not done yet:
 example a helper `NvRe1_IsScene()` up to `SCENE_RE1_71C`, fixes it. It's RE1's code, so the
 change belongs on RE1's branch. Without `re1.o2r` loaded nothing visible goes wrong in Clock
 Town, but with both games installed RE1's systems would treat Termina as part of the mansion.
+
+### Saving (2026-11-20, `soh/soh/Enhancements/Nightmareverse/NvMmSave.cpp`)
+
+Decided with the user (2026-11-19): Termina is the **"termina" section of SoH's own save file**,
+not a separate file. SoH saves and loads every section in the same moment (SaveManager, as the
+randomizer and its trackers do), so Hyrule and Termina always come from the same save: nothing
+can be taken from Termina and kept while loading an older Hyrule, or the reverse. Each game keeps
+to its own section (sections are by name; SoH refuses a second register of one).
+
+Two parts, so the Song of Time can never undo an item:
+- `cycle`: what the Song of Time resets (day, time, speed; later the town's events).
+- `permanent`: what it never resets: items received, randomizer checks taken (empty so far). A
+  chest the Song of Time refills gives something else once its check is taken, as MM's
+  randomizer does.
+
+**A save made in Termina:** OoT's own time in the file is Termina's then, so the section also
+keeps Hyrule's, and loading puts it back (the loaded game starts in Hyrule, at OoT's respawn).
+
+**A save from before Termina** (no section): the first dawn, not whatever the last file left
+behind (the OnLoadGame hook).
+
+**Checked headless** (`NV_MM_SAVETEST=save`, then `=load`): Day 2 21:35 saved in Termina, with
+Hyrule at noon, came back as Day 2 21:35, with Hyrule's noon back in OoT's time. The file holds
+`termina` next to `base`, `sohStats` and the trackers' sections.
+
+Not yet: respawning in Clock Town (owl statues) instead of OoT's respawn.
+
+### Exits (2026-11-20)
+
+Each scene's exit list is MM's own (0x13), with MM's entrance numbers turned into ours
+(`mm_entrances.py`, shared by the table generator and the converter so they always agree). The
+number of exits is the highest exit index the collision's surfaces use.
+- **A way into a place we have** goes there: Clock Town's six scenes reach each other as in MM.
+- **A way into a place not built yet** (Termina Field, the Laundry Pool, the shops, ...) goes
+  to a "back" entrance: the same scene, at its start position nearest that exit, which is the
+  spot that place's own exit would bring Link to. "The rest of Termina isn't built yet. You turn
+  back." shows once the fade is done (`z_nv_mm.c`), as RE1's unbuilt doors say so.
+  - The back entrances are a second block after the arriving ones
+    (`ENTR_MM_BACK_FIRST..LAST`); as a place gets built, its exits stop using them.
+
+**Checked headless:** walking east out of South Clock Town arrives in East Clock Town. Walking
+out of the south gate (Termina Field) comes back to the gate, with the note.
+
+Not yet: doors (MM's door actors, 0x0E transition actors, need actors first); the ways in
+that need a form or an event (the clock tower's door opens on the final night).
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
@@ -128,9 +171,11 @@ RE1 pieces that MM's plans run into, to raise with the user before building the 
   (z_kaleido_scope_PAL.c, z_kaleido_setup.c). MM's mask screen and Bomber's Notebook would hook
   the same place, gated by Termina's scenes the same way.
 - **Saving.** RE1 keeps its state in its own file next to each SoH save
-  (`Save/nv_re1_<file>.sav`, NvSaveFile.cpp). MM can follow the same pattern
-  (`nv_mm_<file>.sav`). It also uses OoT event flag 0xD7 ("opening seen"); MM's flags should
-  live in its own file, not in OoT's spare flags.
+  (`Save/nv_re1_<file>.sav`, NvSaveFile.cpp), saved at its typewriters. MM doesn't follow
+  that (below, "Saving").
+  - With items mixed across games in a randomizer one day, a file saved apart from OoT's
+    could be reloaded against a newer Hyrule. Worth raising with the RE1 chat when the
+    randomizer comes up; not urgent while RE1's items stay in the mansion.
 - **The scene check** (above): fixed on RE1's side (a50cbcca): `NvRe1_IsScene()` with both ends.
   MM has the same, `NvMm_IsScene()` (`soh/include/z64scene.h`, its range written by
   `soh_tables.py` to `nv_mm_scene_range.h`). Merged re1/foyer into this branch (2026-11-19,
@@ -155,6 +200,8 @@ scenes from 0x10E and entrances from 0xF64, after RE1's. Run it when the scene l
   matrices) and writes Torch's declarations for them.
 - `mm_scene.py`: the scene and room headers, as SoH XML.
 - `soh_tables.py`: the scene and entrance tables.
+- `mm_entrances.py`: where each scene's entrances sit in the table, and MM's entrance numbers
+  turned into ours (shared by `soh_tables.py` and `mm_scene.py`).
 
 - `mm_rom.py`: checks the ROM against known releases (US N64 1.0 so far) and finds files in
   its file table. `python mm/tools/mm_rom.py <rom>` lists Clock Town's files.
