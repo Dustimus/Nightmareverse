@@ -59,6 +59,10 @@ class MMRom:
         i = self.release["files"][name]
         return struct.unpack_from(">4I", self.data, self.release["dmadata"] + 16 * i)
 
+    def entry_index(self, i):
+        """The same, by the file's index in the table."""
+        return struct.unpack_from(">4I", self.data, self.release["dmadata"] + 16 * i)
+
     def rom_offset(self, name):
         return self.entry(name)[2]
 

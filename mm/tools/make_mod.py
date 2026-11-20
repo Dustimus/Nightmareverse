@@ -24,6 +24,7 @@ import zipfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import mm2torch  # noqa: E402
+import mm_objects  # noqa: E402
 import mm_rom  # noqa: E402
 import mm_scene  # noqa: E402
 
@@ -49,6 +50,10 @@ def main():
     shutil.copy(os.path.join(REPO, "mm", "assets", "yml", "config.yml"), yml)
     for s in scenes:
         mm2torch.convert_scene(rom, s, mm_rom.CLOCK_TOWN[s], os.path.join(yml, "mm_us", "scenes"))
+
+    os.makedirs(os.path.join(yml, "mm_us", "objects"))
+    for o in mm_objects.OBJECTS:
+        mm_objects.convert_object(rom, o, os.path.join(yml, "mm_us", "objects"))
 
     torch_out = os.path.join(work, "torch")
     os.makedirs(torch_out)

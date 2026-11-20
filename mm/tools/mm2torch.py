@@ -180,11 +180,14 @@ def mm_scene_collision(sdata):
     raise ValueError("scene has no collision")
 
 
-def yml_assets(a, prefix, header):
+def yml_assets(a, prefix, header, names=None):
+    """Torch declarations for one file's assets. `names` gives some display lists their own
+    symbols (an object's entry points, by the decomp's names), the rest are named by offset."""
+    names = names or {}
     lines = [header]
     for off in sorted(a.dls):
-        lines += [f"{prefix}DL_{off:06X}:", "  type: GFX", f"  offset: 0x{off:06X}",
-                  f"  symbol: {prefix}DL_{off:06X}", ""]
+        sym = names.get(off, f"{prefix}DL_{off:06X}")
+        lines += [f"{sym}:", "  type: GFX", f"  offset: 0x{off:06X}", f"  symbol: {sym}", ""]
     for off in sorted(a.mtx):
         lines += [f"{prefix}Mtx_{off:06X}:", "  type: OOT:MTX", f"  offset: 0x{off:06X}",
                   f"  symbol: {prefix}Mtx_{off:06X}", ""]
