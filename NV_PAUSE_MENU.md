@@ -30,12 +30,15 @@ Decided with the user (2026-11-20):
   would rewrite most of the pause menu's geometry and every RE1 hook in it, and make every page
   narrower.
 - **Alternates in a column:** each side gets alternate pages stacked above and below it.
-- **Peeking, on the box's ceiling and floor** (the user, 2026-11-20). The wood above and below
-  the page is the box's own ceiling and floor, seen from inside, as the side pages are its walls.
-  - The page above is drawn on the ceiling, and the page below on the floor.
-  - Each is joined to the page's outer border (the frame, not the item grid inside it) and
-    widens toward the screen's edge, foreshortened like the side pages.
-  - Only the near part of each shows: the bottom of the page above, the top of the one below.
+- **A flat column that loops** (the user, 2026-11-20; it replaced an earlier take with the
+  pages tilted onto the box's ceiling and floor). The pages stand flat, one above the other,
+  and the column loops: past the last page comes the first again.
+  - **At rest:** the page in front is exactly as OoT has it. The bottom edge of the page above
+    shows over its top border, and the top edge of the page below under its bottom border, flat,
+    with a strip of wood between pages, as between the box's sides.
+  - **A slide moves the column one whole page**, smoothly, never stopping halfway, so it's never
+    "half and half". The page that arrives is whole and in front, its neighbours peeking.
+  - Each page's edges are joined to its outer frame, not to the item grid inside it.
 - **Nothing changes size.** The page, the window and the box stay exactly as OoT has them (the
   user: "if you're changing anything about the actual window size you're probably not doing it
   right"). The alternates use the ceiling and floor space that's already there.
@@ -80,34 +83,42 @@ game builds its own beside the other's:
   - RE1's status and map screens become the Map column's RE1 entry: the same code, called
     from the registry instead of its own hook.
 - **Per side:** the page shown and a slide offset.
-  - Sliding draws the page in front and its neighbours moved up or down by a page's height.
-  - Clipping (a scissor) keeps only the slivers of the neighbours on screen.
+  - Sliding draws the page in front and its neighbours one page's height (plus the wood
+    between) above and below it, all moved by the slide's offset. At rest the neighbours fall
+    mostly off screen and only their near edges show.
+  - The kaleido draws a page from its own vertex arrays, so the column is the same page draw
+    with a vertical offset, clipped to the page's column of the screen.
 - **Kaleido's hooks:**
   - setup: which page opens;
   - the page update: cursor at the top or bottom edge, then slide;
   - the page draw: draw the column.
 
   Small, self-contained additions, with each game's pages in its own files.
-- **Screen room:** the ceiling and floor faces are already there. Drawing a page on them is
-  the side pages' own approach turned 90 degrees, so no resizing.
+- **Screen room:** the strips above and below the page are already there (the box's ceiling
+  and floor wood), so nothing is resized.
   - The HUD (hearts, the buttons) and the name bar are drawn over them, as now.
-  - Most of the ceiling sits behind the HUD, so the page above shows less than the one below.
-    Worth deciding whether its title goes somewhere visible (the mock-up's top label is under
-    the buttons).
+  - The top HUD covers most of the strip above, so the page above shows less than the one
+    below. Worth deciding where its name shows (in the mock-up it's under the hearts and
+    buttons).
 
 ## Mock-up
 
-Shared in the chat on 2026-11-20 (not committed: it's made from the game's own graphics). Two
-versions:
-- **The first** shrank the page to make room for slivers, and put the lower one against the item
-  grid instead of the frame. Both wrong, per the user.
-- **The second** has the page at its real size, "Majora's Mask: Items" on the ceiling and
-  "Resident Evil: Inventory" on the floor, both joined to the frame, with the HUD and name bar
-  over them. The alternates are OoT's page recoloured as stand-ins.
+Shared in the chat on 2026-11-20 (not committed: made from the game's own graphics). Three
+rounds:
+1. **The page shrunk to make room** for slivers, and the lower one against the item grid instead
+   of the frame. Both wrong, per the user.
+2. **The pages tilted onto the box's ceiling and floor.** The user preferred flat pages sliding
+   whole.
+3. **The current design:** a still at rest, and an animation of a slide up (Majora's Mask), down
+   back to OoT, down to Resident Evil, and down again round the loop to Majora's Mask. The other
+   games' pages are OoT's recoloured, as stand-ins.
 
 To remake it:
-- `tools/headless/pause_shots.sh` takes the four pages headless (R turns the box);
-- `tools/headless/pause_mock.py <page> <out>` paints the ceiling and floor.
+- `tools/headless/pause_shots.sh` captures the four sides headless (R turns the box). Run it
+  twice: once normally, and once from a temporary local build with `Interface_Draw` skipped in
+  `Play_DrawOverlayElements` (`z_play.c`; not committed), for a page with no HUD.
+- `tools/headless/pause_mock.py <clean> <with HUD> <out.png> [<out.gif>]` builds the column. The
+  two captures' difference is the HUD, laid back over it exactly.
 
 ## Open questions (the user's)
 
