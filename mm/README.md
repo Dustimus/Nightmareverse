@@ -220,6 +220,14 @@ the world contradicting the player:
 Rewards can't be duplicated either way, since they'll be permanent checks. Some are balance
 questions for later, such as Powder Kegs. None of these items exist yet.
 
+**Chests and other checks across cycles (reference, 2026-11-20).** MM's standalone randomizer
+(MMR) keeps a location's flag through the Song of Time whenever it holds a real item (MM's own
+table of scene flags that survive the cycle), so such a chest stays open. Only rupees, ammo and
+a few bottle contents refill, and some spots give rupees on later cycles. It has an option to
+return quest and trade items after the Song of Time. Here, the user leans towards chests not
+resetting at all (OoT's rupees are plentiful and ammo isn't taken), to be weighed when chests
+are ported.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the
