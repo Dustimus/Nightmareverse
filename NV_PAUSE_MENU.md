@@ -33,9 +33,11 @@ Decided with the user (2026-11-20):
 - **A flat column that loops** (the user, 2026-11-20; it replaced an earlier take with the
   pages tilted onto the box's ceiling and floor). The pages stand flat, one above the other,
   and the column loops: past the last page comes the first again.
-  - **At rest:** the page in front is exactly as OoT has it. The bottom edge of the page above
-    shows over its top border, and the top edge of the page below under its bottom border, flat,
-    with a strip of wood between pages, as between the box's sides.
+  - **At rest:** the page in front is exactly as OoT has it, and nothing overlaps it. The
+    neighbours sit a good gap away. All that shows of them is a thin strip at the screen's very
+    top (the bottom of the page above, its frame) and very bottom (the top of the page below,
+    its frame and title), enough to see there's a page there, not its items (the user,
+    2026-11-20).
   - **A slide moves the column one whole page**, smoothly, never stopping halfway, so it's never
     "half and half". The page that arrives is whole and in front, its neighbours peeking.
   - Each page's edges are joined to its outer frame, not to the item grid inside it.

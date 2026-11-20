@@ -22,7 +22,8 @@ clean = Image.open(sys.argv[1]).convert("RGB")
 with_hud = Image.open(sys.argv[2]).convert("RGB")
 W, H = clean.size
 L, R, T, B = 61, 564, 75, 389  # the page's outer border (the frame), Items side
-GAP = 12                        # wood between pages in the column
+GAP = 60                        # wood between pages: at rest the neighbours show only a thin
+                                # strip at the screen's very top and bottom, clear of the page
 board = clean.crop((L, T, R, B))
 bw, bh = board.size
 STEP = bh + GAP
@@ -37,7 +38,7 @@ def stand_in(rgb, label, grey=False):
     d = ImageDraw.Draw(img)
     title_bg = img.getpixel((bw // 2, 6))
     d.rectangle((110, 6, bw - 110, 34), fill=title_bg)  # its name over "SELECT ITEM"
-    for y in (8, bh - 28):  # as the title, and along the bottom edge (what peeks from above)
+    for y in (8,):  # as the title (seen once it has slid in)
         w = d.textlength(label, font=font)
         d.text(((bw - w) / 2, y), label, font=font, fill=(240, 235, 255), stroke_width=2, stroke_fill=(0, 0, 0))
     return img
