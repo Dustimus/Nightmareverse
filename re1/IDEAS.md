@@ -31,7 +31,10 @@ here is agreed or scheduled.
   port with the Zelda layer on top.)
 - Bosses: how they'll work.
 - Bomb collision on a layer of its own ("BombWall"), so bombs can bounce off room bounds without
-  affecting anything else (walls are about railing/door height now).
+  affecting anything else (walls are about railing/door height now). Done 2026-11-20 (README, "The bomb layer").
+- Furniture tops (2026-11-20, from the user): collision on top of furniture, starting with the
+  dining room's table (climbable is fine), with heights set by hand; the key to joining the dining
+  room and its balcony into one room, which would feel very Zelda.
 
 ## What people liked
 - Link's moveset in RE: fun, overpowered.

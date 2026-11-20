@@ -54,7 +54,7 @@ static s32 NvBw_In(f32 x, f32 z) {
 
 /**
  * After a bomb's or an arrow's own collision this frame: if it just crossed out of the floor plan,
- * it's put back where it was and given a wall facing back into the room (its wall flag and
+ * it's put back at the edge on its way out and given a wall facing back into the room (its wall flag and
  * wallYaw, which OoT's bombs bounce off). True if it was stopped.
  */
 s32 NvBombWall_Check(PlayState* play, Actor* a) {
@@ -82,8 +82,26 @@ s32 NvBombWall_Check(PlayState* play, Actor* a) {
     printf("NVBOMBWALL actor %04X stopped at %.0f,%.0f,%.0f (wall facing %04X)\n", a->id, p->x, p->y, p->z,
            (u16)yaw);
     fflush(stdout);
-    p->x = q->x;
-    p->z = q->z;
+    {
+        // back to the last place inside along its way (an arrow goes 150 a frame: it stops at the
+        // wall, not short of it)
+        f32 lo = 0.0f;
+        f32 hi = 1.0f;
+        s32 k;
+
+        for (k = 0; k < 10; k++) {
+            f32 m = (lo + hi) * 0.5f;
+
+            if (NvBw_In(q->x + (p->x - q->x) * m, q->z + (p->z - q->z) * m)) {
+                lo = m;
+            } else {
+                hi = m;
+            }
+        }
+        p->x = q->x + (p->x - q->x) * lo;
+        p->y = q->y + (p->y - q->y) * lo;
+        p->z = q->z + (p->z - q->z) * lo;
+    }
     a->wallYaw = yaw;
     a->bgCheckFlags |= BGCHECKFLAG_WALL;
     return true;

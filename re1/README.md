@@ -470,11 +470,17 @@ next visit has the other zombie.
 Ramps: the stairs inside rooms (203's grand staircase, 207's, 20E's) are walked; the stairs RE1
 treats as doors (the foyer's to 203, 10B to 207) stay doors.
 
-Later: ceilings, so OoT's thrown things (bombs) stay in the room; RE1 has none. A first try
-(a ceiling over every floor) boxed Link in, most likely by pushing the collision past OoT's
-polygon budget (the foyer went from 7.4k to 9.4k polygons): it needs merged floor and wall
-polygons first. Heights per room: to estimate from each room's cameras, checked against the
-backgrounds, or marked by hand.
+The bomb layer (2026-11-20, the Discord's "BombWall" idea in IDEAS.md; `soh/src/code/z_nv_bombwall.c`,
+`tools/re1_floor.py` bombwall_blob): the walls stay door height, and bombs, bomb flowers and arrows
+(and Deku nuts, which fly as arrows) can't leave a room over them. Each room has its floor plan as a
+grid (`<name>_bombwall`: the floor, both levels and the stairs, its holes filled so things fly over
+furniture, grown out to where the walls stand); one about to leave it, at any height, stops at its
+edge: a bomb gets OoT's own wall bounce, an arrow sticks. Link, the enemies and the camera never see
+it, so it can't box anyone in the way taller walls or ceilings did (a first try at ceilings over
+every floor pushed the collision past OoT's polygon budget). One line each in En_Bom, En_Bombf and
+En_Arrow. Checked headless in 103: bombs and nuts sent over the walls stop at them and fall back
+into the room. Dev: NV_WALK `bomb:yaw,speed,vy` (a lit bomb from above Link's head, tenths) and
+`nut:yaw,pitch` (degrees).
 
 Later: a way in through a Lost Woods wrong turn, alongside the warp song.
 
@@ -498,7 +504,8 @@ checkpoint, `flagdump.py` the story flags between saves; each says how it's laid
 walkthrough runs from a typewriter-style checkpoint (`NV_BOOT_ENTRANCE=warp` with a slot copied
 in) and an `NV_WALK` step list, `;`-separated: `x,z` walks, `pos:`, `face:`, `wait:N`, `a`, `b`,
 `doorto:XXX` / `door:N` / `aot:N` (walk into a door or action entry and press A), `use:XX`,
-`check:XX`, `drop:XX`, `equip:XX`, `faceenemy` (turn to the nearest of RE1's enemies), `cl:N`
+`check:XX`, `drop:XX`, `equip:XX`, `faceenemy` (turn to the nearest of RE1's enemies), `bomb:` and
+`nut:` (see the bomb layer), `cl:N`
 (aim and fire), `list` (the room's doors and live action entries), `mark:N`, `save`. Settings:
 `NV_GODMODE`, `NV_GIVE` / `NV_EQUIP`, `NV_FLAGS="bank:bit,-bank:bit"` (set or clear, on a new game
 or a loaded save), `NV_WORD="i:v"` (a state word, also on a loaded save: 4 restarts the countdown),
