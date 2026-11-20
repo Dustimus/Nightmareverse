@@ -24,6 +24,8 @@ These hold for every game in the project.
   [ecruells/resident-evil-pc-decomp](https://github.com/ecruells/resident-evil-pc-decomp),
   GPL-3), we read it to learn the game's rules and write our own code from them. Its code isn't
   copied here.
+  - For Majora's Mask (same engine family), its decomp's actors are ported closely, adapted only
+    where OoT's engine calls differ (decided with the user, 2026-11-20; `mm/README.md`).
 - **The original game's rules win.** When a game's behaviour is in question, its own code (the
   decomp, or the executable) decides, not a guess. RE1 doesn't take its rules from the older N64
   demo (`dustimus/mod1`, a separate self-contained project).

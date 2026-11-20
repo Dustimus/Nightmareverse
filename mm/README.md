@@ -6,9 +6,14 @@ save. The design talk and the decisions made with the user so far are in `../NV_
 
 Same ground rules as every game here (`../NIGHTMAREVERSE.md`):
 - no MM data in the repository;
-- the player's own ROM is converted locally into `mm.o2r`;
-- MM's decomp (zeldaret/mm) and 2Ship2Harkinian are read to learn the rules, and their code
-  isn't copied.
+- the player's own ROM is converted locally into `mm.o2r`.
+
+**MM's code (decided with the user, 2026-11-20):** MM runs on the same engine family as OoT, so
+its actors are ported from MM's decomp (zeldaret/mm, read through 2Ship2Harkinian's copy)
+closely: the same logic, constants and order, adapted only where OoT's engine calls differ, and
+noted in each file's header. That's fewer bugs than reimplementing from behaviour. It isn't the
+RE1 approach, where the game had to be heavily adapted either way. Each ported file names the
+MM actor it comes from.
 
 ## First target: Clock Town (started 2026-11-19)
 
