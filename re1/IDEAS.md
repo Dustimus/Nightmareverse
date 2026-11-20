@@ -35,6 +35,10 @@ here is agreed or scheduled.
 - Furniture tops (2026-11-20, from the user): collision on top of furniture, starting with the
   dining room's table (climbable is fine), with heights set by hand; the key to joining the dining
   room and its balcony into one room, which would feel very Zelda.
+  - RE1's enemies don't know heights: a zombie beside the table can grab Link standing on it. The
+    user's fine with that (it grabs his legs).
+  - Merged with the balcony, the only zombie is the balcony's: better that it can't fall down to
+    the dining room (it stays up there).
 
 ## What people liked
 - Link's moveset in RE: fun, overpowered.
