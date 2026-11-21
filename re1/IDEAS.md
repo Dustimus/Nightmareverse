@@ -40,6 +40,15 @@ here is agreed or scheduled.
     user's fine with that (it grabs his legs).
   - Merged with the balcony, the only zombie is the balcony's: better that it can't fall down to
     the dining room (it stays up there).
+  - Two ways to join (2026-11-21, from the user). Being tried on re1/dining-merge first: Link
+    dropping through the statue's gap goes straight into the dining room with no fade, keeping
+    his fall and run. The point is that he lands where he was aiming, not on a fixed spot.
+    The user expects to tune this more.
+  - The way the user thinks may look cleaner: a real combined room, where the balcony (202)
+    includes the dining room (105) and checks all the same flags. The dining room wouldn't need
+    to include the balcony; that direction is the one that gets messy. RE1's scripts for the two
+    rooms are a little odd. The balcony zombie could be a problem unless it is only triggered by
+    coming in through the balcony door. To decide after the user's playtest.
 
 ## What people liked
 - Link's moveset in RE: fun, overpowered.
