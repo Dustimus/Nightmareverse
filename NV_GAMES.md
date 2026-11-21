@@ -279,6 +279,30 @@ Their worry: Colosseum's own roster is small (its Shadow Pokémon).
 - **Catching:** Colosseum has no wild catching, only snagging from trainers. The catch formula
   is the same Gen 3 one, so wild catching in Hyrule is a design addition, not new rules.
 
+## 3DS graphics (looked into 2026-11-21, the user's question)
+
+**Zelda3D** (github.com/SomeoneIsWorking/zelda3d, GPL-3, AI-assisted, active, Linux only so far):
+- **What it is:** SoH and 2Ship2Harkinian vendored side by side as two separate game cores behind
+  a chooser. The N64 decomps keep the game logic, and a layer swaps in OoT3D's and MM3D's own
+  models, animations, scene geometry, collision, cameras and lighting, read from the player's
+  decrypted .3ds files, with a PICA200 (3DS GPU) material and lighting pipeline. Parity is
+  measured against an embedded 3DS emulator.
+- **Its own state table:** most of it is still "partial". MM's fog colour, many actors'
+  animations (falling back to N64), and Windows and macOS aren't done.
+- **The size of it:** about 280 files of its own layer, with about 560 of SoH's files touched.
+
+**For Nightmareverse:** not a drop-in.
+- MM stays in its own 2Ship core there, where ours is merged into SoH.
+- Its changes touch the same OoT files as RE1's and MM's hooks.
+- It brings the 3DS rooms' own geometry and collision, not just new models, so it's more than
+  a model swap.
+
+A later option rather than now, if it matures: take its 3DS asset readers and renderer as an
+optional layer, or line our hooks up with its seams. The lighter route works today for OoT's
+side: SoH's own replacement packs (textures and models in a mod archive) need no code. MM's
+side here uses `mm/` paths, so 2Ship-style packs would need remapping. The two GameBanana
+links couldn't be opened from the session (the host isn't on its network allowlist).
+
 ## Ideas that cross games
 
 - **Cross-game randomizer.**
