@@ -222,6 +222,13 @@ The default is shared or carried over. A Termina-only piece needs a reason.
     Sword (or Biggoron's) as well as the Double Helix. That also keeps him from being
     overpowered everywhere. To work out then: his hand's attachment point for OoT's sword models,
     and the damage following the equipped sword.
+  - **His size (checked in the two ROMs, 2026-11-21):** the Fierce Deity's skeleton is adult Link's
+    exactly (all 21 bones, same lengths and hierarchy). MM draws him at 1.5 times (scale 0.015
+    against 0.01, `z_player_lib.c`), with his movement values scaled to match (ceiling check 84
+    against adult Link's 56; ledge and step heights 1.5 times). OoT's dungeons and doorways are
+    built for adult Link, so at MM's size he'd bump ceilings and fail ledges. Drawn at 0.01 with
+    adult Link's values he'd be an exact stand-in, adult animations and all; or adult-sized in
+    general and MM-sized in big rooms.
   - **Magic:** the Double Helix Sword is what uses magic (its energy beams), not the mask. That's
     already how MM has it: the Fierce Deity's sword beams cost magic, and wearing the mask
     doesn't.
