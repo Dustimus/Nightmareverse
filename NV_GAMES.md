@@ -272,6 +272,18 @@ a small, distant version of it for Termina Field: the clock tower actor's Termin
 from Hyrule Field, or in the conspicuously empty corner outside Castle Town (the one fans think
 was once a way into the castle). Open: whether its clock runs on Termina's time.
 
+**Masks (the user's ideas, 2026-11-21, for later):**
+- **OoT's people react to the Goron and Zora forms as to the masks.** OoT already has a Goron
+  Mask and a Zora Mask (the Happy Mask Shop's), with lines for them. Transformed, Link counts as
+  wearing that mask (Player_GetMask), so OoT's own reactions play as they are, as if the people
+  are in on the secret. Lines that read oddly can be touched up later.
+- **The Spooky, Skull and Gerudo Masks (OoT only) join MM's mask screen.** MM's 24 mask slots
+  are full, so the transformation masks could move out (to their own place) to make room.
+  Keaton, Bunny Hood and Mask of Truth are in both games and share a slot. OoT's Goron and Zora
+  masks sit next to MM's forms, to decide.
+- **A fake Majora's Mask as the last mask**, since players were disappointed not to get it at
+  the end.
+
 ## Pokémon system (talked over with the user, 2026-11-19)
 
 The user's idea: bring Colosseum's Pokémon system into the world, not necessarily Orre itself.
