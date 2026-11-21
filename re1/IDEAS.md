@@ -169,6 +169,10 @@ here is agreed or scheduled.
   consent is the uncomfortable route, even for friends only; a sound-alike performer who agrees
   to it (with a similar filter on top) is the clean one, and the only one for a wider release.
 
+- Who Jill is (from the user, 2026-11-21; to decide after the user's playtest, which they'll play
+  through with it in mind): a character of her own, the fairy, Navi herself, or something else.
+  The question is how jarring each would be.
+
 ## Longer days in Hyrule (from the user, 2026-11-19; for later, not planned)
 
 - MM-length days in Hyrule (if Termina's clock ever comes over) would break less than expected:

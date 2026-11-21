@@ -119,6 +119,13 @@ the two out of each other's way:
   `NvRe1_IsScene()` (`soh/include/z64scene.h`, its range from `nv_re1_scene_range.h`, which
   `soh_tables.py` writes), and another game's tables should give it the same kind of helper.
 
+## Plans from the user
+
+- A 3D layer later (2026-11-21, a heads-up, nothing planned yet): Ocarina of Time 3D's and Majora's
+  Mask 3D's look may come in as a layer over SoH's, leaving OoT itself alone. It shouldn't touch
+  RE1, and the user doesn't want a more modern Link in RE1's rooms anyway, so RE1 keeps the N64
+  Link it has.
+
 ## Ideas that cross games
 
 `re1/IDEAS.md` already has some: getting to the mansion from Hyrule (the Lost Woods), RE1 items
