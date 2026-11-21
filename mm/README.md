@@ -300,6 +300,26 @@ Ported closely, with MM's models (`object_lodmoon`, `object_fall`):
 - **Not yet:** the crash (its cutscene, fire balls, debris, fire ring), the Moon's Tear, the
   open-mouthed moon, and the eyes' glow (only cutscenes change it).
 
+### The first townsfolk: the carpenters (2026-11-21, `soh/src/code/z_nv_mm_daiku.c`, MM's En_Daiku)
+
+- **Characters' models:** the object extraction now takes skeletons (flex, standard limbs:
+  walked from the skeleton's limb table), limbs and animations, as well as display lists
+  (`mm_objects.py`). `object_daiku` gives the skeleton, 21 display lists, 13 textures and 12
+  animations. Drawn and animated by path with OoT's own SkelAnime.
+- **Scene paths:** MM's path lists (0x0D) now come over as SoH's Path resource beside each
+  scene (`<scene>_paths`, `mm_scene.py`), so actors that walk paths can.
+- **The carpenters:** ported closely.
+  - In South Clock Town by their half-days: one standing, three hammering (two swings in
+    turn), three walking paths 5 and 6 carrying planks, each with its own hat and colours.
+  - **Checked headless** on Day 1 at 10:00: the hammerer and the walker with his plank, the
+    walker moving along his path between shots.
+  - **Not yet:** talking (MM's text comes next; MM offers it for types 1-3), Kafei's mask's
+    line, and the mayor's meeting flag for type 0.
+- **A slip, caught:** at first the carpenter was registered under 0x14D, which is MM's
+  `Obj_Entotu` (the rooftop chimneys). So "carpenters" stood on the chimneys' spots at y 553,
+  out in the void. The right id is 0x09C. Check ids against the decomp's actor table, not
+  against counted lists.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

@@ -17,6 +17,11 @@ void NvMmFall_Init(Actor* thisx, PlayState* play);
 void NvMmFall_Destroy(Actor* thisx, PlayState* play);
 void NvMmFall_Update(Actor* thisx, PlayState* play);
 extern const size_t gNvMmFallSize;
+void NvMmDaiku_Init(Actor* thisx, PlayState* play);
+void NvMmDaiku_Destroy(Actor* thisx, PlayState* play);
+void NvMmDaiku_Update(Actor* thisx, PlayState* play);
+void NvMmDaiku_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmDaikuSize;
 }
 
 struct NvMmActorDef {
@@ -26,6 +31,7 @@ struct NvMmActorDef {
     u32 flags;
     const size_t* size;
     ActorFunc init, destroy, update;
+    ActorFunc draw = nullptr;
 };
 
 // by MM's actor id
@@ -37,6 +43,9 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
       { "Mm_En_Fall", "MM: the moon", ACTORCAT_ITEMACTION,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmFallSize, NvMmFall_Init,
         NvMmFall_Destroy, NvMmFall_Update } },
+    { 0x09C,
+      { "Mm_En_Daiku", "MM: a carpenter", ACTORCAT_NPC, ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY,
+        &gNvMmDaikuSize, NvMmDaiku_Init, NvMmDaiku_Destroy, NvMmDaiku_Update, NvMmDaiku_Draw } },
 };
 
 /** The SoH actor id for one of MM's actor ids, or -1 if it isn't ported. */
@@ -61,7 +70,7 @@ extern "C" s32 NvMmActor_Id(s32 mmId) {
     entry.init = def->second.init;
     entry.destroy = def->second.destroy;
     entry.update = def->second.update;
-    entry.draw = NULL; // (each piece sets its own in init)
+    entry.draw = def->second.draw; // (or none: the actor sets its own in init)
     int id = ActorDB::Instance->AddEntry(entry).entry.id;
     ids[mmId] = id;
     return id;
