@@ -332,6 +332,19 @@ side: SoH's own replacement packs (textures and models in a mod archive) need no
 side here uses `mm/` paths, so 2Ship-style packs would need remapping. The two GameBanana
 links couldn't be opened from the session (the host isn't on its network allowlist).
 
+## A demake of OoT's Switch 2 remake (the user's idea, 2026-11-21; its own project, not here)
+
+Bring the remake's new story content and its better gameplay changes back into OoT (SoH),
+leaving out the changes the user doesn't like. Kept out of this repository and this chat: a
+remake still on sale draws far more of Nintendo's attention than 25-year-old games (the GTA III
+reasoning).
+- **Text:** the remake's text is in its own data files (MSBT on Switch), readable from the
+  player's own dump with ordinary tools, converted locally and never committed (as MM's is here).
+- **Logic:** there's no decomp of it. Longshot (git.magicbean.dev, a GPL static recompiler of the
+  remake, Hookshot's fork) translates its code for running, not for reading, and needs the
+  console's keys (the issue Nintendo sued Yuzu over). So the gameplay changes would be
+  rebuilt by watching the remake, not ported.
+
 ## Ideas that cross games
 
 - **Cross-game randomizer.**
