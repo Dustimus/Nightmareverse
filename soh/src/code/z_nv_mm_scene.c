@@ -30,8 +30,12 @@ static void NvMmScene_ClearCycle(SavedSceneFlags* f) {
 
 /** The Song of Time (and the moon's fall): every Termina scene's cycle flags go, and the scene Link
  * is in drops its own live ones too, so leaving it doesn't write them back. */
+void NvMm_WeekEventsNewCycle(void);
+
 void NvMmScene_SongOfTime(PlayState* play) {
     s32 i;
+
+    NvMm_WeekEventsNewCycle();
 
     for (i = 0; i < NV_MM_SCENES; i++) {
         NvMmScene_ClearCycle(&sMmFlags[i]);
@@ -47,6 +51,7 @@ void NvMmScene_SongOfTime(PlayState* play) {
 
 /** A new game, or a save from before Termina. */
 void NvMmScene_NewGame(void) {
+    NvMm_WeekEventsNewCycle();
     memset(sMmFlags, 0, sizeof(sMmFlags));
 }
 
@@ -61,4 +66,32 @@ const char* NvMmScene_Name(s32 i) {
 
 SavedSceneFlags* NvMmScene_At(s32 i) {
     return &sMmFlags[i];
+}
+
+/*
+ * MM's week event flags (the save's weekEventReg: 100 bytes of bits, the decomp's WEEKEVENTREG_*,
+ * byte and bit as MM numbers them, e.g. WEEKEVENTREG_12_20 = byte 12, bit 0x20). Termina's actors set
+ * and test them as MM's do. Kept in the "termina" save section's cycle part, so the Song of Time
+ * clears them, as MM clears most; the few MM keeps across cycles get kept here as they come up.
+ */
+static u8 sMmWeekEventReg[100];
+
+s32 NvMm_CheckWeekEvent(s32 flag) { // flag = (byte << 8) | bit, as MM's WEEKEVENTREG_* values are
+    return (sMmWeekEventReg[(flag >> 8) % 100] & (flag & 0xFF)) != 0;
+}
+
+void NvMm_SetWeekEvent(s32 flag) {
+    sMmWeekEventReg[(flag >> 8) % 100] |= (flag & 0xFF);
+}
+
+void NvMm_ClearWeekEvent(s32 flag) {
+    sMmWeekEventReg[(flag >> 8) % 100] &= ~(flag & 0xFF);
+}
+
+u8* NvMm_WeekEventReg(void) { // (NvMmSave.cpp)
+    return sMmWeekEventReg;
+}
+
+void NvMm_WeekEventsNewCycle(void) {
+    memset(sMmWeekEventReg, 0, sizeof(sMmWeekEventReg));
 }

@@ -343,6 +343,35 @@ Ported closely, with MM's models (`object_lodmoon`, `object_fall`):
 - The carpenters talk now (MM's day-by-type lines, offered as MM offers them). Kafei's mask's
   lines wait for that mask.
 
+### The gate guards (2026-11-21, `soh/src/code/z_nv_mm_stopheishi.c`, MM's En_Stop_heishi)
+
+Ported closely, MM's soldier model (`object_sdn`), one in each of Clock Town's four gates:
+- **While Link may not leave,** the guard steps sideways along the gate to stay in his way
+  (within his reach of the post; a tall, wide collider), and goes back to his post when Link
+  walks off.
+- **Talking to him with a sword** runs his whole conversation (the second line follows the
+  first), and MM's week event 12_20 lets Link through from then on. After that the guard stands
+  with a small collider and his lines change.
+- **His lines** are MM's, by gate, day, night and whether Link has a sword.
+- **His pose:** hand on hip by day, looking down at night, hand on chest on the final day, when
+  he also looks about nervously.
+
+**MM's week event flags** came in for it (`z_nv_mm_scene.c`: MM's 100-byte weekEventReg, flags as
+MM numbers them, e.g. 12_20 = byte 12, bit 0x20), in the save's `cycleWeekEvents`, cleared by the
+Song of Time as MM clears most.
+
+**Checked headless,** South Clock Town, Day 1:
+- walking into the gate without talking, the guard blocks and Link never gets past;
+- after the whole conversation (seven presses: "It is dangerous outside the town walls...
+  ...A sword? ... My apologies, sir. It was wrong of me to treat you like a child."), Link walks
+  round him and out of the south gate, to the "not built yet" note;
+- with more presses, the next talk gives his "may leave" line ("The southern swamp at Woodfall
+  lies in this direction. Be careful."), as in MM.
+
+**Not yet:** the transformations' lines (no forms yet), Takkuri's stolen sword, the
+final-day head turns at each earthquake (no earthquakes yet), and his footstep sound (MM's
+own).
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

@@ -22,6 +22,11 @@ void NvMmDaiku_Destroy(Actor* thisx, PlayState* play);
 void NvMmDaiku_Update(Actor* thisx, PlayState* play);
 void NvMmDaiku_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvMmDaikuSize;
+void NvMmStopheishi_Init(Actor* thisx, PlayState* play);
+void NvMmStopheishi_Destroy(Actor* thisx, PlayState* play);
+void NvMmStopheishi_Update(Actor* thisx, PlayState* play);
+void NvMmStopheishi_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmStopheishiSize;
 }
 
 struct NvMmActorDef {
@@ -46,6 +51,10 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x09C,
       { "Mm_En_Daiku", "MM: a carpenter", ACTORCAT_NPC, ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY,
         &gNvMmDaikuSize, NvMmDaiku_Init, NvMmDaiku_Destroy, NvMmDaiku_Update, NvMmDaiku_Draw } },
+    { 0x1C7,
+      { "Mm_En_Stop_heishi", "MM: a gate guard in Clock Town", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY, &gNvMmStopheishiSize, NvMmStopheishi_Init,
+        NvMmStopheishi_Destroy, NvMmStopheishi_Update, NvMmStopheishi_Draw } },
 };
 
 /** The SoH actor id for one of MM's actor ids, or -1 if it isn't ported. */

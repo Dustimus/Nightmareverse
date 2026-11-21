@@ -39,6 +39,13 @@ OBJECTS = {
     "object_fall": (882, {"dl": {  # the full moon, and the crash's pieces (En_Fall)
         "gMoonDL": 0x77F0,
     }}),
+    "object_sdn": (926, {  # the soldiers (En_Stop_heishi, and others)
+        "skel": {"gSoldierSkel": 0xD640},
+        "anim": {"gSoldierLookDownAnim": 0x4AC0, "gSoldierComeUpHereAnim": 0x5320,
+                 "gSoldierStandHandOnHipAnim": 0x6C18, "gSoldierStandAndLookDownAnim": 0xDC7C,
+                 "object_sdn_Anim_0057BC": 0x57BC, "object_sdn_Anim_005D28": 0x5D28,
+                 "object_sdn_Anim_0064C0": 0x64C0, "gSoldierStandWithHandOnChestAnim": 0xA54},
+    }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)

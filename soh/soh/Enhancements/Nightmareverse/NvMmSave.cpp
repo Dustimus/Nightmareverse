@@ -28,6 +28,7 @@ void NvMmClock_NewGame(void);
 int32_t NvMmScene_Count(void);
 const char* NvMmScene_Name(int32_t i);
 SavedSceneFlags* NvMmScene_At(int32_t i);
+uint8_t* NvMm_WeekEventReg(void);
 }
 
 static bool sTerminaLoaded; // this load had a "termina" section
@@ -53,6 +54,10 @@ static void NvMmSave_Save(const SaveContext& saveContext, int sectionID, bool fu
                 });
             }
         });
+    });
+    SaveManager::Instance->SaveStruct("cycleWeekEvents", []() { // MM's weekEventReg (cleared each cycle)
+        uint8_t* w = NvMm_WeekEventReg();
+        SaveManager::Instance->SaveArray("weekEventReg", 100, [w](size_t i) { SaveManager::Instance->SaveData("", w[i]); });
     });
     SaveManager::Instance->SaveStruct("permanent", []() {
         SaveManager::Instance->SaveStruct("scenes", []() { // collectibles, visited rooms and floors
@@ -91,6 +96,10 @@ static void NvMmSave_Load() {
                 });
             }
         });
+    });
+    SaveManager::Instance->LoadStruct("cycleWeekEvents", []() {
+        uint8_t* w = NvMm_WeekEventReg();
+        SaveManager::Instance->LoadArray("weekEventReg", 100, [w](size_t i) { SaveManager::Instance->LoadData("", w[i], (uint8_t)0); });
     });
     SaveManager::Instance->LoadStruct("permanent", []() {
         SaveManager::Instance->LoadStruct("scenes", []() {
