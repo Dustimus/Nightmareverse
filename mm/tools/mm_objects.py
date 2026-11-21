@@ -10,13 +10,15 @@ The table below holds only names and offsets (no data); the files come from the 
 """
 
 import os
+import struct
 
 import yaz0
 from mm2torch import Assets, Walker, yml_assets
 
 OBJECTS = {
-    # object: (its index in the US 1.0 file table, {display list symbol: offset})
-    "object_obj_tokeidai": (886, {  # the clock tower and the wall clocks (Obj_Tokeidai)
+    # object: (its index in the US 1.0 file table, {"dl": {symbol: offset}, "skel": {symbol: offset}
+    #          (flex or plain, standard limbs; their limbs are found from them), "anim": {symbol: offset}})
+    "object_obj_tokeidai": (886, {"dl": {  # the clock tower and the wall clocks (Obj_Tokeidai)
         "gClockTowerTerminaFieldWallsDL": 0x9A08,
         "gClockTowerSpotlightDL": 0xB0C0,
         "gClockTowerCounterweightDL": 0xB208,
@@ -29,28 +31,60 @@ OBJECTS = {
         "gClockTowerStaircaseToRooftopDL": 0xD8E8,
         "gClockTowerClockFaceDL": 0xE818,
         "gWallClockClockFaceDL": 0xF518,
-    }),
-    "object_lodmoon": (1020, {  # the far, low-detail moon (En_Fall)
+    }}),
+    "object_lodmoon": (1020, {"dl": {  # the far, low-detail moon (En_Fall)
         "gLodmoonEyesDL": 0x10E0,
         "gLodmoonMoonDL": 0x1158,
-    }),
-    "object_fall": (882, {  # the full moon, and the crash's pieces (En_Fall)
+    }}),
+    "object_fall": (882, {"dl": {  # the full moon, and the crash's pieces (En_Fall)
         "gMoonDL": 0x77F0,
+    }}),
+    "object_daiku": (779, {  # the carpenters (En_Daiku)
+        "skel": {"object_daiku_Skel_00A850": 0xA850},
+        "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)
+               "object_daiku_DL_006E80": 0x6E80, "object_daiku_DL_006D70": 0x6D70,
+               "object_daiku_DL_008EC8": 0x8EC8},  # the plank one of them carries
+        "anim": {f"object_daiku_Anim_{o:06X}": o for o in
+                 (0x000600, 0x000C44, 0x001114, 0x001A24, 0x002134, 0x002FA0, 0x00ACD0, 0x00B690,
+                  0x00BEAC, 0x00C234, 0x00C92C, 0x00D328)},
     }),
 }
 
 
+def _skeleton_limbs(data, off):
+    """A skeleton's limbs (segment 6 offsets), from its limb table (Standard limbs)."""
+    table = struct.unpack_from(">I", data, off)[0] & 0xFFFFFF
+    count = data[off + 4]
+    return [struct.unpack_from(">I", data, table + 4 * i)[0] & 0xFFFFFF for i in range(count)]
+
+
 def convert_object(rom, name, out):
-    index, dls = OBJECTS[name]
+    index, parts = OBJECTS[name]
     vs, ve, ps, pe = rom.entry_index(index)
     data = yaz0.decompress(rom.data[ps:pe]) if rom.data[ps:ps + 4] == b"Yaz0" else rom.data[ps:ps + ve - vs]
     a = Assets(6, data)
     w = Walker({6: a})
+    dls = dict(parts.get("dl", {}))
+    extra = []
+    for sym, off in parts.get("skel", {}).items():
+        flex = True  # (MM's skeletons here are flex; a plain one would read the same limbs)
+        limbs = _skeleton_limbs(data, off)
+        for lo in limbs:
+            dl = struct.unpack_from(">I", data, lo + 8)[0]
+            if dl:
+                w.walk(dl)
+            extra += [f"{name}_Limb_{lo:06X}:", "  type: OOT:LIMB", f"  offset: 0x{lo:06X}",
+                      f"  symbol: {name}_Limb_{lo:06X}", "  limb_type: Standard", ""]
+        extra += [f"{sym}:", "  type: OOT:SKELETON", f"  offset: 0x{off:06X}", f"  symbol: {sym}",
+                  "  limb_type: Standard", f"  skel_type: {'Flex' if flex else 'Normal'}", ""]
+    for sym, off in parts.get("anim", {}).items():
+        extra += [f"{sym}:", "  type: OOT:ANIMATION", f"  offset: 0x{off:06X}", f"  symbol: {sym}", ""]
     for off in dls.values():
         w.walk(0x06000000 | off)
     header = f":config:\n  segments:\n    - [ 6, 0x{ps:X} ]\n  directory: mm/objects/{name}\n"
     names = {off: sym for sym, off in dls.items()}
     os.makedirs(out, exist_ok=True)
-    open(os.path.join(out, f"{name}.yml"), "w").write(yml_assets(a, name, header, names))
+    open(os.path.join(out, f"{name}.yml"), "w").write(yml_assets(a, name, header, names) + "\n".join(extra) + "\n")
     print(f"{name}: {len(a.dls)} display lists, {len(a.vtx_arrays())} vertex arrays, {len(a.tex)} textures"
+          + (f", {len(parts.get('anim', {}))} animations" if parts.get("anim") else "")
           + (f"; segments not handled: {sorted(w.other_segments)}" if w.other_segments else ""))
