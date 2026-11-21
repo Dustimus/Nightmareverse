@@ -297,6 +297,16 @@ Their worry: Colosseum's own roster is small (its Shadow Pokémon).
 - It brings the 3DS rooms' own geometry and collision, not just new models, so it's more than
   a model swap.
 
+**Decided with the user (2026-11-21): the way to do it later is an optional layer, by area.**
+- In OoT's own areas Link and the world can take the 3DS look. In other games' areas (RE1's
+  mansion first: Link there should stay as he is), and wherever there's no 3DS equivalent, it
+  falls back to the original.
+- Bonus: Zelda3D drives the 3DS faces from Grezzo's facial keyframes (its `.faceb` reader: eye
+  and mouth). Useful later for animated, lip-synced characters (the Tony Hawk's Underground
+  idea, for one).
+- **An early warning:** this layer would touch rendering, models and animation everywhere, every
+  game's areas included. It needs planning with the RE1 chat before any of it is built.
+
 A later option rather than now, if it matures: take its 3DS asset readers and renderer as an
 optional layer, or line our hooks up with its seams. The lighter route works today for OoT's
 side: SoH's own replacement packs (textures and models in a mod archive) need no code. MM's
