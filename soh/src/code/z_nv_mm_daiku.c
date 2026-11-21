@@ -15,8 +15,8 @@
  * Adapted from MM:
  * - the day and night are Termina's clock (z_nv_mm_clock.c);
  * - OoT's collider, movement and ground-check calls for MM's (the same values);
- * - talking is left out until MM's text comes over (types 1-3 offer it in MM; type 0 never does),
- *   and so is Kafei's mask's line;
+ * - their lines are MM's own text (NvMmText.cpp: MM text id + 0xB000); Kafei's mask's lines aren't
+ *   in yet (no Kafei's Mask);
  * - paths: MM's SubS_GetPathByIndex / SubS_CopyPointFromPath as two small functions on OoT's
  *   setupPathList (the scene's paths, mm_scene.py);
  * - the mayor's meeting has no flag yet, so type 0 stays until the final night.
@@ -121,6 +121,13 @@ static void NvMmDaiku_NextPoint(NvMmDaiku* this) {
     }
 }
 
+#define NV_MM_TEXT(id) (0xB000 + (id)) // MM's text id, as Termina's text box takes it (NvMmText.cpp)
+
+// each day's line, by day (1-3) and type (MM's sTextIds)
+static u16 sTextIds[] = {
+    0x061C, 0x061A, 0x061B, 0x061C, 0x061C, 0x061D, 0x061E, 0x061F, 0x061C, 0x0620, 0x0621, 0x0622,
+};
+
 static ColliderCylinderInit sCylinderInit = {
     { COLTYPE_NONE, AT_NONE, AC_NONE, OC1_ON | OC1_TYPE_ALL, OC2_TYPE_2, COLSHAPE_CYLINDER },
     { ELEMTYPE_UNK0, { 0x00000000, 0x00, 0x00 }, { 0xF7CFFFFF, 0x00, 0x00 }, TOUCH_NONE | TOUCH_SFX_NORMAL,
@@ -135,6 +142,15 @@ static void NvMmDaiku_ChangeAnim(NvMmDaiku* this, s32 anim) {
 }
 
 static void NvMmDaiku_Idle(NvMmDaiku* this, PlayState* play);
+static void NvMmDaiku_Talking(NvMmDaiku* this, PlayState* play);
+
+static void NvMmDaiku_SetText(NvMmDaiku* this) {
+    s32 i = (NvMmClock_Day() - 1) * 4 + this->type;
+
+    if ((i >= 0) && (i < ARRAY_COUNT(sTextIds))) {
+        this->actor.textId = NV_MM_TEXT(sTextIds[i]);
+    }
+}
 
 static void NvMmDaiku_SetupIdle(NvMmDaiku* this) {
     switch (this->type) {
@@ -151,6 +167,7 @@ static void NvMmDaiku_SetupIdle(NvMmDaiku* this) {
         default:
             break;
     }
+    NvMmDaiku_SetText(this);
     this->yaw = this->actor.shape.rot.y;
     this->func = NvMmDaiku_Idle;
 }
@@ -211,6 +228,12 @@ void NvMmDaiku_Destroy(Actor* thisx, PlayState* play) {
 static void NvMmDaiku_Idle(NvMmDaiku* this, PlayState* play) {
     f32 frame = this->skelAnime.curFrame;
 
+    NvMmDaiku_SetText(this);
+    if (Actor_ProcessTalkRequest(&this->actor, play)) {
+        this->func = NvMmDaiku_Talking;
+        return;
+    }
+
     if ((this->type == 2) && (frame >= this->animEndFrame)) { // hammering: one of two swings, in turn
         NvMmDaiku_ChangeAnim(this, (Rand_ZeroOne() < 0.5f) ? DAIKU_ANIM_7 : DAIKU_ANIM_8);
     }
@@ -235,7 +258,25 @@ static void NvMmDaiku_Idle(NvMmDaiku* this, PlayState* play) {
         }
     }
     if (this->type != 0) {
-        this->yaw = this->actor.yawTowardsPlayer; // (MM offers to talk here; MM's text isn't in yet)
+        s16 angle = ABS(BINANG_SUB(this->actor.yawTowardsPlayer, this->actor.world.rot.y));
+
+        this->yaw = this->actor.yawTowardsPlayer;
+        if ((this->type == 1) || (this->type == 2) || (angle <= 0x2890)) {
+            Actor_OfferTalk(&this->actor, play, 100.0f);
+        }
+    }
+}
+
+/** Talking: the hammering goes on; the line's end (its event code) closes it. */
+static void NvMmDaiku_Talking(NvMmDaiku* this, PlayState* play) {
+    f32 frame = this->skelAnime.curFrame;
+
+    if ((this->type == 2) && (frame >= this->animEndFrame)) {
+        NvMmDaiku_ChangeAnim(this, (Rand_ZeroOne() < 0.5f) ? DAIKU_ANIM_7 : DAIKU_ANIM_8);
+    }
+    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
+        Message_CloseTextbox(play);
+        NvMmDaiku_SetupIdle(this);
     }
 }
 

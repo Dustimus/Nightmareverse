@@ -320,6 +320,29 @@ Ported closely, with MM's models (`object_lodmoon`, `object_fall`):
   out in the void. The right id is 0x09C. Check ids against the decomp's actor table, not
   against counted lists.
 
+### MM's text (2026-11-21, `tools/mm_text.py`, `soh/soh/Enhancements/Nightmareverse/NvMmText.cpp`)
+
+- **Where it comes from:** MM's message table, in its `code` file (US 1.0: 0x1210D8, 4,589
+  messages), pointing into `message_data_static`. Each message has an 11-byte header (box type,
+  position, icon, next id, two prices), then ASCII with MM's control codes.
+- **Converted to OoT's codes** when the mod is made:
+  - colours (silver as white, orange as yellow, OoT having neither);
+  - newline, box breaks, shift, the player's name, quick text, events, persistent, delayed box
+    break, fade;
+  - two and three choices; the button and stick icons.
+  - Left out: MM's counters, timers, codes, prices, and sound effects (MM's own ids).
+
+  One blob resource, `mm/text/messages` ("MTXT", sorted by id).
+- **In the game:** a Termina actor asks for MM text id N as `0xB000 + N`, a range clear of OoT's
+  ids and RE1's 0xA1E0. SoH's OnOpenText hook fills OoT's text box from the resource, as
+  NvMessages.cpp does for RE1's. `NvMmText_Next(id)` gives a message's next id, for actors
+  that chain.
+- **Checked headless:** walked up to South Clock Town's standing carpenter on Day 1 and pressed A.
+  His line came up word for word ("This poster's an eyesore! What a sorry collection of
+  cowards!! Bluh-yek! Foo!"), and the clock stood still while he talked.
+- The carpenters talk now (MM's day-by-type lines, offered as MM offers them). Kafei's mask's
+  lines wait for that mask.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

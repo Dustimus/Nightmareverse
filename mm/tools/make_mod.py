@@ -16,6 +16,7 @@ the work folder hold the player's game data.
 import argparse
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -25,6 +26,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import mm2torch  # noqa: E402
 import mm_objects  # noqa: E402
+import mm_text  # noqa: E402
 import mm_rom  # noqa: E402
 import mm_scene  # noqa: E402
 
@@ -69,6 +71,12 @@ def main():
         z.extractall(res)
     for s in scenes:
         mm_scene.write_scene(rom, s, mm_rom.CLOCK_TOWN[s], res)
+    # MM's messages, in OoT's text codes (mm_text.py), as one blob resource
+    msgs = mm_text.messages(rom)
+    os.makedirs(os.path.join(res, "mm", "text"), exist_ok=True)
+    data = mm_text.blob(msgs)
+    open(os.path.join(res, "mm", "text", "messages"), "wb").write(
+        mm_scene._otr_header(mm_scene.LUS_BLOB) + struct.pack("<I", len(data)) + data)
 
     with zipfile.ZipFile(a.out, "w", zipfile.ZIP_DEFLATED) as z:
         for root, _dirs, files in os.walk(res):
