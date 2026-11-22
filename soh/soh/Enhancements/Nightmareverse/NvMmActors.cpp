@@ -65,6 +65,11 @@ void NvMmPst_Destroy(Actor* thisx, PlayState* play);
 void NvMmPst_Update(Actor* thisx, PlayState* play);
 void NvMmPst_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvMmPstSize;
+void NvMmAn_Init(Actor* thisx, PlayState* play);
+void NvMmAn_Destroy(Actor* thisx, PlayState* play);
+void NvMmAn_Update(Actor* thisx, PlayState* play);
+void NvMmAn_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmAnSize;
 }
 
 struct NvMmActorDef {
@@ -124,6 +129,11 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x1F2,
       { "Mm_En_Pst", "MM: a mailbox", ACTORCAT_PROP, ACTOR_FLAG_ATTENTION_ENABLED, &gNvMmPstSize, NvMmPst_Init,
         NvMmPst_Destroy, NvMmPst_Update, NvMmPst_Draw } },
+    { 0x202,
+      { "Mm_En_An", "MM: Anju", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED |
+            ACTOR_FLAG_DRAW_CULLING_DISABLED,
+        &gNvMmAnSize, NvMmAn_Init, NvMmAn_Destroy, NvMmAn_Update, NvMmAn_Draw } },
 };
 
 /** The SoH actor id for one of MM's actor ids, or -1 if it isn't ported. */

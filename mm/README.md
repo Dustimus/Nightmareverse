@@ -507,6 +507,19 @@ again needs the box there to stop at it (MM's rule), and the notebook's events n
 MM's notebook week events (its 55), not only "met".
 Tested headless in South Clock Town at 9:00: the box offers "Check" and runs MM's lines.
 
+### Anju, outdoors (2026-11-22, `soh/src/code/z_nv_mm_an.c`, MM's En_An)
+
+Anju by MM's schedule (`mm/schedules/En_An.schl`), MM's model (`object_an1`, her eyes and mouth by
+MM's face logic, segments 8 and 9) and umbrella (`object_an2`). Most of her three days are inside
+the Stock Pot Inn, which isn't built, so only her outdoor part is in: at lunchtime on Day 2 she
+comes out of the inn's front door (East Clock Town; our door held open for her) under her
+umbrella and walks through East and South Clock Town toward the Laundry Pool, and back in the
+afternoon. Walking she doesn't talk, as in MM. After the Couples' Mask ending she's gone from
+town (MM's week event 51_40). The rest of En_An (the inn, the tray, the broom, the masks, her
+conversations and their message scripts) comes with the inn.
+Tested headless in East Clock Town, Day 2 from 11:28: she comes out of the inn door and walks
+off with her umbrella at 11:41.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

@@ -124,6 +124,21 @@ OBJECTS = {
         "skel": {"gPostboxSkel": 0x1A80},
         "anim": {"gPostboxIdleAnim": 0x18},
     }),
+    "object_an1": (768, {  # Anju (En_An): her face set by the actor (segments 8, 9)
+        "skel": {"gAnju1Skel": 0x12618},
+        "anim": {"gAnju1IdleAnim": 0x8B6C, "gAnju1WalkAnim": 0x13048},
+        "tex": {"gAnju1EyeOpenTex": (0xE1E0, "CI8", 32, 32, 0xDD20), "gAnju1EyeHalfTex": (0xEFA0, "CI8", 32, 32, 0xDD20),
+                "gAnju1EyeClosedTex": (0xF3A0, "CI8", 32, 32, 0xDD20), "gAnju1EyeSadTex": (0xF9A0, "CI8", 32, 32, 0xDD20),
+                "gAnju1EyeComfortTex": (0xFDA0, "CI8", 32, 32, 0xDD20),
+                "gAnju1EyeRelievedClosedTex": (0x103A0, "CI8", 32, 32, 0xDD20),
+                "gAnju1MouthClosedTex": (0xE6E0, "CI8", 32, 16, 0xDF20),
+                "gAnju1MouthHappyTex": (0xF7A0, "CI8", 32, 16, 0xDF20),
+                "gAnju1MouthOpenTex": (0x101A0, "CI8", 32, 16, 0xDF20)},
+    }),
+    "object_an2": (1017, {  # Anju's umbrella, and her walk holding it (En_An)
+        "dl": {"gAnju2UmbrellaDL": 0x378},
+        "anim": {"gAnju2UmbrellaWalkAnim": 0x42CC},
+    }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)
