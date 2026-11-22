@@ -97,6 +97,19 @@ static s32 NvMmMsgEvent_GetItem(s32 mmGi) {
     }
 }
 
+/** MM's eventInf (flag: byte << 4 | bit), for the actors that check it themselves (Granny). */
+s32 NvMmMsgEvent_EventInf(s32 flag) {
+    return (sEventInf[(flag >> 4) & 7] & (1 << (flag & 0xF))) != 0;
+}
+
+void NvMmMsgEvent_SetEventInf(s32 flag, s32 on) {
+    if (on) {
+        sEventInf[(flag >> 4) & 7] |= (1 << (flag & 0xF));
+    } else {
+        sEventInf[(flag >> 4) & 7] &= ~(1 << (flag & 0xF));
+    }
+}
+
 static s32 NvMmMsgEvent_IsNight(void) {
     return (NvMmClock_HalfDayBit() & 0x155) != 0; // (the nights' bits)
 }

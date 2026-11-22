@@ -7,7 +7,9 @@
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
  *                             (default 200); "wait:N" stands still N frames, "a" presses A, "b" B,
  *                             "press:cu" (cd, cl, cr, a) holds a button 8 frames (an ocarina note),
- *                             "start" Start, "left"/"right"/"up"/"down" the D-pad, "cl:N" holds
+ *                             "start" Start, "left"/"right"/"up"/"down" the D-pad, "sdown"/"sup"
+ *                             the stick 4 frames (a textbox choice), "choice:N" waits for a choice
+ *                             box and takes choice N (0 first), "cl:N" holds
  *                             C-Left N frames (RE1's gun's aim; letting go fires),
  *                             "pos:x,z" puts Link there, "face:x,z" turns him to face a point,
  *                             "facerect:x0,z0,x1,z1" turns him (16 ways) to put the point in
@@ -44,7 +46,7 @@ u32 NvScript_MsgFlags(void);
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE, NV_WP_CHECK, NV_WP_DROP, NV_WP_EQUIP, NV_WP_FACEENEMY } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE, NV_WP_CHECK, NV_WP_DROP, NV_WP_EQUIP, NV_WP_FACEENEMY, NV_WP_CHOICE } NvWaypointKind;
 
 typedef struct {
     s16 kind;
@@ -154,6 +156,17 @@ static void NvDev_ParsePath(void) {
             sNvPathLen++;
         } else if ((strncmp(s, "start", 5) == 0) && ((s[5] == ';') || (s[5] == '\0'))) {
             wp->kind = NV_WP_START;
+            sNvPathLen++;
+        } else if (strncmp(s, "choice:", 7) == 0) { // waits for a choice box, picks choice N (0 first)
+            wp->kind = NV_WP_CHOICE;
+            wp->wait = atoi(s + 7);
+            wp->z = 0;
+            sNvPathLen++;
+        } else if ((strncmp(s, "sdown", 5) == 0) || (strncmp(s, "sup", 3) == 0)) { // the stick down/up a frame
+            wp->kind = NV_WP_DPAD;
+            wp->wait = 0;
+            wp->x = (s[1] == 'd') ? -80 : 80;
+            wp->z = 0;
             sNvPathLen++;
         } else if ((strncmp(s, "left", 4) == 0) || (strncmp(s, "right", 5) == 0) || (strncmp(s, "up", 2) == 0) ||
                    (strncmp(s, "down", 4) == 0)) {
@@ -654,10 +667,30 @@ void NvDev_Update(PlayState* play) {
             input->press.button |= BTN_START;
             input->cur.button |= BTN_START;
             sNvPathIdx++;
+        } else if (wp->kind == NV_WP_CHOICE) {
+            MessageContext* msgCtx = &play->msgCtx;
+
+            if ((msgCtx->msgMode == MSGMODE_TEXT_DONE) && ((msgCtx->textboxEndType == TEXTBOX_ENDTYPE_2_CHOICE) ||
+                                                           (msgCtx->textboxEndType == TEXTBOX_ENDTYPE_3_CHOICE))) {
+                msgCtx->choiceIndex = wp->wait;
+                input->press.button |= BTN_A;
+                input->cur.button |= BTN_A;
+                printf("NVSTEP choice %d\n", (int)wp->wait);
+                fflush(stdout);
+                sNvPathIdx++;
+            } else if ((msgCtx->msgMode == MSGMODE_TEXT_AWAIT_NEXT) && ((++wp->z % 15) == 0)) { // (read on)
+                input->press.button |= BTN_A;
+                input->cur.button |= BTN_A;
+            }
         } else if (wp->kind == NV_WP_DPAD) {
             input->press.button |= (u16)wp->wait;
             input->cur.button |= (u16)wp->wait;
-            sNvPathIdx++;
+            if (wp->wait == 0) { // (sdown / sup: a choice, by the stick, held 4 frames so the box sees it)
+                input->cur.stick_y = input->rel.stick_y = (s8)wp->x;
+            }
+            if ((wp->wait != 0) || (++wp->z >= 4)) {
+                sNvPathIdx++;
+            }
         } else if (wp->kind == NV_WP_A) {
             input->press.button |= BTN_A;
             input->cur.button |= BTN_A;

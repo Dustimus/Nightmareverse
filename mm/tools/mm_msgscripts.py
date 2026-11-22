@@ -29,6 +29,8 @@ def names(decomp):
     for m in re.finditer(r"#define (WEEKEVENTREG_\w+)\s+PACK_WEEKEVENTREG_FLAG\((\d+), (0x\w+)\)",
                          open(os.path.join(inc, "z64save.h")).read()):
         table[m.group(1)] = (int(m.group(2)) << 8) | int(m.group(3), 16)
+    for m in re.finditer(r"#define (EVENTINF_\w+)\s+(0x[0-9A-Fa-f]+|\d+)\b", open(os.path.join(inc, "z64save.h")).read()):
+        table[m.group(1)] = int(m.group(2), 0)
     for line in open(os.path.join(inc, "tables", "notebook_table.h")):  # people's "met" first, then events
         m = re.search(r"/\* 0x(\w+) \*/ DEFINE_(?:PERSON\(\w+, \w+, \w+, (\w+)|EVENT\((\w+))", line)
         if m:
@@ -50,7 +52,7 @@ def extract(decomp, src):
             w = m.group(0)
             if w in table:
                 return f"0x{table[w]:X}"
-            if re.match(r"(WEEKEVENTREG_|BOMBERS_NOTEBOOK_|ITEM_|GI_|PLAYER_MASK_|PLAYER_IA_|QUEST_)", w):
+            if re.match(r"(WEEKEVENTREG_|EVENTINF_|BOMBERS_NOTEBOOK_|ITEM_|GI_|PLAYER_MASK_|PLAYER_IA_|QUEST_)", w):
                 missing.add(w)
             return w
         body = re.sub(r"\b[A-Z][A-Z0-9_]+\b", sub, body)

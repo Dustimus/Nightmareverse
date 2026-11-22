@@ -286,6 +286,22 @@ u16 NvMmClock_HalfDayBit(void) {
     return 1 << (9 - 2 * day - night);
 }
 
+/** MM's Environment_SetTimeJump: the clock jumped ahead (minutes), through any dawn on the way. */
+void NvMmClock_Jump(PlayState* play, u32 minutes) {
+    NvMmClock_Advance(play, (minutes * 0x10000) / (24 * 60));
+}
+
+/** MM's time = 8:00 with Sram_IncrementDay: asleep until the next morning at 8:00 (on through the
+ * dawn: its day's title, or the moon's fall after the third). */
+void NvMmClock_SleepToMorning(PlayState* play) {
+    u32 toDawn = (u16)(MM_DAWN - sMmTime);
+
+    if (toDawn == 0) {
+        toDawn = 0x10000;
+    }
+    NvMmClock_Advance(play, toDawn + (2 * 0x10000 + 23) / 24);
+}
+
 /** How far the clock moves a frame (MM's R_TIME_SPEED + timeSpeedOffset; with NV_MM_SPEED's
  * multiplier, so people walking by the time keep up in a sped-up test). */
 s32 NvMmClock_Speed(void) {

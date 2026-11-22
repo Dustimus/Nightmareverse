@@ -75,6 +75,11 @@ void NvMmAh_Destroy(Actor* thisx, PlayState* play);
 void NvMmAh_Update(Actor* thisx, PlayState* play);
 void NvMmAh_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvMmAhSize;
+void NvMmNb_Init(Actor* thisx, PlayState* play);
+void NvMmNb_Destroy(Actor* thisx, PlayState* play);
+void NvMmNb_Update(Actor* thisx, PlayState* play);
+void NvMmNb_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmNbSize;
 }
 
 struct NvMmActorDef {
@@ -144,6 +149,11 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
         ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED |
             ACTOR_FLAG_DRAW_CULLING_DISABLED,
         &gNvMmAhSize, NvMmAh_Init, NvMmAh_Destroy, NvMmAh_Update, NvMmAh_Draw } },
+    { 0x243,
+      { "Mm_En_Nb", "MM: Anju's grandmother", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED |
+            ACTOR_FLAG_DRAW_CULLING_DISABLED,
+        &gNvMmNbSize, NvMmNb_Init, NvMmNb_Destroy, NvMmNb_Update, NvMmNb_Draw } },
 };
 
 /** The SoH actor id for one of MM's actor ids, or -1 if it isn't ported. */

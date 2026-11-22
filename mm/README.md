@@ -542,6 +542,18 @@ hearing her mother out, are in now too). Her bow and sad face on MM's lines 0x28
 Her Day 3 night at the ranch house waits for that scene; her head turn (MM's transform draw) is
 left out. Tested headless: Day 2 at 9:00, locked on at the desk, MM's "I'm sorry. Our rooms are..."
 
+### Anju's grandmother (2026-11-22, `soh/src/code/z_nv_mm_nb.c`, MM's En_Nb)
+
+MM's model (`object_nb`), schedule (`mm/schedules/En_Nb.schl`) and message script
+(`nv_mm_msgscripts/En_Nb.msg.inc`): in her room at the inn, with MM's "Now, which story would you
+like to hear?" choice. Either story puts Link to sleep (MM's func_80BC01DC without the All-Night
+Mask): the Carnival of Time costs two hours (`NvMmClock_Jump`), the Four Giants the night, to 8:00 the
+next day (`NvMmClock_SleepToMorning`). He wakes at her side (MM's inn entrance 2) and she speaks
+first ("Oh, are you awake?"). MM's EVENTINF flags (42, 43) are kept by the message-script
+interpreter (`NvMmMsgEvent_EventInf`). Not yet: the All-Night Mask (the story's pictures), her lunch
+with Anju (SCH_2, treated as her room for now), her head turn. Tested headless: both stories, Day 1
+9:00 to 11:31, and to Day 2 at 8:00 with her waking line.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

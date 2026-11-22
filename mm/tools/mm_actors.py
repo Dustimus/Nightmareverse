@@ -39,6 +39,7 @@ PORTED = {
     0x1F2,  # En_Pst: the mailboxes (z_nv_mm_pst.c)
     0x202,  # En_An: Anju (z_nv_mm_an.c)
     0x253,  # En_Ah: Anju's mother (z_nv_mm_ah.c)
+    0x243,  # En_Nb: Anju's grandmother (z_nv_mm_nb.c)
 }
 
 # MM's ids (the decomp's actor table)

@@ -154,6 +154,10 @@ OBJECTS = {
         "tex": {f"object_ah_Tex_{o:06X}": (o, "RGBA16", 32, 32) for o in
                 (0x6D70, 0x7570, 0x7D70, 0x8570, 0x8D70, 0x9570)},
     }),
+    "object_nb": (1027, {  # Anju's grandmother (En_Nb)
+        "skel": {"gNbSkel": 0x8C40},
+        "anim": {"gNbIdleAnim": 0x990, "gNbTalkAnim": 0x290, "gNbAngryAnim": 0x52C, "gNbRelievedAnim": 0x6D4},
+    }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)
