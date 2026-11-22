@@ -1,25 +1,32 @@
 /*
- * Nightmareverse: Anju, from MM's En_An (zeldaret/mm, ovl_En_An), ported closely where she is so far:
- * outdoors (mm/README.md). Her model is MM's object_an1 (her face: eyes and mouth set in segments
- * 8 and 9 as in MM), with object_an2's umbrella and umbrella walk.
+ * Nightmareverse: Anju, from MM's En_An (zeldaret/mm, ovl_En_An), ported closely (mm/README.md). Her
+ * model is MM's object_an1 (her face: eyes and mouth set in segments 8 and 9 as in MM, by MM's face
+ * logic), with object_an2's umbrella and object_an3's broom, and her tray and chopsticks.
  *
- * Her schedule is MM's (mm/schedules/En_An.schl). Most of her days are inside the Stock Pot Inn,
- * not built yet; outdoors she goes out of the inn's front door (East Clock Town) at lunchtime on
- * Day 2 under her umbrella, through East and South Clock Town to the Laundry Pool, and back in the
- * afternoon (MM's results DOOR_37, WALKING_54/55/58/59 in East Clock Town, WALKING_60-63 in South,
- * DOOR_38 back in). Walking, she doesn't talk (as in MM: no offer while she walks there).
+ * Her schedule is MM's (mm/schedules/En_An.schl): at the Stock Pot Inn's front desk, cooking,
+ * sweeping, waiting for closing time, walking the inn's halls and through its doors (with her tray,
+ * her broom), out to the Laundry Pool on Day 2 under her umbrella (sitting there after, crying once
+ * Link has talked to her), and the midnight meeting. She talks through MM's message scripts
+ * (nv_mm_msgscripts/En_An.msg.inc, the decomp's, by mm_msgscripts.py), with MM's callbacks for
+ * cooking (tasting), the Laundry Pool and the midnight meeting.
  *
  * Adapted from MM:
- * - the inn and the Laundry Pool aren't built: her results there come to nothing (MM's script
- *   checks the scene); her other objects (the tray, broom, masks) wait with those;
- * - MM's object slots for her other animations: here they're drawn by path, no slots;
- * - the Couples' Mask ending (after it she's gone from town) is kept: MM's week event 51_40;
- * - her head turn (MM's transform draw) is left out while walking, as MM's is then (she's lost
- *   attention: no head tracking).
+ * - her results with Granny (lunch), her mother (the staff room), the Goron and the Postman at the
+ *   desk need them here: not ported yet, so those come to nothing, as in MM without them;
+ * - Link is MM's human form, without MM's masks (the Kafei's Mask and Deku lines wait); MM's items
+ *   she gives (the Room Key, the Letter to Kafei) aren't in yet (the script goes on without them);
+ * - the midnight meeting's scene (MM's cutscene at the inn's entrance 3) isn't ported: Link is taken
+ *   to that entrance as in MM, without the cutscene;
+ * - MM's object slots for her other animations: here they're drawn by path, no slots; her head
+ *   turn toward Link (MM's transform draw) and the faces MM sets line by line (EnAn_HandleDialogue)
+ *   are left out for now; her footsteps are MM's own sound;
+ * - the Couples' Mask ending (after it she's gone from town) is kept: MM's week event 51_40.
  */
 #include "global.h"
 #include "z_nv_mm_schedule.h"
 #include "z_nv_mm_subs.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 #define ENAN_GET_PATH_INDEX(thisx) ((thisx)->params & 0xFF)
 #define ENAN_8000 0x8000
@@ -53,12 +60,45 @@ static s32 sSearchTimePathLimit[ANJU_SCH_MAX] = {
     22, 24, 1,  2, 0,  1,  3,  4,  0,  1,  2,  3,
 };
 
-enum { ENAN_ANIM_IDLE, ENAN_ANIM_WALK, ENAN_ANIM_UMBRELLA_WALK, ENAN_ANIM_MAX };
-static const char* sAnimations[ENAN_ANIM_MAX] = {
-    "__OTR__mm/objects/object_an1/gAnju1IdleAnim",
-    "__OTR__mm/objects/object_an1/gAnju1WalkAnim",
-    "__OTR__mm/objects/object_an2/gAnju2UmbrellaWalkAnim",
+enum {
+    ENAN_ANIM_IDLE, ENAN_ANIM_IDLE_MORPH, ENAN_ANIM_BOW, ENAN_ANIM_BOW_MORPH, ENAN_ANIM_SURPRISED,
+    ENAN_ANIM_LOOK_UP_RELIEVED, ENAN_ANIM_WALK, ENAN_ANIM_SIT, ENAN_ANIM_SITTING_IN_DISBELIEF, ENAN_ANIM_COOK,
+    ENAN_ANIM_TASTE, ENAN_ANIM_TASTE_END, ENAN_ANIM_WAIT_WITH_TRAY, ENAN_ANIM_WALK_WITH_TRAY, ENAN_ANIM_UMBRELLA_IDLE,
+    ENAN_ANIM_UMBRELLA_WALK, ENAN_ANIM_UMBRELLA_SIT, ENAN_ANIM_UMBRELLA_CRY, ENAN_ANIM_BROOM_IDLE, ENAN_ANIM_BROOM_WALK,
+    ENAN_ANIM_BROOM_SWEEP, ENAN_ANIM_MAX
 };
+#define AN(o, n) ("__OTR__mm/objects/object_" o "/" n)
+// MM's sAnimationInfo (the ones used here): animation, mode, morph
+static struct {
+    const char* anim;
+    u8 mode;
+    s8 morph;
+} sAnimations[ENAN_ANIM_MAX] = {
+    { AN("an1", "gAnju1IdleAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an1", "gAnju1IdleAnim"), ANIMMODE_LOOP, -6 },
+    { AN("an1", "gAnju1BowAnim"), ANIMMODE_ONCE, 0 },
+    { AN("an1", "gAnju1BowAnim"), ANIMMODE_ONCE, -6 },
+    { AN("an1", "gAnju1SurprisedAnim"), ANIMMODE_ONCE, 0 },
+    { AN("an1", "gAnju1LookUpRelievedAnim"), ANIMMODE_ONCE, 0 },
+    { AN("an1", "gAnju1WalkAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an1", "gAnju1SitAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an1", "gAnju1SittingInDisbeliefAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an1", "gAnju1CookAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an1", "gAnju1TasteAnim"), ANIMMODE_ONCE, 0 },
+    { AN("an1", "gAnju1TasteEndAnim"), ANIMMODE_ONCE, 0 },
+    { AN("an1", "gAnju1WaitWithTrayAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an1", "gAnju1WalkWithTrayAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an2", "gAnju2UmbrellaIdleAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an2", "gAnju2UmbrellaWalkAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an2", "gAnju2UmbrellaSitAnim"), ANIMMODE_ONCE, 0 },
+    { AN("an2", "gAnju2UmbrellaCryAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an3", "gAnju3BroomIdleAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an3", "gAnju3BroomWalkAnim"), ANIMMODE_LOOP, 0 },
+    { AN("an3", "gAnju3BroomSweepAnim"), ANIMMODE_LOOP, 0 },
+};
+#define DL_TRAY ((Gfx*)AN("an1", "gAnju1FoodTrayDL"))
+#define DL_CHOPSTICKS ((Gfx*)AN("an1", "gAnju1ChopsticksDL"))
+#define DL_BROOM ((Gfx*)AN("an3", "gAnju3BroomDL"))
 static const char sSkel[] = "__OTR__mm/objects/object_an1/gAnju1Skel";
 #define DL_UMBRELLA ((Gfx*)"__OTR__mm/objects/object_an2/gAnju2UmbrellaDL")
 
@@ -76,6 +116,16 @@ static const char* sMouthTextures[MOUTH_MAX] = { AN1("gAnju1MouthClosedTex"), AN
 #define STATE_DRAW_UMBRELLA 2
 #define STATE_REACHED_PATH_END 4
 #define STATE_8 8
+#define STATE_DRAW_TRAY 0x10
+#define STATE_DRAW_BROOM 0x20
+#define STATE_DRAW_CHOPSTICKS 0x40
+#define STATE_IGNORE_GRAVITY 0x80
+#define STATE_OFFER 0x100 // (MM's offer mode: on screen)
+
+#include "z_nv_mm_msgevent.h"
+#include "nv_mm_msgscripts/En_An.msg.inc"
+#define WEEKEVENTREG_TALKED_ANJU_IN_LAUNDRY_POOL MM_WE(55, 0x20)
+#define WEEKEVENTREG_PROMISED_MIDNIGHT_MEETING MM_WE(50, 0x08)
 
 struct NvMmAn;
 typedef void (*NvMmAnFunc)(struct NvMmAn*, PlayState*);
@@ -108,12 +158,21 @@ typedef struct NvMmAn {
     s16 eyeTexIndex;
     s16 mouthTexIndex;
     s16 eyeTimer;
+    f32 offerRange;
+    s16 laundryPoolState;
+    s16 msgEventState;
+    MsgScript* msgScript;
+    s32 msgScriptPos;
+    MsgScriptCallback msgScriptCallback;
+    s16 trayScroll1;
+    s16 trayScroll2;
 } NvMmAn;
 
 const size_t gNvMmAnSize = sizeof(NvMmAn);
 
 s32 NvMm_CheckWeekEvent(s32 flag);
 s32 NvMmClock_Speed(void);
+s32 NvMmClock_Day(void);
 s32 NvMmActor_Id(s32 mmId);
 s32 NvMmDoor_ScheduleType(Actor* thisx);
 void NvMmDoor_SetOpenTimer(Actor* thisx, s8 frames);
@@ -124,12 +183,18 @@ static ColliderCylinderInit sCylinderInit = {
     { 14, 62, 0, { 0, 0, 0 } },
 };
 
+/** MM's EnAn_ChangeAnim: idle/idle-morph count as one, as do the two sits. */
 static void NvMmAn_ChangeAnim(NvMmAn* this, s32 animIndex) {
-    if (this->animIndex != animIndex) {
-        AnimationHeader* anim = (AnimationHeader*)sAnimations[animIndex];
+    s32 same = (this->animIndex == animIndex) ||
+               (((animIndex == ENAN_ANIM_IDLE) || (animIndex == ENAN_ANIM_IDLE_MORPH)) &&
+                ((this->animIndex == ENAN_ANIM_IDLE) || (this->animIndex == ENAN_ANIM_IDLE_MORPH)));
+
+    if (!same) {
+        AnimationHeader* anim = (AnimationHeader*)sAnimations[animIndex].anim;
 
         this->animIndex = animIndex;
-        Animation_Change(&this->skelAnime, anim, 1.0f, 0.0f, Animation_GetLastFrame(anim), ANIMMODE_LOOP, 0.0f);
+        Animation_Change(&this->skelAnime, anim, 1.0f, 0.0f, Animation_GetLastFrame(anim), sAnimations[animIndex].mode,
+                         sAnimations[animIndex].morph);
         this->animPlaySpeed = this->skelAnime.playSpeed;
     }
 }
@@ -188,16 +253,40 @@ static Path* NvMmAn_Path(NvMmAn* this, PlayState* play, s32 result) {
     return (limit >= 0) ? NvMmSubS_GetAdditionalPath(play, ENAN_GET_PATH_INDEX(&this->actor), limit) : NULL;
 }
 
-/** MM's EnAn_FindScheduleDoor, the outdoor part: the inn's front door (37, 38). */
+/** MM's EnAn_FindScheduleDoor: the inn's doors she uses, by their schedule type. */
 static Actor* NvMmAn_FindScheduleDoor(PlayState* play, s32 result) {
     s32 doorId = NvMmActor_Id(0x005);
+    s32 schType;
     Actor* a;
 
-    if ((result != ANJU_SCH_DOOR_37) && (result != ANJU_SCH_DOOR_38)) {
-        return NULL; // (the inn's inside doors: not built)
+    switch (result) {
+        case ANJU_SCH_DOOR_26:
+        case ANJU_SCH_DOOR_27:
+            schType = 13; // INN_GRANNYS
+            break;
+        case ANJU_SCH_DOOR_33:
+        case ANJU_SCH_DOOR_34:
+        case ANJU_SCH_DOOR_37:
+        case ANJU_SCH_DOOR_38:
+            schType = 11; // INN_MAIN_ENTRANCE
+            break;
+        case ANJU_SCH_DOOR_36:
+            schType = 16; // INN_LARGE_SUITE
+            break;
+        case ANJU_SCH_DOOR_28:
+        case ANJU_SCH_DOOR_29:
+        case ANJU_SCH_DOOR_30:
+        case ANJU_SCH_DOOR_31:
+        case ANJU_SCH_DOOR_32:
+        case ANJU_SCH_DOOR_35:
+        case ANJU_SCH_DOOR_39:
+            schType = 14; // INN_STAFF_ROOM
+            break;
+        default:
+            return NULL;
     }
     for (a = play->actorCtx.actorLists[ACTORCAT_DOOR].head; a != NULL; a = a->next) {
-        if ((a->id == doorId) && (a->update != NULL) && (NvMmDoor_ScheduleType(a) == 11)) { // INN_MAIN_ENTRANCE
+        if ((a->id == doorId) && (a->update != NULL) && (NvMmDoor_ScheduleType(a) == schType)) {
             return a;
         }
     }
@@ -222,10 +311,36 @@ static s32 NvMmAn_SetupDoor(NvMmAn* this, PlayState* play, NvMmScheduleOutput* o
     this->doorOpenTimer = (ABS((s16)(this->actor.world.rot.y - door->shape.rot.y)) <= 0x4000) ? -75 : 75;
     this->doorTimeTotalDiff = out->time1 - out->time0;
     this->doorTimeProgress = now - out->time0;
-    this->faceIndex = 2;
-    this->eyeTimer = 8;
-    this->stateFlags |= STATE_UPDATE_EYES;
-    NvMmAn_ChangeAnim(this, ENAN_ANIM_WALK);
+    switch (out->result) {
+        case ANJU_SCH_DOOR_27:
+        case ANJU_SCH_DOOR_28:
+        case ANJU_SCH_DOOR_32:
+        case ANJU_SCH_DOOR_33:
+        case ANJU_SCH_DOOR_34:
+        case ANJU_SCH_DOOR_35:
+        case ANJU_SCH_DOOR_37:
+        case ANJU_SCH_DOOR_38:
+            this->faceIndex = 2;
+            this->eyeTimer = 8;
+            break;
+    }
+    switch (out->result) {
+        case ANJU_SCH_DOOR_26:
+        case ANJU_SCH_DOOR_27:
+        case ANJU_SCH_DOOR_28:
+            this->stateFlags |= STATE_DRAW_TRAY | STATE_UPDATE_EYES;
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_WALK_WITH_TRAY);
+            break;
+        case ANJU_SCH_DOOR_36:
+        case ANJU_SCH_DOOR_39:
+            this->stateFlags |= STATE_UPDATE_EYES | STATE_DRAW_BROOM;
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_BROOM_WALK);
+            break;
+        default:
+            this->stateFlags |= STATE_UPDATE_EYES;
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_WALK);
+            break;
+    }
     this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED;
     this->actor.gravity = 0.0f;
     return true;
@@ -258,28 +373,196 @@ static s32 NvMmAn_SetupWalking(NvMmAn* this, PlayState* play, NvMmScheduleOutput
     this->timePathWaypointTime = MAX(this->timePathTotalTime / (this->timePath->count - 2), 1);
     this->timePathWaypoint = (this->timePathElapsedTime / this->timePathWaypointTime) + 2;
     this->stateFlags &= ~(STATE_8 | STATE_REACHED_PATH_END);
-    this->faceIndex = 2;
-    this->eyeTimer = 8;
-    NvMmAn_ChangeAnim(this, ENAN_ANIM_UMBRELLA_WALK);
-    this->stateFlags |= STATE_UPDATE_EYES | STATE_DRAW_UMBRELLA;
-    this->actor.flags &= ~ACTOR_FLAG_ATTENTION_ENABLED; // (MM: no talk offer while she walks out here)
+    switch (out->result) {
+        case ANJU_SCH_WALKING_44:
+        case ANJU_SCH_WALKING_45:
+        case ANJU_SCH_WALKING_50:
+        case ANJU_SCH_WALKING_51:
+            this->faceIndex = 2;
+            this->eyeTimer = 8;
+            break;
+        default:
+            if (out->result >= ANJU_SCH_WALKING_54) {
+                this->faceIndex = 2;
+                this->eyeTimer = 8;
+            }
+            break;
+    }
+    switch (out->result) {
+        case ANJU_SCH_WALKING_42:
+        case ANJU_SCH_WALKING_43:
+            this->stateFlags |= STATE_OFFER;
+            // fallthrough
+        case ANJU_SCH_WALKING_44:
+        case ANJU_SCH_WALKING_45:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_WALK_WITH_TRAY);
+            this->stateFlags |= STATE_UPDATE_EYES | STATE_DRAW_TRAY;
+            break;
+        case ANJU_SCH_WALKING_52:
+        case ANJU_SCH_WALKING_53:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_BROOM_WALK);
+            this->stateFlags |= STATE_OFFER | STATE_UPDATE_EYES | STATE_DRAW_BROOM;
+            break;
+        case ANJU_SCH_WALKING_50:
+        case ANJU_SCH_WALKING_51:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_WALK);
+            this->stateFlags |= STATE_UPDATE_EYES;
+            break;
+        case ANJU_SCH_WALKING_40:
+        case ANJU_SCH_WALKING_47:
+        case ANJU_SCH_WALKING_48:
+        case ANJU_SCH_WALKING_49:
+            this->stateFlags |= STATE_OFFER | STATE_UPDATE_EYES;
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_WALK);
+            break;
+        default:
+            if (out->result >= ANJU_SCH_WALKING_54) { // (out in town: her umbrella, no talk offer)
+                NvMmAn_ChangeAnim(this, ENAN_ANIM_UMBRELLA_WALK);
+                this->stateFlags |= STATE_UPDATE_EYES | STATE_DRAW_UMBRELLA;
+            } else {
+                NvMmAn_ChangeAnim(this, ENAN_ANIM_WALK);
+            }
+            break;
+    }
     this->actor.gravity = -1.0f;
     return true;
 }
 
-/** MM's EnAn_ProcessScheduleOutput, the outdoor part. */
+/** MM's EnAn_ProcessSchedule_Sweeping: at her path's start, sweeping. */
+static s32 NvMmAn_SetupSweeping(NvMmAn* this, PlayState* play, NvMmScheduleOutput* out) {
+    Vec3s* points;
+    Vec3f first;
+    Vec3f second;
+
+    this->timePath = NvMmAn_Path(this, play, out->result);
+    if ((this->timePath == NULL) || (this->timePath->count < 2)) {
+        return false;
+    }
+    points = SEGMENTED_TO_VIRTUAL(this->timePath->points);
+    first = (Vec3f){ points[0].x, points[0].y, points[0].z };
+    second = (Vec3f){ points[1].x, points[1].y, points[1].z };
+    this->actor.world.rot.y = Math_Vec3f_Yaw(&first, &second);
+    this->actor.shape.rot = this->actor.world.rot;
+    this->actor.world.pos = this->actor.prevPos = first;
+    NvMmAn_ChangeAnim(this, ENAN_ANIM_BROOM_SWEEP);
+    this->stateFlags |= STATE_OFFER | STATE_UPDATE_EYES | STATE_DRAW_BROOM;
+    return true;
+}
+
+/** MM's EnAn_ProcessSchedule_80B56880: at her path's end, standing at the desk, cooking, sitting at
+ * the Laundry Pool, waiting at midnight. */
+static s32 NvMmAn_SetupStand(NvMmAn* this, PlayState* play, NvMmScheduleOutput* out) {
+    Vec3s* points;
+    Vec3f last;
+    Vec3f before;
+
+    this->timePath = NvMmAn_Path(this, play, out->result);
+    if ((this->timePath == NULL) || (this->timePath->count < 2)) {
+        return false;
+    }
+    points = SEGMENTED_TO_VIRTUAL(this->timePath->points);
+    last = (Vec3f){ points[this->timePath->count - 1].x, points[this->timePath->count - 1].y,
+                    points[this->timePath->count - 1].z };
+    before = (Vec3f){ points[this->timePath->count - 2].x, points[this->timePath->count - 2].y,
+                      points[this->timePath->count - 2].z };
+    this->actor.world.rot.y = Math_Vec3f_Yaw(&before, &last);
+    this->actor.shape.rot = this->actor.home.rot = this->actor.world.rot;
+    this->actor.world.pos = this->actor.prevPos = last;
+    switch (out->result) {
+        case ANJU_SCH_WAITING_CLOSING_TIME:
+            this->actor.world.rot.y += 0x7FF8;
+            // fallthrough
+        case ANJU_SCH_RECEPTIONIST_IDLE:
+        case ANJU_SCH_MIDNIGHT_MEETING:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_IDLE);
+            this->stateFlags |= STATE_OFFER | STATE_UPDATE_EYES;
+            if (out->result == ANJU_SCH_RECEPTIONIST_IDLE) {
+                this->offerRange = 70.0f;
+            }
+            break;
+        case ANJU_SCH_LAUNDRY_POOL_SIT:
+            this->stateFlags |= STATE_UPDATE_EYES | STATE_DRAW_UMBRELLA;
+            if (NvMm_CheckWeekEvent(WEEKEVENTREG_TALKED_ANJU_IN_LAUNDRY_POOL)) {
+                NvMmAn_ChangeAnim(this, ENAN_ANIM_UMBRELLA_CRY);
+                this->stateFlags |= STATE_IGNORE_GRAVITY;
+                this->actor.world.rot.y += 0x7FF8;
+                this->actor.shape.rot.y = this->actor.world.rot.y;
+                this->laundryPoolState = 4;
+            } else {
+                NvMmAn_ChangeAnim(this, ENAN_ANIM_UMBRELLA_WALK);
+                this->laundryPoolState = 0;
+            }
+            this->faceIndex = 2;
+            this->eyeTimer = 8;
+            break;
+        case ANJU_SCH_COOKING:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_COOK);
+            this->stateFlags |= STATE_OFFER | STATE_UPDATE_EYES | STATE_DRAW_CHOPSTICKS;
+            break;
+    }
+    return true;
+}
+
+/** MM's EnAn_ProcessScheduleOutput (without the people not ported yet). */
 static s32 NvMmAn_SetupResult(NvMmAn* this, PlayState* play, NvMmScheduleOutput* out) {
     this->stateFlags = 0;
+    this->faceIndex = 0;
+    this->eyeTimer = 8;
+    this->offerRange = 40.0f;
     this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     switch (out->result) {
-        case ANJU_SCH_DOOR_37:
-        case ANJU_SCH_DOOR_38:
-            return NvMmAn_SetupDoor(this, play, out);
+        case ANJU_SCH_LAUNDRY_POOL_SIT:
+        case ANJU_SCH_COOKING:
+        case ANJU_SCH_RECEPTIONIST_IDLE:
+        case ANJU_SCH_WAITING_CLOSING_TIME:
+        case ANJU_SCH_MIDNIGHT_MEETING:
+            return NvMmAn_SetupStand(this, play, out);
+        case ANJU_SCH_SWEEPING:
+            return NvMmAn_SetupSweeping(this, play, out);
         default:
-            if ((out->result >= ANJU_SCH_WALKING_54) && (out->result <= ANJU_SCH_WALKING_63)) {
+            if ((out->result >= ANJU_SCH_DOOR_26) && (out->result <= ANJU_SCH_DOOR_39)) {
+                return NvMmAn_SetupDoor(this, play, out);
+            }
+            if ((out->result >= ANJU_SCH_WALKING_40) && (out->result <= ANJU_SCH_WALKING_63) &&
+                (out->result != ANJU_SCH_41)) {
                 return NvMmAn_SetupWalking(this, play, out);
             }
-            return false; // (the inn, the Laundry Pool, the ranch: not built)
+            // (Granny's lunch, her mother, the Goron, the Postman at the desk, the ranch: not here yet)
+            return false;
+    }
+}
+
+/** MM's EnAn_HandleSch_LaundryPool: turning to the water and sitting down. */
+static void NvMmAn_LaundryPool(NvMmAn* this, PlayState* play) {
+    switch (this->laundryPoolState) {
+        case 0:
+            this->actor.world.rot.y += 0x7FF8;
+            this->laundryPoolState++;
+            break;
+        case 1:
+            if (((this->actor.world.rot.y / 0xB6) * 0xB6) == ((this->actor.shape.rot.y / 0xB6) * 0xB6)) {
+                this->actor.shape.rot = this->actor.world.rot;
+                NvMmAn_ChangeAnim(this, ENAN_ANIM_UMBRELLA_SIT);
+                this->stateFlags |= STATE_IGNORE_GRAVITY;
+                this->laundryPoolState++;
+            }
+            break;
+        case 2:
+            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                this->laundryPoolState++;
+            }
+            break;
+        case 3:
+            if (ABS((s16)(this->actor.yawTowardsPlayer - this->actor.shape.rot.y)) < 0x3000) {
+                this->stateFlags |= STATE_OFFER;
+            } else {
+                this->stateFlags &= ~STATE_OFFER;
+            }
+            break;
+        case 4:
+            this->stateFlags |= STATE_OFFER;
+            this->laundryPoolState++;
+            break;
     }
 }
 
@@ -354,12 +637,186 @@ static void NvMmAn_FollowSchedule(NvMmAn* this, PlayState* play) {
         this->actor.shape.shadowDraw = ActorShadow_DrawCircle;
     }
     this->scheduleResult = out.result;
-    if ((this->scheduleResult == ANJU_SCH_DOOR_37) || (this->scheduleResult == ANJU_SCH_DOOR_38)) {
+    if ((this->scheduleResult >= ANJU_SCH_DOOR_26) && (this->scheduleResult <= ANJU_SCH_DOOR_39)) {
         NvMmAn_DoorWalk(this, play);
-    } else if (this->scheduleResult != ANJU_SCH_NONE) {
+    } else if ((this->scheduleResult >= ANJU_SCH_WALKING_40) && (this->timePath != NULL)) {
         NvMmAn_FollowTimePath(this, play);
+    } else if (this->scheduleResult == ANJU_SCH_LAUNDRY_POOL_SIT) {
+        NvMmAn_LaundryPool(this, play);
     }
     Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
+}
+
+/** MM's EnAn_MsgEvent_Cooking: she tastes, then goes on. */
+static s32 NvMmAn_MsgEventCooking(Actor* thisx, PlayState* play) {
+    NvMmAn* this = (NvMmAn*)thisx;
+    s32 ret = false;
+
+    switch (this->msgEventState) {
+        case 0:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_TASTE);
+            this->msgEventState++;
+            break;
+        case 1:
+        case 3:
+            if (Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                this->msgEventState++;
+                ret = true;
+            }
+            break;
+        case 2:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_TASTE_END);
+            this->msgEventState++;
+            break;
+    }
+    return ret;
+}
+
+/** MM's EnAn_MsgEvent_LaundryPool: she breaks down crying (MM first shows Kafei's mask she holds:
+ * MM's masks aren't in yet). */
+static s32 NvMmAn_MsgEventLaundryPool(Actor* thisx, PlayState* play) {
+    NvMmAn* this = (NvMmAn*)thisx;
+
+    if (this->msgEventState == 0) {
+        this->msgEventState++;
+        if (!NvMm_CheckWeekEvent(WEEKEVENTREG_TALKED_ANJU_IN_LAUNDRY_POOL)) {
+            return true;
+        }
+    }
+    if (this->msgEventState == 1) {
+        NvMmAn_ChangeAnim(this, ENAN_ANIM_UMBRELLA_CRY);
+        this->msgEventState++;
+        return true;
+    }
+    return false;
+}
+
+/** MM's EnAn_MsgEvent_MidnightMeeting: to the inn's entrance 3 (MM's meeting there; its cutscene
+ * isn't ported). */
+static s32 NvMmAn_MsgEventMidnightMeeting(Actor* thisx, PlayState* play) {
+    NvMmAn* this = (NvMmAn*)thisx;
+
+    if (this->msgEventState == 0) {
+        play->nextEntranceIndex = ENTR_MM_Z2_YADOYA_3;
+        play->transitionTrigger = TRANS_TRIGGER_START;
+        play->transitionType = TRANS_TYPE_FADE_BLACK;
+        gSaveContext.nextTransitionType = TRANS_TYPE_FADE_BLACK_SLOW;
+        this->msgEventState++;
+    }
+    return false;
+}
+
+/** MM's EnAn_GetMsgScript, for a human Link without masks (MM's other branches wait for those). */
+static MsgScript* NvMmAn_GetMsgScript(NvMmAn* this, PlayState* play) {
+    switch (this->scheduleResult) {
+        case ANJU_SCH_COOKING:
+            this->msgScriptCallback = NvMmAn_MsgEventCooking;
+            return sAnjuMsgScript_SchCooking;
+        default:
+            break;
+    }
+    if (NvMm_CheckWeekEvent(WEEKEVENTREG_PROMISED_MIDNIGHT_MEETING)) {
+        if (this->scheduleResult == ANJU_SCH_MIDNIGHT_MEETING) {
+            this->msgScriptCallback = NvMmAn_MsgEventMidnightMeeting;
+            return sAnjuMsgScript_SchMidnightMeeting;
+        }
+        if (this->scheduleResult == ANJU_SCH_LAUNDRY_POOL_SIT) {
+            this->msgScriptCallback = NvMmAn_MsgEventLaundryPool;
+            return sAnjuMsgScript_SchLaundryPoolDefault;
+        }
+        if (NvMmClock_Day() >= 2) {
+            return sAnjuMsgScript_80B58A44;
+        }
+    }
+    switch (this->scheduleResult) {
+        case ANJU_SCH_WALKING_40:
+            return sAnjuMsgScript_80B5894C;
+        case ANJU_SCH_WALKING_42:
+        case ANJU_SCH_WALKING_43:
+        case ANJU_SCH_WALKING_44:
+        case ANJU_SCH_WALKING_45:
+            return sAnjuMsgScript_80B58980;
+        case ANJU_SCH_LAUNDRY_POOL_SIT:
+            this->msgScriptCallback = NvMmAn_MsgEventLaundryPool;
+            return sAnjuMsgScript_SchLaundryPoolDefault;
+        case ANJU_SCH_RECEPTIONIST_IDLE:
+            return (NvMmClock_Day() >= 2) ? sAnjuMsgScript_Receptionist : sAnjuMsgScript_ReceptionistDay1;
+        case ANJU_SCH_WAITING_CLOSING_TIME:
+        case ANJU_SCH_WALKING_47:
+            return sAnjuMsgScript_InnCloseTime;
+        case ANJU_SCH_SWEEPING:
+            return sAnjuMsgScript_SchSweeping;
+        case ANJU_SCH_MIDNIGHT_MEETING:
+            return sAnjuMsgScript_80B589FC;
+        case ANJU_SCH_WALKING_48:
+            return sAnjuMsgScript_80B58944;
+        case ANJU_SCH_WALKING_49:
+            return sAnjuMsgScript_80B58B88;
+        case ANJU_SCH_WALKING_52:
+        case ANJU_SCH_WALKING_53:
+            return sAnjuMsgScript_80B58994;
+        default:
+            return NULL;
+    }
+}
+
+/** MM's EnAn_ChooseAnimAfterTalking. */
+static void NvMmAn_AnimAfterTalking(NvMmAn* this) {
+    switch (this->scheduleResult) {
+        case ANJU_SCH_RECEPTIONIST_IDLE:
+        case ANJU_SCH_WAITING_CLOSING_TIME:
+        case ANJU_SCH_MIDNIGHT_MEETING:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_IDLE);
+            break;
+        case ANJU_SCH_SWEEPING:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_BROOM_SWEEP);
+            break;
+        case ANJU_SCH_COOKING:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_COOK);
+            break;
+        case ANJU_SCH_WALKING_47:
+        case ANJU_SCH_WALKING_49:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_WALK);
+            break;
+        case ANJU_SCH_WALKING_52:
+        case ANJU_SCH_WALKING_53:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_BROOM_WALK);
+            break;
+    }
+}
+
+/** MM's EnAn_Talk. */
+static void NvMmAn_Talk(NvMmAn* this, PlayState* play) {
+    if (NvMmMsgEvent_RunScript(&this->actor, play, this->msgScript, this->msgScriptCallback, &this->msgScriptPos)) {
+        this->stateFlags |= STATE_OFFER;
+        this->msgScriptPos = 0;
+        NvMmAn_AnimAfterTalking(this);
+        this->func = NvMmAn_FollowSchedule;
+        return;
+    }
+    if ((this->scheduleResult != ANJU_SCH_LAUNDRY_POOL_SIT) && (this->scheduleResult != ANJU_SCH_COOKING)) {
+        Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 4, 0x2AA8);
+    }
+}
+
+/** MM's EnAn_CheckTalk. */
+static void NvMmAn_CheckTalk(NvMmAn* this, PlayState* play) {
+    MsgScript* script;
+
+    if ((this->func != NvMmAn_FollowSchedule) || !(this->stateFlags & STATE_OFFER) ||
+        !Actor_ProcessTalkRequest(&this->actor, play)) {
+        return;
+    }
+    this->msgEventState = 0;
+    this->msgScriptCallback = NULL;
+    script = NvMmAn_GetMsgScript(this, play);
+    if (script == NULL) {
+        return;
+    }
+    this->stateFlags &= ~STATE_OFFER;
+    this->msgScript = script;
+    this->msgScriptPos = 0;
+    this->func = NvMmAn_Talk;
 }
 
 void NvMmAn_Init(Actor* thisx, PlayState* play) {
@@ -394,14 +851,25 @@ void NvMmAn_Destroy(Actor* thisx, PlayState* play) {
 void NvMmAn_Update(Actor* thisx, PlayState* play) {
     NvMmAn* this = (NvMmAn*)thisx;
 
+    NvMmAn_CheckTalk(this, play);
     this->func(this, play);
+    if ((getenv("NV_LOG") != NULL) && ((play->gameplayFrames % 20) == 0)) { // (dev: where she is)
+        printf("NVMM anju result=%d pos=%.0f,%.0f,%.0f\n", this->scheduleResult, this->actor.world.pos.x,
+               this->actor.world.pos.y, this->actor.world.pos.z);
+        fflush(stdout);
+    }
     if (this->scheduleResult == ANJU_SCH_NONE) {
         return;
     }
     this->skelAnime.playSpeed = this->animPlaySpeed;
     SkelAnime_Update(&this->skelAnime);
     NvMmAn_UpdateFace(this);
-    if (this->actor.gravity != 0.0f) {
+    // (MM's SubS_Offer, on screen: her talk offer)
+    if ((this->func == NvMmAn_FollowSchedule) && (this->stateFlags & STATE_OFFER) &&
+        (this->actor.flags & ACTOR_FLAG_ATTENTION_ENABLED)) {
+        Actor_OfferTalkExchange(&this->actor, play, this->offerRange, 30.0f, EXCH_ITEM_NONE);
+    }
+    if (!(this->stateFlags & STATE_IGNORE_GRAVITY) && (this->actor.gravity != 0.0f)) {
         Actor_MoveXZGravity(&this->actor);
         Actor_UpdateBgCheckInfo(play, &this->actor, 30.0f, 12.0f, 0.0f, 4);
     }
@@ -410,14 +878,34 @@ void NvMmAn_Update(Actor* thisx, PlayState* play) {
     CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
 
+/** MM's EnAn_PostLimbDraw / EnAn_DrawAccessory: what she holds, in her right hand. */
 static void NvMmAn_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     NvMmAn* this = (NvMmAn*)thisx;
 
-    if ((limbIndex == ANJU1_LIMB_RIGHT_HAND) && (this->stateFlags & STATE_DRAW_UMBRELLA)) {
-        OPEN_DISPS(play->state.gfxCtx);
-        gSPDisplayList(POLY_OPA_DISP++, DL_UMBRELLA);
-        CLOSE_DISPS(play->state.gfxCtx);
+    if (limbIndex != ANJU1_LIMB_RIGHT_HAND) {
+        return;
     }
+    OPEN_DISPS(play->state.gfxCtx);
+    if (this->stateFlags & STATE_DRAW_TRAY) {
+        this->trayScroll1++;
+        this->trayScroll2 -= 2;
+        Gfx_SetupDL_25Xlu(play->state.gfxCtx);
+        gSPMatrix(POLY_XLU_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        gSPSegment(POLY_XLU_DISP++, 0x08,
+                   Gfx_TwoTexScroll(play->state.gfxCtx, 0, this->trayScroll1, 0, 16, 16, 1, 0, this->trayScroll2, 16,
+                                    16));
+        gSPDisplayList(POLY_XLU_DISP++, DL_TRAY);
+    }
+    if (this->stateFlags & STATE_DRAW_CHOPSTICKS) {
+        gSPDisplayList(POLY_OPA_DISP++, DL_CHOPSTICKS);
+    }
+    if (this->stateFlags & STATE_DRAW_UMBRELLA) {
+        gSPDisplayList(POLY_OPA_DISP++, DL_UMBRELLA);
+    }
+    if (this->stateFlags & STATE_DRAW_BROOM) {
+        gSPDisplayList(POLY_OPA_DISP++, DL_BROOM);
+    }
+    CLOSE_DISPS(play->state.gfxCtx);
 }
 
 void NvMmAn_Draw(Actor* thisx, PlayState* play) {

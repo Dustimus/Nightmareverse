@@ -26,6 +26,7 @@
  *                             "NVTOUR done" after the last (re1/tools/soh_check.py screenshots
  *                             on those lines)
  *   NV_LOG=1                  log Link's position, floor and camera every 20 frames
+ *   NV_HOLD_Z=n               hold Z from frame n on (lock on, e.g. to talk across a counter)
  *   NV_GODMODE=1              Link's health kept full (a story walkthrough, not its fights)
  *
  * Always on: hold L and press D-pad down to note the spot Link stands on (scene, position,
@@ -291,6 +292,14 @@ void NvDev_Update(PlayState* play) {
     // low-health kill moves
     if (getenv("NV_GODMODE") != NULL) { // (a story walkthrough: the route, not the fights)
         gSaveContext.health = gSaveContext.healthCapacity;
+    }
+    // dev: NV_HOLD_Z=n holds Z from frame n on (locked on to whoever is near, as a player does to
+    // talk across a counter)
+    if ((getenv("NV_HOLD_Z") != NULL) && (play->gameplayFrames >= (u32)atoi(getenv("NV_HOLD_Z")))) {
+        if (play->gameplayFrames == (u32)atoi(getenv("NV_HOLD_Z"))) {
+            input->press.button |= BTN_Z;
+        }
+        input->cur.button |= BTN_Z;
     }
     if (!sHealthSet && (getenv("NV_HEALTH") != NULL) && (play->gameplayFrames > 2)) {
         sHealthSet = true;

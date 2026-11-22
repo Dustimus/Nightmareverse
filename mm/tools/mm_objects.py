@@ -126,7 +126,11 @@ OBJECTS = {
     }),
     "object_an1": (768, {  # Anju (En_An): her face set by the actor (segments 8, 9)
         "skel": {"gAnju1Skel": 0x12618},
-        "anim": {"gAnju1IdleAnim": 0x8B6C, "gAnju1WalkAnim": 0x13048},
+        "dl": {"gAnju1FoodTrayDL": 0x111E8, "gAnju1ChopsticksDL": 0x12478},
+        "anim": {"gAnju1IdleAnim": 0x8B6C, "gAnju1WalkAnim": 0x13048, "gAnju1TasteAnim": 0x1090,
+                 "gAnju1TasteEndAnim": 0x144C, "gAnju1LookUpRelievedAnim": 0x1E74, "gAnju1SurprisedAnim": 0x26B4,
+                 "gAnju1WaitWithTrayAnim": 0x341C, "gAnju1WalkWithTrayAnim": 0x3EA8, "gAnju1BowAnim": 0x544C,
+                 "gAnju1CookAnim": 0x65C8, "gAnju1SitAnim": 0x71E8, "gAnju1SittingInDisbeliefAnim": 0x7E08},
         "tex": {"gAnju1EyeOpenTex": (0xE1E0, "CI8", 32, 32, 0xDD20), "gAnju1EyeHalfTex": (0xEFA0, "CI8", 32, 32, 0xDD20),
                 "gAnju1EyeClosedTex": (0xF3A0, "CI8", 32, 32, 0xDD20), "gAnju1EyeSadTex": (0xF9A0, "CI8", 32, 32, 0xDD20),
                 "gAnju1EyeComfortTex": (0xFDA0, "CI8", 32, 32, 0xDD20),
@@ -137,7 +141,12 @@ OBJECTS = {
     }),
     "object_an2": (1017, {  # Anju's umbrella, and her walk holding it (En_An)
         "dl": {"gAnju2UmbrellaDL": 0x378},
-        "anim": {"gAnju2UmbrellaWalkAnim": 0x42CC},
+        "anim": {"gAnju2UmbrellaWalkAnim": 0x42CC, "gAnju2UmbrellaIdleAnim": 0x28DC,
+                 "gAnju2UmbrellaSitAnim": 0x38A0, "gAnju2UmbrellaCryAnim": 0x1B80},
+    }),
+    "object_an3": (1018, {  # Anju's broom, and her sweeping (En_An)
+        "dl": {"gAnju3BroomDL": 0x308},
+        "anim": {"gAnju3BroomSweepAnim": 0x12C0, "gAnju3BroomIdleAnim": 0x201C, "gAnju3BroomWalkAnim": 0x2A4C},
     }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},

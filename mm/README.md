@@ -507,45 +507,31 @@ again needs the box there to stop at it (MM's rule), and the notebook's events n
 MM's notebook week events (its 55), not only "met".
 Tested headless in South Clock Town at 9:00: the box offers "Check" and runs MM's lines.
 
-### Anju, outdoors (2026-11-22, `soh/src/code/z_nv_mm_an.c`, MM's En_An)
+### Anju (2026-11-22, `soh/src/code/z_nv_mm_an.c`, MM's En_An)
 
 Anju by MM's schedule (`mm/schedules/En_An.schl`), MM's model (`object_an1`, her eyes and mouth by
-MM's face logic, segments 8 and 9) and umbrella (`object_an2`). Most of her three days are inside
-the Stock Pot Inn, which isn't built, so only her outdoor part is in: at lunchtime on Day 2 she
-comes out of the inn's front door (East Clock Town; our door held open for her) under her
-umbrella and walks through East and South Clock Town toward the Laundry Pool, and back in the
-afternoon. Walking she doesn't talk, as in MM. After the Couples' Mask ending she's gone from
-town (MM's week event 51_40). The rest of En_An (the inn, the tray, the broom, the masks, her
-conversations and their message scripts) comes with the inn.
-Tested headless in East Clock Town, Day 2 from 11:28: she comes out of the inn door and walks
-off with her umbrella at 11:41.
-
-### The Laundry Pool and the Stock Pot Inn (2026-11-22)
-
-Two more scenes: the Laundry Pool (`Z2_ALLEY`, one room, scene 0x114) and the Stock Pot Inn
-(`Z2_YADOYA`, five rooms, scene 0x115), in `tools/mm_rom.py` and the entrance map
-(`tools/mm_entrances.py`: MM's entrance scenes 0x6D and 0x5E). South Clock Town's exit now goes into
-the Laundry Pool, East Clock Town's inn doors into the inn, instead of the "not built" note.
-Adding scenes moves the "back" entrance block (0x1048 on now); the schedules were compiled again,
-since they name both scenes (Anju's and the Postman's results there are no longer "no scene").
-Brought up on the way:
-- **MM's area textures.** Some of MM's scenes draw with a shared texture file in segment 6
-  (scene_texture_01-08, MM's Scene_LoadAreaTextures, chosen by the scene's skybox command; the
-  inn uses 01). `mm2torch.py` follows them like the scene file (Torch resolves the rooms' textures
-  in them), writing each once (`mm/scene_textures/`).
-- **MM's material segments.** MM's rooms call display lists in segments 8-0xD, which MM's scenes
-  fill with animated materials; unset, they ran stale pointers (the inn crashed). One small hook
-  at the end of OoT's `Scene_Draw` (z_scene_table.c) calls `NvMmScene_Draw`, which sets them to an
-  empty list in Termina, as MM does when a scene has none.
-- **MM's animated materials** (MM's AnimatedMat_*, scene command 0x1A): `mm_scene.py` writes each
-  scene's list beside it (`<scene>_matanim`, "MMAT": segment, kind, data, no pointers), and
-  `NvMmScene_Draw` runs them each frame into segments 8-0xD: texture scrolls (one and two layers)
-  and the three color kinds (set, lerped, MM's Lagrange curve). The texture cycle isn't carried
-  yet (none of our scenes has one). South Clock Town, the tower's inside, the Laundry Pool and the
-  inn use two-layer scrolls: the Laundry Pool's water now moves.
-- **MM's field keep** is loaded in segment 5 (as its dungeon keep), not 4: the inn's side doors
-  (MM's field-keep door) drew garbage before.
-Tested headless: both load (the Laundry Pool's channel and grass, the inn's lobby and counter).
+MM's face logic, segments 8 and 9), umbrella (`object_an2`), broom (`object_an3`), tray and
+chopsticks. Now that the inn and the Laundry Pool are built, most of her three days are in: the
+front desk, cooking (she tastes when spoken to), sweeping, waiting for closing time, her walks
+through the inn's halls and doors (with her tray, her broom), out the front door at lunchtime on
+Day 2 under her umbrella to sit at the Laundry Pool (crying there once Link has talked to her), and
+the midnight meeting. She talks through MM's message scripts with MM's callbacks.
+- **Her scripts** are the decomp's, from its En_An file by `tools/mm_msgscripts.py`
+  (`soh/src/code/nv_mm_msgscripts/En_An.msg.inc`): it copies an actor's MsgScript arrays and turns
+  the names in them (week events, notebook events, MM's items, get-items, masks) into MM's numbers
+  from the decomp's headers. Items stay MM's numbers: the script runner gives what both games share
+  as OoT's (rupees, hearts, heart pieces) and skips MM's own items for now (the Room Key, the Letter
+  to Kafei), going on as if given.
+- **Not yet**: her results with Granny (lunch), her mother (the staff room), the Goron and the
+  Postman at the desk (those people aren't ported: those times she isn't there, as in MM without
+  them); MM's mask and Deku lines; the midnight meeting's cutscene (she sends Link to the inn's
+  entrance 3, as MM does, without it); the faces MM sets line by line and her head turn.
+- **Talking across the counter**: as in MM, the counter keeps Link farther than her talk range;
+  Z-targeting lifts it (OoT's talk code does the same as MM's). The headless walker can hold Z now
+  (`NV_HOLD_Z=frame`, z_nv_dev.c).
+Tested headless: Day 1 at 8:00 at the desk (locked on) she runs MM's "Um... Are you... staying the
+night?" with its Yes/No, to "I'm terribly sorry! There are no vacancies today..."; Day 2 at 14:20
+she sits at the Laundry Pool under her umbrella; her Day 2 walk out of the inn as before.
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
