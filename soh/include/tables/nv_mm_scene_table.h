@@ -5,3 +5,5 @@
 /* 0x111 */ DEFINE_SCENE(mm_z2_ichiba_scene, none, SCENE_MM_Z2_ICHIBA, SDC_DEFAULT, 0, 0)
 /* 0x112 */ DEFINE_SCENE(mm_z2_okujou_scene, none, SCENE_MM_Z2_OKUJOU, SDC_DEFAULT, 0, 0)
 /* 0x113 */ DEFINE_SCENE(mm_z2_insidetower_scene, none, SCENE_MM_Z2_INSIDETOWER, SDC_DEFAULT, 0, 0)
+/* 0x114 */ DEFINE_SCENE(mm_z2_alley_scene, none, SCENE_MM_Z2_ALLEY, SDC_DEFAULT, 0, 0)
+/* 0x115 */ DEFINE_SCENE(mm_z2_yadoya_scene, none, SCENE_MM_Z2_YADOYA, SDC_DEFAULT, 0, 0)

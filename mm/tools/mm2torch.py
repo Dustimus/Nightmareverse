@@ -212,6 +212,38 @@ def yml_assets(a, prefix, header, names=None):
     return "\n".join(lines) + "\n"
 
 
+# MM's area textures (scene_texture_01-08): files some scenes draw with in segment 6, chosen by
+# the scene's skybox command (MM's Scene_LoadAreaTextures). In the US 1.0 file table they follow
+# one another from 1114. Shared between scenes: filled as scenes are walked, written by
+# write_area_textures once all are.
+AREA_TEXTURE_FIRST_FILE = 1113  # + the skybox command's index (1-8)
+AREA = {}  # index -> (Assets, rom offset)
+
+
+def area_textures(rom, data):
+    """The area texture file a scene uses (its Assets, rom offset, index), or None."""
+    for cmd, b1, _ in commands(data, 0):
+        if cmd == 0x11 and b1:
+            if b1 not in AREA:
+                vs, ve, ps, pe = rom.entry_index(AREA_TEXTURE_FIRST_FILE + b1)
+                AREA[b1] = (Assets(6, yaz0.decompress(rom.data[ps:pe])), ps)
+            return AREA[b1] + (b1,)
+    return None
+
+
+def area_name(index):
+    return f"scene_texture_{index:02d}"
+
+
+def write_area_textures(out):
+    """Each area texture file's yml (what the scenes walked found in it)."""
+    for index, (a, ps) in AREA.items():
+        name = area_name(index)
+        header = f":config:\n  segments:\n    - [ 6, 0x{ps:X} ]\n  directory: mm/scene_textures/{name}\n\n"
+        open(os.path.join(out, f"{name}.yml"), "w").write(yml_assets(a, name + "_", header))
+        print(f"{name}: {len(a.tex)} textures")
+
+
 def convert_scene(rom, scene, rooms, out):
     def load(name):
         vs, ve, ps, pe = rom.entry(name)
@@ -220,13 +252,14 @@ def convert_scene(rom, scene, rooms, out):
     sdata, sprom = load(scene)
     directory = f"mm/scenes/{scene}_scene"
     scene_assets = Assets(2, sdata)
+    area = area_textures(rom, sdata)
     room_files = []
     others = set()
     for r in range(rooms):
         name = f"{scene}_room_{r:02d}"
         rdata, rprom = load(name)
         ra = Assets(3, rdata)
-        w = Walker({2: scene_assets, 3: ra})
+        w = Walker({2: scene_assets, 3: ra, **({6: area[0]} if area else {})})
         for hdr in room_headers(rdata):
             for cmd, _, w1 in commands(rdata, hdr):
                 if cmd == 0x0A:
@@ -237,13 +270,16 @@ def convert_scene(rom, scene, rooms, out):
 
     os.makedirs(out, exist_ok=True)
     col = mm_scene_collision(sdata)
-    header = (f":config:\n  segments:\n    - [ 2, 0x{sprom:X} ]\n  directory: {directory}\n\n"
+    seg6 = f"    - [ 6, 0x{area[1]:X} ]\n" if area else ""
+    ext6 = f"    - mm_us/scenes/{area_name(area[2])}.yml\n" if area else ""
+    header = (f":config:\n  segments:\n    - [ 2, 0x{sprom:X} ]\n{seg6}  directory: {directory}\n"
+              + (f"  external_files:\n{ext6}" if area else "") + "\n"
               f"{scene}_sceneCollisionHeader_{col:06X}:\n  type: OOT:COLLISION\n  offset: 0x{col:06X}\n"
               f"  symbol: {scene}_sceneCollisionHeader_{col:06X}\n")
     open(os.path.join(out, f"{scene}.yml"), "w").write(yml_assets(scene_assets, f"{scene}_scene", header))
     for name, rprom, ra in room_files:
-        header = (f":config:\n  segments:\n    - [ 3, 0x{rprom:X} ]\n    - [ 2, 0x{sprom:X} ]\n"
-                  f"  directory: {directory}\n  external_files:\n    - mm_us/scenes/{scene}.yml\n\n")
+        header = (f":config:\n  segments:\n    - [ 3, 0x{rprom:X} ]\n    - [ 2, 0x{sprom:X} ]\n{seg6}"
+                  f"  directory: {directory}\n  external_files:\n    - mm_us/scenes/{scene}.yml\n{ext6}\n")
         # (no OOT:ROOM: the room header is ours, mm_scene.py; Torch exports what it draws)
         open(os.path.join(out, f"{name}.yml"), "w").write(yml_assets(ra, name, header))
         print(f"{name}: {len(ra.dls)} display lists, {len(ra.vtx_arrays())} vertex arrays, "

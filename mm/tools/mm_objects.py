@@ -82,7 +82,7 @@ OBJECTS = {
         "gDoorRightDL": 0x20D00,
     }, "skel_normal": {"gDoorSkel": 0x22B28},
         "anim": {"gDoorHumanOpenLeftAnim": 0x204B4, "gDoorHumanOpenRightAnim": 0x205A0}}),
-    "gameplay_field_keep": (650, {"segment": 4, "dl": {  # MM's field keep: its doors (En_Door)
+    "gameplay_field_keep": (650, {"segment": 5, "dl": {  # MM's field keep (segment 5, as its dungeon keep): its doors (En_Door)
         "gFieldWoodDoorLeftDL": 0x4050,
         "gFieldWoodDoorRightDL": 0x4228,
     }}),

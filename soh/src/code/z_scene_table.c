@@ -1695,6 +1695,8 @@ void (*sSceneDrawHandlers[])(PlayState*) = {
     func_800A059C, func_8009CF84, func_800A057C, func_800A055C,
 };
 
+void NvMmScene_Draw(PlayState* play); // Nightmareverse
+
 void Scene_Draw(PlayState* play) {
     if (HREG(80) == 17) {
         if (HREG(95) != 17) {
@@ -1729,4 +1731,5 @@ void Scene_Draw(PlayState* play) {
     } else {
         sSceneDrawHandlers[play->sceneConfig](play);
     }
+    NvMmScene_Draw(play); // Nightmareverse: MM's material segments in Termina (z_nv_mm_scene.c)
 }

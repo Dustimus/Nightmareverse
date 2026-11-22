@@ -118,3 +118,22 @@ void NvMm_WeekEventsNewCycle(void) {
 void NvMm_WeekEventsNewGame(void) {
     memset(sMmWeekEventReg, 0, sizeof(sMmWeekEventReg));
 }
+
+/** After the scene's draw config (Scene_Draw, z_scene_table.c): MM's rooms call display lists in
+ * segments 8-0xD, which MM's scenes fill with their animated materials (MM's
+ * Scene_DrawConfigMatAnim); where a scene sets none, MM leaves them an empty list. Set here for
+ * Termina's scenes, before the rooms draw. */
+void NvMmScene_Draw(PlayState* play) {
+    static Gfx sEmptyDL[] = { gsSPEndDisplayList() };
+    s32 seg;
+
+    if (!NvMm_IsScene(play->sceneNum)) {
+        return;
+    }
+    OPEN_DISPS(play->state.gfxCtx);
+    for (seg = 0x08; seg <= 0x0D; seg++) {
+        gSPSegment(POLY_OPA_DISP++, seg, sEmptyDL);
+        gSPSegment(POLY_XLU_DISP++, seg, sEmptyDL);
+    }
+    CLOSE_DISPS(play->state.gfxCtx);
+}

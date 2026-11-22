@@ -520,6 +520,27 @@ conversations and their message scripts) comes with the inn.
 Tested headless in East Clock Town, Day 2 from 11:28: she comes out of the inn door and walks
 off with her umbrella at 11:41.
 
+### The Laundry Pool and the Stock Pot Inn (2026-11-22)
+
+Two more scenes: the Laundry Pool (`Z2_ALLEY`, one room, scene 0x114) and the Stock Pot Inn
+(`Z2_YADOYA`, five rooms, scene 0x115), in `tools/mm_rom.py` and the entrance map
+(`tools/mm_entrances.py`: MM's entrance scenes 0x6D and 0x5E). South Clock Town's exit now goes into
+the Laundry Pool, East Clock Town's inn doors into the inn, instead of the "not built" note.
+Adding scenes moves the "back" entrance block (0x1048 on now); the schedules were compiled again,
+since they name both scenes (Anju's and the Postman's results there are no longer "no scene").
+Brought up on the way:
+- **MM's area textures.** Some of MM's scenes draw with a shared texture file in segment 6
+  (scene_texture_01-08, MM's Scene_LoadAreaTextures, chosen by the scene's skybox command; the
+  inn uses 01). `mm2torch.py` follows them like the scene file (Torch resolves the rooms' textures
+  in them), writing each once (`mm/scene_textures/`).
+- **MM's material segments.** MM's rooms call display lists in segments 8-0xD, which MM's scenes
+  fill with animated materials; unset, they ran stale pointers (the inn crashed). One small hook
+  at the end of OoT's `Scene_Draw` (z_scene_table.c) calls `NvMmScene_Draw`, which sets them to an
+  empty list in Termina, as MM does when a scene has none. MM's animated materials are next.
+- **MM's field keep** is loaded in segment 5 (as its dungeon keep), not 4: the inn's side doors
+  (MM's field-keep door) drew garbage before.
+Tested headless: both load (the Laundry Pool's channel and grass, the inn's lobby and counter).
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

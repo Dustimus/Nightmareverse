@@ -30,11 +30,19 @@ KNOWN = {
             "Z2_BACKTOWN_room_00": 1515,
             "Z2_CLOCKTOWER": 1516,      # South Clock Town
             "Z2_CLOCKTOWER_room_00": 1517,
+            "Z2_ALLEY": 1518,           # the Laundry Pool
+            "Z2_ALLEY_room_00": 1519,
+            "Z2_YADOYA": 1466,          # the Stock Pot Inn
+            "Z2_YADOYA_room_00": 1467,
+            "Z2_YADOYA_room_01": 1468,
+            "Z2_YADOYA_room_02": 1469,
+            "Z2_YADOYA_room_03": 1470,
+            "Z2_YADOYA_room_04": 1471,
         },
     },
 }
 
-# Clock Town's scenes and how many rooms each has.
+# The scenes brought over (Clock Town and its buildings), and how many rooms each has.
 CLOCK_TOWN = {
     "Z2_CLOCKTOWER": 1,
     "Z2_BACKTOWN": 1,
@@ -42,6 +50,8 @@ CLOCK_TOWN = {
     "Z2_ICHIBA": 1,
     "Z2_OKUJOU": 1,
     "Z2_INSIDETOWER": 2,
+    "Z2_ALLEY": 1,       # the Laundry Pool
+    "Z2_YADOYA": 5,      # the Stock Pot Inn
 }
 
 

@@ -52,6 +52,7 @@ def main():
     shutil.copy(os.path.join(REPO, "mm", "assets", "yml", "config.yml"), yml)
     for s in scenes:
         mm2torch.convert_scene(rom, s, mm_rom.CLOCK_TOWN[s], os.path.join(yml, "mm_us", "scenes"))
+    mm2torch.write_area_textures(os.path.join(yml, "mm_us", "scenes"))
 
     os.makedirs(os.path.join(yml, "mm_us", "objects"))
     mm_objects.convert_objects(rom, os.path.join(yml, "mm_us", "objects"))
