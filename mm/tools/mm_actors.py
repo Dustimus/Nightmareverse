@@ -31,6 +31,8 @@ PORTED = {
     0x09C,  # En_Daiku: the carpenters (z_nv_mm_daiku.c)
     0x1C7,  # En_Stop_heishi: the gate guards (z_nv_mm_stopheishi.c)
     0x280,  # En_Bombers: the Bombers (z_nv_mm_bombers.c)
+    0x14D,  # Obj_Entotu: the chimneys (z_nv_mm_entotu.c)
+    0x081,  # Obj_Kibako: the small crates, MM's own (z_nv_mm_kibako.c)
 }
 
 # MM's ids (the decomp's actor table)
@@ -63,8 +65,6 @@ MAP = {
     # actor: (OoT actor, params from MM's, OoT objects it needs)
     MM_OBJ_TSUBO: (ACTOR_OBJ_TSUBO,  # pot: drop, object_tsubo (bit 8), collectible flag
                    lambda p: _drop(p) | (1 << 8) | (((p >> 9) & 0x3F) << 9), (OBJECT_TSUBO,)),
-    MM_OBJ_KIBAKO: (ACTOR_OBJ_KIBAKO,  # small crate: drop, collectible flag (gameplay_dangeon_keep)
-                    lambda p: _drop(p) | (((p >> 8) & 0x3F) << 8), (OBJECT_GAMEPLAY_DANGEON_KEEP,)),
     MM_OBJ_SYOKUDAI: (ACTOR_OBJ_SYOKUDAI,  # torch: type, lit, group size, switch flag
                       lambda p: (p & 0xF000) | (0x400 if p & 0x800 else 0) | (((p >> 7) & 0xF) << 6) | (p & 0x3F),
                       (OBJECT_SYOKUDAI,)),

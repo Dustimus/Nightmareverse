@@ -32,6 +32,15 @@ void NvMmBombers_Destroy(Actor* thisx, PlayState* play);
 void NvMmBombers_Update(Actor* thisx, PlayState* play);
 void NvMmBombers_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvMmBombersSize;
+void NvMmEntotu_Init(Actor* thisx, PlayState* play);
+void NvMmEntotu_Destroy(Actor* thisx, PlayState* play);
+void NvMmEntotu_Update(Actor* thisx, PlayState* play);
+extern const size_t gNvMmEntotuSize;
+void NvMmKibako_Init(Actor* thisx, PlayState* play);
+void NvMmKibako_Destroy(Actor* thisx, PlayState* play);
+void NvMmKibako_Update(Actor* thisx, PlayState* play);
+extern const size_t gNvMmKibakoSize;
+void NvMmEntotu_Draw(Actor* thisx, PlayState* play);
 }
 
 struct NvMmActorDef {
@@ -64,6 +73,14 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
       { "Mm_En_Bombers", "MM: a Bomber (the blue-hatted kids)", ACTORCAT_NPC,
         ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY, &gNvMmBombersSize, NvMmBombers_Init, NvMmBombers_Destroy,
         NvMmBombers_Update, NvMmBombers_Draw } },
+    { 0x14D,
+      { "Mm_Obj_Entotu", "MM: a Clock Town chimney", ACTORCAT_PROP,
+        ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmEntotuSize, NvMmEntotu_Init,
+        NvMmEntotu_Destroy, NvMmEntotu_Update, NvMmEntotu_Draw } },
+    { 0x081,
+      { "Mm_Obj_Kibako", "MM: a small crate", ACTORCAT_PROP,
+        ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_CAN_PRESS_SWITCHES, &gNvMmKibakoSize, NvMmKibako_Init,
+        NvMmKibako_Destroy, NvMmKibako_Update, NULL } },
 };
 
 /** The SoH actor id for one of MM's actor ids, or -1 if it isn't ported. */

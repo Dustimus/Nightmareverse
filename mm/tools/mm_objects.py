@@ -17,7 +17,9 @@ from mm2torch import Assets, Walker, yml_assets
 
 OBJECTS = {
     # object: (its index in the US 1.0 file table, {"dl": {symbol: offset}, "skel": {symbol: offset}
-    #          (flex or plain, standard limbs; their limbs are found from them), "anim": {symbol: offset}})
+    #          (flex or plain, standard limbs; their limbs are found from them), "anim": {symbol: offset},
+    #          "tex": {symbol: (offset, format, width, height)}, "vtx": {symbol: (offset, count)}})
+    # (an actor's own data, in its overlay file, comes the same way: segment 6 is just where the file goes)
     "object_obj_tokeidai": (886, {"dl": {  # the clock tower and the wall clocks (Obj_Tokeidai)
         "gClockTowerTerminaFieldWallsDL": 0x9A08,
         "gClockTowerSpotlightDL": 0xB0C0,
@@ -60,6 +62,24 @@ OBJECTS = {
                  "object_sdn_Anim_0057BC": 0x57BC, "object_sdn_Anim_005D28": 0x5D28,
                  "object_sdn_Anim_0064C0": 0x64C0, "gSoldierStandWithHandOnChestAnim": 0xA54},
     }),
+    "object_f53_obj": (861, {"dl": {  # Clock Town's chimneys and their smoke (Obj_Entotu)
+        "object_f53_obj_DL_000158": 0x158,
+        "object_f53_obj_DL_001C00": 0x1C00,  # the smoke: its vertices are the actor's (segment 9)
+    }}),
+    "ovl_Obj_Entotu": (299, {  # the chimney actor's own data: the smoke's seven vertices
+        "vtx": {"ovl_Obj_Entotu_Vtx_000D10": (0xD10, 7)},
+    }),
+    "object_kibako": (862, {"dl": {  # the small crate, outdoors (Obj_Kibako)
+        "gSmallCrateDL": 0x1180,
+        "gSmallCrateFragmentDL": 0x1A70,
+    }}),
+    "gameplay_keep": (649, {"segment": 4, "dl": {  # MM's main keep: what the ported actors share (shadows, ...)
+        "gSquareShadowDL": 0x75A40,
+    }}),
+    "gameplay_dangeon_keep": (651, {"segment": 5, "dl": {  # MM's dungeon keep: the small crate, indoors (Obj_Kibako)
+        "gameplay_dangeon_keep_DL_007890": 0x7890,
+        "gameplay_dangeon_keep_DL_007980": 0x7980,
+    }}),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)
@@ -83,8 +103,9 @@ def convert_object(rom, name, out):
     index, parts = OBJECTS[name]
     vs, ve, ps, pe = rom.entry_index(index)
     data = yaz0.decompress(rom.data[ps:pe]) if rom.data[ps:ps + 4] == b"Yaz0" else rom.data[ps:ps + ve - vs]
-    a = Assets(6, data)
-    w = Walker({6: a})
+    seg = parts.get("segment", 6)  # (MM's keeps are loaded in their own segments: 4, 5)
+    a = Assets(seg, data)
+    w = Walker({seg: a})
     dls = dict(parts.get("dl", {}))
     extra = []
     for sym, off in parts.get("skel", {}).items():
@@ -102,11 +123,14 @@ def convert_object(rom, name, out):
         extra += [f"{sym}:", "  type: TEXTURE", f"  offset: 0x{off:06X}", f"  symbol: {sym}", f"  format: {fmt}",
                   f"  width: {tw}", f"  height: {th}", ""]
         a.tex.pop(off, None)
+    for sym, (off, count) in parts.get("vtx", {}).items():  # named: an actor copies or sets them
+        extra += [f"{sym}:", "  type: OOT:ARRAY", f"  offset: 0x{off:06X}", f"  symbol: {sym}", f"  count: {count}",
+                  "  array_type: VTX", ""]
     for sym, off in parts.get("anim", {}).items():
         extra += [f"{sym}:", "  type: OOT:ANIMATION", f"  offset: 0x{off:06X}", f"  symbol: {sym}", ""]
     for off in dls.values():
-        w.walk(0x06000000 | off)
-    header = f":config:\n  segments:\n    - [ 6, 0x{ps:X} ]\n  directory: mm/objects/{name}\n"
+        w.walk((seg << 24) | off)
+    header = f":config:\n  segments:\n    - [ {seg}, 0x{ps:X} ]\n  directory: mm/objects/{name}\n"
     names = {off: sym for sym, off in dls.items()}
     os.makedirs(out, exist_ok=True)
     open(os.path.join(out, f"{name}.yml"), "w").write(yml_assets(a, name, header, names) + "\n".join(extra) + "\n")

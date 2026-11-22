@@ -389,6 +389,27 @@ As in MM it's the same four kids placed three times each, one spot per day (half
 - Tested headless in West Clock Town, Day 1 08:00: the kid walks about, turns to talk, and the
   conversation runs through the yes/no to the notebook lines.
 
+### MM's own props: chimneys and crates (2026-11-22)
+
+The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near
+identical. (Group 1 above put OoT's pots, crates and torches in; they're being swapped for MM's.)
+
+- **Chimneys** (`soh/src/code/z_nv_mm_entotu.c`, MM's Obj_Entotu): the camera-facing chimney
+  cards on Clock Town's roofs (East, West, North, South), MM's `object_f53_obj`. Smoke rises at
+  mealtimes (6-9, 11-14, 16-20 on Termina's clock), each chimney a random few minutes off. The
+  smoke's seven vertices are the actor's own data in MM (its overlay file, ROM file 299), brought
+  over by `tools/mm_objects.py` like an object (`mm/objects/ovl_Obj_Entotu`), copied and faded.
+- **Small crates** (`soh/src/code/z_nv_mm_kibako.c`, MM's Obj_Kibako): MM's crate (`object_kibako`
+  outdoors, MM's `gameplay_dangeon_keep` one indoors) with MM's square shadow (MM's `gameplay_keep`).
+  Lift, put down, throw, break, sink, as in MM; the drop is MM's drop table turned into OoT's
+  collectibles (MM's compass, spore mushroom and big fairy have no OoT drop; MM's three hearts
+  give one). The Bombers' hide-and-seek crates (bit 7) are crates until the game comes.
+- MM's keeps sit in their own segments (4 for `gameplay_keep`, 5 for `gameplay_dangeon_keep`):
+  `mm_objects.py` takes a `"segment"` for them.
+- Tested headless in East Clock Town: the crate shows, lifts (overhead, MM's model), goes down,
+  and breaks to the sword, dropping its green rupee; a chimney (moved into view for the test)
+  draws with its smoke at 7:20.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the
