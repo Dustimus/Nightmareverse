@@ -550,9 +550,26 @@ like to hear?" choice. Either story puts Link to sleep (MM's func_80BC01DC witho
 Mask): the Carnival of Time costs two hours (`NvMmClock_Jump`), the Four Giants the night, to 8:00 the
 next day (`NvMmClock_SleepToMorning`). He wakes at her side (MM's inn entrance 2) and she speaks
 first ("Oh, are you awake?"). MM's EVENTINF flags (42, 43) are kept by the message-script
-interpreter (`NvMmMsgEvent_EventInf`). Not yet: the All-Night Mask (the story's pictures), her lunch
-with Anju (SCH_2, treated as her room for now), her head turn. Tested headless: both stories, Day 1
-9:00 to 11:31, and to Day 2 at 8:00 with her waking line.
+interpreter (`NvMmMsgEvent_EventInf`). Her lunch with Anju is in (below, with the Goron). Not yet:
+the All-Night Mask (the story's pictures), her head turn. Tested headless: both stories, Day 1 9:00
+to 11:31, and to Day 2 at 8:00 with her waking line.
+
+### The Goron at the inn (2026-11-22, `soh/src/code/z_nv_mm_ig.c`, MM's En_Ig)
+
+MM's model (`object_dai`, his eyes by MM's blinking), schedule (`mm/schedules/En_Ig.schl`, written
+out from the decomp's bytecode) and message scripts (`nv_mm_msgscripts/En_Ig.msg.inc`). Day 1 only,
+as in MM: he walks East Clock Town at 15:25 and goes through the inn's door at 15:45, crosses the
+lobby to the desk, and asks Anju for his room (16:10-16:30, MM's lines between the two of them,
+Anju's side in `z_nv_mm_an.c`). Then up the stairs to the Knife Chamber (16:50); if Link has the
+room key (an MM item, not in yet) he walks back out and sleeps in East Clock Town instead. MM's
+camera turning to each speaker is left to OoT's talk camera; his head turn is left out; MM's step
+and snore sounds aren't in OoT's sound bank. Tested headless: the street walk, the door, the walk to
+the desk, the talk with Anju ("I should have a reservation-goro. The name is LINK."), and the walk
+upstairs to the Knife Chamber's door.
+
+Anju's other desk scenes are in with him: her lunch with Granny (12:00-12:15, MM's lines between
+them; tested headless: "Grandmother...I am Anju! Tortus was my dad...") and the Postman's letter
+(14:08-14:18; it needs the Postman indoors, not yet).
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 

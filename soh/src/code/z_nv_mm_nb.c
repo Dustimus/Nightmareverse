@@ -9,8 +9,8 @@
  * heart pieces) waits for MM's masks: the scripts' mask branches are MM's, checked as not worn.
  *
  * Adapted from MM:
- * - the day of the story and her lunch with Anju (MM's camera cutscene between them, 12:00-12:15 on
- *   Day 1): the lunch scene isn't in yet, she sits as at other times;
+ * - her lunch with Anju (12:00-12:15, Days 1 and 2): MM's lines between them; MM's cutscene camera
+ *   turning to each speaker is left to OoT's talk camera;
  * - MM's story screen (the pictures over a black fill) is for the mask path: not ported yet;
  * - the time jump and the night's sleep are Termina's clock (NvMmClock_Jump, _SleepToMorning);
  * - her head turn and her talking animations by line (MM's transform draw, func_80BC08E0...) are
@@ -97,16 +97,43 @@ static void NvMmNb_Talk(NvMmNb* this, PlayState* play) {
         }
         this->offer = 1;
         this->msgScriptPos = 0;
+        this->actor.child = NULL;
         this->func = NvMmNb_FollowSchedule;
     }
 }
 
-/** MM's EnNb_ProcessScheduleOutput: in her room (her lunch, SCH_2, as the others for now). */
+s32 NvMmActor_Id(s32 mmId);
+
+/** Anju (MM's En_An), here and up: MM's EnNb_FindActor for her lunch (SCH_2). */
+static Actor* NvMmNb_FindAnju(NvMmNb* this, PlayState* play) {
+    s32 id = NvMmActor_Id(0x202);
+    Actor* a;
+
+    for (a = play->actorCtx.actorLists[ACTORCAT_NPC].head; a != NULL; a = a->next) {
+        if ((a->id == id) && (a->update != NULL)) {
+            return a;
+        }
+    }
+    return NULL;
+}
+
+/** MM's func_80BC00AC: the talk camera between her and Anju over lunch, line by line; OoT's talk
+ * camera follows the script's FOCUS_TO_CHILD / FOCUS_TO_SELF, so each step just goes on. */
+static s32 NvMmNb_MsgEventLunch(Actor* thisx, PlayState* play) {
+    return true;
+}
+
+/** MM's EnNb_ProcessScheduleOutput: in her room; her lunch (SCH_2) with Anju there. */
 static s32 NvMmNb_SetupResult(NvMmNb* this, PlayState* play, NvMmScheduleOutput* out) {
     this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     switch (out->result) {
-        case EN_NB_SCH_1:
         case EN_NB_SCH_2:
+            if (NvMmNb_FindAnju(this, play) == NULL) {
+                return false;
+            }
+            this->offer = 1;
+            return true;
+        case EN_NB_SCH_1:
         case EN_NB_SCH_3:
         case EN_NB_SCH_4:
             this->offer = NvMmMsgEvent_EventInf(EVENTINF_43) ? 2 : 1;
@@ -169,8 +196,14 @@ void NvMmNb_Update(Actor* thisx, PlayState* play) {
         this->offer = 0;
         this->behaviour = 0;
         this->actor.flags &= ~ACTOR_FLAG_TALK_OFFER_AUTO_ACCEPTED;
-        this->msgScriptCallback = NvMmNb_MsgEventStory; // (MM's EnNb_GetMsgScript: the Kafei's Mask line waits)
-        this->msgScript = D_80BC1464;
+        if (this->scheduleResult == EN_NB_SCH_2) { // (MM's EnNb_GetMsgScript: the Kafei's Mask line waits)
+            this->msgScriptCallback = NvMmNb_MsgEventLunch;
+            this->msgScript = D_80BC1574;
+            this->actor.child = NvMmNb_FindAnju(this, play);
+        } else {
+            this->msgScriptCallback = NvMmNb_MsgEventStory;
+            this->msgScript = D_80BC1464;
+        }
         this->msgScriptPos = 0;
         this->func = NvMmNb_Talk;
     }

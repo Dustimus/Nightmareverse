@@ -75,6 +75,11 @@ void NvMmAh_Destroy(Actor* thisx, PlayState* play);
 void NvMmAh_Update(Actor* thisx, PlayState* play);
 void NvMmAh_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvMmAhSize;
+void NvMmIg_Init(Actor* thisx, PlayState* play);
+void NvMmIg_Destroy(Actor* thisx, PlayState* play);
+void NvMmIg_Update(Actor* thisx, PlayState* play);
+void NvMmIg_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmIgSize;
 void NvMmNb_Init(Actor* thisx, PlayState* play);
 void NvMmNb_Destroy(Actor* thisx, PlayState* play);
 void NvMmNb_Update(Actor* thisx, PlayState* play);
@@ -154,6 +159,11 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
         ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED |
             ACTOR_FLAG_DRAW_CULLING_DISABLED,
         &gNvMmNbSize, NvMmNb_Init, NvMmNb_Destroy, NvMmNb_Update, NvMmNb_Draw } },
+    { 0x276,
+      { "Mm_En_Ig", "MM: the Goron at the inn", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED |
+            ACTOR_FLAG_DRAW_CULLING_DISABLED,
+        &gNvMmIgSize, NvMmIg_Init, NvMmIg_Destroy, NvMmIg_Update, NvMmIg_Draw } },
 };
 
 /** The SoH actor id for one of MM's actor ids, or -1 if it isn't ported. */

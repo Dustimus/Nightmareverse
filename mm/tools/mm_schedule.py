@@ -73,7 +73,7 @@ class Names:
                 self.flags[m.group(1)] = (int(m.group(2)) << 8) | int(m.group(3), 16)
         self.scenes = {}
         for line in open(os.path.join(decomp, "include", "tables", "scene_table.h")):
-            m = re.search(r"DEFINE_SCENE\((\w+), (SCENE_\w+),", line)
+            m = re.search(r"DEFINE_SCENE\((\w+),\s*(SCENE_\w+),", line)
             if m:
                 self.scenes[m.group(2)] = m.group(1)  # SCENE_ICHIBA -> Z2_ICHIBA
 

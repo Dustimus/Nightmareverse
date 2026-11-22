@@ -40,6 +40,7 @@ PORTED = {
     0x202,  # En_An: Anju (z_nv_mm_an.c)
     0x253,  # En_Ah: Anju's mother (z_nv_mm_ah.c)
     0x243,  # En_Nb: Anju's grandmother (z_nv_mm_nb.c)
+    0x276,  # En_Ig: the Goron at the inn (z_nv_mm_ig.c)
 }
 
 # MM's ids (the decomp's actor table)

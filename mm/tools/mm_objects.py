@@ -158,6 +158,14 @@ OBJECTS = {
         "skel": {"gNbSkel": 0x8C40},
         "anim": {"gNbIdleAnim": 0x990, "gNbTalkAnim": 0x290, "gNbAngryAnim": 0x52C, "gNbRelievedAnim": 0x6D4},
     }),
+    "object_dai": (957, {  # the Goron at the inn (En_Ig): his eyes set by the actor (segment 8)
+        "skel": {"object_dai_Skel_0130D0": 0x130D0},
+        "dl": {f"object_dai_DL_{o:06X}": o for o in (0x8710, 0x87B8, 0x89D8, 0x8B00, 0xC538)},
+        "anim": {f"object_dai_Anim_{o:06X}": o for o in
+                 (0x10F8, 0x14BC, 0x1E44, 0x3CAC, 0x40E0, 0x48B4, 0x5100)},
+        "tex": {f"object_dai_Tex_{o:06X}": (o, "RGBA16", 32, 32) for o in
+                (0x107B0, 0x10FB0, 0x117B0, 0x11FB0, 0x127B0)},
+    }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)

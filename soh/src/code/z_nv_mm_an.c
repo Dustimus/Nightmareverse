@@ -11,8 +11,8 @@
  * cooking (tasting), the Laundry Pool and the midnight meeting.
  *
  * Adapted from MM:
- * - her results with Granny (lunch), the Goron and the Postman at the desk need them here: not
- *   ported yet, so those come to nothing, as in MM without them;
+ * - her results with Granny (lunch), the Goron and the Postman at the desk: MM's, the talk camera
+ *   left to OoT's (MM's cutscene cameras per line are left out);
  * - Link is MM's human form, without MM's masks (the Kafei's Mask and Deku lines wait); MM's items
  *   she gives (the Room Key, the Letter to Kafei) aren't in yet (the script goes on without them);
  * - the midnight meeting's scene (MM's cutscene at the inn's entrance 3) isn't ported: Link is taken
@@ -166,6 +166,7 @@ typedef struct NvMmAn {
     MsgScriptCallback msgScriptCallback;
     s16 trayScroll1;
     s16 trayScroll2;
+    Actor* lookAtActor; // (MM's: the one she's with at the desk, else Link)
 } NvMmAn;
 
 const size_t gNvMmAnSize = sizeof(NvMmAn);
@@ -522,6 +523,60 @@ static s32 NvMmAn_SetupStaffRoom(NvMmAn* this, PlayState* play, NvMmScheduleOutp
     return true;
 }
 
+/** MM's EnAn_FindLookAtActor's people: the Goron, Granny, the Postman (MM's ids), else none. */
+static s32 NvMmAn_InteractMmId(s32 result) {
+    switch (result) {
+        case ANJU_SCH_ATTEND_GORON:
+            return 0x276; // En_Ig
+        case ANJU_SCH_GIVE_LUNCH_TO_GRANNY:
+            return 0x243; // En_Nb
+        case ANJU_SCH_RECEIVE_LETTER_FROM_POSTMAN:
+            return 0x1D5; // En_Pm
+        default:
+            return -1;
+    }
+}
+
+static Actor* NvMmAn_FindNpc(NvMmAn* this, PlayState* play, s32 mmId) {
+    s32 id = NvMmActor_Id(mmId);
+    Actor* a;
+
+    for (a = play->actorCtx.actorLists[ACTORCAT_NPC].head; a != NULL; a = a->next) {
+        if ((a != &this->actor) && (a->id == id) && (a->update != NULL)) {
+            return a;
+        }
+    }
+    return NULL;
+}
+
+/** MM's func_80B55D98 and EnAn_ProcessSchedule_AttendGoron / _GiveLunchToGranny /
+ * _ReceiveLetterFromPostman: at her path's end, with the other one there. */
+static s32 NvMmAn_SetupInteract(NvMmAn* this, PlayState* play, NvMmScheduleOutput* out) {
+    Actor* other = NvMmAn_FindNpc(this, play, NvMmAn_InteractMmId(out->result));
+    Vec3s* points;
+    Vec3f before;
+
+    this->timePath = NvMmAn_Path(this, play, out->result);
+    if ((other == NULL) || (this->timePath == NULL) || (this->timePath->count < 2)) {
+        return false;
+    }
+    points = SEGMENTED_TO_VIRTUAL(this->timePath->points);
+    before = (Vec3f){ points[this->timePath->count - 2].x, points[this->timePath->count - 2].y,
+                      points[this->timePath->count - 2].z };
+    this->actor.world.pos = (Vec3f){ points[this->timePath->count - 1].x, points[this->timePath->count - 1].y,
+                                     points[this->timePath->count - 1].z };
+    this->actor.world.rot.y = Math_Vec3f_Yaw(&before, &this->actor.world.pos);
+    this->actor.shape.shadowDraw = NULL;
+    if (out->result == ANJU_SCH_GIVE_LUNCH_TO_GRANNY) {
+        NvMmAn_ChangeAnim(this, ENAN_ANIM_WAIT_WITH_TRAY);
+        this->stateFlags |= STATE_DRAW_TRAY;
+    } else {
+        NvMmAn_ChangeAnim(this, ENAN_ANIM_IDLE);
+    }
+    this->stateFlags |= STATE_OFFER | STATE_UPDATE_EYES;
+    return true;
+}
+
 /** MM's EnAn_ProcessScheduleOutput (without the people not ported yet). */
 static s32 NvMmAn_SetupResult(NvMmAn* this, PlayState* play, NvMmScheduleOutput* out) {
     this->stateFlags = 0;
@@ -541,6 +596,10 @@ static s32 NvMmAn_SetupResult(NvMmAn* this, PlayState* play, NvMmScheduleOutput*
         case ANJU_SCH_WAITING_FOR_KAFEI:
         case ANJU_SCH_TALKING_WITH_MOM:
             return NvMmAn_SetupStaffRoom(this, play, out);
+        case ANJU_SCH_ATTEND_GORON:
+        case ANJU_SCH_GIVE_LUNCH_TO_GRANNY:
+        case ANJU_SCH_RECEIVE_LETTER_FROM_POSTMAN:
+            return NvMmAn_SetupInteract(this, play, out);
         default:
             if ((out->result >= ANJU_SCH_DOOR_26) && (out->result <= ANJU_SCH_DOOR_39)) {
                 return NvMmAn_SetupDoor(this, play, out);
@@ -549,7 +608,7 @@ static s32 NvMmAn_SetupResult(NvMmAn* this, PlayState* play, NvMmScheduleOutput*
                 (out->result != ANJU_SCH_41)) {
                 return NvMmAn_SetupWalking(this, play, out);
             }
-            // (Granny's lunch, her mother, the Goron, the Postman at the desk, the ranch: not here yet)
+            // (the ranch, with Kafei: not here yet)
             return false;
     }
 }
@@ -666,6 +725,13 @@ static void NvMmAn_FollowSchedule(NvMmAn* this, PlayState* play) {
     } else if (this->scheduleResult == ANJU_SCH_LAUNDRY_POOL_SIT) {
         NvMmAn_LaundryPool(this, play);
     }
+    // MM's EnAn_FindLookAtActor, and EnAn_HandleSch_InteractActor: turned to whoever she's with
+    this->lookAtActor = (NvMmAn_InteractMmId(this->scheduleResult) >= 0)
+                            ? NvMmAn_FindNpc(this, play, NvMmAn_InteractMmId(this->scheduleResult))
+                            : &GET_PLAYER(play)->actor;
+    if ((this->lookAtActor != NULL) && (this->lookAtActor != &GET_PLAYER(play)->actor)) {
+        this->actor.world.rot.y = Actor_WorldYawTowardActor(&this->actor, this->lookAtActor);
+    }
     Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
 }
 
@@ -728,9 +794,25 @@ static s32 NvMmAn_MsgEventMidnightMeeting(Actor* thisx, PlayState* play) {
     return false;
 }
 
+/** MM's EnAn_MsgEvent_AttendGoron / _GiveLunchToGranny / _ReceiveLetterFromPostman: in MM they
+ * turn the talk camera between the two speakers, line by line; OoT's talk camera follows whom Link
+ * listens to (the script's FOCUS_TO_CHILD / FOCUS_TO_SELF), so each step just goes on. */
+static s32 NvMmAn_MsgEventExchange(Actor* thisx, PlayState* play) {
+    return true;
+}
+
 /** MM's EnAn_GetMsgScript, for a human Link without masks (MM's other branches wait for those). */
 static MsgScript* NvMmAn_GetMsgScript(NvMmAn* this, PlayState* play) {
     switch (this->scheduleResult) {
+        case ANJU_SCH_GIVE_LUNCH_TO_GRANNY:
+            this->msgScriptCallback = NvMmAn_MsgEventExchange;
+            return sAnjuMsgScript_SchGiveLunchToGranny;
+        case ANJU_SCH_RECEIVE_LETTER_FROM_POSTMAN:
+            this->msgScriptCallback = NvMmAn_MsgEventExchange;
+            return sAnjuMsgScript_SchReceiveLetterFromPostman;
+        case ANJU_SCH_ATTEND_GORON:
+            this->msgScriptCallback = NvMmAn_MsgEventExchange;
+            return sAnjuMsgScript_SchAttendGoron;
         case ANJU_SCH_COOKING:
             this->msgScriptCallback = NvMmAn_MsgEventCooking;
             return sAnjuMsgScript_SchCooking;
@@ -787,10 +869,15 @@ static MsgScript* NvMmAn_GetMsgScript(NvMmAn* this, PlayState* play) {
 /** MM's EnAn_ChooseAnimAfterTalking. */
 static void NvMmAn_AnimAfterTalking(NvMmAn* this) {
     switch (this->scheduleResult) {
+        case ANJU_SCH_RECEIVE_LETTER_FROM_POSTMAN:
+        case ANJU_SCH_ATTEND_GORON:
         case ANJU_SCH_RECEPTIONIST_IDLE:
         case ANJU_SCH_WAITING_CLOSING_TIME:
         case ANJU_SCH_MIDNIGHT_MEETING:
             NvMmAn_ChangeAnim(this, ENAN_ANIM_IDLE);
+            break;
+        case ANJU_SCH_GIVE_LUNCH_TO_GRANNY:
+            NvMmAn_ChangeAnim(this, ENAN_ANIM_WAIT_WITH_TRAY);
             break;
         case ANJU_SCH_SWEEPING:
             NvMmAn_ChangeAnim(this, ENAN_ANIM_BROOM_SWEEP);
@@ -839,6 +926,7 @@ static void NvMmAn_CheckTalk(NvMmAn* this, PlayState* play) {
         return;
     }
     this->stateFlags &= ~STATE_OFFER;
+    this->actor.child = this->lookAtActor; // (MM: whom the script's FOCUS_TO_CHILD turns to)
     this->msgScript = script;
     this->msgScriptPos = 0;
     this->func = NvMmAn_Talk;
