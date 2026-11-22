@@ -536,7 +536,13 @@ Brought up on the way:
 - **MM's material segments.** MM's rooms call display lists in segments 8-0xD, which MM's scenes
   fill with animated materials; unset, they ran stale pointers (the inn crashed). One small hook
   at the end of OoT's `Scene_Draw` (z_scene_table.c) calls `NvMmScene_Draw`, which sets them to an
-  empty list in Termina, as MM does when a scene has none. MM's animated materials are next.
+  empty list in Termina, as MM does when a scene has none.
+- **MM's animated materials** (MM's AnimatedMat_*, scene command 0x1A): `mm_scene.py` writes each
+  scene's list beside it (`<scene>_matanim`, "MMAT": segment, kind, data, no pointers), and
+  `NvMmScene_Draw` runs them each frame into segments 8-0xD: texture scrolls (one and two layers)
+  and the three color kinds (set, lerped, MM's Lagrange curve). The texture cycle isn't carried
+  yet (none of our scenes has one). South Clock Town, the tower's inside, the Laundry Pool and the
+  inn use two-layer scrolls: the Laundry Pool's water now moves.
 - **MM's field keep** is loaded in segment 5 (as its dungeon keep), not 4: the inn's side doors
   (MM's field-keep door) drew garbage before.
 Tested headless: both load (the Laundry Pool's channel and grass, the inn's lobby and counter).

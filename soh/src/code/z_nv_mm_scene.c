@@ -10,6 +10,10 @@
  * (decided with the user, 2026-11-19); for now chests aren't brought over.
  */
 #include "global.h"
+#include "soh/ResourceManagerHelpers.h"
+#include <libultraship/bridge/resourcebridge.h>
+#include <stdio.h>
+#include <string.h>
 #include <string.h>
 
 #define NV_MM_SCENES (SCENE_MM_LAST - SCENE_MM_FIRST + 1)
@@ -119,21 +123,218 @@ void NvMm_WeekEventsNewGame(void) {
     memset(sMmWeekEventReg, 0, sizeof(sMmWeekEventReg));
 }
 
+// MM's animated materials (z_scene_proc.c AnimatedMat_*), from the scene's "_matanim" resource
+// (mm_scene.py): read once per scene.
+static s16 sMatScene = -1;
+static const u8* sMat; // "MMAT", a count, then the entries
+static s32 sMatCount;
+
+static void NvMmScene_LoadMatAnim(PlayState* play) {
+    char path[160];
+    const char* file;
+    const u8* data;
+
+    if (sMatScene == play->sceneNum) {
+        return;
+    }
+    sMatScene = play->sceneNum;
+    sMat = NULL;
+    sMatCount = 0;
+    if ((play->loadedScene == NULL) || ((file = play->loadedScene->sceneFile.fileName) == NULL)) {
+        return;
+    }
+    snprintf(path, sizeof(path), "scenes/shared/%s/%s_matanim", file, file);
+    if (!ResourceMgr_FileExists(path)) {
+        return;
+    }
+    data = (const u8*)ResourceGetDataByName(path);
+    if ((data == NULL) || (memcmp(data, "MMAT", 4) != 0)) {
+        return;
+    }
+    memcpy(&sMatCount, data + 4, sizeof(sMatCount));
+    sMat = data + 8;
+}
+
+static void NvMmScene_SetSegment(PlayState* play, s32 segment, void* ptr) {
+    OPEN_DISPS(play->state.gfxCtx);
+    gSPSegment(POLY_OPA_DISP++, segment, ptr);
+    gSPSegment(POLY_XLU_DISP++, segment, ptr);
+    CLOSE_DISPS(play->state.gfxCtx);
+}
+
+/** MM's AnimatedMat_SetColor: a list setting the prim (and env) color, into the segment. */
+static void NvMmScene_SetColor(PlayState* play, s32 segment, const u8* prim, const u8* env) {
+    Gfx* gfx = Graph_Alloc(play->state.gfxCtx, 3 * sizeof(Gfx));
+
+    NvMmScene_SetSegment(play, segment, gfx);
+    gDPSetPrimColor(gfx++, 0, prim[4], prim[0], prim[1], prim[2], prim[3]);
+    if (env != NULL) {
+        gDPSetEnvColor(gfx++, env[0], env[1], env[2], env[3]);
+    }
+    gSPEndDisplayList(gfx++);
+}
+
+static s32 NvMmScene_Lerp(s32 min, s32 max, f32 norm) {
+    return (s32)((max - min) * norm) + min;
+}
+
+/** MM's Scene_LagrangeInterp. */
+static f32 NvMmScene_Lagrange(s32 n, f32 x[], f32 fx[], f32 xp) {
+    f32 weights[50];
+    f32 intp = 0.0f;
+    s32 i;
+    s32 j;
+
+    for (i = 0; i < n; i++) {
+        f32 m = 1.0f;
+
+        for (j = 0; j < n; j++) {
+            if (j != i) {
+                m *= x[i] - x[j];
+            }
+        }
+        weights[i] = fx[i] / m;
+    }
+    for (i = 0; i < n; i++) {
+        f32 m = 1.0f;
+
+        for (j = 0; j < n; j++) {
+            if (j != i) {
+                m *= xp - x[j];
+            }
+        }
+        intp += weights[i] * m;
+    }
+    return intp;
+}
+
+/** The color kinds (MM's AnimatedMat_DrawColor, _DrawColorLerp, _DrawColorNonLinearInterp). */
+static void NvMmScene_DrawColor(PlayState* play, s32 segment, s32 type, const u8* d, u32 step) {
+    u16 klen;
+    u16 kcount;
+    s32 hasEnv = d[4];
+    const u8* prims = d + 5;
+    const u8* envs;
+    const u8* keyBytes;
+    s32 n;
+    s32 curFrame;
+    u8 prim[5];
+    u8 env[4];
+    s32 c;
+
+    memcpy(&klen, d, 2);
+    memcpy(&kcount, d + 2, 2);
+    if ((klen == 0) || (kcount == 0)) {
+        return;
+    }
+    n = (type == 2) ? klen : kcount;
+    envs = hasEnv ? (prims + 5 * n) : NULL;
+    keyBytes = prims + 5 * n + (hasEnv ? 4 * n : 0);
+    curFrame = step % klen;
+    if (type == 2) {
+        NvMmScene_SetColor(play, segment, prims + 5 * curFrame, hasEnv ? (envs + 4 * curFrame) : NULL);
+    } else if (type == 3) {
+        s32 i = 1;
+        u16 key;
+        u16 prevKey;
+        f32 norm;
+
+        while (i < kcount) {
+            memcpy(&key, keyBytes + 2 * i, 2);
+            if (curFrame < key) {
+                break;
+            }
+            i++;
+        }
+        i = MIN(i, kcount - 1);
+        memcpy(&key, keyBytes + 2 * i, 2);
+        memcpy(&prevKey, keyBytes + 2 * (i - 1), 2);
+        norm = (key != prevKey) ? ((f32)(curFrame - prevKey) / (f32)(key - prevKey)) : 0.0f;
+        for (c = 0; c < 5; c++) {
+            prim[c] = NvMmScene_Lerp(prims[5 * (i - 1) + c], prims[5 * i + c], norm);
+        }
+        if (hasEnv) {
+            for (c = 0; c < 4; c++) {
+                env[c] = NvMmScene_Lerp(envs[4 * (i - 1) + c], envs[4 * i + c], norm);
+            }
+        }
+        NvMmScene_SetColor(play, segment, prim, hasEnv ? env : NULL);
+    } else {
+        f32 x[50];
+        f32 fx[50];
+        s32 k;
+
+        n = MIN(kcount, 50);
+        for (k = 0; k < n; k++) {
+            u16 key;
+
+            memcpy(&key, keyBytes + 2 * k, 2);
+            x[k] = key;
+        }
+        for (c = 0; c < 5; c++) {
+            for (k = 0; k < n; k++) {
+                fx[k] = prims[5 * k + c];
+            }
+            prim[c] = CLAMP((s32)NvMmScene_Lagrange(n, x, fx, curFrame), 0, 255);
+        }
+        if (hasEnv) {
+            for (c = 0; c < 4; c++) {
+                for (k = 0; k < n; k++) {
+                    fx[k] = envs[4 * k + c];
+                }
+                env[c] = CLAMP((s32)NvMmScene_Lagrange(n, x, fx, curFrame), 0, 255);
+            }
+        }
+        NvMmScene_SetColor(play, segment, prim, hasEnv ? env : NULL);
+    }
+}
+
 /** After the scene's draw config (Scene_Draw, z_scene_table.c): MM's rooms call display lists in
  * segments 8-0xD, which MM's scenes fill with their animated materials (MM's
- * Scene_DrawConfigMatAnim); where a scene sets none, MM leaves them an empty list. Set here for
- * Termina's scenes, before the rooms draw. */
+ * Scene_DrawConfigMatAnim, AnimatedMat_Draw: the step is the frame count); the ones a scene sets
+ * none in are an empty list, as in MM. Set here for Termina's scenes, before the rooms draw. */
 void NvMmScene_Draw(PlayState* play) {
     static Gfx sEmptyDL[] = { gsSPEndDisplayList() };
+    u32 step = play->gameplayFrames;
+    const u8* e;
     s32 seg;
+    s32 i;
 
     if (!NvMm_IsScene(play->sceneNum)) {
         return;
     }
-    OPEN_DISPS(play->state.gfxCtx);
     for (seg = 0x08; seg <= 0x0D; seg++) {
-        gSPSegment(POLY_OPA_DISP++, seg, sEmptyDL);
-        gSPSegment(POLY_XLU_DISP++, seg, sEmptyDL);
+        NvMmScene_SetSegment(play, seg, sEmptyDL);
     }
-    CLOSE_DISPS(play->state.gfxCtx);
+    NvMmScene_LoadMatAnim(play);
+    for (i = 0, e = sMat; (e != NULL) && (i < sMatCount); i++) {
+        s8 segment = (s8)e[0];
+        u8 type = e[1];
+        u16 len;
+        const u8* d = e + 4;
+        s32 segAbs = ABS(segment) + 7;
+
+        memcpy(&len, e + 2, 2);
+        switch (type) {
+            case 0: // MM's AnimatedMat_DrawTexScroll
+                NvMmScene_SetSegment(play, segAbs,
+                                     Gfx_TexScroll(play->state.gfxCtx, (s8)d[0] * step, -((s8)d[1] * step), d[2],
+                                                   d[3]));
+                break;
+            case 1: // MM's AnimatedMat_DrawTwoTexScroll
+                NvMmScene_SetSegment(play, segAbs,
+                                     Gfx_TwoTexScroll(play->state.gfxCtx, 0, (s8)d[0] * step, -((s8)d[1] * step),
+                                                      d[2], d[3], 1, (s8)d[4] * step, -((s8)d[5] * step), d[6],
+                                                      d[7]));
+                break;
+            case 2:
+            case 3:
+            case 4:
+                NvMmScene_DrawColor(play, segAbs, type, d, step);
+                break;
+            default: // (5, the texture cycle: none of our scenes has one yet)
+                break;
+        }
+        e = d + len;
+    }
 }

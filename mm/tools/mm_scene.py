@@ -274,6 +274,49 @@ def room_xml(scene, r, rdata):
     return "\n".join(R) + "\n"
 
 
+def matanim_blob(sdata):
+    """MM's animated materials (scene command 0x1A) as "MMAT": a count, then per entry its segment
+    (s8: 1-6 for 8-0xD, negative on the last), type (u8) and data (z_nv_mm_scene.c):
+      0 tex scroll: xStep, yStep, width, height (4 bytes); 1 two-layer scroll: two of those;
+      2-4 colors: keyFrameLength, keyFrameCount (u16), hasEnv (u8), then the prim colors (r, g, b,
+      a, lodFrac), the env colors (r, g, b, a) and the key frames (u16): as many as MM reads
+      (keyFrameLength for type 2, keyFrameCount for 3 and 4);
+      5 texture cycle: not carried yet (none of our scenes has one), its segment left empty.
+    None if the scene has none."""
+    cmd = {c: (b, w) for c, b, w in commands(sdata, 0)}
+    if 0x1A not in cmd:
+        return None
+    p = cmd[0x1A][1] & 0xFFFFFF
+    entries = []
+    while True:
+        seg, typ, par = struct.unpack_from(">bxhI", sdata, p)
+        p += 8
+        if seg == 0:
+            break
+        q = par & 0xFFFFFF
+        body = b""
+        if typ == 0:
+            body = sdata[q:q + 4]
+        elif typ == 1:
+            body = sdata[q:q + 8]
+        elif typ in (2, 3, 4):
+            klen, kcount, prim, env, keys = struct.unpack_from(">HHIII", sdata, q)
+            n = klen if typ == 2 else kcount
+            body = struct.pack("<HHB", klen, kcount, 1 if env else 0)
+            body += sdata[(prim & 0xFFFFFF):(prim & 0xFFFFFF) + 5 * n]
+            if env:
+                body += sdata[(env & 0xFFFFFF):(env & 0xFFFFFF) + 4 * n]
+            if typ != 2:
+                body += b"".join(struct.pack("<H", struct.unpack_from(">H", sdata, (keys & 0xFFFFFF) + 2 * k)[0])
+                                 for k in range(kcount))
+        entries.append(struct.pack("<bBH", seg, typ, len(body)) + body)
+        if seg < 0:
+            break
+    if not entries:
+        return None
+    return b"MMAT" + struct.pack("<i", len(entries)) + b"".join(entries)
+
+
 def write_scene(rom, scene, rooms, out):
     """The scene's XML headers into <out>/scenes/shared/..."""
     def load(name):
@@ -292,6 +335,9 @@ def write_scene(rom, scene, rooms, out):
         info = PATH_INFO[base]
         blob = b"MPTH" + struct.pack("<i", len(info)) + b"".join(struct.pack("<BBh", e, 0, c) for e, c in info)
         open(os.path.join(d, base + "_pathinfo"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    mat = matanim_blob(sdata)
+    if mat:
+        open(os.path.join(d, base + "_matanim"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(mat)) + mat)
     for r in range(rooms):
         rdata = load(f"{scene}_room_{r:02d}")
         room = f"{soh_name(scene)}_room_{r:02d}"
