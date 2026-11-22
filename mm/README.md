@@ -569,7 +569,10 @@ upstairs to the Knife Chamber's door.
 
 Anju's other desk scenes are in with him: her lunch with Granny (12:00-12:15, MM's lines between
 them; tested headless: "Grandmother...I am Anju! Tortus was my dad...") and the Postman's letter
-(14:08-14:18; it needs the Postman indoors, not yet).
+(14:08-14:18: he walks in from the inn's door to the desk and out again, MM's lines between the
+two; the Postman's scripts are now all MM's, generated to `nv_mm_msgscripts/En_Pm.msg.inc`). Tested
+headless: "Ah! Uh, uh, umm... What is t..." through to the Bombers' Notebook events for meeting
+both.
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 

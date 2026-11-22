@@ -9,10 +9,11 @@
  * standing at a mailbox (3-7, 19); nothing, and he isn't here. He talks while about.
  *
  * Adapted from MM:
- * - indoors (the Post Office, the inn, the Milk Bar, the mayor's) isn't built: those results
- *   need people there (Anju, the mayor...) and come to nothing here, as in MM without them;
+ * - indoors: the inn (his letter to Anju at the desk, 14:08-14:18, MM's lines between them; MM's
+ *   cutscene camera left to OoT's talk camera); the Post Office, the Milk Bar and the mayor's
+ *   aren't built: those results come to nothing here, as in MM without them;
  * - checking a mailbox (z_nv_mm_pst.c) sets MM's week events, the Letter to Kafei ones too;
- * - talking: MM's message scripts for him outdoors, run by our port of MM's (z_nv_mm_msgevent.c);
+ * - talking: MM's message scripts (nv_mm_msgscripts/En_Pm.msg.inc), run by our port of MM's (z_nv_mm_msgevent.c);
  *   the Kafei's Mask line waits for MM's masks;
  * - his footsteps are MM's own sound (not in OoT's banks); his head turns to Link by OoT's
  *   limb override, where MM uses its own transform draw (SubS_DrawTransformFlex);
@@ -346,6 +347,45 @@ static Actor* NvMmPm_FindMailbox(PlayState* play, s32 box) {
     return NULL;
 }
 
+/** Anju (MM's En_An), here: MM's EnPm_FindActor for the inn's desk (result 16). */
+static Actor* NvMmPm_FindAnju(NvMmPm* this, PlayState* play) {
+    s32 id = NvMmActor_Id(0x202);
+    Actor* a;
+
+    for (a = play->actorCtx.actorLists[ACTORCAT_NPC].head; a != NULL; a = a->next) {
+        if ((a->id == id) && (a->update != NULL)) {
+            return a;
+        }
+    }
+    return NULL;
+}
+
+/** MM's func_80AF8ED4 and func_80AF9A0C: at the inn's desk with Anju, the letter handed over. */
+static s32 NvMmPm_SetupAnju(NvMmPm* this, PlayState* play, NvMmScheduleOutput* out) {
+    Vec3s* points;
+    Vec3f before;
+
+    this->timePath = NvMmPm_Path(this, play, out->result);
+    if ((NvMmPm_FindAnju(this, play) == NULL) || (this->timePath == NULL) || (this->timePath->count < 2)) {
+        return false;
+    }
+    points = SEGMENTED_TO_VIRTUAL(this->timePath->points);
+    before = (Vec3f){ points[this->timePath->count - 2].x, points[this->timePath->count - 2].y,
+                      points[this->timePath->count - 2].z };
+    this->actor.world.pos = (Vec3f){ points[this->timePath->count - 1].x, points[this->timePath->count - 1].y,
+                                     points[this->timePath->count - 1].z };
+    this->actor.world.rot.y = Math_Vec3f_Yaw(&before, &this->actor.world.pos);
+    this->actor.shape.shadowDraw = NULL;
+    this->flags |= 0x20 | 0x9000;
+    if (this->scheduleResult != 0) { // (walked up: he hands it over)
+        this->flags |= 0x800;
+        NvMmPm_ChangeAnim(this, ENPM_ANIM_5);
+    } else {
+        NvMmPm_ChangeAnim(this, ENPM_ANIM_3);
+    }
+    return true;
+}
+
 /** MM's func_80AF95E8, the outdoor part: standing at the path's end (at a mailbox, if it's there). */
 static s32 NvMmPm_SetupStand(NvMmPm* this, PlayState* play, NvMmScheduleOutput* out) {
     Vec3s* points;
@@ -427,11 +467,13 @@ static s32 NvMmPm_SetupResult(NvMmPm* this, PlayState* play, NvMmScheduleOutput*
         case 23:
         case 25:
             return NvMmPm_SetupStand(this, play, out);
+        case 16:
+            return NvMmPm_SetupAnju(this, play, out);
         default:
             if ((out->result >= 38) && (out->result <= 91)) {
                 return NvMmPm_SetupTimePath(this, play, out);
             }
-            return false; // (indoors, with people not here yet: MM's 8, 9, 14, 16, 17, 20-22, 24, 27-29)
+            return false; // (indoors, with people not here yet: MM's 8, 9, 14, 17, 20-22, 24, 27-29)
     }
 }
 
@@ -545,8 +587,21 @@ static void NvMmPm_Schedule(NvMmPm* this, PlayState* play) {
         this->actor.flags |= ACTOR_FLAG_ATTENTION_ENABLED;
     }
     this->scheduleResult = out.result;
-    this->lookAt = &GET_PLAYER(play)->actor;
+    this->lookAt = (this->scheduleResult == 16) ? NvMmPm_FindAnju(this, play) : &GET_PLAYER(play)->actor;
     switch (this->scheduleResult) {
+        case 16:
+        case 18: // (MM's func_80AFA170: the letter handed over, then waiting)
+            if ((this->animIndex == ENPM_ANIM_5) && Animation_OnFrame(&this->skelAnime, this->skelAnime.endFrame)) {
+                NvMmPm_ChangeAnim(this, ENPM_ANIM_6);
+                this->doorTime = 40;
+            } else if ((this->animIndex == ENPM_ANIM_6) && (DECR(this->doorTime) == 0)) {
+                this->flags &= ~0x800;
+                NvMmPm_ChangeAnim(this, ENPM_ANIM_4);
+            }
+            if ((this->lookAt != NULL) && (this->lookAt->update != NULL) && (this->scheduleResult == 16)) {
+                this->actor.world.rot.y = Actor_WorldYawTowardActor(&this->actor, this->lookAt);
+            }
+            break;
         case 3:
         case 4:
         case 5:
@@ -578,24 +633,15 @@ static void NvMmPm_Schedule(NvMmPm* this, PlayState* play) {
     Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
 }
 
-#define BOMBERS_NOTEBOOK_EVENT_MET_POSTMAN 0x0B
-
-// MM's message scripts for him outdoors (ovl_En_Pm's D_80AFB60C ... D_80AFB63C)
-#define PM_LINE(text) \
-    MSCRIPT_CMD_BEGIN_TEXT(text), MSCRIPT_CMD_NOTEBOOK_EVENT(BOMBERS_NOTEBOOK_EVENT_MET_POSTMAN), \
-        MSCRIPT_CMD_AWAIT_TEXT(), MSCRIPT_CMD_DONE()
-static MsgScript D_80AFB60C[] = { PM_LINE(0x2774) };
-static MsgScript D_80AFB614[] = { PM_LINE(0x2775) };
-static MsgScript D_80AFB61C[] = { PM_LINE(0x2777) };
-static MsgScript D_80AFB624[] = { PM_LINE(0x2778) };
-static MsgScript D_80AFB62C[] = { PM_LINE(0x2779) };
-static MsgScript D_80AFB634[] = { PM_LINE(0x2781) };
-static MsgScript D_80AFB63C[] = { PM_LINE(0x277A) };
+// MM's message scripts for him (nv_mm_msgscripts/En_Pm.msg.inc: the decomp's, by mm_msgscripts.py)
+#include "nv_mm_msgscripts/En_Pm.msg.inc"
 
 /** MM's EnPm_GetMsgScript, its outdoor part (the indoor ones go with the people there; the Kafei's
  * Mask line with MM's masks). */
 static MsgScript* NvMmPm_GetMsgScript(NvMmPm* this) {
     switch (this->scheduleResult) {
+        case 16:
+            return D_80AFB5A0;
         case 9:
             return D_80AFB614;
         case 14:
@@ -620,10 +666,18 @@ static MsgScript* NvMmPm_GetMsgScript(NvMmPm* this) {
 }
 
 /** MM's func_80AFA5FC: the conversation, run by his message script until it's done. */
+/** MM's func_80AF81E8: the talk camera between him and Anju; OoT's talk camera follows the
+ * script's FOCUS_TO_CHILD / FOCUS_TO_SELF, so each step just goes on. */
+static s32 NvMmPm_MsgEventAnju(Actor* thisx, PlayState* play) {
+    return true;
+}
+
 static void NvMmPm_Talk(NvMmPm* this, PlayState* play) {
-    if (NvMmMsgEvent_RunScript(&this->actor, play, this->msgScript, NULL, &this->msgScriptPos)) {
+    if (NvMmMsgEvent_RunScript(&this->actor, play, this->msgScript,
+                               (this->scheduleResult == 16) ? NvMmPm_MsgEventAnju : NULL, &this->msgScriptPos)) {
         this->lookTimer = 20;
         this->msgScriptPos = 0;
+        this->actor.child = NULL;
         this->func = NvMmPm_Schedule;
         return;
     }
@@ -674,6 +728,7 @@ void NvMmPm_Update(Actor* thisx, PlayState* play) {
         if (Actor_ProcessTalkRequest(&this->actor, play)) {
             this->msgScript = NvMmPm_GetMsgScript(this);
             this->msgScriptPos = 0;
+            this->actor.child = this->lookAt; // (MM: whom the script's FOCUS_TO_CHILD turns to)
             this->func = NvMmPm_Talk;
         } else if ((this->actor.flags & ACTOR_FLAG_ATTENTION_ENABLED) && (this->scheduleResult != 91)) {
             Actor_OfferTalk(&this->actor, play, this->talkRange);
