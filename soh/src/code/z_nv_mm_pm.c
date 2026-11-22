@@ -13,8 +13,8 @@
  *   need people there (Anju, the mayor...) and come to nothing here, as in MM without them;
  * - the mailboxes (MM's En_Pst) aren't ported yet: he stops at their spots without them (MM waits
  *   for the mailbox actor); checking one still sets MM's week events, the Letter to Kafei ones too;
- * - talking: MM's message scripts for him outdoors are one line each (by what he's doing), shown
- *   as that line; MM's Bombers' Notebook entries and the Kafei's Mask line wait for those;
+ * - talking: MM's message scripts for him outdoors, run by our port of MM's (z_nv_mm_msgevent.c);
+ *   the Kafei's Mask line waits for MM's masks;
  * - his footsteps are MM's own sound (not in OoT's banks); his head turns to Link by OoT's
  *   limb override, where MM uses its own transform draw (SubS_DrawTransformFlex);
  * - MM's cutscene checks (SubS_InCsMode) are OoT's Player_InCsMode.
@@ -22,6 +22,9 @@
 #include "global.h"
 #include "z_nv_mm_schedule.h"
 #include "z_nv_mm_subs.h"
+#include "z_nv_mm_msgevent.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 #define ENPM_GET_PATH_INDEX(thisx) ((thisx)->params & 0xFF)
 #define OBJECT_MM_LIMB_08 8
@@ -123,6 +126,8 @@ typedef struct NvMmPm {
     f32 talkRange;
     s32 animIndex;
     s32 stage;    // (MM's unk_38C: which of his five schedules)
+    MsgScript* msgScript;
+    s32 msgScriptPos;
     u16 stageTimeOffset;
 } NvMmPm;
 
@@ -557,15 +562,34 @@ static void NvMmPm_Schedule(NvMmPm* this, PlayState* play) {
     Math_ApproachS(&this->actor.shape.rot.y, this->actor.world.rot.y, 3, 0x2AA8);
 }
 
-/** His line, by what he's doing (MM's EnPm_GetMsgScript, the outdoor ones: one line each). */
-static u16 NvMmPm_TextId(NvMmPm* this) {
+#define BOMBERS_NOTEBOOK_EVENT_MET_POSTMAN 0x0B
+
+// MM's message scripts for him outdoors (ovl_En_Pm's D_80AFB60C ... D_80AFB63C)
+#define PM_LINE(text) \
+    MSCRIPT_CMD_BEGIN_TEXT(text), MSCRIPT_CMD_NOTEBOOK_EVENT(BOMBERS_NOTEBOOK_EVENT_MET_POSTMAN), \
+        MSCRIPT_CMD_AWAIT_TEXT(), MSCRIPT_CMD_DONE()
+static MsgScript D_80AFB60C[] = { PM_LINE(0x2774) };
+static MsgScript D_80AFB614[] = { PM_LINE(0x2775) };
+static MsgScript D_80AFB61C[] = { PM_LINE(0x2777) };
+static MsgScript D_80AFB624[] = { PM_LINE(0x2778) };
+static MsgScript D_80AFB62C[] = { PM_LINE(0x2779) };
+static MsgScript D_80AFB634[] = { PM_LINE(0x2781) };
+static MsgScript D_80AFB63C[] = { PM_LINE(0x277A) };
+
+/** MM's EnPm_GetMsgScript, its outdoor part (the indoor ones go with the people there; the Kafei's
+ * Mask line with MM's masks). */
+static MsgScript* NvMmPm_GetMsgScript(NvMmPm* this) {
     switch (this->scheduleResult) {
         case 9:
-            return 0x2775;
+            return D_80AFB614;
         case 14:
-            return 0x2778;
+            return D_80AFB624;
         case 20:
-            return 0x2777;
+            return D_80AFB61C;
+        case 21:
+            return D_80AFB634;
+        case 22:
+            return D_80AFB63C;
         case 18:
         case 74:
         case 75:
@@ -573,24 +597,21 @@ static u16 NvMmPm_TextId(NvMmPm* this) {
         case 77:
         case 78:
         case 79:
-            return 0x2779;
+            return D_80AFB62C;
         default:
-            return 0x2774;
+            return D_80AFB60C;
     }
 }
 
+/** MM's func_80AFA5FC: the conversation, run by his message script until it's done. */
 static void NvMmPm_Talk(NvMmPm* this, PlayState* play) {
-    s16 yaw = this->actor.yawTowardsPlayer;
-
-    Math_ApproachS(&this->actor.shape.rot.y, yaw, 4, 0x2AA8);
-    if ((Message_GetState(&play->msgCtx) == TEXT_STATE_DONE) || (Message_GetState(&play->msgCtx) == TEXT_STATE_NONE) ||
-        ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play))) {
-        if (Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) {
-            Message_CloseTextbox(play);
-        }
+    if (NvMmMsgEvent_RunScript(&this->actor, play, this->msgScript, NULL, &this->msgScriptPos)) {
         this->lookTimer = 20;
+        this->msgScriptPos = 0;
         this->func = NvMmPm_Schedule;
+        return;
     }
+    Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 4, 0x2AA8);
 }
 
 void NvMmPm_Init(Actor* thisx, PlayState* play) {
@@ -625,12 +646,18 @@ void NvMmPm_Update(Actor* thisx, PlayState* play) {
 
     this->func(this, play);
     NvMmPm_UpdateStage(this);
+    if ((getenv("NV_LOG") != NULL) && ((play->gameplayFrames % 20) == 0)) { // (dev: where he is)
+        printf("NVMM postman result=%d pos=%.0f,%.0f,%.0f\n", this->scheduleResult, this->actor.world.pos.x,
+               this->actor.world.pos.y, this->actor.world.pos.z);
+        fflush(stdout);
+    }
     if (this->scheduleResult == 0) {
         return;
     }
     if (this->func == NvMmPm_Schedule) {
-        this->actor.textId = NV_MM_TEXT(NvMmPm_TextId(this));
         if (Actor_ProcessTalkRequest(&this->actor, play)) {
+            this->msgScript = NvMmPm_GetMsgScript(this);
+            this->msgScriptPos = 0;
             this->func = NvMmPm_Talk;
         } else if ((this->actor.flags & ACTOR_FLAG_ATTENTION_ENABLED) && (this->scheduleResult != 91)) {
             Actor_OfferTalk(&this->actor, play, this->talkRange);

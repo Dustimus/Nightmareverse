@@ -31,6 +31,7 @@ static void NvMmScene_ClearCycle(SavedSceneFlags* f) {
 /** The Song of Time (and the moon's fall): every Termina scene's cycle flags go, and the scene Link
  * is in drops its own live ones too, so leaving it doesn't write them back. */
 void NvMm_WeekEventsNewCycle(void);
+void NvMm_WeekEventsNewGame(void);
 
 void NvMmScene_SongOfTime(PlayState* play) {
     s32 i;
@@ -51,7 +52,7 @@ void NvMmScene_SongOfTime(PlayState* play) {
 
 /** A new game, or a save from before Termina. */
 void NvMmScene_NewGame(void) {
-    NvMm_WeekEventsNewCycle();
+    NvMm_WeekEventsNewGame();
     memset(sMmFlags, 0, sizeof(sMmFlags));
 }
 
@@ -92,6 +93,28 @@ u8* NvMm_WeekEventReg(void) { // (NvMmSave.cpp)
     return sMmWeekEventReg;
 }
 
+// MM's sPersistentCycleWeekEventRegs (z_sram_NES.c): the week events a new cycle keeps, as a mask per
+// byte (MM packs two bits a flag; any set keeps it): the Bombers' Notebook's, the bosses beaten,
+// the owl statues, ... (from the decomp's table, by its flags' names)
+static const u8 sPersistentWeekEventRegs[100] = {
+    0xFE, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x80, 0x20, 0x00, 0x08, 0x00, 0x10, 0x40, 0x80, 0x20, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x82, 0x82, 0x82, 0x01, 0x40, 0x00, 0x00, 0x00, 0xF0, 0x27, 0x07, 0x00, 0x00, 0xBF,
+    0x00, 0x00, 0x20, 0x20, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0x04, 0x00, 0x42,
+    0x40, 0x00, 0x02, 0x08, 0x00, 0x3C, 0x10, 0x00, 0x00, 0x20, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0x08, 0x00, 0x80, 0x00, 0x01, 0x00, 0x80, 0x00, 0x08, 0x10, 0x00, 0x00, 0x00, 0x80, 0xFC, 0x00, 0x00,
+    0x10, 0x00, 0x80, 0x0C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+/** The Song of Time: MM's week events, but for those MM keeps across cycles. */
 void NvMm_WeekEventsNewCycle(void) {
+    s32 i;
+
+    for (i = 0; i < 100; i++) {
+        sMmWeekEventReg[i] &= sPersistentWeekEventRegs[i];
+    }
+}
+
+/** A new game: none. */
+void NvMm_WeekEventsNewGame(void) {
     memset(sMmWeekEventReg, 0, sizeof(sMmWeekEventReg));
 }

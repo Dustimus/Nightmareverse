@@ -466,10 +466,34 @@ ported door open with its openTimer), or standing at a mailbox; otherwise he isn
   `<scene>_pathinfo`, "MPTH"), and `NvMmClock_Speed` for how fast the clock goes.
 - Not yet: indoors (the Post Office, the inn, the Milk Bar) and the people there; the mailboxes
   (MM's En_Pst: he stops at their spots, and checking one sets MM's week events, the Letter to
-  Kafei's too); MM's message scripts (his outdoor lines are one line each, shown as that line;
-  the Bombers' Notebook entries wait); his footstep sound (MM's own).
+  Kafei's too); his footstep sound (MM's own). He talks through MM's message scripts (below).
 - Tested headless in West Clock Town, Day 1 from 8:59: he comes out of the Post Office at 9:00 and
   runs his path toward South Clock Town by 9:09, cap and mail bag on.
+
+### MM's message scripts (2026-11-22, `soh/src/code/z_nv_mm_msgevent.c`, MM's z_msgevent.c)
+
+How MM's people talk: small scripts (MM's MsgScript, its MSCRIPT_CMD_* macros in
+`soh/include/z_nv_mm_msgevent.h`, written in each actor's file as in MM) that show lines, wait,
+branch on week events, the day and night, Link's form, choices, rupees, items, times, and set
+flags. The actor runs its script each frame while talking; it stops where it has to wait and goes
+on next frame. All 51 of MM's commands are in. As here so far:
+- text ids are MM's, shown as ours (0xB000 + id); Link is MM's human form; MM's items, masks,
+  songs and quest items are checked as absent until MM's items come; rupees are the shared wallet;
+- MM's eventInf (a session's temporary flags) is kept by the interpreter; switch and collectible
+  flags are OoT's;
+- the Bombers' Notebook isn't in yet: meeting someone sets MM's week event for it (as MM does),
+  so it's there when the notebook comes;
+- the conversation camera turning to the other person (MM's Actor_ChangeFocus) is OoT's
+  talkActor.
+The actor's text id stays 0, so OoT's player starts no textbox of its own: the script does.
+
+**Week events across cycles.** The Song of Time used to clear all of MM's week events; MM keeps
+some (`sPersistentCycleWeekEventRegs`: the notebook's, the bosses beaten, the owl statues...).
+`z_nv_mm_scene.c` now keeps those (154 flags, from the decomp's table by name); a new game clears all.
+
+Tested headless in South Clock Town: at the mailbox at 9:35 on Day 1, the Postman says MM's "I'm
+currently on the job. If I stop to talk, it will disrupt my schedule." through his MM script, and
+the notebook's "met the Postman" is set.
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
