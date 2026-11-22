@@ -404,11 +404,17 @@ identical. (Group 1 above put OoT's pots, crates and torches in; they're being s
   Lift, put down, throw, break, sink, as in MM; the drop is MM's drop table turned into OoT's
   collectibles (MM's compass, spore mushroom and big fairy have no OoT drop; MM's three hearts
   give one). The Bombers' hide-and-seek crates (bit 7) are crates until the game comes.
+- **Torches** (`soh/src/code/z_nv_mm_syokudai.c`, MM's Obj_Syokudai): MM's stands (`object_syokudai`,
+  three by type) and flame (MM's `gameplay_keep` gEffFire1DL), MM's params as they are. Lit by a
+  stick or fire arrow, lighting sticks and arrows, groups on a timer, put out by water, as in MM.
+  MM's torch cutscene queue is OoT's look-at (as OoT's torches); the flame takes OoT's weapons'
+  damage flags. The stands draw with textures from MM's dungeon keep: `mm_objects.py` walks every
+  object first, following an object's `"deps"` into the other file, then writes each yml.
 - MM's keeps sit in their own segments (4 for `gameplay_keep`, 5 for `gameplay_dangeon_keep`):
   `mm_objects.py` takes a `"segment"` for them.
 - Tested headless in East Clock Town: the crate shows, lifts (overhead, MM's model), goes down,
   and breaks to the sword, dropping its green rupee; a chimney (moved into view for the test)
-  draws with its smoke at 7:20.
+  draws with its smoke at 7:20; West Clock Town's torch burns at 20:00 (its night copy).
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 

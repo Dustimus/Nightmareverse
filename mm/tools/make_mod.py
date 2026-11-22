@@ -54,8 +54,7 @@ def main():
         mm2torch.convert_scene(rom, s, mm_rom.CLOCK_TOWN[s], os.path.join(yml, "mm_us", "scenes"))
 
     os.makedirs(os.path.join(yml, "mm_us", "objects"))
-    for o in mm_objects.OBJECTS:
-        mm_objects.convert_object(rom, o, os.path.join(yml, "mm_us", "objects"))
+    mm_objects.convert_objects(rom, os.path.join(yml, "mm_us", "objects"))
 
     torch_out = os.path.join(work, "torch")
     os.makedirs(torch_out)

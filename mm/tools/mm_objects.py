@@ -75,6 +75,12 @@ OBJECTS = {
     }}),
     "gameplay_keep": (649, {"segment": 4, "dl": {  # MM's main keep: what the ported actors share (shadows, ...)
         "gSquareShadowDL": 0x75A40,
+        "gEffFire1DL": 0x7D590,  # a torch's flame (Obj_Syokudai)
+    }}),
+    "object_syokudai": (714, {"deps": ["gameplay_dangeon_keep"], "dl": {  # the torches (Obj_Syokudai), by type
+        "gObjectSyokudaiTypeSwitchCausesFlameDL": 0x3A0,
+        "gObjectSyokudaiTypeNoSwitchDL": 0x870,
+        "gObjectSyokudaiTypeFlameCausesSwitchDL": 0xB90,
     }}),
     "gameplay_dangeon_keep": (651, {"segment": 5, "dl": {  # MM's dungeon keep: the small crate, indoors (Obj_Kibako)
         "gameplay_dangeon_keep_DL_007890": 0x7890,
@@ -99,41 +105,64 @@ def _skeleton_limbs(data, off):
     return [struct.unpack_from(">I", data, table + 4 * i)[0] & 0xFFFFFF for i in range(count)]
 
 
-def convert_object(rom, name, out):
-    index, parts = OBJECTS[name]
+def _load(rom, index):
     vs, ve, ps, pe = rom.entry_index(index)
     data = yaz0.decompress(rom.data[ps:pe]) if rom.data[ps:ps + 4] == b"Yaz0" else rom.data[ps:ps + ve - vs]
-    seg = parts.get("segment", 6)  # (MM's keeps are loaded in their own segments: 4, 5)
-    a = Assets(seg, data)
-    w = Walker({seg: a})
-    dls = dict(parts.get("dl", {}))
-    extra = []
-    for sym, off in parts.get("skel", {}).items():
-        flex = True  # (MM's skeletons here are flex; a plain one would read the same limbs)
-        limbs = _skeleton_limbs(data, off)
-        for lo in limbs:
-            dl = struct.unpack_from(">I", data, lo + 8)[0]
-            if dl:
-                w.walk(dl)
-            extra += [f"{name}_Limb_{lo:06X}:", "  type: OOT:LIMB", f"  offset: 0x{lo:06X}",
-                      f"  symbol: {name}_Limb_{lo:06X}", "  limb_type: Standard", ""]
-        extra += [f"{sym}:", "  type: OOT:SKELETON", f"  offset: 0x{off:06X}", f"  symbol: {sym}",
-                  "  limb_type: Standard", f"  skel_type: {'Flex' if flex else 'Normal'}", ""]
-    for sym, (off, fmt, tw, th) in parts.get("tex", {}).items():  # named: an actor sets them in a segment
-        extra += [f"{sym}:", "  type: TEXTURE", f"  offset: 0x{off:06X}", f"  symbol: {sym}", f"  format: {fmt}",
-                  f"  width: {tw}", f"  height: {th}", ""]
-        a.tex.pop(off, None)
-    for sym, (off, count) in parts.get("vtx", {}).items():  # named: an actor copies or sets them
-        extra += [f"{sym}:", "  type: OOT:ARRAY", f"  offset: 0x{off:06X}", f"  symbol: {sym}", f"  count: {count}",
-                  "  array_type: VTX", ""]
-    for sym, off in parts.get("anim", {}).items():
-        extra += [f"{sym}:", "  type: OOT:ANIMATION", f"  offset: 0x{off:06X}", f"  symbol: {sym}", ""]
-    for off in dls.values():
-        w.walk((seg << 24) | off)
-    header = f":config:\n  segments:\n    - [ {seg}, 0x{ps:X} ]\n  directory: mm/objects/{name}\n"
-    names = {off: sym for sym, off in dls.items()}
+    return data, ps
+
+
+def convert_objects(rom, out):
+    """Every object in OBJECTS, in two passes: first all their display lists are walked (an object
+    may draw with another's textures, as MM's torches do with gameplay_dangeon_keep's: "deps"),
+    then each one's yml is written with all that was found in it."""
+    files = {}
+    for name, (index, parts) in OBJECTS.items():
+        data, ps = _load(rom, index)
+        files[name] = (Assets(parts.get("segment", 6), data), ps)  # (MM's keeps sit in their own: 4, 5)
+    extras, others = {}, {}
+    for name, (index, parts) in OBJECTS.items():
+        a, ps = files[name]
+        seg = a.seg
+        segs = {seg: a}
+        for dep in parts.get("deps", ()):
+            segs[files[dep][0].seg] = files[dep][0]
+        w = Walker(segs)
+        extra = []
+        for sym, off in parts.get("skel", {}).items():
+            flex = True  # (MM's skeletons here are flex; a plain one would read the same limbs)
+            for lo in _skeleton_limbs(a.data, off):
+                dl = struct.unpack_from(">I", a.data, lo + 8)[0]
+                if dl:
+                    w.walk(dl)
+                extra += [f"{name}_Limb_{lo:06X}:", "  type: OOT:LIMB", f"  offset: 0x{lo:06X}",
+                          f"  symbol: {name}_Limb_{lo:06X}", "  limb_type: Standard", ""]
+            extra += [f"{sym}:", "  type: OOT:SKELETON", f"  offset: 0x{off:06X}", f"  symbol: {sym}",
+                      "  limb_type: Standard", f"  skel_type: {'Flex' if flex else 'Normal'}", ""]
+        for sym, (off, fmt, tw, th) in parts.get("tex", {}).items():  # named: an actor sets them in a segment
+            extra += [f"{sym}:", "  type: TEXTURE", f"  offset: 0x{off:06X}", f"  symbol: {sym}", f"  format: {fmt}",
+                      f"  width: {tw}", f"  height: {th}", ""]
+        for sym, (off, count) in parts.get("vtx", {}).items():  # named: an actor copies or sets them
+            extra += [f"{sym}:", "  type: OOT:ARRAY", f"  offset: 0x{off:06X}", f"  symbol: {sym}",
+                      f"  count: {count}", "  array_type: VTX", ""]
+        for sym, off in parts.get("anim", {}).items():
+            extra += [f"{sym}:", "  type: OOT:ANIMATION", f"  offset: 0x{off:06X}", f"  symbol: {sym}", ""]
+        for off in parts.get("dl", {}).values():
+            w.walk((seg << 24) | off)
+        extras[name], others[name] = extra, w.other_segments
     os.makedirs(out, exist_ok=True)
-    open(os.path.join(out, f"{name}.yml"), "w").write(yml_assets(a, name, header, names) + "\n".join(extra) + "\n")
-    print(f"{name}: {len(a.dls)} display lists, {len(a.vtx_arrays())} vertex arrays, {len(a.tex)} textures"
-          + (f", {len(parts.get('anim', {}))} animations" if parts.get("anim") else "")
-          + (f"; segments not handled: {sorted(w.other_segments)}" if w.other_segments else ""))
+    for name, (index, parts) in OBJECTS.items():
+        a, ps = files[name]
+        for off, *_ in parts.get("tex", {}).values():
+            a.tex.pop(off, None)
+        header = f":config:\n  segments:\n    - [ {a.seg}, 0x{ps:X} ]\n"
+        for dep in parts.get("deps", ()):
+            header += f"    - [ {files[dep][0].seg}, 0x{files[dep][1]:X} ]\n"
+        header += f"  directory: mm/objects/{name}\n"
+        if parts.get("deps"):
+            header += "  external_files:\n" + "".join(f"    - mm_us/objects/{d}.yml\n" for d in parts["deps"])
+        names = {off: sym for sym, off in parts.get("dl", {}).items()}
+        open(os.path.join(out, f"{name}.yml"), "w").write(
+            yml_assets(a, name, header, names) + "\n".join(extras[name]) + "\n")
+        print(f"{name}: {len(a.dls)} display lists, {len(a.vtx_arrays())} vertex arrays, {len(a.tex)} textures"
+              + (f", {len(parts.get('anim', {}))} animations" if parts.get("anim") else "")
+              + (f"; segments not handled: {sorted(others[name])}" if others[name] else ""))
