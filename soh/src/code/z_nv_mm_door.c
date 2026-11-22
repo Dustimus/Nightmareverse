@@ -390,3 +390,16 @@ void NvMmDoor_Draw(Actor* thisx, PlayState* play) {
     }
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+/** For MM's schedule actors (MM's SubS_FindScheduleDoor and openTimer): this door's schedule type,
+ * or -1 if it isn't one of MM's schedule doors. */
+s32 NvMmDoor_ScheduleType(Actor* thisx) {
+    NvMmDoor* this = (NvMmDoor*)thisx;
+
+    return (this->doorType == ENDOOR_TYPE_SCHEDULE) ? this->typeVar : -1;
+}
+
+/** Opens it for a schedule actor: `frames` long, its sign which way (MM's door->openTimer). */
+void NvMmDoor_SetOpenTimer(Actor* thisx, s8 frames) {
+    ((NvMmDoor*)thisx)->openTimer = frames;
+}

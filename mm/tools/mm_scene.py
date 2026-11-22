@@ -121,9 +121,10 @@ def scene_xml(scene, sdata, rooms, lay):
     S.append("    </SetEntranceList>")
     S.append("    " + _el("SetSpecialObjects", ElfMessage=0, GlobalObject=0))
     if 0x0D in cmds:
-        xml, n = paths_xml(sdata, cmds[0x0D][1] & 0xFFFFFF)
+        xml, n, info = paths_xml(sdata, cmds[0x0D][1] & 0xFFFFFF)
         if n:
             PATHS[base] = xml
+            PATH_INFO[base] = info
             S.append("    <SetPathways>")
             S.append("        " + _el("Pathway", FilePath=f"scenes/shared/{base}/{base}_paths"))
             S.append("    </SetPathways>")
@@ -177,17 +178,20 @@ def scene_xml(scene, sdata, rooms, lay):
 
 
 PATHS = {}  # scene file -> its paths resource (XML), written beside the scene by write_scene
+PATH_INFO = {}  # scene file -> [(additional path index, custom value)] per path (MM's, OoT's Path has neither)
 
 
 def paths_xml(sdata, off):
     """MM's path list (0x0D): entries of count, an extra index, a custom value and the points'
     address, until one that isn't a path. As SoH's XML Path resource (PathFactory.cpp)."""
     out = ['<Path Version="0">']
+    info = []
     p = off
     while p + 8 <= len(sdata):
-        count, _extra, _custom, ptr = struct.unpack_from(">BBhI", sdata, p)
+        count, extra, custom, ptr = struct.unpack_from(">BBhI", sdata, p)
         if count == 0 or (ptr >> 24) != 2 or (ptr & 0xFFFFFF) + 6 * count > len(sdata):
             break
+        info.append((extra, custom))
         out.append("    <PathData>")
         for k in range(count):
             x, y, z = struct.unpack_from(">3h", sdata, (ptr & 0xFFFFFF) + 6 * k)
@@ -195,7 +199,7 @@ def paths_xml(sdata, off):
         out.append("    </PathData>")
         p += 8
     out.append("</Path>")
-    return "\n".join(out) + "\n", (p - off) // 8
+    return "\n".join(out) + "\n", (p - off) // 8, info
 
 
 HALFDAYS = {}  # room file -> its entries' half-day masks (write_scene writes them beside the room)
@@ -283,6 +287,11 @@ def write_scene(rom, scene, rooms, out):
     base = soh_name(scene) + "_scene"
     if base in PATHS:
         open(os.path.join(d, base + "_paths"), "w").write(PATHS[base])
+        # "MPTH", a count, then per path MM's additional path index (u8), a pad byte and its custom
+        # value (s16): what MM's people chain their routes by (z_nv_mm_subs.c)
+        info = PATH_INFO[base]
+        blob = b"MPTH" + struct.pack("<i", len(info)) + b"".join(struct.pack("<BBh", e, 0, c) for e, c in info)
+        open(os.path.join(d, base + "_pathinfo"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
     for r in range(rooms):
         rdata = load(f"{scene}_room_{r:02d}")
         room = f"{soh_name(scene)}_room_{r:02d}"

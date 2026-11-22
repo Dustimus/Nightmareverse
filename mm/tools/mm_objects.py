@@ -19,7 +19,7 @@ OBJECTS = {
     # object: (its index in the US 1.0 file table, {"dl": {symbol: offset}, "skel": {symbol: offset}
     #          (flex, standard limbs; their limbs are found from them), "skel_normal": the same for a
     #          plain (not flex) skeleton, "anim": {symbol: offset},
-    #          "tex": {symbol: (offset, format, width, height)}, "vtx": {symbol: (offset, count)}})
+    #          "tex": {symbol: (offset, format, width, height[, tlut offset])}, "vtx": {symbol: (offset, count)}})
     # (an actor's own data, in its overlay file, comes the same way: segment 6 is just where the file goes)
     "object_obj_tokeidai": (886, {"dl": {  # the clock tower and the wall clocks (Obj_Tokeidai)
         "gClockTowerTerminaFieldWallsDL": 0x9A08,
@@ -111,6 +111,15 @@ OBJECTS = {
         "gameplay_dangeon_keep_DL_017EA0": 0x17EA0,  # the pot, indoors (Obj_Tsubo)
         "gameplay_dangeon_keep_DL_018090": 0x18090,
     }}),
+    "object_mm": (796, {  # the Postman (En_Pm): his eyes set by the actor (segment 8)
+        "skel": {"object_mm_Skel_0096E8": 0x96E8},
+        "dl": {"object_mm_DL_008348": 0x8348, "object_mm_DL_0083E0": 0x83E0, "object_mm_DL_0085C8": 0x85C8},
+        "anim": {f"object_mm_Anim_{o:06X}": o for o in
+                 (0x000468, 0x00099C, 0x000FC4, 0x001F84, 0x002238, 0x0099B4, 0x00A4E0, 0x00A8D8, 0x00B09C,
+                  0x00BA78, 0x00C32C, 0x00C640)},
+        "tex": {"object_mm_Tex_002950": (0x2950, "CI8", 32, 16, 0x2250),
+                "object_mm_Tex_002750": (0x2750, "CI8", 32, 16, 0x2250)},
+    }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)
@@ -164,9 +173,9 @@ def convert_objects(rom, out):
                           f"  symbol: {name}_Limb_{lo:06X}", "  limb_type: Standard", ""]
             extra += [f"{sym}:", "  type: OOT:SKELETON", f"  offset: 0x{off:06X}", f"  symbol: {sym}",
                       "  limb_type: Standard", f"  skel_type: {'Flex' if flex else 'Normal'}", ""]
-        for sym, (off, fmt, tw, th) in parts.get("tex", {}).items():  # named: an actor sets them in a segment
+        for sym, (off, fmt, tw, th, *tlut) in parts.get("tex", {}).items():  # named: an actor sets them
             extra += [f"{sym}:", "  type: TEXTURE", f"  offset: 0x{off:06X}", f"  symbol: {sym}", f"  format: {fmt}",
-                      f"  width: {tw}", f"  height: {th}", ""]
+                      f"  width: {tw}", f"  height: {th}"] + ([f"  tlut: 0x{tlut[0]:X}"] if tlut else []) + [""]
         for sym, (off, count) in parts.get("vtx", {}).items():  # named: an actor copies or sets them
             extra += [f"{sym}:", "  type: OOT:ARRAY", f"  offset: 0x{off:06X}", f"  symbol: {sym}",
                       f"  count: {count}", "  array_type: VTX", ""]

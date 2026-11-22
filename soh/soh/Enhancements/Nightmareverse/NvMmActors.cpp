@@ -55,6 +55,11 @@ void NvMmDoor_Destroy(Actor* thisx, PlayState* play);
 void NvMmDoor_Update(Actor* thisx, PlayState* play);
 void NvMmDoor_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvMmDoorSize;
+void NvMmPm_Init(Actor* thisx, PlayState* play);
+void NvMmPm_Destroy(Actor* thisx, PlayState* play);
+void NvMmPm_Update(Actor* thisx, PlayState* play);
+void NvMmPm_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmPmSize;
 }
 
 struct NvMmActorDef {
@@ -106,6 +111,11 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x005,
       { "Mm_En_Door", "MM: a wooden door", ACTORCAT_DOOR, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmDoorSize,
         NvMmDoor_Init, NvMmDoor_Destroy, NvMmDoor_Update, NvMmDoor_Draw } },
+    { 0x1D5,
+      { "Mm_En_Pm", "MM: the Postman", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED |
+            ACTOR_FLAG_DRAW_CULLING_DISABLED,
+        &gNvMmPmSize, NvMmPm_Init, NvMmPm_Destroy, NvMmPm_Update, NvMmPm_Draw } },
 };
 
 /** The SoH actor id for one of MM's actor ids, or -1 if it isn't ported. */

@@ -286,6 +286,15 @@ u16 NvMmClock_HalfDayBit(void) {
     return 1 << (9 - 2 * day - night);
 }
 
+/** How far the clock moves a frame (MM's R_TIME_SPEED + timeSpeedOffset; with NV_MM_SPEED's
+ * multiplier, so people walking by the time keep up in a sped-up test). */
+s32 NvMmClock_Speed(void) {
+    s32 step = MM_TIME_SPEED + sMmSpeedOffset;
+    const char* mult = getenv("NV_MM_SPEED");
+
+    return (mult != NULL) ? step * atoi(mult) : step;
+}
+
 /** The clock, for Termina's actors (the day: 1-3; the time: OoT's and MM's units). */
 s32 NvMmClock_Day(void) {
     return sMmDay;

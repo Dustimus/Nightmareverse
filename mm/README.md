@@ -454,6 +454,23 @@ Tested headless in West Clock Town: the Post Office door at 8:00 gives MM's "Pos
 to 3 p.m."; at 12:30 it opens (MM's door face, MM's animation), and Link goes through to the
 "not built yet" note.
 
+### The Postman (2026-11-22, `soh/src/code/z_nv_mm_pm.c`, MM's En_Pm; `z_nv_mm_subs.c`)
+
+MM's Postman on his rounds, by MM's schedule (`mm/schedules/En_Pm.schl`, five scripts for the stages
+of his day's story), his model MM's `object_mm`. He's placed in each Clock Town scene, and the
+schedule says where he is: walking a path between two times, going through a door (he holds our
+ported door open with its openTimer), or standing at a mailbox; otherwise he isn't there.
+- MM's people follow paths by the clock (time pathing: a B-spline through the path, the progress
+  by the time): ported in `z_nv_mm_subs.c` with MM's path chains (each MM path names the next of the
+  same person's routes; OoT's paths don't, so `mm_scene.py` writes them beside the scene's paths,
+  `<scene>_pathinfo`, "MPTH"), and `NvMmClock_Speed` for how fast the clock goes.
+- Not yet: indoors (the Post Office, the inn, the Milk Bar) and the people there; the mailboxes
+  (MM's En_Pst: he stops at their spots, and checking one sets MM's week events, the Letter to
+  Kafei's too); MM's message scripts (his outdoor lines are one line each, shown as that line;
+  the Bombers' Notebook entries wait); his footstep sound (MM's own).
+- Tested headless in West Clock Town, Day 1 from 8:59: he comes out of the Post Office at 9:00 and
+  runs his path toward South Clock Town by 9:09, cap and mail bag on.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the
