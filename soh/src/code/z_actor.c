@@ -10,6 +10,7 @@
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "soh/ObjectExtension/ActorListIndex.h"
 s32 NvMmHalfDay_Skip(PlayState* play, s32 i); // Nightmareverse (z_nv_mm_halfday.c)
+s16 NvMmActor_TransitionId(PlayState* play, s16 id); // Nightmareverse (NvMmActors.cpp)
 #include "soh/frame_interpolation.h"
 #include "soh/Enhancements/cosmetics/cosmeticsTypes.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
@@ -3468,7 +3469,9 @@ void Actor_SpawnTransitionActors(PlayState* play, ActorContext* actorCtx) {
                 ((transitionActor->sides[1].room >= 0) &&
                  ((transitionActor->sides[1].room == play->roomCtx.curRoom.num) ||
                   (transitionActor->sides[1].room == play->roomCtx.prevRoom.num)))) {
-                Actor_Spawn(actorCtx, play, (s16)(transitionActor->id & 0x1FFF), transitionActor->pos.x,
+                // Nightmareverse: MM's doors in Termina (NvMmActors.cpp)
+                Actor_Spawn(actorCtx, play, NvMmActor_TransitionId(play, transitionActor->id & 0x1FFF),
+                            transitionActor->pos.x,
                             transitionActor->pos.y, transitionActor->pos.z, 0, transitionActor->rotY, 0,
                             (i << 0xA) + transitionActor->params);
 

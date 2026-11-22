@@ -17,7 +17,8 @@ from mm2torch import Assets, Walker, yml_assets
 
 OBJECTS = {
     # object: (its index in the US 1.0 file table, {"dl": {symbol: offset}, "skel": {symbol: offset}
-    #          (flex or plain, standard limbs; their limbs are found from them), "anim": {symbol: offset},
+    #          (flex, standard limbs; their limbs are found from them), "skel_normal": the same for a
+    #          plain (not flex) skeleton, "anim": {symbol: offset},
     #          "tex": {symbol: (offset, format, width, height)}, "vtx": {symbol: (offset, count)}})
     # (an actor's own data, in its overlay file, comes the same way: segment 6 is just where the file goes)
     "object_obj_tokeidai": (886, {"dl": {  # the clock tower and the wall clocks (Obj_Tokeidai)
@@ -77,7 +78,20 @@ OBJECTS = {
         "gSquareShadowDL": 0x75A40,
         "gCircleShadowDL": 0x76BC0,
         "gEffFire1DL": 0x7D590,  # a torch's flame (Obj_Syokudai)
+        "gDoorLeftDL": 0x20BB8,  # the plain wooden door (En_Door)
+        "gDoorRightDL": 0x20D00,
+    }, "skel_normal": {"gDoorSkel": 0x22B28},
+        "anim": {"gDoorHumanOpenLeftAnim": 0x204B4, "gDoorHumanOpenRightAnim": 0x205A0}}),
+    "gameplay_field_keep": (650, {"segment": 4, "dl": {  # MM's field keep: its doors (En_Door)
+        "gFieldWoodDoorLeftDL": 0x4050,
+        "gFieldWoodDoorRightDL": 0x4228,
     }}),
+    # the shop doors of Clock Town (En_Door, by its schedule)
+    "object_wdor01": (1099, {"dl": {"gLotteryCuriosityShopMayorHouseDoorDL": 0x548}}),
+    "object_wdor02": (1100, {"dl": {"gPostOfficeTradingPostDoorDL": 0x548}}),
+    "object_wdor03": (1101, {"dl": {"gInnSchoolDoorDL": 0x548}}),
+    "object_wdor04": (1102, {"dl": {"gMilkBarDoorDL": 0x508}}),
+    "object_wdor05": (1103, {"dl": {"gMusicBoxHouseDoorDL": 0x508}}),
     "object_tsubo": (786, {"dl": {  # the pot, outdoors (Obj_Tsubo)
         "gPotDL": 0x17C0,
         "gPotShardDL": 0x1960,
@@ -139,8 +153,9 @@ def convert_objects(rom, out):
             segs[files[dep][0].seg] = files[dep][0]
         w = Walker(segs)
         extra = []
-        for sym, off in parts.get("skel", {}).items():
-            flex = True  # (MM's skeletons here are flex; a plain one would read the same limbs)
+        skels = [(sym, off, True) for sym, off in parts.get("skel", {}).items()]
+        skels += [(sym, off, False) for sym, off in parts.get("skel_normal", {}).items()]
+        for sym, off, flex in skels:
             for lo in _skeleton_limbs(a.data, off):
                 dl = struct.unpack_from(">I", a.data, lo + 8)[0]
                 if dl:

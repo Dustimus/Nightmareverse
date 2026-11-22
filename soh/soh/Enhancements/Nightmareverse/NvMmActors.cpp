@@ -50,6 +50,11 @@ void NvMmTsubo_Init(Actor* thisx, PlayState* play);
 void NvMmTsubo_Destroy(Actor* thisx, PlayState* play);
 void NvMmTsubo_Update(Actor* thisx, PlayState* play);
 extern const size_t gNvMmTsuboSize;
+void NvMmDoor_Init(Actor* thisx, PlayState* play);
+void NvMmDoor_Destroy(Actor* thisx, PlayState* play);
+void NvMmDoor_Update(Actor* thisx, PlayState* play);
+void NvMmDoor_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmDoorSize;
 }
 
 struct NvMmActorDef {
@@ -98,6 +103,9 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
       { "Mm_Obj_Tsubo", "MM: a pot", ACTORCAT_PROP,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_THROW_ONLY | ACTOR_FLAG_CAN_PRESS_SWITCHES, &gNvMmTsuboSize,
         NvMmTsubo_Init, NvMmTsubo_Destroy, NvMmTsubo_Update, NULL } },
+    { 0x005,
+      { "Mm_En_Door", "MM: a wooden door", ACTORCAT_DOOR, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmDoorSize,
+        NvMmDoor_Init, NvMmDoor_Destroy, NvMmDoor_Update, NvMmDoor_Draw } },
 };
 
 /** The SoH actor id for one of MM's actor ids, or -1 if it isn't ported. */
@@ -125,5 +133,17 @@ extern "C" s32 NvMmActor_Id(s32 mmId) {
     entry.draw = def->second.draw; // (or none: the actor sets its own in init)
     int id = ActorDB::Instance->AddEntry(entry).entry.id;
     ids[mmId] = id;
+    return id;
+}
+
+/** A scene's transition actor (its doors) as SoH's: MM's ported ones are written 0x1000 + MM's id
+ * in Termina's scenes (mm_actors.py doors()); anything else is as it was. Called from
+ * Actor_SpawnTransitionActors (z_actor.c). */
+extern "C" s16 NvMmActor_TransitionId(PlayState* play, s16 id) {
+    if ((id & 0x1000) && NvMm_IsScene(play->sceneNum)) {
+        s32 soh = NvMmActor_Id(id & 0xFFF);
+
+        return (soh >= 0) ? soh : id;
+    }
     return id;
 }

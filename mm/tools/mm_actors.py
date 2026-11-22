@@ -100,10 +100,14 @@ def actors(data, off, count):
     return out, objects, skipped
 
 
+NV_MM_TRANSITION_MARKER = 0x1000  # (a transition actor's id keeps 13 bits: 0x1000 + MM's id)
+
+
 def doors(data, off, count):
-    """The scene's transition actors (0x0E): MM's wooden doors as OoT's scene-exit doors. Their
-    way out is the exit polygon behind them (the scene's exit list), as in both games; a door
-    into a place not built yet brings Link back with the note (z_nv_mm.c)."""
+    """The scene's transition actors (0x0E): MM's wooden doors, ported (z_nv_mm_door.c), MM's
+    params as they are; NvMmActor_TransitionId (NvMmActors.cpp) spawns them. Their way out is the
+    exit polygon behind them (the scene's exit list), as in both games; a door into a place not
+    built yet brings Link back with the note (z_nv_mm.c)."""
     out, skipped = [], {}
     for i in range(count):
         fr, fc, br, bc, aid, x, y, z, ry, params = struct.unpack_from(">4bh3hhH", data, off + 16 * i)
@@ -111,7 +115,7 @@ def doors(data, off, count):
         if aid != MM_EN_DOOR:
             skipped[aid] = skipped.get(aid, 0) + 1
             continue
-        out.append(dict(Id=ACTOR_EN_DOOR, Params=DOOR_SCENEEXIT << 7, PosX=x, PosY=y, PosZ=z,
+        out.append(dict(Id=NV_MM_TRANSITION_MARKER + MM_EN_DOOR, Params=params & 0x3FF, PosX=x, PosY=y, PosZ=z,
                         RotY=_rot(ry, False), FrontSideRoom=fr, FrontSideEffects=fc & 0xFF,
                         BackSideRoom=br, BackSideEffects=bc & 0xFF))
     return out, skipped

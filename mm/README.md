@@ -424,6 +424,36 @@ identical. (Group 1 above put OoT's pots, crates and torches in; they're being s
   draws with its smoke at 7:20; West Clock Town's torch burns at 20:00 (its night copy); a rooftop magic pot breaks to the
   sword and drops its magic jar.
 
+### MM's schedules, and MM's doors (2026-11-22)
+
+**Schedules** (`soh/src/code/z_nv_mm_schedule.c`, MM's z_schedule.c). MM asks small scripts where its
+people should be and whether its doors are open: checks of the day, the time, the scene, week events
+and a few items, ending in a value, two times and a value, or nothing. The decomp writes them in a
+little language (`.schl`, compiled by a tool of its own). `tools/mm_schedule.py` is our compiler for
+it, to MM's own bytecode (commands 0x00-0x12): the scripts are the decomp's, copied into
+`mm/schedules/` with the actors that use them (doors, the Postman, Anju so far), and their
+compiled form is committed in `soh/src/code/nv_mm_schedules/` (the decomp is only needed to make
+them again: `mm_schedule.py <decomp> soh/src/code/nv_mm_schedules mm/schedules/*.schl`). Week
+events and scenes are resolved from the decomp's headers; MM's scenes become ours, and one not
+brought over yet matches nothing. The item checks (Room Key, Letter to Kafei, Romani Mask) are
+false until those items come.
+
+**Doors** (`soh/src/code/z_nv_mm_door.c`, MM's En_Door): MM's door skeleton and opening animation, and
+the door face by kind: the shops' own (`object_wdor01-05`) or MM's plain door. MM's door types:
+closed by days, dawns or nights with MM's messages, small-key locks, ajar doors, and the shops'
+doors by their schedule (`mm/schedules/En_Door.schl`: the Post Office is closed before 9:00, out
+delivering 9-12, ...). Fitting Link's door code, which is OoT's:
+- OoT's player opens a door through the first fields of OoT's EnDoor (animStyle,
+  playerIsOpening): the port keeps those at the same place; it goes through the scene exit when
+  the door's params say OoT's DOOR_SCENEEXIT, so MM's params are kept aside and the actor's are
+  OoT's (a scene exit where both sides are the same room: every Clock Town door);
+- a closed door's message comes from the door offering to talk (OoT has no talking door);
+- transition actors (doors) are written 0x1000 + MM's id in Termina's scenes; one small hook in
+  `Actor_SpawnTransitionActors` (z_actor.c) asks `NvMmActor_TransitionId` for the SoH id.
+Tested headless in West Clock Town: the Post Office door at 8:00 gives MM's "Post Office, 9 a.m.
+to 3 p.m."; at 12:30 it opens (MM's door face, MM's animation), and Link goes through to the
+"not built yet" note.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the
