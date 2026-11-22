@@ -533,6 +533,15 @@ Tested headless: Day 1 at 8:00 at the desk (locked on) she runs MM's "Um... Are 
 night?" with its Yes/No, to "I'm terribly sorry! There are no vacancies today..."; Day 2 at 14:20
 she sits at the Laundry Pool under her umbrella; her Day 2 walk out of the inn as before.
 
+### Anju's mother (2026-11-22, `soh/src/code/z_nv_mm_ah.c`, MM's En_Ah)
+
+MM's model (`object_ah`, her eyes and mouth by MM's blinking), schedule (`mm/schedules/En_Ah.schl`)
+and message scripts (`nv_mm_msgscripts/En_Ah.msg.inc`): at the inn's desk on Days 2 and 3, and with
+Anju in the staff room on Day 2's night (Anju's own staff-room results, waiting for Kafei and
+hearing her mother out, are in now too). Her bow and sad face on MM's lines 0x28FD and 0x2954.
+Her Day 3 night at the ranch house waits for that scene; her head turn (MM's transform draw) is
+left out. Tested headless: Day 2 at 9:00, locked on at the desk, MM's "I'm sorry. Our rooms are..."
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

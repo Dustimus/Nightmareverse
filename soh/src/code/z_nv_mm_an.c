@@ -11,8 +11,8 @@
  * cooking (tasting), the Laundry Pool and the midnight meeting.
  *
  * Adapted from MM:
- * - her results with Granny (lunch), her mother (the staff room), the Goron and the Postman at the
- *   desk need them here: not ported yet, so those come to nothing, as in MM without them;
+ * - her results with Granny (lunch), the Goron and the Postman at the desk need them here: not
+ *   ported yet, so those come to nothing, as in MM without them;
  * - Link is MM's human form, without MM's masks (the Kafei's Mask and Deku lines wait); MM's items
  *   she gives (the Room Key, the Letter to Kafei) aren't in yet (the script goes on without them);
  * - the midnight meeting's scene (MM's cutscene at the inn's entrance 3) isn't ported: Link is taken
@@ -503,6 +503,25 @@ static s32 NvMmAn_SetupStand(NvMmAn* this, PlayState* play, NvMmScheduleOutput* 
     return true;
 }
 
+/** MM's EnAn_ProcessSchedule_StaffRoom: seated in the staff room, waiting for Kafei, or hearing
+ * her mother out (Day 2's night). */
+static s32 NvMmAn_SetupStaffRoom(NvMmAn* this, PlayState* play, NvMmScheduleOutput* out) {
+    this->actor.world.pos = (Vec3f){ -508.0f, 210.0f, -162.0f };
+    this->actor.shape.rot = (Vec3s){ 0, 0x3FFC, 0 };
+    this->actor.world.rot = this->actor.shape.rot;
+    if (out->result == ANJU_SCH_WAITING_FOR_KAFEI) {
+        this->stateFlags |= STATE_OFFER;
+        NvMmAn_ChangeAnim(this, ENAN_ANIM_SIT);
+    } else {
+        NvMmAn_ChangeAnim(this, ENAN_ANIM_SITTING_IN_DISBELIEF);
+        this->faceIndex = 5;
+        this->eyeTimer = 8;
+    }
+    this->stateFlags |= STATE_UPDATE_EYES | STATE_IGNORE_GRAVITY;
+    this->actor.gravity = 0.0f;
+    return true;
+}
+
 /** MM's EnAn_ProcessScheduleOutput (without the people not ported yet). */
 static s32 NvMmAn_SetupResult(NvMmAn* this, PlayState* play, NvMmScheduleOutput* out) {
     this->stateFlags = 0;
@@ -519,6 +538,9 @@ static s32 NvMmAn_SetupResult(NvMmAn* this, PlayState* play, NvMmScheduleOutput*
             return NvMmAn_SetupStand(this, play, out);
         case ANJU_SCH_SWEEPING:
             return NvMmAn_SetupSweeping(this, play, out);
+        case ANJU_SCH_WAITING_FOR_KAFEI:
+        case ANJU_SCH_TALKING_WITH_MOM:
+            return NvMmAn_SetupStaffRoom(this, play, out);
         default:
             if ((out->result >= ANJU_SCH_DOOR_26) && (out->result <= ANJU_SCH_DOOR_39)) {
                 return NvMmAn_SetupDoor(this, play, out);
@@ -729,6 +751,8 @@ static MsgScript* NvMmAn_GetMsgScript(NvMmAn* this, PlayState* play) {
         }
     }
     switch (this->scheduleResult) {
+        case ANJU_SCH_WAITING_FOR_KAFEI:
+            return sAnjuMsgScript_SchWaitingForKafei;
         case ANJU_SCH_WALKING_40:
             return sAnjuMsgScript_80B5894C;
         case ANJU_SCH_WALKING_42:
@@ -794,7 +818,8 @@ static void NvMmAn_Talk(NvMmAn* this, PlayState* play) {
         this->func = NvMmAn_FollowSchedule;
         return;
     }
-    if ((this->scheduleResult != ANJU_SCH_LAUNDRY_POOL_SIT) && (this->scheduleResult != ANJU_SCH_COOKING)) {
+    if ((this->scheduleResult != ANJU_SCH_LAUNDRY_POOL_SIT) && (this->scheduleResult != ANJU_SCH_COOKING) &&
+        (this->scheduleResult != ANJU_SCH_WAITING_FOR_KAFEI)) {
         Math_ApproachS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 4, 0x2AA8);
     }
 }

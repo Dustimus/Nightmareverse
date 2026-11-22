@@ -37,7 +37,8 @@ PORTED = {
     0x082,  # Obj_Tsubo: the pots, MM's own (z_nv_mm_tsubo.c)
     0x1D5,  # En_Pm: the Postman (z_nv_mm_pm.c)
     0x1F2,  # En_Pst: the mailboxes (z_nv_mm_pst.c)
-    0x202,  # En_An: Anju, outdoors (z_nv_mm_an.c)
+    0x202,  # En_An: Anju (z_nv_mm_an.c)
+    0x253,  # En_Ah: Anju's mother (z_nv_mm_ah.c)
 }
 
 # MM's ids (the decomp's actor table)

@@ -148,6 +148,12 @@ OBJECTS = {
         "dl": {"gAnju3BroomDL": 0x308},
         "anim": {"gAnju3BroomSweepAnim": 0x12C0, "gAnju3BroomIdleAnim": 0x201C, "gAnju3BroomWalkAnim": 0x2A4C},
     }),
+    "object_ah": (1030, {  # Anju's mother (En_Ah): her eyes and mouth set by the actor (segments 8, 9)
+        "skel": {"object_ah_Skel_009E70": 0x9E70},
+        "anim": {f"object_ah_Anim_{o:06X}": o for o in (0x968, 0xDDC, 0x1860, 0x2280)},
+        "tex": {f"object_ah_Tex_{o:06X}": (o, "RGBA16", 32, 32) for o in
+                (0x6D70, 0x7570, 0x7D70, 0x8570, 0x8D70, 0x9570)},
+    }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)
