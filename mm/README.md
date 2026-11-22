@@ -372,6 +372,23 @@ Song of Time as MM clears most.
 final-day head turns at each earthquake (no earthquakes yet), and his footstep sound (MM's
 own).
 
+### The Bombers (2026-11-22, `soh/src/code/z_nv_mm_bombers.c`, MM's En_Bombers)
+
+The blue-hatted kids in East and West Clock Town, ported from MM's En_Bombers with their model
+(MM's `object_cs`: skeleton, 17 animations, eye and number textures, named in `tools/mm_objects.py`).
+As in MM it's the same four kids placed three times each, one spot per day (half-days 0C0, 030,
+00C): params & 0xF is the kid, plus one, which picks the number on their back (the town's show
+2-5; 1 is Jim, red bandana). The bandana's colour is MM's own two one-line lists, rebuilt in the file.
+
+- They wander within 75 of their spot (line checks keep them off walls), look about, and talk:
+  MM's lines for a human Link, its yes/no, and with the Notebook (84_80) the other set and the salute.
+- They're gone once the hide-and-seek game is played (73_10, 85_02); then the ones caught sit at the
+  hideout in North Clock Town (type 1, 76_01-76_10). The game itself, the hideout and Jim wait.
+- Left out for now: the Deku/Goron/Zora lines (no forms yet), MM's mask reactions, their footstep
+  sound (MM's own), the hideout handover (75_40).
+- Tested headless in West Clock Town, Day 1 08:00: the kid walks about, turns to talk, and the
+  conversation runs through the yes/no to the notebook lines.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

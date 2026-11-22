@@ -39,6 +39,20 @@ OBJECTS = {
     "object_fall": (882, {"dl": {  # the full moon, and the crash's pieces (En_Fall)
         "gMoonDL": 0x77F0,
     }}),
+    "object_cs": (798, {  # the Bombers (En_Bombers): eyes and numbers set by the actor (segments 8, 9)
+        "skel": {"gBomberSkel": 0xF82C},
+        "anim": {"gBomberIdleAnim": 0x64B8, "gBomberTalkHandsOnHipsAnim": 0x53F4, "gBomberWalkAnim": 0x1007C,
+                 "gBomberSurpriseAnim": 0x349C, "gBomberHideUnderBoxAnim": 0x4960, "gBomberDazedAnim": 0x5128,
+                 "gBomberSitAnim": 0x4C1C, "gBomberHoldCuccoAnim": 0x1A1C, "gBomberTurnAroundAnim": 0x3EE4,
+                 "gBomberShowNumberAnim": 0x478C, "gBomberTalkShowingNumberAnim": 0x433C,
+                 "gBomberTauntAnim": 0x60E8, "gBomberJumpAnim": 0x1708, "gBomberArmSwipeAnim": 0x5DC4,
+                 "gBomberSaluteAnim": 0x26B0, "gBomberRunAnim": 0x36B0, "gBomberLookAroundAnim": 0x31C4},
+        "tex": {"gBomberEyeOpenTex": (0xC520, "RGBA16", 32, 32), "gBomberEyeHalfTex": (0xCD20, "RGBA16", 32, 32),
+                "gBomberEyeClosedTex": (0xD520, "RGBA16", 32, 32),
+                "gBomberNumber1Tex": (0xE620, "I8", 32, 32), "gBomberNumber2Tex": (0xEA20, "I8", 32, 32),
+                "gBomberNumber3Tex": (0xEE20, "I8", 32, 32), "gBomberNumber4Tex": (0xDD20, "I8", 32, 32),
+                "gBomberNumber5Tex": (0xF220, "I8", 32, 32)},
+    }),
     "object_sdn": (926, {  # the soldiers (En_Stop_heishi, and others)
         "skel": {"gSoldierSkel": 0xD640},
         "anim": {"gSoldierLookDownAnim": 0x4AC0, "gSoldierComeUpHereAnim": 0x5320,
@@ -84,6 +98,10 @@ def convert_object(rom, name, out):
                       f"  symbol: {name}_Limb_{lo:06X}", "  limb_type: Standard", ""]
         extra += [f"{sym}:", "  type: OOT:SKELETON", f"  offset: 0x{off:06X}", f"  symbol: {sym}",
                   "  limb_type: Standard", f"  skel_type: {'Flex' if flex else 'Normal'}", ""]
+    for sym, (off, fmt, tw, th) in parts.get("tex", {}).items():  # named: an actor sets them in a segment
+        extra += [f"{sym}:", "  type: TEXTURE", f"  offset: 0x{off:06X}", f"  symbol: {sym}", f"  format: {fmt}",
+                  f"  width: {tw}", f"  height: {th}", ""]
+        a.tex.pop(off, None)
     for sym, off in parts.get("anim", {}).items():
         extra += [f"{sym}:", "  type: OOT:ANIMATION", f"  offset: 0x{off:06X}", f"  symbol: {sym}", ""]
     for off in dls.values():

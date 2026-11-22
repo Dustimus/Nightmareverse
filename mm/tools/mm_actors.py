@@ -30,6 +30,7 @@ PORTED = {
     0x17C,  # En_Fall: the moon (z_nv_mm_fall.c)
     0x09C,  # En_Daiku: the carpenters (z_nv_mm_daiku.c)
     0x1C7,  # En_Stop_heishi: the gate guards (z_nv_mm_stopheishi.c)
+    0x280,  # En_Bombers: the Bombers (z_nv_mm_bombers.c)
 }
 
 # MM's ids (the decomp's actor table)
