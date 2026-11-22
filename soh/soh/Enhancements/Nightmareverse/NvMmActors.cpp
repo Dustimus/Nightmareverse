@@ -46,6 +46,10 @@ void NvMmSyokudai_Destroy(Actor* thisx, PlayState* play);
 void NvMmSyokudai_Update(Actor* thisx, PlayState* play);
 void NvMmSyokudai_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvMmSyokudaiSize;
+void NvMmTsubo_Init(Actor* thisx, PlayState* play);
+void NvMmTsubo_Destroy(Actor* thisx, PlayState* play);
+void NvMmTsubo_Update(Actor* thisx, PlayState* play);
+extern const size_t gNvMmTsuboSize;
 }
 
 struct NvMmActorDef {
@@ -90,6 +94,10 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
       { "Mm_Obj_Syokudai", "MM: a torch", ACTORCAT_PROP,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER, &gNvMmSyokudaiSize, NvMmSyokudai_Init,
         NvMmSyokudai_Destroy, NvMmSyokudai_Update, NvMmSyokudai_Draw } },
+    { 0x082,
+      { "Mm_Obj_Tsubo", "MM: a pot", ACTORCAT_PROP,
+        ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_THROW_ONLY | ACTOR_FLAG_CAN_PRESS_SWITCHES, &gNvMmTsuboSize,
+        NvMmTsubo_Init, NvMmTsubo_Destroy, NvMmTsubo_Update, NULL } },
 };
 
 /** The SoH actor id for one of MM's actor ids, or -1 if it isn't ported. */

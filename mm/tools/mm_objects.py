@@ -75,7 +75,16 @@ OBJECTS = {
     }}),
     "gameplay_keep": (649, {"segment": 4, "dl": {  # MM's main keep: what the ported actors share (shadows, ...)
         "gSquareShadowDL": 0x75A40,
+        "gCircleShadowDL": 0x76BC0,
         "gEffFire1DL": 0x7D590,  # a torch's flame (Obj_Syokudai)
+    }}),
+    "object_tsubo": (786, {"dl": {  # the pot, outdoors (Obj_Tsubo)
+        "gPotDL": 0x17C0,
+        "gPotShardDL": 0x1960,
+    }}),
+    "object_racetsubo": (900, {"dl": {  # the magic pot: the clock tower's rooftop, the Goron racetrack (Obj_Tsubo)
+        "gMagicPotDL": 0x278,
+        "gMagicPotShardDL": 0x1610,
     }}),
     "object_syokudai": (714, {"deps": ["gameplay_dangeon_keep"], "dl": {  # the torches (Obj_Syokudai), by type
         "gObjectSyokudaiTypeSwitchCausesFlameDL": 0x3A0,
@@ -85,6 +94,8 @@ OBJECTS = {
     "gameplay_dangeon_keep": (651, {"segment": 5, "dl": {  # MM's dungeon keep: the small crate, indoors (Obj_Kibako)
         "gameplay_dangeon_keep_DL_007890": 0x7890,
         "gameplay_dangeon_keep_DL_007980": 0x7980,
+        "gameplay_dangeon_keep_DL_017EA0": 0x17EA0,  # the pot, indoors (Obj_Tsubo)
+        "gameplay_dangeon_keep_DL_018090": 0x18090,
     }}),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},

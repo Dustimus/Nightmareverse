@@ -410,11 +410,19 @@ identical. (Group 1 above put OoT's pots, crates and torches in; they're being s
   MM's torch cutscene queue is OoT's look-at (as OoT's torches); the flame takes OoT's weapons'
   damage flags. The stands draw with textures from MM's dungeon keep: `mm_objects.py` walks every
   object first, following an object's `"deps"` into the other file, then writes each yml.
+- **Pots** (`soh/src/code/z_nv_mm_tsubo.c`, MM's Obj_Tsubo): MM's pot (`object_tsubo` outdoors,
+  MM's dungeon keep's indoors) and the big green magic pot (`object_racetsubo`: the clock tower's
+  rooftop has four). Lift, throw, break, sink, MM's shard bursts per kind, MM's circle shadow; the
+  drop is MM's table (shared with the crates: `NvMm_Drop`), type 3 OoT's random drops. Not yet:
+  the Boe and Gold Skulltula pots (MM's z-rotation 1, 2), the big-fairy drop.
+- The crates' and pots' damage flags are OoT's own crates' and pots': what hits them, and what
+  they hit when thrown, are OoT's weapons and enemies, whose flags mean other things than MM's.
 - MM's keeps sit in their own segments (4 for `gameplay_keep`, 5 for `gameplay_dangeon_keep`):
   `mm_objects.py` takes a `"segment"` for them.
 - Tested headless in East Clock Town: the crate shows, lifts (overhead, MM's model), goes down,
   and breaks to the sword, dropping its green rupee; a chimney (moved into view for the test)
-  draws with its smoke at 7:20; West Clock Town's torch burns at 20:00 (its night copy).
+  draws with its smoke at 7:20; West Clock Town's torch burns at 20:00 (its night copy); a rooftop magic pot breaks to the
+  sword and drops its magic jar.
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 

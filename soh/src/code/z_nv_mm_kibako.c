@@ -11,6 +11,8 @@
  * - MM's drop table (D_801AE194) gives MM's collectible types; here OoT's of the same thing.
  *   MM's compass and the mushroom spore have no OoT collectible (nothing drops). A collectible flag
  *   past 0x3F is cut to OoT's six bits, as for Termina's other collectibles (mm_actors.py);
+ * - its damage flags (what it hits when thrown, what breaks it) are OoT's crates', as OoT's weapons
+ *   and enemies are the ones hitting (MM's own numbers mean other things in OoT);
  * - OoT's movement, ground-check and carry calls for MM's; the sounds are OoT's, the same ones;
  * - MM's lift sound call passed the crate as Link (a bug noted in the decomp); here it's Link's.
  */
@@ -56,12 +58,13 @@ static s16 sSpinY = 0;
 static ColliderCylinderInit sCylinderInit = {
     { COLTYPE_NONE, AT_ON | AT_TYPE_PLAYER, AC_ON | AC_TYPE_PLAYER, OC1_ON | OC1_TYPE_ALL, OC2_TYPE_2,
       COLSHAPE_CYLINDER },
-    { ELEMTYPE_UNK0, { 0x00400000, 0x00, 0x02 }, { 0x058BC79C, 0x00, 0x00 }, TOUCH_ON | TOUCH_SFX_NONE, BUMP_ON,
+    { ELEMTYPE_UNK0, { 0x00000002, 0x00, 0x01 }, { 0x4FC00748, 0x00, 0x00 }, TOUCH_ON | TOUCH_SFX_NONE, BUMP_ON,
       OCELEM_ON },
     { 15, 30, 0, { 0, 0, 0 } },
 };
 
-// MM's drop table (D_801AE194), MM's collectibles as OoT's; ITEM00_NONE where nothing drops
+// MM's drop table (D_801AE194, z_en_item00.c), MM's collectibles as OoT's; ITEM00_NONE where nothing
+// drops. Shared with the pots (z_nv_mm_tsubo.c) through NvMm_Drop / NvMm_DropOnLift.
 static u8 sDrops[32] = {
     ITEM00_NONE,         ITEM00_RUPEE_GREEN, ITEM00_RUPEE_BLUE, ITEM00_NONE,  ITEM00_RUPEE_RED,
     ITEM00_RUPEE_PURPLE, ITEM00_NONE,        ITEM00_RUPEE_ORANGE, ITEM00_NONE, ITEM00_NONE,
@@ -74,6 +77,16 @@ static u8 sDrops[32] = {
 // MM's D_801AE214: these drop as soon as the crate is lifted
 static u8 sDropOnLift[32] = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0,
                               0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+/** MM's func_800A8150: the collectible a pot or crate's drop index gives (OoT's), or ITEM00_NONE. */
+s32 NvMm_Drop(s32 index) {
+    return ((index < 0) || (index >= 32)) ? ITEM00_NONE : sDrops[index];
+}
+
+/** MM's func_800A817C: whether that drop comes out as soon as it's lifted. */
+s32 NvMm_DropOnLift(s32 index) {
+    return ((index < 0) || (index >= 32)) ? 0 : sDropOnLift[index];
+}
 
 static void NvMmKibako_Draw(Actor* thisx, PlayState* play);
 static void NvMmKibako_Idle(NvMmKibako* this, PlayState* play);
@@ -89,7 +102,7 @@ static void NvMmKibako_SpawnCollectible(NvMmKibako* this, PlayState* play) {
     s32 drop;
 
     if (this->isDropCollected == 0) {
-        drop = (id < 32) ? sDrops[id] : ITEM00_NONE;
+        drop = NvMm_Drop(id);
         if (drop != ITEM00_NONE) {
             Item_DropCollectible(play, &this->actor.world.pos,
                                  drop | ((KIBAKO_COLLECTIBLE_FLAG(&this->actor) & 0x3F) << 8));
@@ -247,7 +260,7 @@ static void NvMmKibako_Idle(NvMmKibako* this, PlayState* play) {
         this->func = NvMmKibako_Held;
         this->actor.room = -1;
         this->actor.colChkInfo.mass = 120;
-        if (sDropOnLift[KIBAKO_COLLECTIBLE_ID(&this->actor) & 0x1F]) {
+        if (NvMm_DropOnLift(KIBAKO_COLLECTIBLE_ID(&this->actor))) {
             NvMmKibako_SpawnCollectible(this, play);
         }
         Player_PlaySfx(&GET_PLAYER(play)->actor, NA_SE_PL_PULL_UP_WOODBOX);
