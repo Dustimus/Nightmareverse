@@ -11,8 +11,7 @@
  * Adapted from MM:
  * - indoors (the Post Office, the inn, the Milk Bar, the mayor's) isn't built: those results
  *   need people there (Anju, the mayor...) and come to nothing here, as in MM without them;
- * - the mailboxes (MM's En_Pst) aren't ported yet: he stops at their spots without them (MM waits
- *   for the mailbox actor); checking one still sets MM's week events, the Letter to Kafei ones too;
+ * - checking a mailbox (z_nv_mm_pst.c) sets MM's week events, the Letter to Kafei ones too;
  * - talking: MM's message scripts for him outdoors, run by our port of MM's (z_nv_mm_msgevent.c);
  *   the Kafei's Mask line waits for MM's masks;
  * - his footsteps are MM's own sound (not in OoT's banks); his head turns to Link by OoT's
@@ -334,12 +333,29 @@ static s32 NvMmPm_SetupTimePath(NvMmPm* this, PlayState* play, NvMmScheduleOutpu
     return true;
 }
 
-/** MM's func_80AF95E8, the outdoor part: standing at the path's end (a mailbox; MM checks the
- * mailbox actor is there, not ported yet). */
+/** MM's func_80AF7DC4: the mailbox `box` in this scene (MM's En_Pst, params the box). */
+static Actor* NvMmPm_FindMailbox(PlayState* play, s32 box) {
+    s32 id = NvMmActor_Id(0x1F2);
+    Actor* a;
+
+    for (a = play->actorCtx.actorLists[ACTORCAT_PROP].head; a != NULL; a = a->next) {
+        if ((a->id == id) && (a->update != NULL) && (a->params == box)) {
+            return a;
+        }
+    }
+    return NULL;
+}
+
+/** MM's func_80AF95E8, the outdoor part: standing at the path's end (at a mailbox, if it's there). */
 static s32 NvMmPm_SetupStand(NvMmPm* this, PlayState* play, NvMmScheduleOutput* out) {
     Vec3s* points;
     Vec3f end;
     Vec3f before;
+    s32 box = ((out->result >= 3) && (out->result <= 7)) ? (out->result - 3) : (out->result == 19) ? 4 : -1;
+
+    if ((box >= 0) && (NvMmPm_FindMailbox(play, box) == NULL)) {
+        return false;
+    }
 
     this->timePath = NvMmPm_Path(this, play, out->result);
     if ((this->timePath == NULL) || (this->timePath->count < 2)) {

@@ -120,6 +120,10 @@ OBJECTS = {
         "tex": {"object_mm_Tex_002950": (0x2950, "CI8", 32, 16, 0x2250),
                 "object_mm_Tex_002750": (0x2750, "CI8", 32, 16, 0x2250)},
     }),
+    "object_pst": (947, {  # the mailboxes (En_Pst)
+        "skel": {"gPostboxSkel": 0x1A80},
+        "anim": {"gPostboxIdleAnim": 0x18},
+    }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)

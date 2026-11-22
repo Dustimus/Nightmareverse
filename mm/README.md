@@ -495,6 +495,18 @@ Tested headless in South Clock Town: at the mailbox at 9:35 on Day 1, the Postma
 currently on the job. If I stop to talk, it will disrupt my schedule." through his MM script, and
 the notebook's "met the Postman" is set.
 
+### The mailboxes (2026-11-22, `soh/src/code/z_nv_mm_pst.c`, MM's En_Pst)
+
+Clock Town's five red mailboxes: MM's model (`object_pst`; the slot drops while in use), MM's
+schedule (`mm/schedules/En_Pst.schl`: each is out of reach the four minutes the Postman empties
+it) and MM's message scripts. MM's letters and showing an item mid-talk aren't in yet, so MM's
+item prompt (its text 0xFF, "Press START to open the Select Item Screen") is skipped by the
+script runner and the box goes on as when it's closed in MM: "Deposit mail here." then "Thank you
+for using the postal system." The letter scripts are MM's, ready for the letters. The Postman
+again needs the box there to stop at it (MM's rule), and the notebook's events now set all of
+MM's notebook week events (its 55), not only "met".
+Tested headless in South Clock Town at 9:00: the box offers "Check" and runs MM's lines.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

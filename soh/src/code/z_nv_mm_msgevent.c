@@ -7,14 +7,15 @@
  * from there the next frame (pos), and says when it's done.
  *
  * Adapted from MM:
- * - text ids are MM's: shown as ours, 0xB000 + id (NvMmText.cpp);
+ * - text ids are MM's: shown as ours, 0xB000 + id (NvMmText.cpp); MM's item prompt (text 0xFF: an
+ *   item shown from the pause menu mid-talk) isn't shown, OoT has no such step: the actor's
+ *   callback then goes on as if the prompt was closed;
  * - Link is always MM's human form for now (no Deku, Goron, Zora yet): the form checks follow that;
  * - MM's items, masks, songs and quest items aren't OoT's: those checks are false (and a delete
  *   does nothing) until MM's items come (NV_GAMES.md, masks). Rupees are the shared wallet;
  * - week events are Termina's (z_nv_mm_scene.c); MM's eventInf (temporary flags) are kept here,
  *   for the cycle's session, not saved, as in MM; switch and collectible flags are OoT's own;
- * - the Bombers' Notebook isn't in yet: meeting someone sets MM's week event for it, the rest is
- *   logged (NvMm_NotebookEvent);
+ * - the Bombers' Notebook isn't in yet: its events set MM's week events for them (NvMm_NotebookEvent);
  * - MM's Actor_ChangeFocus (the conversation camera turning to the other person) is OoT's
  *   talkActor: the text camera follows whoever it names.
  */
@@ -36,21 +37,28 @@ static u8 sEventInf[8]; // MM's eventInf: a session's temporary flags
 
 #define MM_WE(byte, mask) (((byte) << 8) | (mask))
 
-// MM's notebook table (tables/notebook_table.h): the week event each person's "met" entry sets,
-// by person (the first 20 events are those entries)
-static const u16 sNotebookMetFlags[] = {
-    MM_WE(68, 0x08), MM_WE(66, 0x01), MM_WE(66, 0x02), MM_WE(66, 0x04), MM_WE(66, 0x08), // Bombers, Anju, Kafei, ...
+// MM's notebook table (tables/notebook_table.h): the week event each of its 55 events sets, the 20
+// people's "met" entries first, then the rest (from the decomp's table, by its flags' names)
+static const u16 sNotebookEventFlags[] = {
+    MM_WE(68, 0x08), MM_WE(66, 0x01), MM_WE(66, 0x02), MM_WE(66, 0x04), MM_WE(66, 0x08),
     MM_WE(66, 0x10), MM_WE(66, 0x20), MM_WE(66, 0x40), MM_WE(66, 0x80), MM_WE(67, 0x01),
-    MM_WE(67, 0x02), MM_WE(67, 0x04), MM_WE(67, 0x08), MM_WE(67, 0x10), MM_WE(67, 0x20), // ... the Postman (0x0B), ...
+    MM_WE(67, 0x02), MM_WE(67, 0x04), MM_WE(67, 0x08), MM_WE(67, 0x10), MM_WE(67, 0x20),
     MM_WE(67, 0x40), MM_WE(67, 0x80), MM_WE(68, 0x01), MM_WE(68, 0x02), MM_WE(68, 0x04),
+    MM_WE(68, 0x10), MM_WE(68, 0x20), MM_WE(68, 0x40), MM_WE(68, 0x80), MM_WE(69, 0x01),
+    MM_WE(69, 0x02), MM_WE(69, 0x04), MM_WE(69, 0x08), MM_WE(69, 0x10), MM_WE(69, 0x20),
+    MM_WE(69, 0x40), MM_WE(69, 0x80), MM_WE(70, 0x01), MM_WE(70, 0x02), MM_WE(70, 0x04),
+    MM_WE(70, 0x08), MM_WE(70, 0x10), MM_WE(70, 0x20), MM_WE(70, 0x40), MM_WE(70, 0x80),
+    MM_WE(71, 0x01), MM_WE(71, 0x02), MM_WE(71, 0x04), MM_WE(71, 0x08), MM_WE(71, 0x10),
+    MM_WE(71, 0x20), MM_WE(71, 0x40), MM_WE(71, 0x80), MM_WE(72, 0x01), MM_WE(72, 0x02),
+    MM_WE(72, 0x04), MM_WE(72, 0x08), MM_WE(72, 0x10), MM_WE(72, 0x20), MM_WE(72, 0x40),
 };
 
 /** A Bombers' Notebook event (MM's Message_BombersNotebookQueueEvent). The notebook itself isn't in
- * yet: meeting someone sets MM's week event for it (kept across cycles, as MM's are), so it'll be
- * there when the notebook comes; the other events are logged. */
+ * yet: the event's week event is set (MM's, kept across cycles as MM keeps them), so it'll be
+ * there when the notebook comes. */
 void NvMm_NotebookEvent(u16 event) {
-    if (event < ARRAY_COUNT(sNotebookMetFlags)) {
-        NvMm_SetWeekEvent(sNotebookMetFlags[event]);
+    if (event < ARRAY_COUNT(sNotebookEventFlags)) {
+        NvMm_SetWeekEvent(sNotebookEventFlags[event]);
     }
     if (getenv("NV_LOG") != NULL) {
         printf("NVMM notebook event %d\n", event);
@@ -162,6 +170,9 @@ static s32 NvMmMsgEvent_Command(Actor* actor, PlayState* play, u8** script, MsgS
             *done = NvMmMsgEvent_TextAdvance(play);
             return true;
         case MSCRIPT_CMD_ID_BEGIN_TEXT:
+            if (PACK_16(c[1], c[2]) == 0xFF) {
+                return false; // MM's item prompt (show an item from the pause menu): none in OoT's talk yet
+            }
             Message_StartTextbox(play, NV_MM_TEXT(PACK_16(c[1], c[2])), NULL);
             return false;
         case MSCRIPT_CMD_ID_CONTINUE_TEXT:
