@@ -55,6 +55,9 @@ void EnBox_AppearInit(EnBox*, PlayState*);
 void EnBox_AppearAnimation(EnBox*, PlayState*);
 void EnBox_WaitOpen(EnBox*, PlayState*);
 void EnBox_Open(EnBox*, PlayState*);
+// Nightmareverse: Termina's chests (z_nv_mm_getitem.c, z_nv_mm_box.c)
+s32 NvMmGetItem_ChestEntry(PlayState* play, Actor* chest, GetItemEntry* out);
+s32 NvMmBox_ChestDLs(PlayState* play, s32 type, Gfx** body, Gfx** lid);
 void EnBox_UpdateTexture(EnBox*, PlayState*);
 
 const ActorInit En_Box_InitVars = {
@@ -449,7 +452,13 @@ void EnBox_WaitOpen(EnBox* this, PlayState* play) {
         Actor_WorldToActorCoords(&this->dyna.actor, &sp4C, &player->actor.world.pos);
         if (sp4C.z > -50.0f && sp4C.z < 0.0f && fabsf(sp4C.y) < 10.0f && fabsf(sp4C.x) < 20.0f &&
             Player_IsFacingActor(&this->dyna.actor, 0x3000, play)) {
-            Actor_OfferGetItemNearby(&this->dyna.actor, play, -(this->dyna.actor.params >> 5 & 0x7F));
+            GetItemEntry mmItem; // Nightmareverse: Termina's chests hold MM's get-items (z_nv_mm_getitem.c)
+
+            if (NvMmGetItem_ChestEntry(play, &this->dyna.actor, &mmItem)) {
+                GiveItemEntryFromActor(&this->dyna.actor, play, mmItem, 50.0f, 10.0f);
+            } else {
+                Actor_OfferGetItemNearby(&this->dyna.actor, play, -(this->dyna.actor.params >> 5 & 0x7F));
+            }
         }
         if (GameInteractor_Should(VB_CHEST_CONSIDER_CHEST_OPEN, Flags_GetTreasure(play, this->dyna.actor.params & 0x1F),
                                   this)) {
@@ -635,6 +644,8 @@ void EnBox_UpdateTexture(EnBox* this, PlayState* play) {
                 this->boxLidDL = EnBox_LoadChestDL(gChestLidJunkDL, gTreasureChestChestSideAndLidDL);
                 break;
         }
+    } else if (NvMmBox_ChestDLs(play, this->type, &this->boxBodyDL, &this->boxLidDL)) {
+        // Nightmareverse: MM's chest model in Termina (z_nv_mm_box.c)
     } else {
         if (this->type != ENBOX_TYPE_DECORATED_BIG) {
             this->boxBodyDL = EnBox_LoadChestDL(gTreasureChestChestFrontDL, NULL);

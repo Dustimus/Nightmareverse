@@ -37,10 +37,14 @@ static void NvMmScene_ClearCycle(SavedSceneFlags* f) {
 void NvMm_WeekEventsNewCycle(void);
 void NvMm_WeekEventsNewGame(void);
 
+void NvMmItem_NewCycle(void);
+void NvMmItem_NewGame(void);
+
 void NvMmScene_SongOfTime(PlayState* play) {
     s32 i;
 
     NvMm_WeekEventsNewCycle();
+    NvMmItem_NewCycle(); // (z_nv_mm_getitem.c: MM's items the cycle takes)
 
     for (i = 0; i < NV_MM_SCENES; i++) {
         NvMmScene_ClearCycle(&sMmFlags[i]);
@@ -57,6 +61,7 @@ void NvMmScene_SongOfTime(PlayState* play) {
 /** A new game, or a save from before Termina. */
 void NvMmScene_NewGame(void) {
     NvMm_WeekEventsNewGame();
+    NvMmItem_NewGame();
     memset(sMmFlags, 0, sizeof(sMmFlags));
 }
 

@@ -175,6 +175,11 @@ OBJECTS = {
     "object_hariko": (976, {  # the bobblehead cow toy (Obj_Hariko)
         "dl": {"gHarikoBodyDL": 0x80, "gHarikoFaceDL": 0x110},
     }),
+    "object_box": (682, {"deps": ["gameplay_keep"], "dl": {  # MM's chests (En_Box: OoT's, MM's look)
+        f"gBoxChest{part}{kind}DL": off for (part, kind), off in {
+            ("Base", ""): 0x6F0, ("Base", "Gilded"): 0xA50, ("Base", "Ornate"): 0xDB0,
+            ("Lid", ""): 0x12E8, ("Lid", "Gilded"): 0x1850, ("Lid", "Ornate"): 0x1D58}.items()},
+    }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)
@@ -185,6 +190,10 @@ OBJECTS = {
                   0x00BEAC, 0x00C234, 0x00C92C, 0x00D328)},
     }),
 }
+
+# MM's get-item models, all of them (mm_getitems.py writes the list from the decomp)
+from mm_getitem_objects import GETITEM_OBJECTS  # noqa: E402
+OBJECTS.update(GETITEM_OBJECTS)
 
 
 def _skeleton_limbs(data, off):

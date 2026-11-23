@@ -5,8 +5,9 @@
 // the other. Each game keeps to its own section (SaveManager: sections by name, a second register
 // of the same name is refused). Two parts:
 //   "cycle"     what the Song of Time resets: the day, the time, the speed;
-//   "permanent" what it never resets: each Termina scene's collectibles and visited rooms; later
-//               items received and randomizer checks taken.
+//   "permanent" what it never resets: each Termina scene's collectibles and visited rooms, MM's own
+//               items (those the Song of Time takes are cleared at the reset); later randomizer
+//               checks taken.
 //   Per-scene flags live in z_nv_mm_scene.c; "cycle" holds their chests, switches, cleared rooms.
 #include <cstdint>
 #include "soh/SaveManager.h"
@@ -29,6 +30,7 @@ int32_t NvMmScene_Count(void);
 const char* NvMmScene_Name(int32_t i);
 SavedSceneFlags* NvMmScene_At(int32_t i);
 uint8_t* NvMm_WeekEventReg(void);
+uint8_t* NvMmItem_Array(void);
 }
 
 static bool sTerminaLoaded; // this load had a "termina" section
@@ -60,6 +62,9 @@ static void NvMmSave_Save(const SaveContext& saveContext, int sectionID, bool fu
         SaveManager::Instance->SaveArray("weekEventReg", 100, [w](size_t i) { SaveManager::Instance->SaveData("", w[i]); });
     });
     SaveManager::Instance->SaveStruct("permanent", []() {
+        // MM's own items (z_nv_mm_getitem.c: masks, trade items...; the Song of Time clears its share)
+        uint8_t* items = NvMmItem_Array();
+        SaveManager::Instance->SaveArray("mmItems", 256, [items](size_t i) { SaveManager::Instance->SaveData("", items[i]); });
         SaveManager::Instance->SaveStruct("scenes", []() { // collectibles, visited rooms and floors
             for (int32_t i = 0; i < NvMmScene_Count(); i++) {
                 SavedSceneFlags* f = NvMmScene_At(i);
@@ -102,6 +107,8 @@ static void NvMmSave_Load() {
         SaveManager::Instance->LoadArray("weekEventReg", 100, [w](size_t i) { SaveManager::Instance->LoadData("", w[i], (uint8_t)0); });
     });
     SaveManager::Instance->LoadStruct("permanent", []() {
+        uint8_t* items = NvMmItem_Array();
+        SaveManager::Instance->LoadArray("mmItems", 256, [items](size_t i) { SaveManager::Instance->LoadData("", items[i], (uint8_t)0); });
         SaveManager::Instance->LoadStruct("scenes", []() {
             for (int32_t i = 0; i < NvMmScene_Count(); i++) {
                 SavedSceneFlags* f = NvMmScene_At(i);

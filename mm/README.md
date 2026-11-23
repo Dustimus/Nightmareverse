@@ -585,11 +585,40 @@ En_Talk: Granny's diary). Objects' animated materials now come over too (mm_obje
 NV_LOG, the MM actors a room spawns are logged ("NVMM spawn"). Tested headless: they spawn, the
 fireplace and a hall candle burn, the diary reads.
 
-Not yet, for want of other systems: the two chests (staff room, Knife Chamber) hold MM's Silver
-Rupee (100), which OoT has no item for, so they wait for MM's get-items; the toilet hand
+Not yet, for want of other systems: the toilet hand
 (En_Bjt), Kafei (En_Test3) and the night guests in the Large Suite (Gorman, the Rosa Sisters,
 the jugglers, Guru-Guru) are bigger stories of their own; Obj_Kinoko (the Mask of Scents' smell)
 and the bugs wait for MM's masks and bottles.
+
+### MM's get-items (2026-11-23, `soh/src/code/z_nv_mm_getitem.c`, `tools/mm_getitems.py`)
+
+All of MM's get-items at once: `mm_getitems.py` reads MM's get-item table (z_player.c: 185 entries,
+each its item, model, text and chest opening) and MM's get-item draw table (z_draw.c: 118 models)
+from the decomp and writes them as C (`nv_mm_getitems.inc`), with the 85 get-item objects for the
+converter (`mm_getitem_objects.py`, used by mm_objects.py). Committed, so the decomp is only needed
+to make them again.
+
+An MM get-item rides OoT's own (Link holds it up, the text, the fanfare) as a SoH GetItemEntry with
+a mod index of its own: MM's text, MM's model over Link's head (MM's draw routines, ported as they
+are), and the give handed to `NvMmGetItem_Give`. Small hooks in shared files: randomizer.cpp
+(Randomizer_Item_Give passes MM's on), z_player.c (MM's fanfare by item) and z_en_box.c (Termina's
+chests give MM's get-item and look like MM's chest, `z_nv_mm_box.c`; the chests come over as
+OoT's En_Box, MM's types numbered the same).
+
+One inventory: what OoT has too (rupees, hearts, heart pieces, magic, ammo and its upgrades, the
+bow, hookshots, lens, beans, bottles and the contents OoT knows) goes into OoT's own; what only MM
+has (masks, MM's songs, the trade items, the Pictograph Box, the Powder Keg, MM's bottle contents,
+MM's swords and shields...) is kept by MM's item id in the "termina" save section. The Song of Time
+takes what MM's Sram_SaveEndOfCycle takes from those (the trade items, the keg, MM's bottled
+things). MM's message scripts now give, check and take items through this (OFFER_ITEM, CHECK_ITEM,
+DELETE_ITEM, the quest items and songs, the Powder Keg); wearing masks isn't in, so the worn-mask
+check stays false; showing an item from the pause menu mid-talk waits for a pause screen for MM's
+items.
+
+Open, for the user: what the Song of Time does to the shared OoT side (MM empties the wallet, the
+ammo and the bottles each cycle); where MM's own items show (a pause page). Tested headless: the
+Knife Chamber's chest (MM's chest, MM's Silver Rupee model and text, 100 rupees, the wallet's
+limit), Anju's Room Key at the desk (MM's text, kept as MM's).
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 

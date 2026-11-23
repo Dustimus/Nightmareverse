@@ -49,6 +49,8 @@ PORTED = {
 
 # MM's ids (the decomp's actor table)
 MM_EN_DOOR, MM_EN_ITEM00, MM_OBJ_SYOKUDAI, MM_OBJ_KIBAKO, MM_OBJ_TSUBO = 0x005, 0x00E, 0x039, 0x081, 0x082
+MM_EN_BOX = 0x006
+ACTOR_EN_BOX, OBJECT_BOX = 0x000A, 0x000E  # OoT's
 
 # MM's collectible types (ITEM00_*) as OoT's: the same numbers up to 0x14, then MM's own
 ITEM00_OOT = {i: i for i in range(0x10)}
@@ -76,6 +78,9 @@ def _drop(t):
 MAP = {
     # actor: (OoT actor, params from MM's, OoT objects it needs)
     MM_EN_ITEM00: (ACTOR_EN_ITEM00, item00, ()),
+    # MM's chests: OoT's En_Box (Link's chest opening is its), MM's types numbered as OoT's; the
+    # get-item field stays MM's get-item (in Termina En_Box gives it as MM's: z_nv_mm_getitem.c)
+    MM_EN_BOX: (ACTOR_EN_BOX, lambda q: q, (OBJECT_BOX,)),
 }
 
 

@@ -11,9 +11,9 @@
  *   item shown from the pause menu mid-talk) isn't shown, OoT has no such step: the actor's
  *   callback then goes on as if the prompt was closed;
  * - Link is always MM's human form for now (no Deku, Goron, Zora yet): the form checks follow that;
- * - MM's items, masks, songs and quest items aren't OoT's: those checks are false (and a delete
- *   does nothing) until MM's items come (NV_GAMES.md, masks). Rupees are the shared wallet; a
- *   given item is OoT's where both games have it (rupees, hearts), else skipped (NvMmMsgEvent_GetItem);
+ * - MM's items: given as MM's get-items (z_nv_mm_getitem.c: into OoT's inventory where OoT has the
+ *   same thing, else kept as MM's), checked and taken the same way; MM's songs and quest items are
+ *   MM's own. Wearing masks isn't in yet: the worn-mask check is false;
  * - week events are Termina's (z_nv_mm_scene.c); MM's eventInf (temporary flags) are kept here,
  *   for the cycle's session, not saved, as in MM; switch and collectible flags are OoT's own;
  * - the Bombers' Notebook isn't in yet: its events set MM's week events for them (NvMm_NotebookEvent);
@@ -67,35 +67,6 @@ void NvMm_NotebookEvent(u16 event) {
     }
 }
 
-/** MM's get-item ids (its GetItemId enum) as OoT's: the things both games share (rupees, hearts,
- * heart pieces); GI_NONE for MM's own items (the Room Key, the letters, masks...) until they come,
- * and the script goes on as if it had been given. */
-static s32 NvMmMsgEvent_GetItem(s32 mmGi) {
-    switch (mmGi) {
-        case 0x01:
-            return GI_RUPEE_GREEN;
-        case 0x02:
-            return GI_RUPEE_BLUE;
-        case 0x04:
-            return GI_RUPEE_RED;
-        case 0x05:
-            return GI_RUPEE_PURPLE;
-        case 0x07:
-            return GI_RUPEE_GOLD;
-        case 0x0A:
-            return GI_HEART;
-        case 0x0C:
-            return GI_HEART_PIECE;
-        case 0x0D:
-            return GI_HEART_CONTAINER;
-        default:
-            if (getenv("NV_LOG") != NULL) {
-                printf("NVMM MM item 0x%X not given (not in yet)\n", mmGi);
-                fflush(stdout);
-            }
-            return GI_NONE;
-    }
-}
 
 /** MM's eventInf (flag: byte << 4 | bit), for the actors that check it themselves (Granny). */
 s32 NvMmMsgEvent_EventInf(s32 flag) {
@@ -113,6 +84,12 @@ void NvMmMsgEvent_SetEventInf(s32 flag, s32 on) {
 static s32 NvMmMsgEvent_IsNight(void) {
     return (NvMmClock_HalfDayBit() & 0x155) != 0; // (the nights' bits)
 }
+
+GetItemEntry NvMmGetItem_Entry(s32 mmGi); // (z_nv_mm_getitem.c)
+s32 NvMmItem_Has(s32 item);
+s32 NvMmItem_HasQuest(s32 quest);
+s32 NvMmItem_Check(s32 item);
+void NvMmItem_Delete(s32 item);
 
 static s32 NvMmMsgEvent_TextAdvance(PlayState* play) {
     switch (Message_GetState(&play->msgCtx)) {
@@ -157,14 +134,14 @@ static s32 NvMmMsgEvent_Command(Actor* actor, PlayState* play, u8** script, MsgS
             }
             *script += skip;
             return false;
-        case MSCRIPT_CMD_ID_OFFER_ITEM: {
-            s32 gi = NvMmMsgEvent_GetItem(PACK_16(c[1], c[2]));
+        case MSCRIPT_CMD_ID_OFFER_ITEM: { // (MM's get-item, as MM's: z_nv_mm_getitem.c)
+            GetItemEntry e = NvMmGetItem_Entry(PACK_16(c[1], c[2]));
 
-            if ((gi == GI_NONE) || Actor_HasParent(actor, play)) { // (an MM-only item: not given yet)
+            if ((e.getItemId == GI_NONE) || Actor_HasParent(actor, play)) {
                 *script += (s16)PACK_16(c[3], c[4]);
                 return false;
             }
-            Actor_OfferGetItem(actor, play, gi, actor->xzDistToPlayer + 1.0f, fabsf(actor->yDistToPlayer) + 1.0f);
+            GiveItemEntryFromActor(actor, play, e, actor->xzDistToPlayer + 1.0f, fabsf(actor->yDistToPlayer) + 1.0f);
             return true;
         }
         case MSCRIPT_CMD_ID_AUTOTALK:
@@ -262,12 +239,30 @@ static s32 NvMmMsgEvent_Command(Actor* actor, PlayState* play, u8** script, MsgS
             *script += (s16)PACK_16(c[1], c[2]);
             return false;
         case MSCRIPT_CMD_ID_CHECK_QUEST_ITEM:
+            if (NvMmItem_HasQuest(PACK_16(c[1], c[2]))) {
+                *script += (s16)PACK_16(c[3], c[4]);
+            }
+            return false;
         case MSCRIPT_CMD_ID_CHECK_HAS_SONG:
-        case MSCRIPT_CMD_ID_CHECK_WORN_MASK:
+            if (NvMmItem_HasQuest(6 + PACK_16(c[1], c[2]))) { // (MM's QUEST_SONG_SONATA + song)
+                *script += (s16)PACK_16(c[3], c[4]);
+            }
+            return false;
         case MSCRIPT_CMD_ID_CHECK_ITEM:
+            if (NvMmItem_Check(PACK_16(c[1], c[2]))) {
+                *script += (s16)PACK_16(c[3], c[4]);
+            }
+            return false;
         case MSCRIPT_CMD_ID_CHECK_HAS_POWDER_KEG:
+            if (NvMmItem_Has(0x0C)) { // ITEM_POWDER_KEG
+                *script += (s16)PACK_16(c[1], c[2]);
+            }
+            return false;
         case MSCRIPT_CMD_ID_DELETE_ITEM:
-            return false; // (MM's items, masks, songs: not in yet)
+            NvMmItem_Delete(PACK_16(c[1], c[2]));
+            return false;
+        case MSCRIPT_CMD_ID_CHECK_WORN_MASK:
+            return false; // (wearing MM's masks: not in yet)
         case MSCRIPT_CMD_ID_CHECK_EVENT_INF:
             if (sEventInf[c[1] & 7] & c[2]) {
                 *script += (s16)PACK_16(c[3], c[4]);

@@ -14058,6 +14058,8 @@ void func_8084DFAC(PlayState* play, Player* this) {
     this->yaw = this->actor.shape.rot.y;
 }
 
+s32 NvMmGetItem_Fanfare(GetItemEntry* e); // Nightmareverse
+
 s32 func_8084DFF4(PlayState* play, Player* this) {
     GetItemEntry giEntry;
     s32 temp1;
@@ -14129,7 +14131,7 @@ s32 func_8084DFF4(PlayState* play, Player* this) {
                 // Just in case something weird happens with MOD_INDEX
                 Audio_PlayFanfare(NA_BGM_ITEM_GET | 0x900);
             }
-        } else {
+        } else if (!NvMmGetItem_Fanfare(&giEntry)) { // Nightmareverse: MM's get-items' own (z_nv_mm_getitem.c)
             // Just in case something weird happens with modIndex.
             Audio_PlayFanfare(NA_BGM_ITEM_GET | 0x900);
         }

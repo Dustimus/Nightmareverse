@@ -1144,7 +1144,14 @@ static bool ChildTradeSlotOccupied() {
     return Flags_GetRandomizerInf((RandomizerInf)(slotItem - ITEM_WEIRD_EGG + RAND_INF_CHILD_TRADES_HAS_WEIRD_EGG));
 }
 
+extern "C" s32 NvMmGetItem_IsMm(GetItemEntry* e);
+extern "C" void NvMmGetItem_Give(PlayState* play, GetItemEntry* e);
+
 extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
+    if (NvMmGetItem_IsMm(&giEntry)) { // Nightmareverse: MM's get-items (z_nv_mm_getitem.c)
+        NvMmGetItem_Give(play, &giEntry);
+        return 0;
+    }
     if (giEntry.modIndex != MOD_RANDOMIZER) {
         SPDLOG_WARN(
             "Randomizer_Item_Give was called with a GetItemEntry with a mod index different from MOD_RANDOMIZER ({})",
