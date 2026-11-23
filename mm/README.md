@@ -40,8 +40,11 @@ before building a new system; add a line whenever a new one is made.
   checked for clashes (below, "Where RE1 and MM meet").
 - **Items both games have:** one item, one slot; a check that would give a second copy gives a
   reward instead. Exceptions that add something: MM's Hero's Bow and Hookshot are young Link's
-  own (one shared quiver). Keaton, the Bunny Hood and the Mask of Truth share a slot with OoT's on
-  the mask screen (NV_GAMES.md "Items both games have", 2026-11-19).
+  own (one shared quiver) (NV_GAMES.md "Items both games have", 2026-11-19). The songs both
+  games really have are the Song of Time, Epona's Song and the Song of Storms (MM's Saria's and
+  Sun's Songs are unused leftovers). **Masks are separate items for now**, Keaton, the Bunny Hood
+  and the Mask of Truth too: OoT's are trade items, never all held at once. They'll be combined
+  eventually, once the user decides what's given in their place (the user, 2026-11-23).
 - **Hearts stack:** OoT's and MM's heart containers and pieces together (below, 2026-11-20).
 - **Masks and forms:** forms don't depend on age (leaning yes); OoT's people react to the
   Goron and Zora forms as to the masks; OoT-only masks join MM's mask screen; a fake Majora's
@@ -648,7 +651,8 @@ OoT's En_Box, MM's types numbered the same).
 
 One inventory, as decided ("Decisions": items both games have): what OoT has too (rupees,
 hearts, heart pieces, magic, ammo and its upgrades, the lens, beans, elemental arrows, bottles and
-the contents OoT knows, the Kokiri Sword, the songs both games have) goes into OoT's own, and a
+the contents OoT knows, the Kokiri Sword, the Song of Time, Epona's Song and the Song of Storms)
+goes into OoT's own, and a
 check that would give a second copy gives MM's Purple Rupee for now (a placeholder for the reward
 pool); what only MM has (masks, MM's songs, the trade items, the Pictograph Box, the Powder Keg,
 MM's bottle contents, MM's swords and shields, and young Link's own Hero's Bow and Hookshot) is kept

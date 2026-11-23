@@ -554,8 +554,9 @@ void NvMmItem_NewGame(void) {
 
 /** MM's item as OoT's, where OoT has the same thing; ITEM_NONE where it's MM's own. Decided with
  * the user (NV_GAMES.md "Items both games have"): MM's Hero's Bow and Hookshot are young Link's
- * own, not OoT's (one shared quiver: the arrows and quivers are OoT's); Keaton, the Bunny Hood and
- * the Mask of Truth share a slot with OoT's on the mask screen (kept as MM's until it's built). */
+ * own, not OoT's (one shared quiver: the arrows and quivers are OoT's). Masks are separate items
+ * for now, Keaton, the Bunny Hood and the Mask of Truth too (the user, 2026-11-23: OoT's are trade
+ * items, never all held at once; combining them, and what's given in their place, comes later). */
 static s32 NvMmItem_OoT(s32 item) {
     switch (item) {
         case 0x02: return ITEM_ARROW_FIRE;
@@ -614,11 +615,9 @@ static s32 NvMmItem_OoT(s32 item) {
         case 0x9D: return ITEM_NUT_UPGRADE_30;
         case 0x9E: return ITEM_NUT_UPGRADE_40;
         case 0xA0: return ITEM_MILK_BOTTLE;
-        case 0x66: return ITEM_SONG_SARIA; // the songs both games have: OoT's (one song)
-        case 0x67: return ITEM_SONG_TIME;
+        case 0x67: return ITEM_SONG_TIME; // the songs both games really have: OoT's (one song)
         case 0x69: return ITEM_SONG_EPONA;
         case 0x6B: return ITEM_SONG_STORMS;
-        case 0x6C: return ITEM_SONG_SUN;
         default: return ITEM_NONE;
     }
 }
