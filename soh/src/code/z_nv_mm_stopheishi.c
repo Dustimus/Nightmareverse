@@ -11,8 +11,8 @@
  *
  * Adapted from MM:
  * - the day and night are Termina's clock; the week event is Termina's (z_nv_mm_scene.c);
- * - Link is always MM's human form here (no transformations yet), and there's no Takkuri to have
- *   stolen his sword, so those branches are left out;
+ * - Link's form is MM's (z_nv_mm_form.c: human or Deku so far; Deku Link is kept in with MM's Deku
+ *   lines); there's no Takkuri to have stolen his sword, so that branch is left out;
  * - on the final day MM turns his head about at each earthquake; there are none yet, so he looks
  *   about once (MM's own start) and then waits;
  * - his footstep sound is MM's own, not in OoT's banks; OoT's collider, movement and ground-check
@@ -207,7 +207,7 @@ static void NvMmStopheishi_HeadNormal(NvMmStopheishi* this, PlayState* play) {
             this->headRotXTarget = CLAMP((s16)(this->actor.yawTowardsPlayer - this->actor.world.rot.y), -0x2710, 0x2710);
         }
         Math_Vec3f_Copy(&playerPos, &player->actor.world.pos);
-        playerPos.y += 57.0f; // (MM's human or Deku height; the forms aren't in yet)
+        playerPos.y += 57.0f; // (MM's human or Deku height: 70 for Goron and Zora, not in yet)
         this->pitchToPlayer = Math_Vec3f_Pitch(&this->actor.focus.pos, &playerPos);
     }
 }
@@ -350,10 +350,12 @@ static void NvMmStopheishi_Block(NvMmStopheishi* this, PlayState* play) {
     }
 }
 
+s32 NvMmForm_Get(void);
+
 static void NvMmStopheishi_Guard(NvMmStopheishi* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s16 night = NvMmStopheishi_Night() ? 0x20 : 0;
-    s16 who = 0; // MM: 0 a human Link who may not leave yet, 1 one who may, 2-4 the forms
+    s16 who = 0; // MM: 0 a human Link who may not leave yet, 1 one who may, 2 Goron, 3 Zora, 4 Deku
     s32 yawDiffAbs;
 
     SkelAnime_Update(&this->skelAnime);
@@ -363,14 +365,27 @@ static void NvMmStopheishi_Guard(NvMmStopheishi* this, PlayState* play) {
         NvMmStopheishi_HeadThirdDay(this);
     }
     Math_SmoothStepToS(&this->actor.world.rot.y, this->rotYTarget, 1, 0x1388, 0);
-    if (NvMm_CheckWeekEvent(WEEKEVENTREG_12_20)) {
-        who = 1;
+    switch (NvMmForm_Get()) { // (MM's player->transformation: z_nv_mm_form.c)
+        case 4: // human
+            if (NvMm_CheckWeekEvent(WEEKEVENTREG_12_20)) {
+                who = 1;
+            }
+            break;
+        case 3: // Deku: kept in, as a child
+            who = 4;
+            break;
+        case 2: // Zora
+            who = 3;
+            break;
+        case 1: // Goron
+            who = 2;
+            break;
     }
-    if ((who == 1) && ((this->animIndex == SOLDIER_ANIM_4) || (this->animIndex == SOLDIER_ANIM_5) ||
+    if (((who == 1) || (who == 2) || (who == 3)) && ((this->animIndex == SOLDIER_ANIM_4) || (this->animIndex == SOLDIER_ANIM_5) ||
                        (this->animIndex == SOLDIER_ANIM_6))) {
         NvMmStopheishi_StandPose(this);
     }
-    if (who == 0) {
+    if ((who == 0) || (who == 4)) {
         f32 xDiff = this->actor.home.pos.x - player->actor.world.pos.x;
         f32 zDiff = this->actor.home.pos.z - player->actor.world.pos.z;
 
@@ -385,7 +400,11 @@ static void NvMmStopheishi_Guard(NvMmStopheishi* this, PlayState* play) {
         this->collider.dim.radius = 15;
         this->collider.dim.height = 60;
     }
-    this->messageIndex = this->gate * 8 + night + who * 2;
+    if (who != 4) {
+        this->messageIndex = this->gate * 8 + night + who * 2;
+    } else { // (MM: the Deku lines, by gate and night)
+        this->messageIndex = ((night != 0) ? 72 : 64) + this->gate * 2;
+    }
     if (this->messageIndex > (s32)ARRAY_COUNT(sLeaveMessages) - 2) {
         this->messageIndex = 0;
     }

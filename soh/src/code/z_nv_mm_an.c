@@ -13,7 +13,8 @@
  * Adapted from MM:
  * - her results with Granny (lunch), the Goron and the Postman at the desk: MM's, the talk camera
  *   left to OoT's (MM's cutscene cameras per line are left out);
- * - Link is MM's human form, without MM's masks (the Kafei's Mask and Deku lines wait); MM's items
+ * - Link is MM's human or Deku form (z_nv_mm_form.c; Deku Link gets MM's Deku lines), without MM's
+ *   masks (Kafei's Mask's lines wait); MM's items
  *   she gives (the Room Key, the Letter to Kafei) aren't in yet (the script goes on without them);
  * - the midnight meeting's scene (MM's cutscene at the inn's entrance 3) isn't ported: Link is taken
  *   to that entrance as in MM, without the cutscene;
@@ -801,8 +802,12 @@ static s32 NvMmAn_MsgEventExchange(Actor* thisx, PlayState* play) {
     return true;
 }
 
-/** MM's EnAn_GetMsgScript, for a human Link without masks (MM's other branches wait for those). */
+s32 NvMmForm_Get(void); // (MM's player->transformation: z_nv_mm_form.c; 3 Deku, 4 human)
+
+/** MM's EnAn_GetMsgScript: a human or Deku Link (Kafei's Mask's branch waits for that mask). */
 static MsgScript* NvMmAn_GetMsgScript(NvMmAn* this, PlayState* play) {
+    s32 human = (NvMmForm_Get() == 4);
+
     switch (this->scheduleResult) {
         case ANJU_SCH_GIVE_LUNCH_TO_GRANNY:
             this->msgScriptCallback = NvMmAn_MsgEventExchange;
@@ -819,7 +824,26 @@ static MsgScript* NvMmAn_GetMsgScript(NvMmAn* this, PlayState* play) {
         default:
             break;
     }
-    if (NvMm_CheckWeekEvent(WEEKEVENTREG_PROMISED_MIDNIGHT_MEETING)) {
+    if (NvMmForm_Get() == 3) { // Deku Link
+        switch (this->scheduleResult) {
+            case ANJU_SCH_WAITING_FOR_KAFEI:
+                return sAnjuMsgScript_SchWaitingForKafei;
+            case ANJU_SCH_WALKING_40:
+            case ANJU_SCH_WALKING_42:
+            case ANJU_SCH_WALKING_43:
+            case ANJU_SCH_WALKING_44:
+            case ANJU_SCH_WALKING_45:
+            case ANJU_SCH_WALKING_47:
+                return sAnjuMsgScript_80B58B7C;
+            case ANJU_SCH_LAUNDRY_POOL_SIT:
+                return sAnjuMsgScript_SchLaundryPoolDeku;
+            case ANJU_SCH_WALKING_49:
+                return sAnjuMsgScript_80B589FC;
+            default:
+                return sAnjuMsgScript_DekuDefault;
+        }
+    }
+    if (human && NvMm_CheckWeekEvent(WEEKEVENTREG_PROMISED_MIDNIGHT_MEETING)) {
         if (this->scheduleResult == ANJU_SCH_MIDNIGHT_MEETING) {
             this->msgScriptCallback = NvMmAn_MsgEventMidnightMeeting;
             return sAnjuMsgScript_SchMidnightMeeting;
@@ -857,7 +881,7 @@ static MsgScript* NvMmAn_GetMsgScript(NvMmAn* this, PlayState* play) {
         case ANJU_SCH_WALKING_48:
             return sAnjuMsgScript_80B58944;
         case ANJU_SCH_WALKING_49:
-            return sAnjuMsgScript_80B58B88;
+            return human ? sAnjuMsgScript_80B58B88 : sAnjuMsgScript_80B589FC;
         case ANJU_SCH_WALKING_52:
         case ANJU_SCH_WALKING_53:
             return sAnjuMsgScript_80B58994;

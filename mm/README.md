@@ -790,13 +790,18 @@ cutscene manager's); the sounds are OoT's nearest (MM's transformation voice and
 The proposal to skip it by default with a setting to watch it (NV_GAMES.md) stays open: it needs a
 settings page.
 
-Not yet: the bubble, the flower launch (below, "Deku Link's moves"), MM's Deku items, adult
-Link (forms don't depend on age, leaning yes: open), the other forms, the people's Deku lines (each
-actor's form branches; the message scripts' checks already work).
+The people's Deku lines (2026-11-23): the message scripts' form checks (everyone on scripts: Granny,
+Anju's mother, the Postman...), and MM's own branches in the ported actors: the gate guards (MM's
+Deku lines by gate and night, and they keep Deku Link in, as a child), Anju (MM's Deku scripts by
+her schedule), the Bombers (Deku Link's talk about where Jim is, and its week events).
 
-Tested headless: equipping the Deku Mask, the change and back, Deku Link walking in South Clock
-Town at MM's size next to a guard, B empty and the sword back, the form kept through a warp into
-an OoT scene.
+Not yet: the bubble, the flower launch (below, "Deku Link's moves"), MM's Deku items, adult
+Link (forms don't depend on age, leaning yes: open), the other forms.
+
+Tested headless: equipping the Deku Mask, the change and back (the scene both ways: the mask on his
+face, the light, the white-out), Deku Link walking in South Clock Town at MM's size next to a guard,
+B empty and the sword back, the form kept through a warp into an OoT scene, the gate guard's Deku
+line. Not tried yet: Anju's and the Bombers' Deku lines (their code is MM's, as ported).
 
 ### MM's player animations (2026-11-23, `tools/mm_player_anims.py`, `mm_objects.write_player_anims`)
 
@@ -832,7 +837,7 @@ N frames.
 
 Not yet: the bubble on B (magic, MM's bubble), the Deku flowers (MM's Obj_Etcetera isn't ported:
 the dive, the launch, the flight wait for it), the hop counter on the A button, sinking into another
-room (put back only within the room he's in), MM's transformation scene (the animations are in now).
+room (put back only within the room he's in).
 
 Tested headless: the spin and the guard in South Clock Town (A next to the gate guard talks first),
 a hop across Laundry Pool's water, the sinking and being put back on land.

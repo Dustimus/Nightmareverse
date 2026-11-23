@@ -14,7 +14,8 @@
  *      (76_01-76_10); until then not there.
  *
  * Adapted from MM:
- * - Link is MM's human form here (no forms yet: the Deku lines, and the Goron and Zora ones, wait);
+ * - Link is MM's human or Deku form (z_nv_mm_form.c: Deku Link gets MM's Deku lines, where Jim is;
+ *   the Goron and Zora ones wait for those forms);
  *   MM's mask reactions (Text_GetFaceReaction) wait for MM's masks;
  * - the hideout's bowling-man handover (75_40) isn't in: those sit as in the other case;
  * - their footsteps are MM's own sound, not in OoT's banks; OoT's collider, movement and
@@ -182,9 +183,32 @@ void NvMmBombers_Destroy(Actor* thisx, PlayState* play) {
     Collider_DestroyCylinder(play, &this->collider);
 }
 
-/** Their line for a human Link: the club's question, or with the Notebook, its own. */
+#define WEEKEVENTREG_73_20 MM_WE(73, 0x20)
+#define WEEKEVENTREG_DEKU_LEARNED_WHERE_BOMBER_JIM_IS MM_WE(73, 0x40)
+#define WEEKEVENTREG_DEKU_TALKED_TO_BOMBER(n) MM_WE(74, 1 << ((n) - 1)) // (MM's numbers 2-5: 0x01-0x08)
+
+s32 NvMmForm_Get(void);
+void NvMm_SetWeekEvent(s32 flag);
+
+/** Their first line (MM's EnBombers_SetTextId): a human Link, the club's question or with the Notebook
+ * its own; Deku Link, where Jim is (once told, a shorter line). */
 static void NvMmBombers_SetTextId(NvMmBombers* this) {
     this->talkState = TEXT_STATE_EVENT;
+    if (NvMmForm_Get() == 3) { // Deku
+        u16 id = 0x744;
+
+        if (NvMm_CheckWeekEvent(WEEKEVENTREG_73_20)) {
+            id = 0x75A;
+        } else if (NvMm_CheckWeekEvent(WEEKEVENTREG_DEKU_LEARNED_WHERE_BOMBER_JIM_IS)) {
+            id = 0x749;
+            if ((this->number >= 1) && (this->number <= 4) &&
+                NvMm_CheckWeekEvent(WEEKEVENTREG_DEKU_TALKED_TO_BOMBER(this->number))) {
+                id = 0x74A;
+            }
+        }
+        this->actor.textId = NV_MM_TEXT(id);
+        return;
+    }
     this->actor.textId = NV_MM_TEXT(NvMm_CheckWeekEvent(WEEKEVENTREG_84_80) ? 0x74B : 0x73D);
 }
 
@@ -266,13 +290,15 @@ static void NvMmBombers_Npc(NvMmBombers* this, PlayState* play) {
     }
 }
 
-/** A conversation: MM's chain of lines for a human Link, its yes/no, and the salute. */
+/** A conversation: MM's chain of lines for a human Link, its yes/no, and the salute; Deku Link's. */
 static void NvMmBombers_Talk(NvMmBombers* this, PlayState* play) {
     u16 id = this->actor.textId - NV_MM_TEXT(0);
     s32 more = false;
 
     Math_SmoothStepToS(&this->actor.world.rot.y, this->targetYaw, 1, 0x1388, 0);
-    this->headRotTargetZ = -0xFA0;
+    if (NvMmForm_Get() == 4) { // (MM: a human Link's head turn; Deku Link, none)
+        this->headRotTargetZ = -0xFA0;
+    }
     if ((this->talkState == Message_GetState(&play->msgCtx)) && Message_ShouldAdvance(play)) {
         Message_CloseTextbox(play);
         this->talkState = TEXT_STATE_EVENT;
@@ -307,6 +333,20 @@ static void NvMmBombers_Talk(NvMmBombers* this, PlayState* play) {
                 NvMmBombers_ChangeAnim(this, ANIM_SALUTE, 1.0f);
             }
             more = true;
+        } else if (id == 0x744) { // Deku Link: where Jim is
+            id = (NvMmClock_Day() == 3) ? 0x746 : 0x745;
+            more = true;
+        } else if ((id == 0x745) || (id == 0x746)) {
+            id = 0x747;
+            more = true;
+        } else if (id == 0x747) {
+            id = 0x748;
+            more = true;
+        } else if (id == 0x748) {
+            if ((this->number >= 1) && (this->number <= 4)) {
+                NvMm_SetWeekEvent(WEEKEVENTREG_DEKU_TALKED_TO_BOMBER(this->number));
+            }
+            NvMm_SetWeekEvent(WEEKEVENTREG_DEKU_LEARNED_WHERE_BOMBER_JIM_IS);
         }
         if (more) {
             this->actor.textId = NV_MM_TEXT(id);
