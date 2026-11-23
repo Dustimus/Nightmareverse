@@ -52,6 +52,72 @@ def icons_blob(re1):
     return bytes(out)
 
 
+# The icons as OoT's C-button item icons (2026-11-23, as Mod1's re_pause.py item_icon): RE1's
+# dithered dark blue ground made transparent (its few colors: what nearly all of every icon's
+# border is), each icon cut to what's drawn and scaled to fill 32 x 32, centred, RGBA32 as OoT's
+# own item icons. The status screen keeps the originals on RE1's blue slots.
+CICON = 32
+
+
+def _icon_background(pix, count):
+    from collections import Counter
+    seen = Counter()
+    for k in range(count):
+        icon = pix[k * ICON_W * ICON_H:(k + 1) * ICON_W * ICON_H]
+        seen.update(icon[:ICON_W] + icon[-ICON_W:] + icon[::ICON_W] + icon[ICON_W - 1::ICON_W])
+    total = sum(seen.values())
+    return {i for i, c in seen.items() if c > total // 20}
+
+
+def cicons_blob(re1):
+    from PIL import Image
+    data = rdt.find_file(re1, "DATA")
+    pix = open(rdt.find_file(data, "ITEM_ALL.PIX"), "rb").read()
+    tim = emd.parse_tim(open(rdt.find_file(data, "STATUS.TIM"), "rb").read(), 0)
+    clut = [emd.psx_color(c) for c in tim.cluts[2]]
+    count = len(pix) // (ICON_W * ICON_H)
+    bg = _icon_background(pix, count)
+    out = bytearray(b"RCIC" + struct.pack("<3H", count, CICON, CICON))
+    for k in range(count):
+        icon = pix[k * ICON_W * ICON_H:(k + 1) * ICON_W * ICON_H]
+        im = Image.new("RGBA", (ICON_W, ICON_H))
+        px = [(0, 0, 0, 0) if b in bg else tuple(clut[b][:3]) + (255,) for b in icon]
+        # the art's edge blends into the blue: an edge pixel that's mostly blue becomes a dark
+        # outline, as OoT's icons have, not a blue fringe
+        edge = []
+        for i, c in enumerate(px):
+            x, y = i % ICON_W, i // ICON_W
+            if c[3] and c[2] > c[0] + 24 and c[2] > c[1] + 24 and any(
+                    not (0 <= x + dx < ICON_W and 0 <= y + dy < ICON_H) or px[(y + dy) * ICON_W + x + dx][3] == 0
+                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+                edge.append(i)
+        for i in edge:
+            px[i] = (20, 20, 28, 255)
+        im.putdata(px)
+        box = im.getbbox()
+        canvas = Image.new("RGBA", (CICON, CICON), (0, 0, 0, 0))
+        if box is not None:
+            im = im.crop(box)
+            scale = CICON / max(im.width, im.height)
+            im = im.resize((max(1, round(im.width * scale)), max(1, round(im.height * scale))), Image.LANCZOS)
+            canvas.paste(im, ((CICON - im.width) // 2, (CICON - im.height) // 2))
+        out += bytes(b for px in canvas.getdata() for b in (px if px[3] else (0, 0, 0, 0)))
+    return bytes(out)
+
+
+def write_cicons(re1, out):
+    """The C-button icons into the SoH folder; how many (0 without the files or PIL)."""
+    try:
+        blob = cicons_blob(re1)
+    except (OSError, IndexError, ImportError):
+        return 0
+    d = os.path.join(out, "re1", "ui")
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, "cicons"), "wb").write(
+        soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    return struct.unpack_from("<H", blob, 4)[0]
+
+
 # (file, CLUT, u, v, width, height), in z_nv_status.c's NvStSprite order
 STATUS_SPRITES = [
     ("STATUS.TIM", 0, 0, 0, 48, 80),     # the tabs: Map, Radio, File, Exit, the blank (no radio) (16 rows each)

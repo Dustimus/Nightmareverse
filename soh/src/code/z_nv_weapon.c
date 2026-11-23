@@ -595,9 +595,20 @@ void NvWeapon_Draw(PlayState* play, Player* player) {
  * icon (40 x 30) in the button's square, at (x, y), w wide. True when drawn.
  */
 s32 NvWeapon_DrawCIcon(PlayState* play, s16 x, s16 y, s16 w) {
+    const u32* NvStatus_CIconFor(s32 id);
+    const u32* cicon = NvStatus_CIconFor(NvGun_Equipped());
     const u16* icon = NvStatus_IconFor(NvGun_Equipped());
     s16 h = w * 3 / 4;
 
+    if (cicon != NULL) { // (its own C-button icon: as OoT draws its item icons)
+        OPEN_DISPS(play->state.gfxCtx);
+        gDPLoadTextureBlock(OVERLAY_DISP++, cicon, G_IM_FMT_RGBA, G_IM_SIZ_32b, 32, 32, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                            G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+        gSPWideTextureRectangle(OVERLAY_DISP++, x << 2, y << 2, (x + w) << 2, (y + w) << 2, G_TX_RENDERTILE, 0, 0,
+                                (32 << 10) / w, (32 << 10) / w);
+        CLOSE_DISPS(play->state.gfxCtx);
+        return true;
+    }
     if (icon == NULL) {
         return false;
     }

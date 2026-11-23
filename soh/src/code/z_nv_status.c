@@ -711,6 +711,36 @@ const u16* NvStatus_IconFor(s32 id) {
     return NvSt_Icon(id);
 }
 
+/**
+ * Item id's icon as an OoT C-button icon: 32 x 32 RGBA32, RE1's blue ground cut out and the icon
+ * scaled to fill it ("re1/ui/cicons", soh_ui.py cicons_blob), or NULL (a mod built before them).
+ */
+const u32* NvStatus_CIconFor(s32 id) {
+    static const u8* sCIcons;
+    static s32 sTried;
+    u16 count;
+    s32 k;
+
+    if (!sTried) {
+        sTried = true;
+        if (ResourceMgr_FileExists("re1/ui/cicons")) {
+            sCIcons = (const u8*)ResourceGetDataByName("re1/ui/cicons");
+            if ((sCIcons != NULL) && (memcmp(sCIcons, "RCIC", 4) != 0)) {
+                sCIcons = NULL;
+            }
+        }
+    }
+    if ((sCIcons == NULL) || (id <= 0) || (id >= (s32)ARRAY_COUNT(sNvStIconOf))) {
+        return NULL;
+    }
+    k = sNvStIconOf[id];
+    memcpy(&count, sCIcons + 4, 2);
+    if (k >= count) {
+        return NULL;
+    }
+    return (const u32*)(sCIcons + 10 + k * 32 * 32 * 4);
+}
+
 /** Whether RE1's status pictures and icons are there. */
 s32 NvStatus_PicsReady(void) {
     return NvSt_Pics() && (NvSt_Icons() != NULL);

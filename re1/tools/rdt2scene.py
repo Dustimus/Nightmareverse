@@ -1178,6 +1178,7 @@ def _pack_soh(folder, re1, anims, jpn=None, exe=None):
     import soh_ui
     import soh_weapons
     print("soh: item icons %d" % soh_ui.write_icons(re1, folder))
+    print("soh: C-button icons %d" % soh_ui.write_cicons(re1, folder))
     print("soh: status sprites %d" % soh_ui.write_status(re1, folder))
     print("soh: shadow mask %d" % soh_ui.write_kage(re1, folder))
     print("soh: files %d%s" % (soh_ui.write_files(re1, folder, jpn), " (with the Japanese backdrops)" if jpn else ""))
