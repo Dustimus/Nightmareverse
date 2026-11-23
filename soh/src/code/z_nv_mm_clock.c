@@ -37,7 +37,24 @@
 
 static s32 sMmDay = 1;          // 1-3; 4 for an instant, as the moon falls
 static u16 sMmTime = MM_DAWN;
-static s16 sMmSpeedOffset = 0;  // -2 under the Inverted Song of Time
+// The clock's speed, in half steps a frame (MM's R_TIME_SPEED, 3, is 6): the user's speed list
+// (the Inverted Song of Time's, 2026-11-23): a third (N64's inverted), half (3DS's), normal,
+// double, triple. A half step carries to the next frame.
+static s16 sMmSpeedHalves = 6;
+static s16 sMmHalfCarry;
+static s32 sMmFrameStep = MM_TIME_SPEED; // this frame's step, for the people walking by the time
+static s32 sMmMenu;                      // the speed list is open
+static s32 sMmMenuCursor;
+static s8 sMmMenuHeld;
+static const struct {
+    s16 halves;
+    const char* name;
+    const char* tag; // on the clock while it's set ("" for normal)
+} sMmSpeeds[] = {
+    { 2, "Slow time to a third (N64)", "x1/3" }, { 3, "Slow time to half (3DS)", "x1/2" },
+    { 6, "Normal speed", "" },                  { 12, "Double speed", "x2" },
+    { 18, "Triple speed", "x3" },
+};
 static s32 sMmInTermina;        // the last frame was in Termina
 static u16 sMmHyruleTime;       // Hyrule's time, put aside while in Termina
 static u16 sMmWritten;          // the time this clock last gave OoT
@@ -47,6 +64,9 @@ static s32 sMmDevSet;           // NV_MM_TIME applied
 
 void NvMmScene_SongOfTime(PlayState* play);
 void NvMmScene_NewGame(void);
+void NvMmClock_OpenSpeedMenu(PlayState* play);
+static void NvMmClock_SpeedMenuInput(PlayState* play);
+static s32 sMmMenuDevDone;
 
 static s32 NvMm_Log(void) {
     return getenv("NV_LOG") != NULL;
@@ -64,7 +84,7 @@ static s32 NvMm_Minute(u16 t) {
 static void NvMmClock_Reset(PlayState* play, const char* why) {
     sMmDay = 1;
     sMmTime = MM_DAWN;
-    sMmSpeedOffset = 0;
+    sMmSpeedHalves = 6; // (MM: the Song of Time puts the speed back to normal)
     sMmTelop = MM_TELOP_FRAMES;
     if (NvMm_Log()) {
         printf("NVMM reset (%s): day 1 06:00\n", why);
@@ -159,15 +179,20 @@ void NvMmClock_Update(PlayState* play) {
         }
         NvMmClock_Advance(play, d);
     }
-    if (NvMmClock_Running(play)) {
-        s32 step = MM_TIME_SPEED + sMmSpeedOffset;
+    if (getenv("NV_MM_SPEED_MENU") && !sMmMenuDevDone) { // (dev: the speed list on the first frame)
+        sMmMenuDevDone = true;
+        NvMmClock_OpenSpeedMenu(play);
+    }
+    if (sMmMenu) {
+        NvMmClock_SpeedMenuInput(play);
+    } else if (NvMmClock_Running(play)) {
         const char* mult = getenv("NV_MM_SPEED");
+        s32 halves = sMmSpeedHalves * ((mult != NULL) ? atoi(mult) : 1) + sMmHalfCarry;
 
-        if (mult != NULL) {
-            step *= atoi(mult);
-        }
-        if (step > 0) {
-            NvMmClock_Advance(play, step);
+        sMmFrameStep = halves / 2;
+        sMmHalfCarry = halves % 2;
+        if (sMmFrameStep > 0) {
+            NvMmClock_Advance(play, sMmFrameStep);
         }
     }
     // (OoT moves the sky's time only while its own clock runs, and here it doesn't: kankyo)
@@ -190,6 +215,68 @@ void NvMmClock_Update(PlayState* play) {
     }
 }
 
+/** The speed list (the Inverted Song of Time's, once the shared song listener has it): Link held
+ * still while it's open. */
+void NvMmClock_OpenSpeedMenu(PlayState* play) {
+    s32 i;
+
+    sMmMenu = true;
+    sMmMenuHeld = 0;
+    sMmMenuCursor = 2;
+    for (i = 0; i < ARRAY_COUNT(sMmSpeeds); i++) {
+        if (sMmSpeeds[i].halves == sMmSpeedHalves) {
+            sMmMenuCursor = i;
+        }
+    }
+    Player_SetCsActionWithHaltedActors(play, NULL, 8);
+}
+
+s32 NvMmClock_SpeedMenuOpen(void) {
+    return sMmMenu;
+}
+
+static void NvMmClock_SpeedMenuInput(PlayState* play) {
+    Input* input = &play->state.input[0];
+    s8 dir = 0;
+
+    if ((input->rel.stick_y > 30) || CHECK_BTN_ALL(input->cur.button, BTN_DUP)) {
+        dir = -1;
+    } else if ((input->rel.stick_y < -30) || CHECK_BTN_ALL(input->cur.button, BTN_DDOWN)) {
+        dir = 1;
+    }
+    if ((dir != 0) && (dir != sMmMenuHeld)) {
+        sMmMenuCursor = CLAMP(sMmMenuCursor + dir, 0, ARRAY_COUNT(sMmSpeeds) - 1);
+        Sfx_PlaySfxCentered(NA_SE_SY_CURSOR);
+    }
+    sMmMenuHeld = dir;
+    if (CHECK_BTN_ALL(input->press.button, BTN_A) || CHECK_BTN_ALL(input->press.button, BTN_B)) {
+        if (CHECK_BTN_ALL(input->press.button, BTN_A)) {
+            sMmSpeedHalves = sMmSpeeds[sMmMenuCursor].halves;
+            sMmHalfCarry = 0;
+            Sfx_PlaySfxCentered(NA_SE_SY_DECIDE);
+            if (NvMm_Log()) {
+                printf("NVMM speed: %s\n", sMmSpeeds[sMmMenuCursor].name);
+                fflush(stdout);
+            }
+        } else {
+            Sfx_PlaySfxCentered(NA_SE_SY_CANCEL);
+        }
+        sMmMenu = false;
+        Player_SetCsActionWithHaltedActors(play, NULL, 7);
+    }
+}
+
+static const char* NvMmClock_SpeedTag(void) {
+    s32 i;
+
+    for (i = 0; i < ARRAY_COUNT(sMmSpeeds); i++) {
+        if (sMmSpeeds[i].halves == sMmSpeedHalves) {
+            return sMmSpeeds[i].tag;
+        }
+    }
+    return "";
+}
+
 /** Over the HUD (z_play.c): the day and time, and the day's title as it dawns. */
 void NvMmClock_Draw(PlayState* play) {
     static const char* sDayNames[] = { "", "First", "Second", "Final" };
@@ -205,11 +292,38 @@ void NvMmClock_Draw(PlayState* play) {
     opa = POLY_OPA_DISP;
     gfx = Graph_GfxPlusOne(opa);
     gSPDisplayList(OVERLAY_DISP++, gfx);
+    if (sMmMenu) { // the speed list's panel
+        gDPPipeSync(gfx++);
+        gDPSetCycleType(gfx++, G_CYC_1CYCLE);
+        gDPSetRenderMode(gfx++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
+        gDPSetCombineMode(gfx++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
+        gDPSetPrimColor(gfx++, 0, 0, 0, 0, 0, 200);
+        gDPFillRectangle(gfx++, 48, 64, 272, 64 + 16 + 12 * ARRAY_COUNT(sMmSpeeds) + 8);
+        gDPPipeSync(gfx++);
+    }
     GfxPrint_Init(&printer);
     GfxPrint_Open(&printer, gfx);
     GfxPrint_SetColor(&printer, 255, 255, 255, 255);
     GfxPrint_SetPos(&printer, 14, 27);
-    GfxPrint_Printf(&printer, "Day %d  %02d:%02d", (int)sMmDay, (int)NvMm_Hour(sMmTime), (int)NvMm_Minute(sMmTime));
+    GfxPrint_Printf(&printer, "Day %d  %02d:%02d %s", (int)sMmDay, (int)NvMm_Hour(sMmTime), (int)NvMm_Minute(sMmTime),
+                    NvMmClock_SpeedTag());
+    if (sMmMenu) {
+        s32 i;
+
+        GfxPrint_SetColor(&printer, 255, 255, 200, 255);
+        GfxPrint_SetPos(&printer, 8, 9);
+        GfxPrint_Printf(&printer, "The flow of time");
+        for (i = 0; i < ARRAY_COUNT(sMmSpeeds); i++) {
+            if (i == sMmMenuCursor) {
+                GfxPrint_SetColor(&printer, 120, 255, 120, 255);
+            } else {
+                GfxPrint_SetColor(&printer, 255, 255, 255, 255);
+            }
+            GfxPrint_SetPos(&printer, 7, 11 + i);
+            GfxPrint_Printf(&printer, "%s %s%s", (i == sMmMenuCursor) ? ">" : " ", sMmSpeeds[i].name,
+                            (sMmSpeeds[i].halves == sMmSpeedHalves) ? " *" : "");
+        }
+    }
     if (sMmTelop > 0) {
         GfxPrint_SetColor(&printer, 255, 255, 200, 255);
         GfxPrint_SetPos(&printer, 9, 12);
@@ -238,7 +352,7 @@ typedef struct {
 void NvMmClock_GetSave(NvMmClockSave* s) {
     s->day = sMmDay;
     s->time = sMmTime;
-    s->speedOffset = sMmSpeedOffset;
+    s->speedOffset = sMmSpeedHalves; // (since 2026-11-23: the speed in half steps; see SetSave)
     s->inTermina = sMmInTermina;
     s->hyruleTime = sMmHyruleTime;
 }
@@ -247,7 +361,10 @@ void NvMmClock_GetSave(NvMmClockSave* s) {
 void NvMmClock_SetSave(const NvMmClockSave* s) {
     sMmDay = ((s->day >= 1) && (s->day <= 3)) ? s->day : 1;
     sMmTime = s->time;
-    sMmSpeedOffset = s->speedOffset;
+    // the speed: half steps a frame (2-18); an older save's MM offset (-2 or 0) read as one
+    sMmSpeedHalves = (s->speedOffset >= 2) ? s->speedOffset : 2 * (MM_TIME_SPEED + s->speedOffset);
+    sMmHalfCarry = 0;
+    sMmMenu = false;
     if (s->inTermina) {
         // OoT saved Termina's time as its own; a loaded game starts in Hyrule (OoT's respawn), so
         // its time is put back
@@ -263,15 +380,17 @@ void NvMmClock_NewGame(void) {
     NvMmScene_NewGame();
     sMmDay = 1;
     sMmTime = MM_DAWN;
-    sMmSpeedOffset = 0;
+    sMmSpeedHalves = 6;
+    sMmHalfCarry = 0;
+    sMmMenu = false;
     sMmInTermina = false;
     sMmTelop = 0;
     sMmSongOfTime = false;
 }
 
 void NvMmClock_LogState(const char* when) {
-    printf("NVMM state (%s): day %d %02d:%02d speed %+d, in Termina %d, Hyrule %04X\n", when, (int)sMmDay,
-           (int)NvMm_Hour(sMmTime), (int)NvMm_Minute(sMmTime), (int)sMmSpeedOffset, (int)sMmInTermina,
+    printf("NVMM state (%s): day %d %02d:%02d speed %d/6, in Termina %d, Hyrule %04X\n", when, (int)sMmDay,
+           (int)NvMm_Hour(sMmTime), (int)NvMm_Minute(sMmTime), (int)sMmSpeedHalves, (int)sMmInTermina,
            (unsigned)sMmHyruleTime);
     fflush(stdout);
 }
@@ -310,10 +429,7 @@ void NvMmClock_SleepToMorning(PlayState* play) {
 /** How far the clock moves a frame (MM's R_TIME_SPEED + timeSpeedOffset; with NV_MM_SPEED's
  * multiplier, so people walking by the time keep up in a sped-up test). */
 s32 NvMmClock_Speed(void) {
-    s32 step = MM_TIME_SPEED + sMmSpeedOffset;
-    const char* mult = getenv("NV_MM_SPEED");
-
-    return (mult != NULL) ? step * atoi(mult) : step;
+    return sMmMenu ? 0 : sMmFrameStep;
 }
 
 /** The clock, for Termina's actors (the day: 1-3; the time: OoT's and MM's units). */

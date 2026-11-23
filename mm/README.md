@@ -15,6 +15,43 @@ noted in each file's header. That's fewer bugs than reimplementing from behaviou
 RE1 approach, where the game had to be heavily adapted either way. Each ported file names the
 MM actor it comes from.
 
+## Decisions (read before starting anything new)
+
+Every decision made with the user for the MM side, with where it's written out. Check here
+before building a new system; add a line whenever a new one is made.
+
+- **One game:** one Link, one inventory, one save; MM's content becomes part of OoT's, no
+  switching games (`../NV_GAMES.md` "Majora's Mask merged into OoT", 2026-11-19).
+- **Porting:** MM's actors ported closely from the decomp; MM's own props and models in MM's
+  areas, even when OoT has the same one (below, and the user, 2026-11-22). Trivial is fine: no
+  balancing against the other games (NV_GAMES.md "Movement").
+- **Saving:** a "termina" section of SoH's own save file (below, "Saving", 2026-11-19).
+- **The clock:** runs only in Termina; the Sun's Song is Double Time there, RE1's Moonlight
+  Sonata skips to its hour (below, "The 3-day clock").
+- **The Song of Time takes nothing of Link's** but a short list of event items (Zora Eggs, the
+  Deku Princess, small keys, trade items). Rupees, ammo and bottles are never lost (below, "What
+  the Song of Time takes", 2026-11-20). Chests: leaning towards not resetting (same section).
+  The Song of Time only acts in Termina; in Hyrule it's OoT's.
+- **Time's speed:** the Inverted Song of Time opens a list: a third (N64), half (3DS), normal,
+  double, triple; the clock shows the speed when it isn't normal. The Song of Double Time is
+  left alone, for its 3DS behaviour (choosing the hour) later (2026-11-23).
+- **Songs:** one shared listener for every game's songs, `z_nv_songs.c`, written by the RE1 side
+  on re1/foyer (2026-11-23); MM's songs register there. Songs from every game in one list,
+  checked for clashes (below, "Where RE1 and MM meet").
+- **Items both games have:** one item, one slot; a check that would give a second copy gives a
+  reward instead. Exceptions that add something: MM's Hero's Bow and Hookshot are young Link's
+  own (one shared quiver). Keaton, the Bunny Hood and the Mask of Truth share a slot with OoT's on
+  the mask screen (NV_GAMES.md "Items both games have", 2026-11-19).
+- **Hearts stack:** OoT's and MM's heart containers and pieces together (below, 2026-11-20).
+- **Masks and forms:** forms don't depend on age (leaning yes); OoT's people react to the
+  Goron and Zora forms as to the masks; OoT-only masks join MM's mask screen; a fake Majora's
+  Mask at the end; the Fierce Deity's sword and size (NV_GAMES.md, 2026-11-19 to 21).
+- **Adult Link and MM (an idea, not to start yet):** sequenced through OoT's ending
+  (NV_GAMES.md "Another way round the adult-Link question", 2026-11-20).
+- **The Deku Stick's model** to check when MM's item models come (below, 2026-11-20).
+- **Commits and branches:** this side works on its own branch; re1/foyer is RE1's; merges only
+  when the user asks; no game data in the repository.
+
 ## First target: Clock Town (started 2026-11-19)
 
 Clock Town's six scenes, with the 3-day cycle running in Termina only:
@@ -609,10 +646,13 @@ are), and the give handed to `NvMmGetItem_Give`. Small hooks in shared files: ra
 chests give MM's get-item and look like MM's chest, `z_nv_mm_box.c`; the chests come over as
 OoT's En_Box, MM's types numbered the same).
 
-One inventory: what OoT has too (rupees, hearts, heart pieces, magic, ammo and its upgrades, the
-bow, hookshots, lens, beans, bottles and the contents OoT knows) goes into OoT's own; what only MM
-has (masks, MM's songs, the trade items, the Pictograph Box, the Powder Keg, MM's bottle contents,
-MM's swords and shields...) is kept by MM's item id in the "termina" save section. The Song of Time
+One inventory, as decided ("Decisions": items both games have): what OoT has too (rupees,
+hearts, heart pieces, magic, ammo and its upgrades, the lens, beans, elemental arrows, bottles and
+the contents OoT knows, the Kokiri Sword, the songs both games have) goes into OoT's own, and a
+check that would give a second copy gives MM's Purple Rupee for now (a placeholder for the reward
+pool); what only MM has (masks, MM's songs, the trade items, the Pictograph Box, the Powder Keg,
+MM's bottle contents, MM's swords and shields, and young Link's own Hero's Bow and Hookshot) is kept
+by MM's item id in the "termina" save section. The Song of Time
 takes from it only the event items decided above ("What the Song of Time takes": Zora Eggs and the
 Deku Princess in bottles, small keys, the trade items: the Moon's Tear and the deeds, the Room
 Key, the letters, the Pendant of Memories), never OoT's side. MM's message scripts now give,
@@ -624,6 +664,18 @@ Open: where MM's own items show (a pause page); the Moon's Tear and the Pendant 
 items (the decided list named the Room Key, deeds and letters); the Powder Keg kept for now. Tested headless: the
 Knife Chamber's chest (MM's chest, MM's Silver Rupee model and text, 100 rupees, the wallet's
 limit), Anju's Room Key at the desk (MM's text, kept as MM's).
+
+### Time's speed (2026-11-23, `soh/src/code/z_nv_mm_clock.c`)
+
+The clock's speed is kept in half steps a frame (MM's normal R_TIME_SPEED of 3 is 6), so half
+speed works (a step of 1 and 2 by turns). The list (`NvMmClock_OpenSpeedMenu`): a third (N64's
+Inverted Song of Time), half (3DS's), normal, double, triple, the current one marked; Link held
+still while it's open, the clock stopped. The clock shows "x1/3", "x1/2", "x2" or "x3" when the
+speed isn't normal. The Song of Time puts it back to normal, as MM's does; it's saved (the old
+"speedOffset" field now holds the half steps; an older save's MM offset is read as one). People
+walking by the time follow it (`NvMmClock_Speed`: this frame's step). Opened for now only by the
+dev switch NV_MM_SPEED_MENU=1; the Inverted Song of Time will open it once `z_nv_songs.c` (RE1's
+shared song listener) is in. Tested headless: the list, half chosen, the clock's "x1/2".
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 

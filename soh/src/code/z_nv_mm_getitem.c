@@ -375,6 +375,33 @@ static void NvMmGetItem_DrawEntry(PlayState* play, GetItemEntry* entry) {
 
 /* ---- the entries ---- */
 
+static s32 NvMmItem_OoT(s32 item);
+
+/** An item both games have, that Link already has (OoT's side): a second copy. Ammo, rupees,
+ * hearts, bottles (each a new one) and upgrades aren't copies. */
+static s32 NvMmItem_IsSecondCopy(s32 item) {
+    s32 oot = NvMmItem_OoT(item);
+
+    if (oot == ITEM_NONE) {
+        return false;
+    }
+    if ((oot >= ITEM_SONG_MINUET) && (oot <= ITEM_SONG_STORMS)) {
+        return CHECK_QUEST_ITEM(QUEST_SONG_MINUET + (oot - ITEM_SONG_MINUET));
+    }
+    if (oot == ITEM_SWORD_KOKIRI) {
+        return CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI);
+    }
+    switch (oot) {
+        case ITEM_LENS:
+        case ITEM_ARROW_FIRE:
+        case ITEM_ARROW_ICE:
+        case ITEM_ARROW_LIGHT:
+            return INV_CONTENT(oot) == oot;
+        default:
+            return false;
+    }
+}
+
 static const NvMmGetItemRow* NvMmGetItem_Row(s32 mmGi) {
     return ((mmGi >= 1) && (mmGi <= ARRAY_COUNT(sGetItemTable))) ? &sGetItemTable[mmGi - 1] : NULL;
 }
@@ -387,6 +414,17 @@ GetItemEntry NvMmGetItem_Entry(s32 mmGi) {
 
     if ((row == NULL) || (row->item == 0xFF)) {
         return e;
+    }
+    if (NvMmItem_IsSecondCopy(row->item)) {
+        // decided with the user (NV_GAMES.md "Items both games have"): a check that would give a
+        // second copy of an item both games have gives something else. Until there's a reward
+        // pool, MM's Purple Rupee (50).
+        if (getenv("NV_LOG") != NULL) {
+            printf("NVMM item 0x%02X already had: a reward instead\n", row->item);
+            fflush(stdout);
+        }
+        mmGi = 0x05; // GI_RUPEE_PURPLE
+        row = NvMmGetItem_Row(mmGi);
     }
     // itemId: one OoT's code always counts as not had (its songs), so the get-item always plays;
     // nothing reads it as an OoT item (the mod index sends the give here)
@@ -463,6 +501,11 @@ s32 NvMmItem_HasQuest(s32 quest) {
         return NvMmItem_Has(0x5D + quest); // ITEM_REMAINS_*
     }
     if ((quest >= 6) && (quest <= 0x11)) {
+        s32 oot = NvMmItem_OoT(0x61 + quest - 6);
+
+        if ((oot >= ITEM_SONG_MINUET) && (oot <= ITEM_SONG_STORMS)) { // (a song both have: OoT's)
+            return CHECK_QUEST_ITEM(QUEST_SONG_MINUET + (oot - ITEM_SONG_MINUET));
+        }
         return NvMmItem_Has(0x61 + quest - 6); // ITEM_SONG_*
     }
     if (quest == 0x12) {
@@ -509,10 +552,12 @@ void NvMmItem_NewGame(void) {
     memset(sMmItems, 0, sizeof(sMmItems));
 }
 
-/** MM's item as OoT's, where OoT has the same thing; ITEM_NONE where it's MM's own. */
+/** MM's item as OoT's, where OoT has the same thing; ITEM_NONE where it's MM's own. Decided with
+ * the user (NV_GAMES.md "Items both games have"): MM's Hero's Bow and Hookshot are young Link's
+ * own, not OoT's (one shared quiver: the arrows and quivers are OoT's); Keaton, the Bunny Hood and
+ * the Mask of Truth share a slot with OoT's on the mask screen (kept as MM's until it's built). */
 static s32 NvMmItem_OoT(s32 item) {
     switch (item) {
-        case 0x01: return ITEM_BOW;
         case 0x02: return ITEM_ARROW_FIRE;
         case 0x03: return ITEM_ARROW_ICE;
         case 0x04: return ITEM_ARROW_LIGHT;
@@ -522,8 +567,6 @@ static s32 NvMmItem_OoT(s32 item) {
         case 0x09: return ITEM_NUT;
         case 0x0A: return ITEM_BEAN;
         case 0x0E: return ITEM_LENS;
-        case 0x0F: return ITEM_HOOKSHOT;
-        case 0x11: return ITEM_LONGSHOT;
         case 0x12: return ITEM_BOTTLE;
         case 0x13: return ITEM_POTION_RED;
         case 0x14: return ITEM_POTION_GREEN;
@@ -571,6 +614,11 @@ static s32 NvMmItem_OoT(s32 item) {
         case 0x9D: return ITEM_NUT_UPGRADE_30;
         case 0x9E: return ITEM_NUT_UPGRADE_40;
         case 0xA0: return ITEM_MILK_BOTTLE;
+        case 0x66: return ITEM_SONG_SARIA; // the songs both games have: OoT's (one song)
+        case 0x67: return ITEM_SONG_TIME;
+        case 0x69: return ITEM_SONG_EPONA;
+        case 0x6B: return ITEM_SONG_STORMS;
+        case 0x6C: return ITEM_SONG_SUN;
         default: return ITEM_NONE;
     }
 }
