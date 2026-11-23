@@ -850,6 +850,22 @@ Tested headless: the Goron Mask equipped, the change and back (the scene both wa
 standing by the gate guard in South Clock Town at MM's size; the three punches, curling, rolling
 steered round the square, the hop and pound, the spikes (with NV_GORON_SPIKES), uncurling.
 
+### Zora Link, the first stage (2026-11-24, `soh/src/code/z_nv_mm_form.c`)
+
+The Zora Mask changes him (MM's scene, gameplay_keep's gZoraMaskDL and object_mask_zora) into Zora Link:
+MM's object_link_zora (skeleton, hands open and closed, waist, sheath), his eyes and his mouths in OoT's
+eye and mouth tables (the form table now has mouths too), his fins on his forearms (MM's
+func_80126BD0, folded: 0.4, 0.6, 0.7), MM's Zora size, height 68 and speeds (MM's PLAYER_BOOTS_ZORA_LAND).
+He swims as OoT's Link does for now. The forms' extras are drawn from one per-limb hook in
+z_player_lib.c (`NvMmForm_PostLimb`, which the Deku flowers' hand hook became), and the faces are kept
+right each frame (the forms' own textures are never taken for OoT's or MM's human ones).
+
+Not yet: everything Zora Link does (the fast swim and the dive, walking the bottom, the punches and
+kicks, the fins thrown, the electric barrier, the guitar), the Fierce Deity.
+
+Tested headless: the Zora Mask equipped, the change and back (the scene both ways), Zora Link in South
+Clock Town, his face and fins.
+
 ### Deku Link's moves (2026-11-23, `soh/src/code/z_nv_mm_deku.c`)
 
 MM's Deku moves on OoT's Link: our own action functions, set as Link's action (OoT's actionFunc),

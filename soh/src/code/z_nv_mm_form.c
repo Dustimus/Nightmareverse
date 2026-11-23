@@ -41,6 +41,8 @@
 #include <string.h>
 
 #define MM_FORM_GORON 1 // MM's PLAYER_FORM_*: Fierce Deity 0, Goron 1, Zora 2, Deku 3, human 4
+#define MM_FORM_ZORA 2
+#define MM_ITEM_MASK_ZORA 0x34
 #define MM_FORM_DEKU 3
 #define MM_FORM_HUMAN 4
 #define MM_ITEM_MASK_DEKU 0x32
@@ -48,6 +50,7 @@
 
 #define DEKU(name) ("__OTR__mm/objects/object_link_nuts/" name)
 #define GORON(name) ("__OTR__mm/objects/object_link_goron/" name)
+#define ZORA(name) ("__OTR__mm/objects/object_link_zora/" name)
 #define KEEP(name) ("__OTR__mm/objects/gameplay_keep/" name)
 #define MMANIM(name) ((LinkAnimationHeader*)("__OTR__mm/player_anim/" name))
 
@@ -73,9 +76,32 @@ typedef struct {
     const char* maskDL;      // the mask going on (MM's D_801C0B20, the form's mask)
     const char* fusedMaskDL; // fused with his face (MM's D_801C0B20, + 4)
     const char* maskOffAnim; // pulling it off (MM's D_8085D160)
+    const char* mouths[4];   // OoT's four mouth slots (NULL: the face has none)
 } NvMmFormDef;
 
 static const NvMmFormDef sFormDefs[5] = {
+    [MM_FORM_ZORA] = {
+        MM_ITEM_MASK_ZORA, "Zora", ZORA("gLinkZoraSkel"),
+        { ZORA("gLinkZoraLeftHandOpenDL"), ZORA("gLinkZoraLeftHandClosedDL") },
+        { ZORA("gLinkZoraRightHandOpenDL"), ZORA("gLinkZoraRightHandClosedDL") },
+        ZORA("gLinkZoraWaistDL"), ZORA("gLinkZoraSheathDL"),
+        // (OoT's open, half, closed, roll left, roll right, shock, two unnamed: MM's, as young Link's)
+        { ZORA("gLinkZoraEyesOpenTex"), ZORA("gLinkZoraEyesHalfTex"), ZORA("gLinkZoraEyesClosedTex"),
+          ZORA("gLinkZoraEyesLeftTex"), ZORA("gLinkZoraEyesRightTex"), ZORA("gLinkZoraEyesWincingTex"),
+          ZORA("gLinkZoraEyesUpTex"), ZORA("gLinkZoraEyesDownTex") },
+        { 56.0f, 90.0f, 1.0f, 111.0f, 70.0f, 79.4f, 59.0f, 41.0f, 19.0f, 36.0f, 50.0f, 56.0f, 68.0f, 70.0f, 18.0f,
+          23.0f, 70.0f },
+        { 0x17, 0x1323, -0x6D },
+        { { 0x17, 0x1323, -0x58 }, { 0x17, 0x18B7, -0x6D }, { 0x17, 0x1323, -0x58 }, { 0x17, 0x18B7, -0x6D } },
+        { { 0x17, 0x18B7, -0x6D }, { 0x18, 0x1EDA, -0x58 }, { 0x17, 0x18B7, -0x6D }, { 0x18, 0x1EDA, -0x58 } },
+        { { 8, 0x1256, 0x17C }, { 9, 0x17EA, 0x167 }, { -0x638, 0x1256, 0x17C }, { -0x637, 0x17EA, 0x167 } },
+        68.0f,
+        { 200, 1000, 300, 700, 550, 270, 700, 300, 800, 600, -100, 600, 590, 750, 125, 200, 130 },
+        KEEP("gZoraMaskDL"), "__OTR__mm/objects/object_mask_zora/object_mask_zora_DL_000DB0",
+        "__OTR__mm/player_anim/gPlayerAnim_pz_maskoffstart",
+        { ZORA("gLinkZoraMouthClosedTex"), ZORA("gLinkZoraMouthHalfTex"), ZORA("gLinkZoraMouthOpenTex"),
+          ZORA("gLinkZoraMouthSmileTex") },
+    },
     [MM_FORM_GORON] = {
         MM_ITEM_MASK_GORON, "Goron", GORON("gLinkGoronSkel"),
         { GORON("gLinkGoronLeftHandOpenDL"), GORON("gLinkGoronLeftHandClosedDL") },
@@ -226,32 +252,43 @@ static void NvMmForm_MakeProperties(PlayerAgeProperties* oot, const NvMmFormDef*
 
 /* the form's eyes in OoT's eye table (young Link's row; put back as human) */
 extern void* sEyeTextures[2][8];
+extern void* sMouthTextures[2][4];
 static void* sEyesKept[8];
-static s32 sEyesSet;
+static void* sMouthsKept[4];
 
-static void NvMmForm_SetEyes(const NvMmFormDef* def) {
+/** Whether a texture in OoT's eye or mouth tables is one of the forms' (put there by us). */
+static s32 NvMmForm_IsFormFace(const void* tex) {
+    s32 f;
     s32 i;
 
-    if ((def == NULL) || (def->eyes[0] == NULL)) {
-        if (sEyesSet) {
-            for (i = 0; i < 8; i++) {
-                sEyeTextures[1][i] = sEyesKept[i];
-            }
-            sEyesSet = false;
-        }
-        return;
-    }
-    if (!sEyesSet || (sEyeTextures[1][0] != (void*)def->eyes[0])) { // (or the table was rewritten: a scene's start)
+    for (f = 0; f < MM_FORM_HUMAN; f++) {
         for (i = 0; i < 8; i++) {
-            if (!sEyesSet || (sEyeTextures[1][0] != (void*)def->eyes[0])) {
-                sEyesKept[i] = sEyeTextures[1][i];
+            if ((tex != NULL) && ((tex == (const void*)sFormDefs[f].eyes[i]) ||
+                                  ((i < 4) && (tex == (const void*)sFormDefs[f].mouths[i])))) {
+                return true;
             }
         }
-        for (i = 0; i < 8; i++) {
-            sEyeTextures[1][i] = (void*)def->eyes[i];
-        }
-        sEyesSet = true;
     }
+    return false;
+}
+
+/** The form's face in OoT's eye and mouth tables (young Link's row): the table's own entries kept
+ * (only ever ones that aren't a form's: a scene's start may rewrite them, MM's human or OoT's) and put
+ * back as human, or for a form without that part. */
+static void NvMmForm_SetFaceRow(void** row, void** kept, s32 n, const char* const* form) {
+    s32 i;
+
+    for (i = 0; i < n; i++) {
+        if (!NvMmForm_IsFormFace(row[i])) {
+            kept[i] = row[i];
+        }
+        row[i] = ((form != NULL) && (form[0] != NULL)) ? (void*)form[i] : kept[i];
+    }
+}
+
+static void NvMmForm_SetEyes(const NvMmFormDef* def) {
+    NvMmForm_SetFaceRow(sEyeTextures[1], sEyesKept, 8, (def != NULL) ? def->eyes : NULL);
+    NvMmForm_SetFaceRow(sMouthTextures[1], sMouthsKept, 4, (def != NULL) ? def->mouths : NULL);
 }
 
 /** Link's skeleton and size for his form (now, and on each new Link: a scene's start). */
@@ -686,9 +723,9 @@ void NvMmForm_Update(PlayState* play) {
         if ((player->ageProperties != &sFormProperties) || (sFormPropertiesFor != sForm.form)) {
             NvMmForm_Apply(play, player);
         }
-        NvMmForm_SetEyes(NvMmForm_Def(sForm.form)); // (kept: a scene's start may rewrite the table)
         player->currentShield = PLAYER_SHIELD_NONE;
     }
+    NvMmForm_SetEyes(NvMmForm_Def(sForm.form)); // (each frame: a scene's start may rewrite the tables)
     NvMmDeku_Update(play, player); // (Deku Link's moves: z_nv_mm_deku.c)
 }
 
@@ -724,4 +761,26 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
             return;
     }
     *dList = ResourceMgr_LoadGfxByName(dl);
+}
+
+/** z_player_lib.c's limb hook (each limb, after it's drawn): the forms' own extras there. Deku Link's
+ * flowers in his hands flying (z_nv_mm_deku.c); Zora Link's fins on his forearms (MM's func_80126BD0:
+ * folded, MM's 0.4, 0.6, 0.7, as when he isn't using them). */
+void NvMmForm_PostLimb(PlayState* play, Player* player, s32 limbIndex) {
+    void NvMmDeku_DrawHandFlower(PlayState* play, Player* this, s32 limbIndex);
+
+    if ((limbIndex == PLAYER_LIMB_L_HAND) || (limbIndex == PLAYER_LIMB_R_HAND)) {
+        NvMmDeku_DrawHandFlower(play, player, limbIndex);
+    }
+    if ((sForm.form == MM_FORM_ZORA) && (player->actor.category == ACTORCAT_PLAYER) &&
+        ((limbIndex == PLAYER_LIMB_L_FOREARM) || (limbIndex == PLAYER_LIMB_R_FOREARM))) {
+        OPEN_DISPS(play->state.gfxCtx);
+        Matrix_Push();
+        Matrix_Scale(0.4f, 0.6f, 0.7f, MTXMODE_APPLY);
+        gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        gSPDisplayList(POLY_OPA_DISP++, (Gfx*)((limbIndex == PLAYER_LIMB_L_FOREARM) ? ZORA("gLinkZoraLeftFinDL")
+                                                                                   : ZORA("gLinkZoraRightFinDL")));
+        Matrix_Pop();
+        CLOSE_DISPS(play->state.gfxCtx);
+    }
 }
