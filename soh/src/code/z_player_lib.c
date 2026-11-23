@@ -1793,6 +1793,8 @@ Vec3f sLeftRightFootLimbModelFootPos[] = {
 void NvWeapon_NoteHand(void);
 s32 NvWeapon_Holding(void);
 
+void NvMmMask_DrawOnHead(PlayState* play, Player* player); // Nightmareverse
+
 void Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     Player* this = (Player*)thisx;
 
@@ -1994,6 +1996,7 @@ void Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList, Ve
             }
         } else if (limbIndex == PLAYER_LIMB_HEAD) {
             Matrix_MultVec3f(&sPlayerFocusOffsetFromHead, &this->actor.focus.pos);
+            NvMmMask_DrawOnHead(play, this); // Nightmareverse: an MM mask worn (z_nv_mm_mask.c)
         } else {
             Vec3f* vec = &sLeftRightFootLimbModelFootPos[(gSaveContext.linkAge)];
 

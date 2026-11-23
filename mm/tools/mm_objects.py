@@ -202,6 +202,31 @@ OBJECTS = {
     }),
 }
 
+# MM's masks as worn (MM's PLAYER_MASK_TRUTH ... GIANT, MM's D_801C0B20): segment 10, as MM loads them
+MASK_OBJECTS = {
+    "object_mask_truth": (661, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_truth_DL_0001A0": 0x1A0}}),
+    "object_mask_kerfay": (664, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"gKafeisMaskDL": 0xD40}}),
+    "object_mask_yofukasi": (673, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_yofukasi_DL_000490": 0x490}}),
+    "object_mask_rabit": (659, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_rabit_DL_000610": 0x610}}),
+    "object_mask_ki_tan": (658, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_ki_tan_DL_0004A0": 0x4A0}}),
+    "object_mask_json": (663, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_json_DL_0004C0": 0x4C0}}),
+    "object_mask_romerny": (667, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_romerny_DL_0007A0": 0x7A0}}),
+    "object_mask_zacho": (669, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_zacho_DL_000700": 0x700}}),
+    "object_mask_posthat": (668, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_posthat_DL_000290": 0x290}}),
+    "object_mask_meoto": (674, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_meoto_DL_0005A0": 0x5A0}}),
+    "object_mask_bigelf": (665, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_bigelf_DL_0016F0": 0x16F0}}),
+    "object_mask_gibudo": (662, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_gibudo_DL_000250": 0x250}}),
+    "object_mask_gero": (672, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"gDonGeroMaskDL": 0xDC0}}),
+    "object_mask_dancer": (675, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_dancer_DL_000EF0": 0xEF0}}),
+    "object_mask_skj": (660, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_skj_DL_0009F0": 0x9F0}}),
+    "object_mask_stone": (670, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_stone_DL_000820": 0x820}}),
+    "object_mask_bree": (671, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_bree_DL_0003C0": 0x3C0}}),
+    "object_mask_bakuretu": (676, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_bakuretu_DL_0005C0": 0x5C0}}),
+    "object_mask_bu_san": (677, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_bu_san_DL_000710": 0x710}}),
+    "object_mask_kyojin": (666, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_kyojin_DL_000380": 0x380}}),
+}
+OBJECTS.update(MASK_OBJECTS)
+
 # MM's get-item models, all of them (mm_getitems.py writes the list from the decomp)
 from mm_getitem_objects import GETITEM_OBJECTS  # noqa: E402
 OBJECTS.update(GETITEM_OBJECTS)

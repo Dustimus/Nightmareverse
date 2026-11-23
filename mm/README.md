@@ -663,7 +663,8 @@ takes from it only the event items decided above ("What the Song of Time takes":
 Deku Princess in bottles, small keys, the trade items: the Moon's Tear and the deeds, the Room
 Key, the letters, the Pendant of Memories), never OoT's side. MM's message scripts now give,
 check and take items through this (OFFER_ITEM, CHECK_ITEM, DELETE_ITEM, the quest items and
-songs, the Powder Keg); wearing masks isn't in, so the worn-mask check stays false; showing an
+songs, the Powder Keg); the worn-mask check (CHECK_WORN_MASK) asks the mask worn ("Wearing MM's
+masks"); showing an
 item from the pause menu mid-talk waits for a pause screen for MM's items.
 
 Open: where MM's own items show (a pause page); the Moon's Tear and the Pendant counted as trade
@@ -714,9 +715,39 @@ Dev: NV_MM_ITEMS="2d,38,32" gives MM items (hex ids) on arrival in Termina; NV_W
 "sright" push the stick sideways (turning the box). Tested headless: the items page in front in the
 inn with its items, the slide down to OoT's page and back up, the slivers, the masks page, names.
 
-Not yet: using MM's items and wearing masks from C buttons (the pages still show OoT's "to Equip"
-prompt; a C button does nothing on them), ammo counts on MM's icons, the Quest and Map columns, the
+Not yet: using MM's items from C buttons (the items page still shows OoT's "to Equip" prompt; a C
+button does nothing there; the masks page's C buttons equip, "Wearing MM's masks" below), ammo counts on MM's icons, the Quest and Map columns, the
 slivers' titles under the HUD (the open question in the design).
+
+### Wearing MM's masks (2026-11-23, `soh/src/code/z_nv_mm_mask.c`)
+
+MM's masks stay separate items (the Decisions above). On MM's masks page a C button puts the mask
+under the cursor on that button (off any other); out of the menu, pressing it puts the mask on, and
+again takes it off, as OoT's own masks. One mask at a time: an MM mask takes OoT's off, and an OoT
+mask takes MM's off.
+
+- On the buttons an MM mask is an item id OoT doesn't use (0xA0 + MM's item id - the Deku Mask's,
+  0xA0-0xB7). OoT's icon table (`gItemIcons`, z_inventory.c) grew to 256 entries and those get
+  MM's icons; `gItemAgeReqs` lets young Link use them. Pressing one reaches `NvMmMask_UseItem`
+  first (a hook at the top of z_player.c's Player_UseItem), not OoT's item actions.
+- Worn, the mask is drawn as MM draws it: its model in the head's space right after the head
+  (a hook in z_player_lib.c's Player_PostLimbDrawGameplay), from the mask's own object (the 20
+  `object_mask_*` objects, now in mm.o2r: `MASK_OBJECTS` in mm_objects.py). The Bunny Hood's ears
+  (their rest pose, OoT's and MM's same matrices), the Great Fairy's Mask's three strands of hair
+  (MM's swing, ported: func_80127DA4/func_80128388; not the stray fairies' sparkle), the Blast
+  Mask's colour list.
+- MM's people see it: `NvMmMask_Worn` is MM's Player_GetMask (MM's PLAYER_MASK_*), and the
+  message scripts' CHECK_WORN_MASK asks it.
+- Not kept in the save (as MM: a loaded game starts with none on); a new game takes it off.
+
+Not yet: the forms (Deku, Goron, Zora, Fierce Deity: their buttons give the error sound), MM's
+put-on animation (the mask goes on at once, with OoT's sound), what masks do beyond being seen
+(the Bunny Hood's speed, the Stone Mask, the Blast Mask's blast, the Giant's Mask...), the moving
+parts of some (the Bunny Hood's ears swinging, the Couple's Mask, the Circus Leader's tears),
+adult Link (plain masks on adult: open), OoT's people reacting to MM's masks.
+
+Tested headless (young Link in the inn): the masks page's C buttons, the icons on the HUD, the
+Postman's Hat, the Bunny Hood, Keaton, the All-Night, Stone, Blast and Great Fairy's masks worn.
 
 ### Young Link is MM's model in Termina (2026-11-23, `soh/src/code/z_nv_mm_link.c`)
 

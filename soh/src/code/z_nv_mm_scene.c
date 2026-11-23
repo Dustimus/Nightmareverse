@@ -39,6 +39,7 @@ void NvMm_WeekEventsNewGame(void);
 
 void NvMmItem_NewCycle(void);
 void NvMmItem_NewGame(void);
+void NvMmMask_NewGame(void);
 
 void NvMmScene_SongOfTime(PlayState* play) {
     s32 i;
@@ -62,6 +63,7 @@ void NvMmScene_SongOfTime(PlayState* play) {
 void NvMmScene_NewGame(void) {
     NvMm_WeekEventsNewGame();
     NvMmItem_NewGame();
+    NvMmMask_NewGame(); // (no MM mask worn)
     memset(sMmFlags, 0, sizeof(sMmFlags));
 }
 

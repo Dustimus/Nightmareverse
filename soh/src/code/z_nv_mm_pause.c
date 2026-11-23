@@ -24,6 +24,8 @@
 #define MM_NONE 0xFF
 
 s32 NvMmItem_Has(s32 item);
+s32 NvMmMask_ButtonItem(s32 mmItem);
+void NvMmMask_Equip(PlayState* play, s32 mmItem, s32 button);
 
 static const char* const sItemTiles[] = {
     TEX("icon_item_jpn_static", "gPauseSelectItem00ENGTex"), TEX("icon_item_static", "gPauseSelectItem01Tex"),
@@ -221,6 +223,23 @@ static void NvMmPause_Input(PlayState* play, NvMmPauseGrid* g) {
         }
         g->cursor += 6;
     }
+    if (pauseCtx->cursorSpecialPos == 0) { // a C button: the thing under the cursor to it
+        static const u16 sButtons[] = { BTN_CLEFT, BTN_CDOWN, BTN_CRIGHT };
+        s32 b;
+
+        for (b = 0; b < 3; b++) {
+            if (CHECK_BTN_ALL(input->press.button, sButtons[b])) {
+                u8 item = g->at(g->cursor);
+
+                if ((g == &sMasks) && (item != MM_NONE) && (NvMmMask_ButtonItem(item) != 0)) {
+                    NvMmMask_Equip(play, item, b + 1);
+                } else { // (MM's items on the buttons: not yet)
+                    Audio_PlaySfxGeneral(NA_SE_SY_ERROR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
+                                         &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+                }
+            }
+        }
+    }
     if (g->cursor != old) {
         Audio_PlaySfxGeneral(NA_SE_SY_CURSOR, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
                              &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
@@ -277,6 +296,11 @@ static const char* NvMmPause_NameOf(u8 item) {
         return NULL;
     }
     return sMmItemNames[item];
+}
+
+/** MM's icon for an MM item (z_nv_mm_mask.c: the masks on the C buttons). */
+const char* NvMmPause_Icon(s32 mmItem) {
+    return ((mmItem >= 0) && (mmItem < ARRAY_COUNT(sMmItemIcons))) ? sMmItemIcons[mmItem] : NULL;
 }
 
 static const char* NvMmPause_ItemName(PlayState* play) {

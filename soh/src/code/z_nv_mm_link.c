@@ -79,11 +79,14 @@ static NvMmLinkSwap sSwaps[] = {
 static s32 sSwapped;
 
 /** SoH's OnSceneInit (before Link is made): MM's young Link in Termina, OoT's elsewhere. */
+void NvMmMask_Init(void);
+
 void NvMmLink_SceneInit(s16 sceneNum) {
     s32 want = NvMm_IsScene(sceneNum) && ResourceMgr_FileExists("mm/objects/object_link_child/gLinkHumanSkel") &&
                (getenv("NV_MM_OOT_LINK") == NULL); // (dev: OoT's model, to compare)
     s32 i;
 
+    NvMmMask_Init(); // (MM's masks' icons on the C buttons: before the HUD draws one)
     if (want == sSwapped) {
         return;
     }

@@ -3425,11 +3425,16 @@ void Player_DestroyHookshot(Player* this) {
     }
 }
 
+s32 NvMmMask_UseItem(PlayState* play, Player* player, s32 item); // Nightmareverse
+
 void Player_UseItem(PlayState* play, Player* this, s32 item) {
     s8 itemAction;
     s32 temp;
     s32 nextAnimType;
 
+    if (NvMmMask_UseItem(play, this, item)) { // Nightmareverse: MM's masks on the C buttons (z_nv_mm_mask.c)
+        return;
+    }
     itemAction = Player_ItemToItemAction(item);
 
     if (((this->heldItemAction == this->itemAction) &&

@@ -38,7 +38,7 @@ u16 gUpgradeCapacities[][4] = {
 u32 gGsFlagsMasks[] = { 0x000000FF, 0x0000FF00, 0x00FF0000, 0xFF000000 };
 u32 gGsFlagsShifts[] = { 0, 8, 16, 24 };
 
-void* gItemIcons[] = {
+void* gItemIcons[256] = { // (Nightmareverse: 256, room for MM's masks on the C buttons, z_nv_mm_mask.c)
     gItemIconDekuStickTex,
     gItemIconDekuNutTex,
     gItemIconBombTex,

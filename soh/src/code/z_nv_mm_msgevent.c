@@ -13,7 +13,7 @@
  * - Link is always MM's human form for now (no Deku, Goron, Zora yet): the form checks follow that;
  * - MM's items: given as MM's get-items (z_nv_mm_getitem.c: into OoT's inventory where OoT has the
  *   same thing, else kept as MM's), checked and taken the same way; MM's songs and quest items are
- *   MM's own. Wearing masks isn't in yet: the worn-mask check is false;
+ *   MM's own; the worn-mask check is MM's masks worn (z_nv_mm_mask.c);
  * - week events are Termina's (z_nv_mm_scene.c); MM's eventInf (temporary flags) are kept here,
  *   for the cycle's session, not saved, as in MM; switch and collectible flags are OoT's own;
  * - the Bombers' Notebook isn't in yet: its events set MM's week events for them (NvMm_NotebookEvent);
@@ -90,6 +90,7 @@ s32 NvMmItem_Has(s32 item);
 s32 NvMmItem_HasQuest(s32 quest);
 s32 NvMmItem_Check(s32 item);
 void NvMmItem_Delete(s32 item);
+s32 NvMmMask_Worn(void);
 
 static s32 NvMmMsgEvent_TextAdvance(PlayState* play) {
     switch (Message_GetState(&play->msgCtx)) {
@@ -261,8 +262,11 @@ static s32 NvMmMsgEvent_Command(Actor* actor, PlayState* play, u8** script, MsgS
         case MSCRIPT_CMD_ID_DELETE_ITEM:
             NvMmItem_Delete(PACK_16(c[1], c[2]));
             return false;
-        case MSCRIPT_CMD_ID_CHECK_WORN_MASK:
-            return false; // (wearing MM's masks: not in yet)
+        case MSCRIPT_CMD_ID_CHECK_WORN_MASK: // (MM's masks worn: z_nv_mm_mask.c)
+            if (NvMmMask_Worn() == PACK_16(c[1], c[2])) {
+                *script += (s16)PACK_16(c[3], c[4]);
+            }
+            return false;
         case MSCRIPT_CMD_ID_CHECK_EVENT_INF:
             if (sEventInf[c[1] & 7] & c[2]) {
                 *script += (s16)PACK_16(c[3], c[4]);
