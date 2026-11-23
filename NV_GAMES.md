@@ -239,8 +239,14 @@ The default is shared or carried over. A Termina-only piece needs a reason.
       start.
     - **The Great Fairy's Sword equips to B** (in MM it's a C item, two-handed), as a sword: OoT's
       two-handed handling (Biggoron's), its own model and damage. Human Link only, as in MM.
-    - **The shields: to go over with the user** (they asked not to let them forget, 2026-11-24).
-      OoT's Deku, Hylian and Mirror; MM's Hero's and Mirror shields.
+    - **The shields, decided (the user, 2026-11-24):** all kept as separate items, by size (measured
+      on the worn models, in game units: Deku ~20x18, MM's Hero's ~23x20, MM's Mirror ~26x23 and the
+      Hylian ~24x25 on young Link; the Hylian ~29x25 and OoT's Mirror ~34x25 on adult Link).
+      Young Link: the Deku, the Hero's, MM's Mirror, the Hylian (worn as OoT has it). Adult Link: the
+      Hylian, OoT's Mirror. **The Fierce Deity takes adult Link's shields** (as he takes the adult
+      swords). To work out: OoT's shield-in-hand lists interleave the shield and the hand (the
+      Hylian's back is drawn after the hand), so his take is by texture, not one cut; and his
+      shield on the back (he has no sheath).
   - **His size (checked in the two ROMs, 2026-11-21):** the Fierce Deity's skeleton is adult Link's
     exactly (all 21 bones, same lengths and hierarchy). MM draws him at 1.5 times (scale 0.015
     against 0.01, `z_player_lib.c`), with his movement values scaled to match (ceiling check 84
