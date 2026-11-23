@@ -18,6 +18,7 @@
 #include <string.h>
 
 void NvMmClock_Update(PlayState* play);
+void NvMmSongs_Update(PlayState* play);
 void NvMmClock_Draw(PlayState* play);
 void NvMmHalfDay_Update(PlayState* play);
 void NvMsg_Show(PlayState* play, const char* text);
@@ -85,6 +86,7 @@ void NvMm_Update(PlayState* play) {
     }
     sNvMmFrames = play->state.frames + 1; // (+1: never 0 once in Termina)
     NvMmClock_Update(play);
+    NvMmSongs_Update(play); // (z_nv_mm_songs.c: MM's songs on the shared listener)
     NvMmHalfDay_Update(play);
     NvMm_SaveTest(play);
 }
