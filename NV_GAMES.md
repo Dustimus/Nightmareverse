@@ -231,6 +231,14 @@ The default is shared or carried over. A Termina-only piece needs a reason.
     built for adult Link, so at MM's size he'd bump ceilings and fail ledges. Drawn at 0.01 with
     adult Link's values he'd be an exact stand-in, adult animations and all; or adult-sized in
     general and MM-sized in big rooms.
+  - **His size, decided (the user, 2026-11-24):** usable anywhere (as the randomizers' "Fierce Deity
+    anywhere"), at adult Link's size (1.0: adult Link's own movement values, he fits all of OoT) except
+    in boss rooms, where he's MM's 1.5. The randomizers keep him at 1.5 everywhere and patch around it
+    (2Ship2Harkinian widens the door distance, 50 to 60); OoT's adult-sized dungeons make that worse here.
+  - **His sword beam (the user, 2026-11-24, to start):** counts as a light arrow where OoT has no beam
+    (2Ship2Harkinian's fallback too). Gohma, King Dodongo, Morpha's core and Twinrova ignore light arrows
+    (his sword still hurts them); Ganondorf and Ganon are stunned by them. The user would almost rather
+    it count as a sword strike: something to consider later.
   - **Magic:** the Double Helix Sword is what uses magic (its energy beams), not the mask. That's
     already how MM has it: the Fierce Deity's sword beams cost magic, and wearing the mask
     doesn't.

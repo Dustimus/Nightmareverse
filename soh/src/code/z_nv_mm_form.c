@@ -40,7 +40,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MM_FORM_GORON 1 // MM's PLAYER_FORM_*: Fierce Deity 0, Goron 1, Zora 2, Deku 3, human 4
+#define MM_FORM_FD 0 // MM's PLAYER_FORM_*: Fierce Deity 0, Goron 1, Zora 2, Deku 3, human 4
+#define MM_ITEM_MASK_FD 0x35
+#define MM_FORM_GORON 1
 #define MM_FORM_ZORA 2
 #define MM_ITEM_MASK_ZORA 0x34
 #define MM_FORM_DEKU 3
@@ -51,6 +53,7 @@
 #define DEKU(name) ("__OTR__mm/objects/object_link_nuts/" name)
 #define GORON(name) ("__OTR__mm/objects/object_link_goron/" name)
 #define ZORA(name) ("__OTR__mm/objects/object_link_zora/" name)
+#define BOY(name) ("__OTR__mm/objects/object_link_boy/" name)
 #define KEEP(name) ("__OTR__mm/objects/gameplay_keep/" name)
 #define MMANIM(name) ((LinkAnimationHeader*)("__OTR__mm/player_anim/" name))
 
@@ -80,6 +83,26 @@ typedef struct {
 } NvMmFormDef;
 
 static const NvMmFormDef sFormDefs[5] = {
+    // the Fierce Deity, at adult Link's size: OoT's adult Link's sizes (sAgeProperties[0]) and speeds
+    // (OoT's Kokiri boots, adult), height 68; in boss rooms MM's 1.5 (NvMmForm_FdSize: the decision, 2026-11-24)
+    [MM_FORM_FD] = {
+        MM_ITEM_MASK_FD, "Fierce Deity", BOY("gLinkFierceDeitySkel"),
+        { BOY("gLinkFierceDeityLeftHandDL"), BOY("gLinkFierceDeityLeftHandDL") },
+        { BOY("gLinkFierceDeityRightHandDL"), BOY("gLinkFierceDeityRightHandDL") },
+        BOY("gLinkFierceDeityWaistDL"), NULL,
+        { NULL },
+        { 56.0f, 90.0f, 1.0f, 111.0f, 70.0f, 79.4f, 59.0f, 41.0f, 19.0f, 36.0f, 44.8f, 56.0f, 68.0f, 70.0f, 18.0f,
+          15.0f, 70.0f },
+        { 9, 4671, 359 },
+        { { 8, 4694, 380 }, { 9, 6122, 359 }, { 8, 4694, 380 }, { 9, 6122, 359 } },
+        { { 9, 6122, 359 }, { 9, 7693, 380 }, { 9, 6122, 359 }, { 9, 7693, 380 } },
+        { { 8, 4694, 380 }, { 9, 6122, 359 }, { -1592, 4694, 380 }, { -1591, 6122, 359 } },
+        68.0f,
+        { 200, 1000, 300, 700, 550, 270, 600, 350, 800, 600, -100, 600, 590, 750, 125, 200, 130 },
+        KEEP("gFierceDeityMaskDL"), "__OTR__mm/objects/object_mask_boy/object_mask_boy_DL_000900",
+        "__OTR__mm/player_anim/gPlayerAnim_pz_maskoffstart",
+        { NULL },
+    },
     [MM_FORM_ZORA] = {
         MM_ITEM_MASK_ZORA, "Zora", ZORA("gLinkZoraSkel"),
         { ZORA("gLinkZoraLeftHandOpenDL"), ZORA("gLinkZoraLeftHandClosedDL") },
@@ -141,6 +164,16 @@ static const NvMmFormDef sFormDefs[5] = {
     },
 };
 
+/* the Fierce Deity's size: adult Link's (1.0) but in boss rooms, MM's 1.5 there, grown and shrunk smoothly */
+static f32 sFdSize = 1.0f; // 1.0 to 1.5
+static const s16 sFdBigBootRegs[17] = { 200, 666, 200, 700, 366, 200, 600, 175, 800, 1000, -100, 600, 590, 800, 125, 300, 65 };
+
+/** OoT's boss rooms (and MM's, when they're in: Majora's). */
+static s32 NvMmForm_IsBossRoom(PlayState* play) {
+    return ((play->sceneNum >= SCENE_DEKU_TREE_BOSS) && (play->sceneNum <= SCENE_GANONDORF_BOSS)) ||
+           (play->sceneNum == SCENE_GANON_BOSS);
+}
+
 static const NvMmFormDef* NvMmForm_Def(s32 form) {
     return ((form >= 0) && (form < MM_FORM_HUMAN) && (sFormDefs[form].skel != NULL)) ? &sFormDefs[form] : NULL;
 }
@@ -191,6 +224,9 @@ f32 NvMmForm_Height(void) {
     if ((def != NULL) && (gPlayState != NULL) && NvMmGoron_Curled(GET_PLAYER(gPlayState))) {
         return 34.0f; // (MM: Goron Link curled, PLAYER_STATE3_1000)
     }
+    if (sForm.form == MM_FORM_FD) { // (68 at adult size, MM's 124 at 1.5)
+        return 68.0f + (124.0f - 68.0f) * ((sFdSize - 1.0f) / 0.5f);
+    }
     return (def != NULL) ? def->height : 0.0f;
 }
 
@@ -202,7 +238,7 @@ s32 NvMmForm_SetBootRegs(PlayState* play) {
     if (def == NULL) {
         return false;
     }
-    r = def->bootRegs;
+    r = ((sForm.form == MM_FORM_FD) && (sFdSize > 1.25f)) ? sFdBigBootRegs : def->bootRegs; // (MM's at 1.5)
     REG(27) = 2000;
     REG(48) = 370;
     REG(19) = r[0];
@@ -242,8 +278,19 @@ void NvMmForm_NewGame(void) {
 
 /** MM's sPlayerAgeProperties for the form over OoT's young Link's: the sizes, not the animations. */
 static void NvMmForm_MakeProperties(PlayerAgeProperties* oot, const NvMmFormDef* def) {
+    s32 i;
+
     sFormProperties = *oot; // (OoT's voice, sounds and animations)
     memcpy(&sFormProperties, def->sizes, sizeof(def->sizes)); // ceilingCheckHeight ... unk_40
+    if ((def == &sFormDefs[MM_FORM_FD]) && (sFdSize != 1.0f)) { // (MM's Fierce Deity: adult Link's, times 1.5)
+        f32* f = (f32*)&sFormProperties;
+
+        for (i = 0; i < 17; i++) {
+            if (i != 2) { // (unk_08, the root's scale: the actor's scale does it)
+                f[i] = def->sizes[i] * sFdSize;
+            }
+        }
+    }
     sFormProperties.unk_44 = def->v44;
     memcpy(sFormProperties.unk_4A, def->v4A, sizeof(def->v4A));
     memcpy(sFormProperties.unk_62, def->v62, sizeof(def->v62));
@@ -323,20 +370,22 @@ static void NvMmForm_Apply(PlayState* play, Player* player) {
 }
 
 static void NvMmForm_Change(PlayState* play, Player* player, s32 form) {
-    if (form != MM_FORM_HUMAN) {
-        if (sForm.form == MM_FORM_HUMAN) {
-            sForm.savedB = gSaveContext.equips.buttonItems[0];
-            sForm.savedSwordless = gSaveContext.infTable[29];
-        }
-        gSaveContext.equips.buttonItems[0] = ITEM_NONE; // (no sword: OoT's swordless B, left empty)
+    // the sword on B: human Link's and the Fierce Deity's (he swings it: his own sword's ways later);
+    // the other forms have none (B left empty, OoT's swordless B), the sword kept for when it's back
+    s32 hadSword = (sForm.form == MM_FORM_HUMAN) || (sForm.form == MM_FORM_FD);
+    s32 hasSword = (form == MM_FORM_HUMAN) || (form == MM_FORM_FD);
+
+    if (hadSword && !hasSword) {
+        sForm.savedB = gSaveContext.equips.buttonItems[0];
+        sForm.savedSwordless = gSaveContext.infTable[29];
+        gSaveContext.equips.buttonItems[0] = ITEM_NONE;
         gSaveContext.infTable[29] = 1;
-        player->currentShield = PLAYER_SHIELD_NONE;
-    } else {
+    } else if (!hadSword && hasSword) {
         gSaveContext.equips.buttonItems[0] = sForm.savedB;
         gSaveContext.infTable[29] = sForm.savedSwordless;
-        player->currentShield = CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD);
         sForm.savedB = ITEM_NONE;
     }
+    player->currentShield = (form == MM_FORM_HUMAN) ? CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) : PLAYER_SHIELD_NONE;
     Interface_LoadItemIcon1(play, 0);
     NvMmMask_TakeOff(); // (MM: a change takes the mask worn off)
     player->currentMask = PLAYER_MASK_NONE;
@@ -725,6 +774,25 @@ void NvMmForm_Update(PlayState* play) {
         }
         player->currentShield = PLAYER_SHIELD_NONE;
     }
+    if ((sForm.form == MM_FORM_FD) && (player->actor.category == ACTORCAT_PLAYER)) {
+        // the Fierce Deity's size: MM's 1.5 in a boss room, adult Link's elsewhere, a step at a time
+        f32 target = NvMmForm_IsBossRoom(play) ? 1.5f : 1.0f;
+
+        if (sFdSize != target) {
+            Math_StepToF(&sFdSize, target, 0.02f);
+            NvMmForm_MakeProperties(sOotProperties, &sFormDefs[MM_FORM_FD]);
+            if (getenv("NV_LOG") != NULL) {
+                printf("NVMM fierce deity: size %.2f\n", sFdSize);
+                fflush(stdout);
+            }
+        }
+        Actor_SetScale(&player->actor, 0.01f * sFdSize);
+    } else if ((sFdSize != 1.0f) || (player->actor.scale.y != 0.01f)) {
+        if ((player->actor.category == ACTORCAT_PLAYER) && (player->actor.scale.y > 0.0f)) {
+            sFdSize = 1.0f;
+            Actor_SetScale(&player->actor, 0.01f); // (not the Fierce Deity: his own size again)
+        }
+    }
     NvMmForm_SetEyes(NvMmForm_Def(sForm.form)); // (each frame: a scene's start may rewrite the tables)
     NvMmDeku_Update(play, player); // (Deku Link's moves: z_nv_mm_deku.c)
     {
@@ -752,6 +820,10 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
     switch (limbIndex) {
         case PLAYER_LIMB_L_HAND:
             dl = def->handL[closed];
+            if ((sForm.form == MM_FORM_FD) && (player != NULL) && ((player->leftHandType == PLAYER_MODELTYPE_LH_SWORD) ||
+                                                                 (player->leftHandType == PLAYER_MODELTYPE_LH_BGS))) {
+                dl = BOY("gLinkFierceDeityLeftHandHoldingSwordDL"); // (the sword out: his Double Helix Sword)
+            }
             break;
         case PLAYER_LIMB_R_HAND:
             dl = def->handR[closed];
@@ -765,7 +837,7 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
         default:
             return;
     }
-    *dList = ResourceMgr_LoadGfxByName(dl);
+    *dList = (dl != NULL) ? ResourceMgr_LoadGfxByName(dl) : NULL;
 }
 
 /** z_player_lib.c's limb hook (each limb, after it's drawn): the forms' own extras there. Deku Link's

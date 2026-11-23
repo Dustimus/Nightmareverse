@@ -80,6 +80,7 @@ OBJECTS = {
         "gDekuMaskDL": 0x56C0,  # the Deku Mask on Link's face, put on (the transformation scene)
         "gGoronMaskDL": 0x5A10,  # the Goron Mask, the same
         "gZoraMaskDL": 0x5360,  # the Zora Mask, the same
+        "gFierceDeityMaskDL": 0xB260,  # the Fierce Deity's Mask, the same
         "gPinkDekuFlowerIdleDL": 0xED80,  # the Deku flowers (Obj_Etcetera), at rest
         "gameplay_keep_DL_06F380": 0x6F380,  # the Deku bubble (En_Arrow's): its setup,
         "gameplay_keep_DL_06F9F0": 0x6F9F0,  # being blown,
@@ -202,6 +203,12 @@ OBJECTS = {
                 **{f"gLinkHumanMouth{n}Tex": (o, "CI8", 32, 32, 0x5200) for n, o in {
                     "Closed": 0x4000, "Half": 0x4400, "Open": 0x4800, "Smile": 0x4C00}.items()}},
     }),
+    "object_link_boy": (653, {"deps": ["gameplay_keep"],  # the Fierce Deity (MM's PLAYER_FORM_FIERCE_DEITY)
+        "skel_lod": {"gLinkFierceDeitySkel": 0xD878},
+        "dl": {f"gLinkFierceDeity{n}DL": o for n, o in {
+            "Waist": 0x49E0, "RightHand": 0x67D8, "LeftHand": 0x6EB8, "Sword": 0x7F28,
+            "LeftHandHoldingSword": 0x80F0}.items()},
+    }),
     "object_link_goron": (655, {"deps": ["gameplay_keep"],  # Goron Link (MM's PLAYER_FORM_GORON: the Goron Mask's form)
         "skel_lod": {"gLinkGoronSkel": 0x17A84},
         "dl": {f"gLinkGoron{n}DL": o for n, o in {
@@ -269,6 +276,7 @@ MASK_OBJECTS = {
     # the Deku Mask fusing with Link's face (the transformation scene's second half: MM's D_801C0B20[27])
     "object_mask_goron": (678, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_goron_DL_0014A0": 0x14A0}}),
     "object_mask_zora": (679, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_zora_DL_000DB0": 0xDB0}}),
+    "object_mask_boy": (681, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_boy_DL_000900": 0x900}}),
     "object_mask_nuts": (680, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_nuts_DL_001D90": 0x1D90}}),
     "object_mask_kyojin": (666, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_kyojin_DL_000380": 0x380}}),
 }

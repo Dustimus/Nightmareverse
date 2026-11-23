@@ -55,6 +55,8 @@ before building a new system; add a line whenever a new one is made.
 - **The forms in z_player.c:** our own action functions in our files, started from one-line hooks
   in z_player.c; the user's go-ahead without asking RE1 first ("it can adjust if it needs to",
   2026-11-23). Deku Link's spin is on A, his bubble on B (as MM).
+- **The Fierce Deity:** usable anywhere; adult Link's size except in boss rooms (MM's 1.5 there); his
+  beam as a light arrow to start (a sword strike: maybe later) (NV_GAMES.md, the user, 2026-11-24).
 - **Adult Link and MM (an idea, not to start yet):** sequenced through OoT's ending
   (NV_GAMES.md "Another way round the adult-Link question", 2026-11-20).
 - **The Deku Stick's model** to check when MM's item models come (below, 2026-11-20).
@@ -879,6 +881,24 @@ boots), jumping out of the water, the barrier's colour on the scene, the guitar,
 Tested headless: the Zora Mask equipped, the change and back (the scene both ways), Zora Link in South
 Clock Town, his face and fins; the punches and the barrier in Laundry Pool, the fast swim in its pool
 (started, gliding, back to swimming: by the log, the pool's water hides him from the camera).
+
+### The Fierce Deity, the first stage (2026-11-24, `soh/src/code/z_nv_mm_form.c`)
+
+The Fierce Deity's Mask works anywhere (the decision above). MM's scene (gameplay_keep's
+gFierceDeityMaskDL and object_mask_boy) changes him into MM's Fierce Deity (object_link_boy: his
+skeleton, hands, waist; no sheath), at adult Link's size: MM's Fierce Deity is adult Link's skeleton
+and MM's numbers for him are exactly OoT's adult Link's times 1.5, so at 1.0 he has OoT's adult Link's
+sizes (sAgeProperties[0]), speeds (OoT's Kokiri boots, adult) and height (68). In a boss room (OoT's
+nine boss scenes and Ganon's; MM's to come) he grows, a step a frame, to MM's 1.5: MM's sizes, speeds
+(MM's PLAYER_BOOTS_FIERCE_DEITY) and height (124), and shrinks back outside. He keeps the sword on B
+(the other forms have none) and swings it as OoT's Link; drawn out, it's his Double Helix Sword (MM's
+gLinkFierceDeityLeftHandHoldingSwordDL).
+
+Not yet: his sword's own ways (the decision: the swords from the menu as adult Link's, the Double
+Helix's damage), the sword beam (as a light arrow, the decision), MM's boss rooms.
+
+Tested headless: the Fierce Deity's Mask equipped, the change, him at adult size by the gate guard,
+warped into Gohma's room and grown to 1.5 (by the log; the room's dark).
 
 ### Deku Link's moves (2026-11-23, `soh/src/code/z_nv_mm_deku.c`)
 
