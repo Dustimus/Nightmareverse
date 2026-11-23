@@ -109,6 +109,11 @@ the two out of each other's way:
   by its own scenes, so they merge cleanly. A change that would rework a shared piece (the
   dev boot, the headless harness, Link's animation player, the fixed cameras) gets raised with
   the user first.
+- **Save data.** Each game keeps its state in its own section of the Ship save file (SoH's
+  SaveManager, each with its own version number): RE1's is `mansion`
+  (`soh/soh/Enhancements/Nightmareverse/NvSaveFile.cpp`), the Majora's Mask branch's `termina`. A game
+  reads and writes only its own section; what it needs from another game goes through that game's
+  code, not into its section.
 - **Scene and entrance numbers.** RE1's take OoT's tables from scene 0x6E and entrance 0x614
   (`soh/include/tables/nv_re1_*.h`). Another game's go after them, in its own table files,
   starting past the last number RE1's tables use at the time. Test "is this one of my game's
@@ -128,6 +133,13 @@ the two out of each other's way:
 - **The pause menu:** a design for every game's pages in OoT's four-sided box, with alternates
   stacked above and below each side (`NV_PAUSE_MENU.md`). Not built yet; to agree with the RE1
   chat first, since RE1's screens live there.
+
+## Plans from the user
+
+- A 3D layer later (2026-11-21, a heads-up, nothing planned yet): Ocarina of Time 3D's and Majora's
+  Mask 3D's look may come in as a layer over SoH's, leaving OoT itself alone. It shouldn't touch
+  RE1, and the user doesn't want a more modern Link in RE1's rooms anyway, so RE1 keeps the N64
+  Link it has.
 
 ## Ideas that cross games
 

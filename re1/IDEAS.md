@@ -31,7 +31,24 @@ here is agreed or scheduled.
   port with the Zelda layer on top.)
 - Bosses: how they'll work.
 - Bomb collision on a layer of its own ("BombWall"), so bombs can bounce off room bounds without
-  affecting anything else (walls are about railing/door height now).
+  affecting anything else (walls are about railing/door height now). Done 2026-11-20 (README, "The bomb layer").
+- Furniture tops (2026-11-20, from the user): collision on top of furniture, starting with the
+  dining room's table (climbable is fine), with heights set by hand; the key to joining the dining
+  room and its balcony into one room, which would feel very Zelda. The table's top is in
+  (README, "Furniture tops"); the join is still to try, on a branch of its own.
+  - RE1's enemies don't know heights: a zombie beside the table can grab Link standing on it. The
+    user's fine with that (it grabs his legs).
+  - Merged with the balcony, the only zombie is the balcony's: better that it can't fall down to
+    the dining room (it stays up there).
+  - Two ways to join (2026-11-21, from the user). Being tried on re1/dining-merge first: Link
+    dropping through the statue's gap goes straight into the dining room with no fade, keeping
+    his fall and run. The point is that he lands where he was aiming, not on a fixed spot.
+    The user expects to tune this more.
+  - The way the user thinks may look cleaner: a real combined room, where the balcony (202)
+    includes the dining room (105) and checks all the same flags. The dining room wouldn't need
+    to include the balcony; that direction is the one that gets messy. RE1's scripts for the two
+    rooms are a little odd. The balcony zombie could be a problem unless it is only triggered by
+    coming in through the balcony door. To decide after the user's playtest.
 
 ## What people liked
 - Link's moveset in RE: fun, overpowered.
@@ -78,9 +95,10 @@ here is agreed or scheduled.
   - wrong: OoT's error sound, Chris's hesitant presses from his 10F set, then a word pointing back
     to the sheet music;
   - RE1's own way (Use the notes at the piano) still works too;
-  - played freely in the bar it does nothing; outside the mansion it turns the clock to midnight
-    (the Easter egg; not yet tried in play). Decided with the user (2026-11-19, from the Majora's
-    Mask side): in Termina it's a time skip to that day's midnight.
+  - played freely in the bar it does nothing; outside the mansion it turns the clock to 19:01 (the
+    Easter egg; not yet tried in play). Decided with the user (2026-11-19): 19:01, not midnight,
+    so it's fully dark and the evening's windows (Dampe's tour, the evening doors, night-only
+    Gold Skulltulas) are open at once; in Termina, the clock moves forward to that hour.
   - A song matches only from notes played in one go (2026-11-19): the heard notes are cleared as
     the ocarina comes out and when OoT recognises one of its own songs. The Sonata is the Song of
     Time shifted by a note, so leftovers from one Song of Time used to complete it on the next.
@@ -159,3 +177,21 @@ here is agreed or scheduled.
   lines (all of Navi's) would need a voice. Cloning the original actress's voice without her
   consent is the uncomfortable route, even for friends only; a sound-alike performer who agrees
   to it (with a similar filter on top) is the clean one, and the only one for a wider release.
+
+- Who Jill is (from the user, 2026-11-21; to decide after the user's playtest, which they'll play
+  through with it in mind): a character of her own, the fairy, Navi herself, or something else.
+  The question is how jarring each would be.
+
+## Longer days in Hyrule (from the user, 2026-11-19; for later, not planned)
+
+- MM-length days in Hyrule (if Termina's clock ever comes over) would break less than expected:
+  the Moonlight Sonata already jumps to 19:01, so the evening's windows stay quick to reach.
+- The pain points are before the Sun's Song: being stuck in Hyrule Field at night, and the Weird
+  Egg. OoT hatches it at dawn, either natural morning (z_kankyo.c's day change) or the Sun's Song
+  (z_play.c's nextDayTime). It's not a timer or a script, so a longer night means a longer wait
+  on the way to Zelda.
+- The user dislikes the Switch version's fix: it stays day until Zelda is first met, the
+  drawbridge stays down at night, and the egg hatches partway to the castle for no visible
+  reason. It's an overcorrection. The original's short wait felt right, and it's what makes you
+  enter the castle by day, so the night patrol doesn't confuse you. Any change here should keep
+  that.

@@ -15,6 +15,12 @@ action box): "RSPR", u16 count, then per sprite u16 width, height and its RGBA55
 decomp's menu tables): STATUS.TIM and ITEMBOXN.TIM, each in its first CLUT: "RSHT", u16 count,
 then per sheet u16 width, height and its RGBA5551 pixels (big-endian; colour 0 clear).
 
+"re1/ui/kage": the characters' ground shadow (data/kage.tim, LoadShadowMaskTexture): "RKAG", u16
+width, height, then 32 x 32 bytes of coverage (the picture in its corner, the rest clear) as
+RE1's shadow page has it: each colour's red r gives alpha ((255 - 8r) * 2) & 0xFF, coverage 255
+less that, and the floor darkened by up to 16/31 of it (the page's 48% grey); the byte is that
+darkening, 0-255.
+
 "re1/ui/map": the map screen's pictures (item_m2/map*.tim), raw: see map_blob.
 
 "re1/ui/file<n>": file n's pages (z_nv_files.c), from the player's item_m2/filem_*.pix (RE1's
@@ -48,7 +54,7 @@ def icons_blob(re1):
 
 # (file, CLUT, u, v, width, height), in z_nv_status.c's NvStSprite order
 STATUS_SPRITES = [
-    ("STATUS.TIM", 0, 0, 0, 48, 64),     # the tabs: Map, Radio, File, Exit (16 rows each)
+    ("STATUS.TIM", 0, 0, 0, 48, 80),     # the tabs: Map, Radio, File, Exit, the blank (no radio) (16 rows each)
     ("STATUS.TIM", 0, 0, 80, 48, 16),    # the tab cursor
     ("STATUS.TIM", 0, 48, 0, 48, 96),    # the action box: Equip, Use, Check, Combn (24 rows each)
     ("STATUS.TIM", 0, 48, 96, 48, 24),   # the action cursor
@@ -101,6 +107,40 @@ def status_blob(re1):
             for x in range(u, u + w):
                 out += struct.pack(">H", _rgba5551(pal[tim.pixels[y * tim.width + x]]))
     return bytes(out)
+
+
+def kage_blob(re1):
+    """RE1's shadow mask as coverage bytes (see "re1/ui/kage")."""
+    data = rdt.find_file(re1, "DATA")
+    raw = open(rdt.find_file(data, "KAGE.TIM"), "rb").read()
+    tim = emd.parse_tim(raw, 0)
+    clut = [struct.unpack_from("<H", raw, 0x14 + 2 * i)[0] for i in range(256)]
+    if tim.width > 32 or tim.height > 32:
+        return None
+    px = bytearray(32 * 32)
+    for y in range(tim.height):
+        for x in range(tim.width):
+            c = clut[tim.pixels[y * tim.width + x]]
+            if c in (0, 0x8000):
+                continue
+            a8 = ((255 - (c & 0x1F) * 8) * 2) & 0xFF
+            px[y * 32 + x] = min(255, (255 - a8) * 16 // 31)
+    return b"RKAG" + struct.pack("<2H", tim.width, tim.height) + bytes(px)
+
+
+def write_kage(re1, out):
+    """Write the shadow mask; 1, or 0 when the file isn't there."""
+    try:
+        blob = kage_blob(re1)
+    except (OSError, IndexError):
+        return 0
+    if blob is None:
+        return 0
+    d = os.path.join(out, "re1", "ui")
+    os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, "kage"), "wb").write(
+        soh_scene._otr_header(soh_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    return 1
 
 
 def write_status(re1, out):

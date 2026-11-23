@@ -16,13 +16,7 @@
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/savestate_serialize.h"
 
-// Nightmareverse: the mansion's warp song (z_nv_script.c)
-s32 NvSong_Note(PlayState* play, u8 button);
-s32 NvSong_Pending(void);
-void NvSong_PlayClip(void);
-void NvSong_Playback(void);
-void NvSong_Fanfare(void);
-void NvSong_Reset(void);
+#include "z_nv_songs.h" // Nightmareverse: our songs (z_nv_songs.c)
 s32 NvPiano_Score(void);
 
 // #region SOH [NTSC] - Allows custom messages to work on japanese
@@ -3439,9 +3433,14 @@ void Message_DrawMain(PlayState* play, Gfx** p) {
                             msgCtx->ocarinaStaff->buttonIndex;
                         sOcarinaButtonIndexBuf[msgCtx->ocarinaStaff->pos] = OCARINA_BTN_INVALID;
                         sOcarinaButtonIndexBufPos++;
-                        // Nightmareverse: the mansion's warp song (z_nv_script.c) rides Nocturne's slot
-                        if (NvSong_Note(play, msgCtx->ocarinaStaff->buttonIndex)) {
-                            msgCtx->ocarinaStaff->state = OCARINA_SONG_NOCTURNE;
+                        // Nightmareverse: our songs (z_nv_songs.c); one borrowing a slot (the mansion's
+                        // warp song, Nocturne's) goes on as that song
+                        {
+                            s32 nvSlot = NvSong_Note(play, msgCtx->ocarinaStaff->buttonIndex);
+
+                            if (nvSlot >= 0) {
+                                msgCtx->ocarinaStaff->state = nvSlot;
+                            }
                         }
                     }
                 }

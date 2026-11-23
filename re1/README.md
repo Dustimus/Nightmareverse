@@ -22,10 +22,7 @@ endings follow from the same scripts' flags). In it:
 You get in from Hyrule by playing the mansion's song on the ocarina (below). Chris's game isn't
 playable: Link plays Jill.
 
-Open, in the sections below: the status screen's radio; blood from hits, shadows and the
-muzzle flash; a few gun rules (line of sight, low aim, the launcher's rounds, loading by Combine,
-per-enemy ranges); items hung on the player (taken, not drawn); the box's sliding list and its
-Hyrule side; stereo panning; the Japanese release's text; ceilings; a way in through the Lost Woods.
+Open, in the sections below: the box's Hyrule side; the Japanese release's text; ceilings; a way in through the Lost Woods.
 
 ## Reference: RE1's own code
 
@@ -54,10 +51,18 @@ where the data folder is the one holding Stage1..Stage7 ("USA" in the GOG releas
 
 The way in: the mansion's own warp song, played on the ocarina anywhere in free play (C-Down,
 C-Right, A, C-Right, C-Left, A, C-Left, C-Up: the opening phrase of the basement theme), warps
-into the foyer (`z_nv_script.c`, NvSong). It rides OoT's warp-song sequence in Nocturne of
+into the foyer (`z_nv_script.c`). It rides OoT's warp-song sequence in Nocturne of
 Shadow's slot, playing a stretch of RE1's opening movie's sound in place of a melody, and the first
 arrival plays the whole opening movie (seen once: save event flag 0xD7). For testing, a file
 `nv_boot.txt` holding `re1_106` in the SoH folder starts the game in the foyer.
+
+Our songs, RE1's and the Majora's Mask side's, share `z_nv_songs.c`: each registers its notes, its
+effect and, optionally, the OoT song slot it borrows (the warp song: Nocturne's), and the notes
+played in free play are matched there in the order registered, from notes played in one go
+(`z_message_PAL.c` empties the buffer as the ocarina comes out and when one of OoT's own songs is
+recognised). RE1's register in `NvSongs_RegisterRe1` (the Moonlight Sonata, then the warp song),
+and 10F's piano listens for its own notes first. Dev: `NV_SONATA_KNOWN` plays as if the Sonata were
+learned.
 
 The mansion on the way back (RE1's stages 6 and 7: the return trip's own rooms, scripts and
 enemies on the first visit's backgrounds) is its own set of rooms, as in RE1. Once the return flag
@@ -216,7 +221,7 @@ end of `z_nv_zombie.c` to share its helpers: its states (behave, hit, death) and
 (patrol, chase with its skid and wall following, the leap and bite, strafe, alert, close snap,
 stalk), steering by probing 500 units ahead. Its bite takes 12 of RE1's health (the same share of
 Link's hearts) and knocks Link back; RE1's player flinch is a second's gate on the next bite.
-The maul (RE1's kill of a badly hurt player) is in. Left out for now: blood, the shadow.
+The maul (RE1's kill of a badly hurt player) is in.
 A dog its room's script still holds (behaviour 0x80, 108's two behind the windows) isn't drawn
 or hit until the script lets it go. Dev: `NV_TEST_ENEMY="type,x,z,behaviour,slot"` (slot 15,
 the default, has no hit collider; another slot can be fought).
@@ -238,7 +243,13 @@ places is now a port of its own code (`z_nv_*.inc`: the dog, spider, Black Tiger
 wasp, the greenhouse vines, Plant 42, chimera, adder, Neptune, Tyrant, Yawn, the spider web), with
 its sounds; the characters (Barry, Wesker, Richard, Enrico, ...) are driven by their events
 (`z_nv_npc.inc`).
-Not yet: blood from hits and the shadows. Dev hook:
+Each casts RE1's ground shadow (2026-11-20, `z_nv_enemy.c` NvEnemy_DrawShadow, FadeSprite.cpp's
+entity_add_fade_sprite and DrawFadeSpr): RE1's shadow mask (data/kage.tim, `re1/ui/kage` from
+`tools/soh_ui.py`) on a quad flat on the floor under it, turned as it faces, at the half sizes each
+enemy's own init gives it (the zombie 700 x 900, the dog 0x550 x 0x200, the Tiger 2500, the
+characters Jill's 500 x 700; the chimera and the adder none), darkening the floor as RE1's shadow
+page does (to about 61% at its core: a soft shadow, not a black one). Left out: the corpse's
+pool and the shadows of Plant 42, its roots and the web. A hit's blood: see Weapons. Dev hook:
 `NV_TEST_ENEMY="type,x,z"` (OoT units) adds a held, non-solid enemy. The headless checks run with
 `NV_NO_ENEMIES=1` (no scripts).
 
@@ -266,8 +277,13 @@ lies) and sets the item's taken flag, so it's gone from the room. Jill's 8 slots
 the taken flags are saved with the game. The items lying in a room are drawn
 with RE1's own item models (RDT+0x54, `<name>_items`, `tools/soh_scene.py` items_blob) at the
 item_set's position, by one actor (`Nv_Items`, `z_nv_items.c`), with RE1's glint
-(`z_nv_effects.c`), and vanish when taken. Items RE1 hangs on a room object draw on it. Not yet:
-one hung on the player (scaParent 0xFE) isn't drawn, though it's taken as usual.
+(`z_nv_effects.c`), and vanish when taken. Items RE1 hangs on a room object draw on it, and one
+hung on the player (scaParent 0xFE, 2026-11-20) at its offset in Link's frame, moving and turning
+with him; objects ride the player or an enemy (0x80 + its slot) the same way. Whether an item's
+model shows is RE1's byte per item model (g_item_model_table[n][0]: item_set shows it, the
+scripts' 0x19 and 0x35 hide or show it), kept by model, not by action entry: before, the two were
+mixed up, so those scripts hid the wrong item or none (303's flare, which RE1 hangs on the player
+and its script hides, floated in front of Link).
 
 RE1's player animations on Link (2026-10-31): each enemy's EMD carries the player's side of its
 grabs (`re1/enemies/em<type>_pl`, `tools/soh_enemy.py`); `soh/src/code/z_nv_linkanim.c` poses
@@ -293,15 +309,34 @@ Status screen (2026-10-31): in RE1's rooms the pause menu's map page is RE1's st
 the pause menu opens on it there (z_kaleido_setup.c). It is drawn in RE1's own pictures, cut at
 mod-making time out of the player's STATUS.TIM, BLUE.TIM and STATFACE.TIM (`re1/ui/status`,
 `tools/soh_ui.py` STATUS_SPRITES, at the places MainMenu.cpp draws them from): the Map/File/Exit
-tabs (no radio yet), the face (the user's Link portrait in Jill's place) and her condition
+tabs, the face (the user's Link portrait in Jill's place) and her condition
 (Fine/Caution/Danger by Link's hearts in RE1's quarters, Poison!), the equipped weapon, and the 2 x 4 slots on RE1's blue ground with RE1's icons
 (`re1/ui/icons`: ITEM_ALL.PIX in STATUS.TIM's third CLUT, by the item record's icon byte, so the
 mixed herbs have theirs), RE1's digits for counts and RE1's cursors. A on an item opens RE1's action
 box: Equip (weapons only; RE1's g_EquippedItemId, which follows its slot as slots close up; see
 Weapons), Use (heals by RE1's g_ItemHealTable: a third, two thirds or
 all of Link's hearts; an item that would do nothing isn't used up), Check, Combine (then the second
-item: RE1's herb mixes). Up from the top slots reaches the tabs: Exit closes the pause menu, File
-lists the files found, and Map opens RE1's map screen (below).
+item; below). Up from the top slots reaches the tabs: Exit closes the pause menu, File
+lists the files found, Map opens RE1's map screen (below), and Radio (2026-11-20, menu_tab_radio)
+is RE1's blank plate until Jill has the radio (bank 0 flag 0x7F); with it, where the room lets her
+call (an action entry raising item-use flag 0x3F: the courtyard's 300 and 304, at their moment) it's
+used on the room as item 0x4D and the menu closes, and elsewhere it shows RE1's line for the radio
+(RE1 shows the radio in its item viewer). The four tabs are RE1's, narrowed to fit left of the
+slots.
+
+Combine (2026-11-20, `z_nv_items.c` NvItems_Combine, MainMenu.cpp's menu_item_check_combine and
+menu_item_apply_combine): RE1's own combine tables, read from the player's executable
+(`re1/combine`, `tools/soh_weapons.py` combine_blob: the 35 tables and the item records, found by
+their hashes; nothing of them in the repository). The first item's table names what it combines
+with, what each becomes and the effect: a gun loads from its clip or shells up to the gun's
+capacity (g_ItemMaxQty; the rest stays a smaller stack), two stacks of ammo merge (to 250), the
+grenade launcher takes a kind of round only when it's empty, herbs mix after RE1's question
+("Will you mix the herbs?", Yes / No), herbs that don't mix say so, and the chemicals mix only in
+the guardhouse's drug storehouse (409; elsewhere "Too dangerous to mix here."): a wrong mix there
+fails ("It disappeared.") or makes the poison gas (bank 0 flag 0x16, "The poison gas enveloped.",
+the menu closes and the room's own script takes over). The messages are RE1's, from its
+executable. Slots close up after a combine, the equipped weapon moving with its slot. Without the
+executable's tables (an older re1.o2r) only the herbs mix, as before.
 
 Map screen (2026-11-19, `soh/src/code/z_nv_map.c`, MainMenu.cpp's menu_init_map_screen,
 menu_map_state_machine, map_tab_* and map_display_*): RE1's two views under the tabs. The browser
@@ -332,7 +367,7 @@ item box's lid; RDT object models, `<name>_objs`, `tools/soh_scene.py` items_blo
 are drawn as RE1 places them: the scripts' omodel_set (0x1F: position, y turn, flags, parent) and
 obj_flag_set (0x35: shown or hidden), drawn when bit 0 is set (render_room_objects), turned by
 RotMatrix's x, y, z, and carried by their parent object (InitScaMatrix). Items lying on a room
-object now draw on it too. Objects on the player or an enemy are placed in the room for now.
+object now draw on it too, and objects on the player or an enemy ride with them (see Pickups).
 `NV_NO_OBJS` hides them for comparisons.
 
 Item box (2026-11-01): A at a box (room action type 8, open_itembox) swings its lid (the object
@@ -347,7 +382,12 @@ list with up/down (48 places, wrapping) and A to exchange (Jill's slots stay pac
 away is unequipped); B steps back, and B on Jill's side (or START) closes it and the lid shuts.
 One box, shared by every box in the mansion. Names are RE1's own (from its executable), drawn in
 OoT's small font for now (RE1's 8x14 font, which the results screen already uses, is a later step).
-Not yet: the list's sliding animation, Hyrule's side.
+The list slides as RE1's does (2026-11-20, menu_itembox_interaction's states 2 and 3,
+draw_itembox_menu): on (down, RE1's R1) the names rise a row over 15 steps and the preview's icon
+slides up with the next coming in under it, the place moving on as it ends; back (up, L1) the place
+steps back first and the list slides down to it; held, it goes on, three steps a frame after half a
+second; the names and the preview are clipped to their windows. Not yet: Hyrule's side (see the
+design notes).
 
 Weapons (2026-11-03, first pass): in RE1's rooms the weapon equipped on the status screen takes
 C-Left (RE1's icon on the button; the OoT item there is back outside the mansion), in
@@ -361,16 +401,43 @@ up to its capacity, fire_consume_ammo_stack), Jill's fire animation, and RE1's h
 shotgun and Pythons (weapon_hit_detect_gun) an enemy in a band straight ahead, from 650 out to any
 distance, as wide as the weapon's range (her half of weapons_ranges: the shotgun's 2600 is its
 spread) plus the enemy's radius; for the knife (weapon_hit_detect_knife) the enemy's place within
-its radius + the reach of the blade, 600 ahead of her at the thrust; and damage (the zombies' hit
-records: the Beretta 9, the shotgun 53, ...; the spider web has its own row). The aim follows the
+its radius + the reach of the blade, 600 ahead of her at the thrust; and RE1's damage and hit state
+from its hit records per enemy type and weapon (`re1/hits`, read from the player's executable by
+`tools/soh_weapons.py`: found by the hash of the zombies' row; without the executable every enemy
+takes the zombies'). apply_weapon_damage's other rules (2026-11-19): a shot hits an enemy only at
+the heights its status flags allow (the aim: up, level, down), and the hit state is raised by a level
+or low aim; the per-enemy reach changes (the Black Tiger's -1000, Plant 42's +2000; the knife's own)
+and skips (no zombie aimed down at but with the shotgun; the knife misses a dog on the ground or a
+spider at the level, and what's on the ceiling); and the knife and the guns don't hit through walls
+(check_weapon_line_of_sight, the room's sight-blocking boxes). With the stick level and the aim on
+an enemy, the aim takes its height, as RE1's auto-aim points her arm at it (auto_aim_pitch_update):
+down at a snake, up at a chimera on the ceiling. The aim follows the
 Z-target when it's one of RE1's enemies, else RE1's auto-aim: the nearest enemy ahead in reach.
 The gun is RE1's item-viewer model (ITEM_M2/I<nn>V.IVM by the item record's model byte) in Link's
 left fist, which closes round it, placed as Mod1 placed its Beretta in his right hand (that looked
 right in play), mirrored across the hand; it's drawn only while the gun is up, so another item (the
 ocarina) replaces it, and another C button puts it down. Each weapon fires with RE1's own sound
-(see Sound). Not yet: the muzzle flash, the line of sight through walls, aiming down only hitting crawlers, the
-launcher's rounds, ammo loading by Combine, the per-enemy range adjustments (the Black Tiger's
--1000, Plant 42's +2000). Dev: `NV_EQUIP=n` equips slot n
+(see Sound). Ammo is loaded by Combine (see the status screen) or, on an empty gun, by the
+trigger. The grenade launcher's round (2026-11-20) flies as RE1's does: its fire billboard (type 8,
+group 7, `z_nv_effects.c` NvFx_FireRound) leaves Link's hand along his facing on RE1's arc
+(behaviour 42 freezes it off the gun and trails it, 43 flies it), its height above Link's feet
+giving the aim it hits at; it hits the nearest enemy whose radius plus the weapon's 900 takes it in
+(weapon_hit_detect_projectile, from the round: `z_nv_weapon.c` NvGun_RoundHit, RE1's damage and hit
+state for the round), and where it lands, on the floor or in a wall (effect_probe_ground on RE1's
+collision), it bursts as RE1's effect_shot_impact has it: fire for the explosive round, a splash for
+acid, flames for the flame round, each with its own sound. (RE1 also runs an instant hit for the
+explosive round, measured from a point near the room's origin, not the round: left out.)
+
+Each shot fires RE1's own effects from its tables in the executable (`re1/weaponfx`,
+`tools/soh_weapons.py`: g_weaponFireBillboard, g_weaponMuzzleFlash, g_weaponFlash2): the spark at
+the gun, the case flying out, the smoke, at Link's hand along his aim; they come as the shot goes
+rather than on their frames of Jill's fire. A hit runs RE1's post-hit for the weapon and the enemy
+(2026-11-20, `z_nv_enemy.c` NvEnemy_GunHitFrom, WeaponDamage.cpp's PTR_post_hit_callbacks and
+g_enemy_hit_reactions): its rules (a zombie's head blown off by the shotgun inside 3000 aimed level
+or down, or by the Python at the level; Jill's handgun 3 more, 7 more on a dog; the shotgun from
+past 9000 10 less and a hit state lower; Plant 42 shrugging off half the shots from past 7000), and
+its billboards on the enemy from the hit record (blood, the bursts and sparks of the launcher's
+rounds, the head's). Left out: the joints' red tint and the spurts from the joints. Dev: `NV_EQUIP=n` equips slot n
 of NV_GIVE's items; NV_WALK `cl:N` holds C-Left N frames; `NV_GUN_FIT="x,y,z,rx,ry,rz,size%"` and
 `NV_GUN_MIRROR=x|y|z|none` move the gun in the fist.
 
@@ -387,10 +454,16 @@ names, `z_nv_sound_rooms.c` from the decomp's g_RoomSndData): the zombies' Snd_e
 the dragged leg, roars, bites, eating, vomit, deaths, by the enemy record's sound group), Link's
 footsteps (the room's footstep zones, RDT+0x5C, `<name>_ftzones`: the floor's two steps, alternating,
 in place of OoT's), the box lid (slot 0x20); and the doors (load_room_sfx: the door record's byte 9
-picks the pair, opening as the door scene starts and closing as it ends). Louder the nearer to Link.
+picks the pair, opening as the door scene starts and closing as it ends). How loud each is
+(2026-11-20, `z_nv_sound.c` NvSnd_Volume) is RE1's own law, from the room's camera, not from Link
+(Play3DSnd: Calc3DSndPan's two pans, lowered by the distance from the camera's eye and on one side
+by how far off its line of sight the sound is, then CalcPanVolume's volume from their average):
+the shots, the room bank's sounds and the launcher rounds' bursts.
 OoT's battle music never starts in RE1's rooms (and their scenes set no sequence). The cutscenes'
 voice lines play as the scripts call them (0x1E), and the scripts wait on them as RE1's do; every
-ported enemy has its sounds. Not yet: stereo panning.
+ported enemy has its sounds. RE1's PC version doesn't pan its effects left or right (it only
+sets their volume from the two pans; it pans only its bank 4 sounds), so neither does this. Real
+stereo, as the PlayStation's, would be a choice to make.
 
 Dev: NV_WALK takes `start` and `left`/`right`/`up`/`down` (the D-pad); NV_GIVE="id,qty;..." gives
 items on the first room; NV_FILE=n takes file n there.
@@ -405,13 +478,42 @@ next visit has the other zombie.
 Ramps: the stairs inside rooms (203's grand staircase, 207's, 20E's) are walked; the stairs RE1
 treats as doors (the foyer's to 203, 10B to 207) stay doors.
 
-Later: ceilings, so OoT's thrown things (bombs) stay in the room; RE1 has none. A first try
-(a ceiling over every floor) boxed Link in, most likely by pushing the collision past OoT's
-polygon budget (the foyer went from 7.4k to 9.4k polygons): it needs merged floor and wall
-polygons first. Heights per room: to estimate from each room's cameras, checked against the
-backgrounds, or marked by hand.
+The bomb layer (2026-11-20, the Discord's "BombWall" idea in IDEAS.md; `soh/src/code/z_nv_bombwall.c`,
+`tools/re1_floor.py` bombwall_blob): the walls stay door height, and bombs, bomb flowers and arrows
+(and Deku nuts, which fly as arrows) can't leave a room over them. Each room has its floor plan as a
+grid (`<name>_bombwall`: the floor, both levels and the stairs, its holes filled so things fly over
+furniture, grown out to where the walls stand); one about to leave it, at any height, stops at its
+edge: a bomb gets OoT's own wall bounce, an arrow sticks. Link, the enemies and the camera never see
+it, so it can't box anyone in the way taller walls or ceilings did (a first try at ceilings over
+every floor pushed the collision past OoT's polygon budget). One line each in En_Bom, En_Bombf and
+En_Arrow. Checked headless in 103: bombs and nuts sent over the walls stop at them and fall back
+into the room. Dev: NV_WALK `bomb:yaw,speed,vy` (a lit bomb from above Link's head, tenths) and
+`nut:yaw,pitch` (degrees).
+
+Furniture tops (2026-11-20, decided with the user: Link can climb onto them, as OoT lets him onto
+any low ledge): RE1's collision is a floor plan with no heights, so the furniture to stand on is
+listed by hand (`tools/re1_floor.py` FURNITURE_TOPS: room, collision record, height). Its faces
+become walls only that tall and its outline a floor on top; the floor's edge walls leave it be.
+The first is the dining room's long table (105, and 605 on the way back) at 900 RE1 units (about 20
+OoT units), from projecting its box onto the room's backgrounds. Checked headless: Link walking
+into its side hops up, walks along it and steps down the far side. RE1's enemies don't know heights,
+so a zombie beside it can still grab him up there (fine by the user). A step toward joining the
+dining room and its balcony into one room (IDEAS.md).
 
 Later: a way in through a Lost Woods wrong turn, alongside the warp song.
+
+## Saving (2026-11-20)
+
+The run (RE1's state as a typewriter writes it: the flags, the items and box, the files, the music,
+the clock, where she stood; `soh/src/code/z_nv_save.c`) lives in the Ship save file it belongs to, in
+its own section, `mansion` (`soh/soh/Enhancements/Nightmareverse/NvSaveFile.cpp`, through SoH's
+SaveManager: each game reads and writes only its own section, each with its own version number).
+A typewriter writes that section alone, so OoT's own progress isn't saved by it, as RE1's save
+screen is the mansion's only; OoT's saves write it again as it stands, so a new file never inherits
+another's run. A run from before (a file of its own, `Save/nv_re1_<file>.sav`) moves into the
+section the first time its file loads, and is kept as `.sav.migrated`; erasing or copying over a
+file removes such a leftover. The debug file (slot 255, which SoH never writes) still keeps its run
+in that file of its own: the walkthrough's checkpoints are such files.
 
 ## Walking the game headless (2026-11-14 to 11-17)
 
@@ -420,11 +522,14 @@ checkpoint, `flagdump.py` the story flags between saves; each says how it's laid
 walkthrough runs from a typewriter-style checkpoint (`NV_BOOT_ENTRANCE=warp` with a slot copied
 in) and an `NV_WALK` step list, `;`-separated: `x,z` walks, `pos:`, `face:`, `wait:N`, `a`, `b`,
 `doorto:XXX` / `door:N` / `aot:N` (walk into a door or action entry and press A), `use:XX`,
-`check:XX`, `drop:XX`, `equip:XX`, `faceenemy` (turn to the nearest of RE1's enemies), `cl:N`
+`check:XX`, `drop:XX`, `equip:XX`, `faceenemy` (turn to the nearest of RE1's enemies), `bomb:` and
+`nut:` (see the bomb layer), `cl:N`
 (aim and fire), `list` (the room's doors and live action entries), `mark:N`, `save`. Settings:
 `NV_GODMODE`, `NV_GIVE` / `NV_EQUIP`, `NV_FLAGS="bank:bit,-bank:bit"` (set or clear, on a new game
 or a loaded save), `NV_WORD="i:v"` (a state word, also on a loaded save: 4 restarts the countdown),
-`NV_ANSWERS="yes,no,..."` (the yes/no questions in turn), `NV_FLAG_TRACE` (the system flags as the
+`NV_ANSWERS="yes,no,..."` (the yes/no questions in turn), `NV_BOOT_FILE=1..3` (boot on that Ship save
+file instead of the debug one, made if it isn't there, so saving goes through its sections), the step
+`ootsave` (OoT's own save of that file), `NV_FLAG_TRACE` (the system flags as the
 scripts move them), `NV_EVT_TRACE`, `NV_AOT_TRACE` (action entries as the scripts change them),
 `NV_NOSCENEANIM` (scenes without Link's RE1 animations), `NV_LOG`.
 
@@ -474,6 +579,13 @@ What the run showed about RE1's story (Jill), all from the rooms' own scripts:
   so the mansion is as hard whatever his heart containers.
 - Not on the grid: keys (RE1 slots only), the radio (a story flag in RE1; maybe a Quest screen
   icon), the pick axe (unused in RE1), the serum (a story item).
+
+- Sound (2026-11-20): RE1's effects stay mono, as RE1's PC version plays them (volume by its own
+  camera-relative rule, no left/right panning). Stereo (the PlayStation's) stays possible later.
+- The Hyrule side of the items (2026-11-20): the tab above may be reworked. With other games coming
+  in, the guns might go in with something else's, or on a weapons screen of their own; the user is
+  looking at Majora's Mask's menus (in the other chat) before deciding. Until then the guns are
+  equipped from RE1's status screen, which is enough to test both ways.
 
 - Link takes Jill's place; Jill stays only where the FMVs need her.
 - Guns (when they come back): Link is left-handed, as in OoT, so the Beretta and the rest

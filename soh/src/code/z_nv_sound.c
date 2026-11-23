@@ -305,8 +305,17 @@ void NvSound_Shot(s32 item) {
         NULL, "knife01", "gun01", "shot01", "magnum01", "magnum01", NULL, "grbomb02", "gracid02", "grfire02", "rocket01",
     };
 
+    extern PlayState* gPlayState;
+
     if ((item > 0) && (item < 11) && (sShot[item] != NULL)) {
-        NvSound_Play(sShot[item], 128);
+        s32 vol = 128;
+
+        if (gPlayState != NULL) { // (RE1's Play3DSnd at the player)
+            Player* p = GET_PLAYER(gPlayState);
+
+            vol = NvSnd_Volume((s32)(p->actor.world.pos.x / 0.0217f), 0, (s32)(-p->actor.world.pos.z / 0.0217f));
+        }
+        NvSound_Play(sShot[item], vol);
     }
 }
 
@@ -315,11 +324,57 @@ void NvSound_Shot(s32 item) {
  * doors, items, the floors' footsteps), heard from (x, z) in RE1's units: quieter with distance from
  * Link, as Calc3DSndPan / CalcPanVolume make RE1's. (lx, lz): Link, RE1's units.
  */
+/**
+ * RE1's loudness for a sound at (x, y, z), RE1's units, 0-128 (SoundSystem.cpp Play3DSnd): its two
+ * pans from the camera (Calc3DSndPan: 0x7F each, one side's lowered by how far off the camera's
+ * line of sight it is, over its distance; both lowered a step every 500 of distance from the eye;
+ * 0x1E at least), then the PC's volume from their average (CalcPanVolume, in hundredths of a dB).
+ * RE1's PC version pans nothing left or right here, only sets this volume.
+ */
+s32 NvSnd_Volume(s32 x, s32 y, s32 z) {
+    extern PlayState* gPlayState;
+    PlayState* play = gPlayState;
+    f32 ex, ey, ez, tx, tz;
+    f32 dist;
+    f32 a;
+    s32 hi = 0x7F;
+    s32 lo = 0x7F;
+    s32 avg;
+    s32 db;
+
+    if (play == NULL) {
+        return 128;
+    }
+    ex = play->view.eye.x / 0.0217f; // (the room's fixed camera, in RE1's axes: x, -y, -z)
+    ey = -play->view.eye.y / 0.0217f;
+    ez = -play->view.eye.z / 0.0217f;
+    tx = play->view.lookAt.x / 0.0217f;
+    tz = -play->view.lookAt.z / 0.0217f;
+    dist = sqrtf(SQ(ex - x) + SQ(ez - z) + SQ(ey - y));
+    // the angle between the line of sight and the sound, folded to 0 - 0x400 (front or behind alike)
+    a = fabsf(atan2f(x - ex, z - ez) - atan2f(tx - ex, tz - ez)) * (2048.0f / (f32)M_PI);
+    while (a > 0x800) {
+        a = 0x1000 - a;
+    }
+    if (a > 0x400) {
+        a = 0x800 - a;
+    }
+    if (a > 0x40) {
+        s32 off = (s32)a / ((s32)dist / 2000 + 0x18);
+
+        lo = MAX(0x7F - off, 0x1E);
+    }
+    hi = MAX(hi - (s32)dist / 500, 0x1E);
+    lo = MAX(lo - (s32)dist / 500, 0x1E);
+    avg = (hi + lo) / 2;
+    db = (avg < 0x20) ? (avg * 0x103 - 10000) : (avg * 0x12 - 0x8E4);
+    return (s32)CLAMP(128.0f * powf(10.0f, db / 2000.0f), 0.0f, 128.0f);
+}
+
+/** Room bank sound slot, played at (x, z) (on the floor) at RE1's loudness there; (lx, lz) unused. */
 void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz) {
     s32 row = sNvBgmStage * 29 + sNvBgmRoom;
     const char* name;
-    f32 d;
-    s32 vol;
 
     if ((sNvBgmStage < 0) || (row < 0) || (row >= 203) || (slot < 0) || (slot >= 48)) {
         return;
@@ -328,12 +383,7 @@ void NvSnd_At(s32 slot, s32 x, s32 z, s32 lx, s32 lz) {
     if (name == NULL) {
         return;
     }
-    d = sqrtf((f32)(x - lx) * (x - lx) + (f32)(z - lz) * (z - lz));
-    vol = 128 - (s32)(d / 120.0f);
-    if (vol < 24) {
-        vol = 24;
-    }
-    NvSound_Play(name, vol);
+    NvSound_Play(name, NvSnd_Volume(x, 0, z));
 }
 
 /* ---- Link's footsteps: RE1's for the floor (PlayEntitySnd 0 at the walk's footfalls) ---- */

@@ -337,9 +337,12 @@ void EnBombf_Update(Actor* thisx, PlayState* play) {
     }
 
     if (thisx->gravity != 0.0f) {
+        s32 NvBombWall_Check(PlayState* play, Actor* a);
+
         DREG(6) = 1;
         Actor_UpdateBgCheckInfo(play, thisx, 5.0f, 10.0f, 0.0f, 0x1F);
         DREG(6) = 0;
+        NvBombWall_Check(play, thisx); // Nightmareverse: RE1's rooms' bomb layer (z_nv_bombwall.c)
     }
 
     if (thisx->params == BOMBFLOWER_BODY) {

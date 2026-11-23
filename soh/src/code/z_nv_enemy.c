@@ -519,6 +519,89 @@ static void NvEnemy_Hits(NvEnemy* this, PlayState* play) {
 static const s16 sNvGunDamage[10] = { 8, 9, 53, 50, 130, 20, 201, 95, 95, 900 };
 static const u8 sNvGunHitState[10] = { 1, 1, 2, 2, 2, 1, 2, 1, 1, 2 };
 
+/*
+ * RE1's hit records ("re1/hits", re1/tools/soh_weapons.py, from the player's executable):
+ * apply_weapon_damage's first-playthrough table, per enemy type and weapon (type * 10 + weapon id
+ * - 1), 12 bytes: knockback x, y, z, damage, the post-hit kind and data, the hit state. Without
+ * them (a mod made without the executable) every enemy takes the zombie's row above.
+ */
+typedef struct {
+    s16 kx, ky, kz;
+    s16 dmg;
+    u8 kind, data, hit, pad;
+} NvHitRecord;
+
+static const NvHitRecord* NvEnemy_HitRecord(s32 type, s32 item) {
+    static const u8* sHits;
+    static s32 sTried;
+    u16 n;
+    s32 k = type * 10 + item - 1;
+
+    if (!sTried) {
+        sTried = true;
+        if (ResourceMgr_FileExists("re1/hits")) {
+            sHits = (const u8*)ResourceGetDataByName("re1/hits");
+            if ((sHits != NULL) && (memcmp(sHits, "RHIT", 4) != 0)) {
+                sHits = NULL;
+            }
+        }
+    }
+    if ((sHits == NULL) || (item < 1) || (item > 10) || (type < 0)) {
+        return NULL;
+    }
+    memcpy(&n, sHits + 4, 2);
+    return (k < n) ? (const NvHitRecord*)(sHits + 6 + k * 12) : NULL;
+}
+
+/**
+ * The per-enemy rules of RE1's hit tests for a shot (WeaponDamage.cpp: apply_weapon_damage's aim
+ * filter, then weapon_hit_detect_knife / _gun / _projectile's own): whether actor a can be hit by
+ * weapon `item` aimed `aim` (the player's flags: 0x20 up, 0x40 level, 0x80 down), and what its
+ * reach changes by. False also for anything but RE1's enemies.
+ */
+/** The heights an enemy can be hit at now (its status flags' 0x20 up, 0x40 level, 0x80 down). */
+u8 NvEnemy_AimHeights(Actor* a) {
+    if ((a == NULL) || (a->id != NvActor_EnemyId())) {
+        return 0;
+    }
+    return ((NvEnemy*)a)->e.status_flags & 0xE0;
+}
+
+s32 NvEnemy_ShotRules(Actor* a, s32 item, u8 aim, s32* reachAdj) {
+    NvEnemy* this = (NvEnemy*)a;
+    NvRe1Entity* e = &this->e;
+    s32 t = this->type;
+    s32 zombie = (t == 0x00) || (t == 0x01) || (t == 0x11);
+
+    *reachAdj = 0;
+    if ((a == NULL) || (a->id != NvActor_EnemyId())) {
+        return false;
+    }
+    if ((e->status_flags & aim & 0xE0) == 0) { // (the heights it can be hit at: its status flags)
+        return false;
+    }
+    if (item == 1) { // the knife
+        if (zombie && (aim & 0x80)) {
+            return false;
+        }
+        if ((((t == 0x02) && (e->t[1] > -400)) || (t == 0x03)) && (aim & 0x40)) {
+            return false; // (a dog on the ground, a spider: not at the level)
+        }
+        if (((t == 0x05) || (t == 0x07) || (t == 0x09)) && (e->t[1] < -4800)) {
+            return false; // (on the ceiling)
+        }
+        *reachAdj = (t == 0x04) ? -800 : (t == 0x08) ? 2000 : ((t == 0x07) || (t == 0x0A)) ? 100 : 0;
+    } else if (item <= 5) { // the guns
+        if (zombie && (aim & 0x80) && (item != 3)) {
+            return false; // (a zombie aimed down at: only the shotgun)
+        }
+        *reachAdj = (t == 0x04) ? -1000 : (t == 0x08) ? 2000 : 0;
+    } else { // the flame and the launchers
+        *reachAdj = (t == 0x04) ? -1000 : 0;
+    }
+    return true;
+}
+
 static s32 NvEnemy_Parked(const NvRe1Entity* e);
 static void NvEnemy_JointsWorld(NvEnemy* this);
 
@@ -543,19 +626,324 @@ s32 NvEnemy_GunTarget(Actor* a, s32* x, s32* z, s32* radius) {
     return true;
 }
 
-/** A round from weapon item (RE1's item id) hits it. */
-void NvEnemy_GunHit(Actor* a, s32 item) {
+/** The enemy slot actor a holds (cmd_enemy_set's), or -1. */
+static s32 NvEnemy_SlotOf(Actor* a) {
+    s32 i;
+
+    for (i = 0; i < NV_ENEMY_SLOTS; i++) {
+        if (sNvEnemySlots[i] == a) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/*
+ * apply_weapon_damage's post-hit (WeaponDamage.cpp PTR_post_hit_callbacks and g_enemy_hit_reactions):
+ * the rules that change the hit, and the hit's billboards (blood, sparks, fire) on the enemy.
+ */
+u8 NvFx_OnEnemy(u8 type, u8 group, s16 rot, s32 slot, const s32* off, u8 lf);
+u8 NvFx_AtHand(u8 type, u8 group, const s32* hand, const s32* off);
+void NvRe1_EnemySound(NvRe1Entity* e, u8 id);
+
+typedef struct {
+    NvEnemy* en;
+    s32 slot;
+    s32 item;       // the weapon (RE1's item id; weaponAdj is item - 1)
+    u8 aim;         // the player's aim flags
+    s32 dist;       // g_playerDisplacement: how far it was
+    s16 before;     // g_entity_bkp: its health before the shot
+    u8 kind, data;  // the record's billboard (g_collPushDepthZHi / Lo)
+    s16 kx;         // the record's x (0x96: a hit high on it)
+    s32 at[3];      // g_playerPosScratch: the billboard's place on it
+    s16 rot;        // hit_billboard_rot
+} NvPostHit;
+
+static void NvPh_Fx(NvPostHit* h, u8 type, u8 group, s16 rot) {
+    NvFx_OnEnemy(type, group, rot, h->slot, h->at, 0);
+}
+
+/** The aim-up headshot: the blood lifted to the head (its joint 1 that high, or -300). */
+static void NvPh_Lift(NvPostHit* h, s32 headY) {
+    NvRe1Entity* e = &h->en->e;
+
+    if ((h->kx == 0x96) && (h->aim & 0x20)) {
+        h->at[1] += 1000;
+        if (((e->numJoints > 1) ? e->joint[1][1] : e->t[1]) > headY) {
+            h->at[1] = -300;
+        }
+    }
+}
+
+/** The four pairs round a body that dies (blood and blood3), twice more for a high hit. */
+static void NvPh_DeathPairs(NvPostHit* h, u8 type) {
+    s32 t = h->en->type;
+    s32 k;
+
+    if ((t == 0x05) || (t == 0x07) || (t == 0x0A)) { // (not the crow, the wasp, the adder)
+        return;
+    }
+    for (k = 0; k < ((h->kx == 0x96) ? 2 : 1); k++) {
+        h->at[1] = k ? -1000 : 0;
+        h->at[0] = -100;
+        h->at[2] = -300;
+        NvPh_Fx(h, type, 6, h->rot);
+        NvPh_Fx(h, 9, 0xD, h->rot);
+        h->at[0] = 100;
+        h->at[2] = 300;
+        NvPh_Fx(h, type, 6, h->rot);
+        NvPh_Fx(h, 9, 0xD, h->rot);
+    }
+}
+
+/** g_enemy_hit_reactions: by the enemy's type (the knife, the handgun, the shotgun, the Pythons). */
+static void NvPh_Reaction(NvPostHit* h) {
+    NvRe1Entity* e = &h->en->e;
+    s32 t = h->en->type;
+    s32 adj = h->item - 1;
+
+    switch (t) {
+        case 0x00: // the zombies (and the dog): enemy_hit_reaction_zombie
+        case 0x01:
+        case 0x02:
+        case 0x11:
+            if (t != 0x02) {
+                // the head blown off: the shotgun inside 3000 aimed level or down, the Python at the level
+                if (((adj == 2) && (h->dist < 3000) && (h->aim & 0xC0)) ||
+                    (((adj == 3) || (adj == 4)) && (h->aim & 0x40))) {
+                    s32 burst[3] = { 100, -600, 0 };
+                    s32 headAt[3];
+
+                    e->health = -300;
+                    e->headless = true; // (z_nv_enemy.c draws it gone, with the burst)
+                    if (e->death_event_id != 0xFF) {
+                        NvFlags_Op(3, e->death_event_id, 0);
+                    }
+                    NvRe1_EnemySound(e, 6);
+                    // (RE1's burst at the head's joint, and the joint's own spurt: here at its place)
+                    headAt[0] = burst[0];
+                    headAt[1] = burst[1] + ((e->numJoints > 1) ? (e->joint[1][1] - e->t[1]) : -1500);
+                    headAt[2] = burst[2];
+                    NvFx_OnEnemy(0, 3, 0, h->slot, headAt, 0);
+                    h->at[1] -= 0x78;
+                    NvPh_Fx(h, 3, 0, h->rot);
+                    h->at[1] += 0x78;
+                    printf("NVENEMY the head blown off (weapon %d)\n", (int)h->item);
+                }
+                if (h->aim & 0x20) {
+                    h->at[1] = (e->behavior_flags & 2) ? -500 : -600;
+                }
+            }
+            if (adj == 1) { // Jill's handgun: a little more (the dog 7)
+                e->health = (s16)(e->health - ((t == 0x02) ? 7 : 3));
+            }
+            if (h->kind == 4) {
+                if (h->dist < 9000) {
+                    s32 i;
+
+                    for (i = 4; i != 0; i--) {
+                        NvPh_Fx(h, 4, (u8)i, (s16)((i + 5) * 0x100 - e->angle + gNvRe1Player.angle));
+                    }
+                }
+                h->kind = 0;
+            }
+            NvPh_Fx(h, h->kind, h->data, h->rot);
+            break;
+        case 0x03: // basic: the record's billboard
+        case 0x04:
+        case 0x05:
+        case 0x07:
+        case 0x0A:
+            NvPh_Fx(h, h->kind, h->data, h->rot);
+            break;
+        case 0x06: // the Hunter: the head's
+            if (h->aim & 0x20) {
+                h->at[1] += 1000;
+                if (((e->numJoints > 1) ? e->joint[1][1] : e->t[1]) > -800) {
+                    h->at[1] = -300;
+                }
+            }
+            NvPh_Fx(h, 3, 8, h->rot);
+            NvPh_Fx(h, h->kind, h->data, h->rot);
+            break;
+        case 0x08: // Plant 42: from far off, half the time it shrugs the shot off
+            if (adj != 0) {
+                if ((h->dist > 7000) && (Rand_Next() & 0x10000)) {
+                    e->health = h->before;
+                    printf("NVENEMY Plant 42 shrugged it off (from %d)\n", (int)h->dist);
+                }
+                NvPh_Fx(h, 0, 0x18, h->rot);
+            }
+            break;
+        default: // the rest: nothing
+            break;
+    }
+}
+
+/** PTR_post_hit_callbacks[weapon - 1]. */
+static void NvPh_PostHit(NvPostHit* h, u8* hitState) {
+    NvRe1Entity* e = &h->en->e;
+    s32 t = h->en->type;
+    s32 adj = h->item - 1;
+
+    switch (adj) {
+        case 0: { // the knife: its sound (the weapon's), the reaction, the blood at her hand
+            s32 hand[3];
+            static const s32 sKnife[3] = { -380, 0, 0 }; // (Jill's)
+
+            NvPh_Reaction(h);
+            if (h->kind != 1) {
+                hand[0] = gNvRe1Player.t[0];
+                hand[1] = gNvRe1Player.t[1] - 1100;
+                hand[2] = gNvRe1Player.t[2];
+                NvFx_AtHand(h->kind, h->data, hand, sKnife);
+            }
+            break;
+        }
+        case 2: // the shotgun (and the Pythons): from far off it does less
+        case 3:
+        case 4:
+            if ((adj == 2) && (h->dist > 9000)) {
+                e->health += 10;
+                (*hitState)--;
+            }
+            // fall through
+        case 1:
+            NvPh_Reaction(h);
+            break;
+        case 5: // the flame and the launcher's flame rounds: weapon_post_hit_blood
+        case 8:
+        case 9: // (the rocket: blood3, the same with its own death test)
+            if (h->kind != 1) {
+                NvPh_Lift(h, -1000);
+                NvPh_Fx(h, 0xE, h->data, h->rot);
+                NvPh_Fx(h, 9, 0xD, h->rot);
+                if ((t != 0x07) && (t != 0x0A) && (t != 0x08)) {
+                    h->at[1] -= 500;
+                    NvPh_Fx(h, 0xE, 3, h->rot);
+                    NvPh_Fx(h, 9, 0xD, h->rot);
+                }
+                if ((e->health < 0) && ((adj == 9) ? (h->kind != 2) : (h->kind == 0xE))) {
+                    NvPh_DeathPairs(h, 0xE);
+                }
+            }
+            if (adj != 9) {
+                break;
+            }
+            // (the rocket's then goes on to blood2's)
+        case 6: // the explosive round: weapon_post_hit_blood2
+            if (h->kind != 1) {
+                NvPh_Lift(h, -1000);
+                NvPh_Fx(h, 0xE, 7, h->rot);
+                NvPh_Fx(h, 9, 0xD, h->rot);
+                NvPh_Fx(h, 9, 0xD, h->rot);
+                if (t != 0x08) {
+                    h->at[1] -= 200;
+                    NvPh_Fx(h, 9, 0xD, h->rot);
+                    NvPh_Fx(h, 9, 0xD, h->rot);
+                    if ((e->health < 0) && (h->kind == 0)) {
+                        h->at[1] = -500;
+                        NvPh_Fx(h, 9, 0xD, h->rot);
+                        NvPh_Fx(h, 9, 0xD, h->rot);
+                    }
+                }
+            }
+            break;
+        case 7: // the acid round: weapon_post_hit_sparks
+            if (h->kind != 1) {
+                NvPh_Lift(h, -1000);
+                NvPh_Fx(h, 9, 0, h->rot);
+                NvPh_Fx(h, 9, 0, h->rot);
+                if ((e->health < 0) && (h->kind == 9) && (t != 0x05) && (t != 0x07) && (t != 0x0A) &&
+                    (t != 0x08)) {
+                    h->at[1] = 0;
+                    h->at[0] = -100;
+                    h->at[2] = -300;
+                    NvPh_Fx(h, 9, 0, h->rot);
+                    NvPh_Fx(h, 9, 1, h->rot);
+                    h->at[0] = 100;
+                    h->at[2] = 300;
+                    NvPh_Fx(h, 9, 0, h->rot);
+                    NvPh_Fx(h, 9, 1, h->rot);
+                }
+            }
+            break;
+    }
+}
+
+/**
+ * A round from weapon item (RE1's item id), aimed `aim`, hits it (apply_weapon_damage): the damage
+ * and hit state from RE1's record for its type and the weapon, the hit state raised by the aim
+ * unless it was up (0x20); then RE1's post-hit for the weapon and the enemy (its rules: the head
+ * blown off, the handgun's extra, the shotgun from far off, Plant 42 shrugging a shot off; and its
+ * billboards). dist: how far the shot came (g_playerDisplacement). RE1's characters (type 0x14 and
+ * up) take no damage.
+ */
+void NvEnemy_GunHitFrom(Actor* a, s32 item, u8 aim, s32 dist) {
     NvEnemy* this = (NvEnemy*)a;
     s32 k = CLAMP(item - 1, 0, 9);
+    const NvHitRecord* rec = NvEnemy_HitRecord(this->type, item);
 
     // the spider web's row of the hit records: the knife cuts it, fire and the launchers burn it, bullets don't
     static const s16 sNvWebDamage[10] = { 10, 0, 0, 0, 0, 2, 30, 30, 30, 900 };
-    s16 dmg = NvEnemy_IsWeb(this->type) ? sNvWebDamage[k] : sNvGunDamage[k];
+    NvPostHit h;
+    s16 dmg;
+    u8 hit;
+    u8 hitState;
 
+    if (this->type >= 0x14) {
+        return;
+    }
+    if (rec != NULL) {
+        dmg = rec->dmg;
+        hit = rec->hit;
+    } else {
+        dmg = NvEnemy_IsWeb(this->type) ? sNvWebDamage[k] : sNvGunDamage[k];
+        hit = sNvGunHitState[k];
+    }
+    if ((aim & 0xE0) != 0x20) {
+        hit += (u8)(aim >> 5);
+    }
+    memset(&h, 0, sizeof(h));
+    h.en = this;
+    h.slot = NvEnemy_SlotOf(a);
+    h.item = item;
+    h.aim = aim;
+    h.dist = dist;
+    h.before = this->e.health;
+    h.rot = (s16)(gNvRe1Player.angle - this->e.angle + 0x800);
+    if (rec != NULL) {
+        h.kind = rec->kind;
+        h.data = rec->data;
+        h.kx = rec->kx;
+        h.at[0] = rec->kx;
+        h.at[1] = rec->ky;
+        h.at[2] = rec->kz;
+    } else {
+        h.kind = 1; // (no record: no billboard)
+    }
+    // apply_weapon_damage: the damage, the hit state, the post-hit, then dying or hurt by what's left
+    this->e.health -= dmg;
+    hitState = hit;
+    if (!NvEnemy_IsWeb(this->type)) {
+        NvPh_PostHit(&h, &hitState);
+    }
+    dmg = h.before - this->e.health;
+    this->e.health = h.before;
     Actor_SetColorFilter(&this->actor, 0x4000, 255, 0, 8);
-    NvZombie_Hit(&this->e, dmg, sNvGunHitState[k], (u8)item);
-    printf("NVENEMY shot (weapon %d): %d damage, health %d\n", (int)item, dmg, this->e.health);
+    NvZombie_Hit(&this->e, dmg, hitState, (u8)item);
+    printf("NVENEMY shot (weapon %d, aim %02X, from %d): %d damage, hit %d, health %d\n", (int)item, aim, (int)dist,
+           dmg, hitState, this->e.health);
     fflush(stdout);
+}
+
+/** NvEnemy_GunHitFrom, from where Link stands. */
+void NvEnemy_GunHit(Actor* a, s32 item, u8 aim) {
+    NvEnemy* this = (NvEnemy*)a;
+    f32 dx = (f32)(this->e.t[0] - gNvRe1Player.t[0]);
+    f32 dz = (f32)(this->e.t[2] - gNvRe1Player.t[2]);
+
+    NvEnemy_GunHitFrom(a, item, aim, (s32)sqrtf(dx * dx + dz * dz));
 }
 
 /** RE1's grab, as OoT's: held while RE1's attack lasts, let go when it ends. */
@@ -1259,6 +1647,127 @@ static void NvEnemy_JointsWorld(NvEnemy* this) {
     this->e.numJoints = (u8)MIN(m->numBones, NV_RE1_JOINTS);
 }
 
+/*
+ * The ground shadow (FadeSprite.cpp entity_add_fade_sprite / DrawFadeSpr): RE1's shadow mask
+ * ("re1/ui/kage", re1/tools/soh_ui.py) on a quad flat on the floor under the entity, turned as it
+ * faces, its half sizes the ones each enemy's init gives FUN_004565f0 (the zombie 700 x 900, the
+ * dog 0x550 x 0x200, ...; the chimera and the adder none), darkening the floor as RE1's page does.
+ */
+typedef struct {
+    u8 type;
+    s16 w, h;
+    u8 tint; // (0x80: RE1's 0x808080)
+} NvShadowSize;
+
+static const NvShadowSize sNvShadowSizes[] = {
+    { 0x00, 700, 900, 0x80 },   { 0x01, 700, 900, 0x80 },   { 0x11, 700, 900, 0x80 },
+    { 0x02, 0x550, 0x200, 0x80 }, { 0x03, 0x4B0, 0x4B0, 0x80 }, { 0x04, 0x9C4, 0x9C4, 0x80 },
+    { 0x05, 200, 200, 0x80 },   { 0x06, 1000, 1000, 0x80 }, { 0x07, 100, 100, 0x60 },
+    { 0x0B, 1000, 150, 0x80 },  { 0x0C, 1000, 1000, 0x80 }, { 0x10, 1000, 1000, 0x80 },
+    { 0x0D, 1000, 1000, 0x80 }, { 0x12, 1000, 1000, 0x80 }, { 0x0F, 500, 100, 0x80 },
+};
+
+static const u8* NvEnemy_Kage(void) {
+    static const u8* sKage;
+    static s32 sTried;
+
+    if (!sTried) {
+        sTried = true;
+        if (ResourceMgr_FileExists("re1/ui/kage")) {
+            sKage = (const u8*)ResourceGetDataByName("re1/ui/kage");
+            if ((sKage != NULL) && (memcmp(sKage, "RKAG", 4) != 0)) {
+                sKage = NULL;
+            }
+        }
+    }
+    return sKage;
+}
+
+static void NvEnemy_DrawShadow(NvEnemy* this, PlayState* play) {
+    const u8* kage = NvEnemy_Kage();
+    GraphicsContext* gfxCtx = play->state.gfxCtx;
+    CollisionPoly* poly;
+    Vec3f at;
+    f32 floorY;
+    s32 hw = 500; // (RE1's characters: Jill's own 500 x 700)
+    s32 hh = 700;
+    u8 tint = 0x80;
+    u16 kw, kh;
+    s32 c;
+    s32 k;
+    s16 sn;
+    s16 cs;
+    Vtx* vtx;
+    Mtx* mtx;
+    MtxF mf;
+
+    if (kage == NULL) {
+        return;
+    }
+    if (this->type < 0x14) {
+        hw = 0;
+        for (k = 0; k < (s32)ARRAY_COUNT(sNvShadowSizes); k++) {
+            if (sNvShadowSizes[k].type == this->type) {
+                hw = sNvShadowSizes[k].w;
+                hh = sNvShadowSizes[k].h;
+                tint = sNvShadowSizes[k].tint;
+            }
+        }
+        if (hw == 0) {
+            return;
+        }
+    }
+    memcpy(&kw, kage + 4, 2);
+    memcpy(&kh, kage + 6, 2);
+    at = this->actor.world.pos;
+    at.y += 20.0f;
+    floorY = BgCheck_EntityRaycastFloor1(&play->colCtx, &poly, &at);
+    if (floorY <= BGCHECK_Y_MIN) {
+        return;
+    }
+    // the quad: corners (-w, +h) (+w, +h) (+w, -h) (-w, -h) in its own frame (RE1's RotMatrixY of its
+    // facing), to OoT's axes (x, -z), at 1/16 OoT units a vertex step
+    sn = (s16)(Math_SinS(this->e.angle * 16) * 4096.0f);
+    cs = (s16)(Math_CosS(this->e.angle * 16) * 4096.0f);
+    vtx = Graph_Alloc(gfxCtx, sizeof(Vtx) * 4);
+    for (c = 0; c < 4; c++) {
+        s32 cx = ((c == 0) || (c == 3)) ? -hw : hw;
+        s32 cz = (c < 2) ? hh : -hh;
+        f32 rx = (cs * cx + sn * cz) / 4096.0f;
+        f32 rz = (-sn * cx + cs * cz) / 4096.0f;
+        s32 u = ((cx + hw) * kw * 32) / (2 * hw);
+        s32 v = ((hh - cz) * kh * 32) / (2 * hh);
+
+        vtx[c] = (Vtx)VTX((s16)(rx * NV_RE1_SCALE * 16.0f), 0, (s16)(-rz * NV_RE1_SCALE * 16.0f), u, v, 0, 0, 0,
+                          255);
+    }
+    SkinMatrix_SetTranslate(&mf, this->actor.world.pos.x, floorY + 0.5f, this->actor.world.pos.z);
+    mf.xx = mf.yy = mf.zz = 1.0f / 16.0f;
+    mtx = SkinMatrix_MtxFToNewMtx(gfxCtx, &mf);
+    if (mtx == NULL) {
+        return;
+    }
+    OPEN_DISPS(gfxCtx);
+    gSPMatrix(POLY_XLU_DISP++, mtx, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    POLY_XLU_DISP = Gfx_SetupDL(POLY_XLU_DISP, 0x19);
+    gDPPipeSync(POLY_XLU_DISP++);
+    gSPClearGeometryMode(POLY_XLU_DISP++, G_LIGHTING | G_FOG | G_CULL_BOTH);
+    gDPSetCycleType(POLY_XLU_DISP++, G_CYC_1CYCLE);
+    gDPSetTextureLUT(POLY_XLU_DISP++, G_TT_NONE);
+    // black, the mask's darkening as its alpha (times the shadow's tint: 0x80 whole)
+    gDPSetCombineLERP(POLY_XLU_DISP++, 0, 0, 0, 0, TEXEL0, 0, PRIMITIVE, 0, 0, 0, 0, 0, TEXEL0, 0, PRIMITIVE, 0);
+    gDPSetRenderMode(POLY_XLU_DISP++, G_RM_ZB_CLD_SURF, G_RM_ZB_CLD_SURF2);
+    gDPSetPrimColor(POLY_XLU_DISP++, 0, 0, 0, 0, 0, (u8)MIN(255, tint * 255 / 0x80));
+    gSPTexture(POLY_XLU_DISP++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
+    gDPSetTexturePersp(POLY_XLU_DISP++, G_TP_PERSP);
+    gDPSetTextureFilter(POLY_XLU_DISP++, G_TF_BILERP);
+    gDPLoadTextureBlock(POLY_XLU_DISP++, kage + 8, G_IM_FMT_I, G_IM_SIZ_8b, 32, 32, 0, G_TX_NOMIRROR | G_TX_CLAMP,
+                        G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+    gSPVertex(POLY_XLU_DISP++, vtx, 4, 0);
+    gSP2Triangles(POLY_XLU_DISP++, 0, 1, 2, 0, 0, 2, 3, 0);
+    CLOSE_DISPS(gfxCtx);
+}
+
 void NvEnemy_Draw(Actor* thisx, PlayState* play) {
     NvEnemy* this = (NvEnemy*)thisx;
     NvEmModel* m = this->model;
@@ -1277,6 +1786,7 @@ void NvEnemy_Draw(Actor* thisx, PlayState* play) {
     if (thisx->colorFilterTimer != 0) {
         tint = 80;
     }
+    NvEnemy_DrawShadow(this, play);
     // the entity: RotMatrix(pitch, facing, roll), then to OoT's axes and scale (x, -y, -z)
     NvEnemy_RotMatrix(this->e.pitch, this->e.angle, this->e.roll, M);
     for (n = 0; n < 3; n++) {

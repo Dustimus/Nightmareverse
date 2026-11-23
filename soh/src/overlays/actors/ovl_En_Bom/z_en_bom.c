@@ -279,6 +279,11 @@ void EnBom_Update(Actor* thisx, PlayState* play2) {
     this->actionFunc(this, play);
 
     Actor_UpdateBgCheckInfo(play, thisx, 5.0f, 10.0f, 15.0f, 0x1F);
+    {
+        s32 NvBombWall_Check(PlayState* play, Actor* a);
+
+        NvBombWall_Check(play, thisx); // Nightmareverse: RE1's rooms' bomb layer (z_nv_bombwall.c)
+    }
 
     if (thisx->params == BOMB_BODY) {
         float timerMultiplier = CVarGetFloat(CVAR_CHEAT("BombTimerMultiplier"), 1.0f);

@@ -741,6 +741,59 @@ static u32 room_check_sight_blocked(s32 dx, s32 dz, u8 cell) {
     return 0;
 }
 
+/**
+ * check_weapon_line_of_sight (0x0048a530) for a shot: from the player's place (x, z) to the target
+ * (tx, tz), room_check_sight_blocked over the room's four layers (3 down to 0); true if any blocks it.
+ */
+s32 NvRe1_ShotBlocked(s32 x, s32 z, s32 tx, s32 tz) {
+    static NvRe1Entity sFrom; // (ENTITY is the player when RE1 tests it)
+    NvRe1Entity* keep = E;
+    u32 blocked = 0;
+    s32 layer;
+
+    sFrom.t[0] = x;
+    sFrom.t[2] = z;
+    sFrom.id = 1;
+    E = &sFrom;
+    for (layer = 3; layer >= 0; layer--) {
+        blocked |= room_check_sight_blocked(tx - x, tz - z, (u8)layer);
+    }
+    E = keep;
+    return blocked != 0;
+}
+
+/**
+ * effect_probe_ground (EffectSystem.cpp 0x0047daf0) for an effect at (x, z): inside (grown by
+ * radius) a record of its quadrant whose flag bits 8-9 are both up, a wall it meets.
+ */
+s32 NvRe1_EffectProbe(s32 x, s32 z, s32 radius) {
+    u32 cell;
+    s32 i;
+
+    if (sBounds == NULL) {
+        return false;
+    }
+    cell = ChkOutsideCell(x, z);
+    if (cell > 3) {
+        return false;
+    }
+    for (i = sBoundGroup[cell]; i < sBoundGroup[cell + 1]; i++) {
+        if (((sBounds[i].flags & 0x300) == 0x300) && BoundInside(&sBounds[i], x, z, radius)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** Snd_em for enemy e (apply_weapon_damage's head explosion: its sound 6). */
+void NvRe1_EnemySound(NvRe1Entity* e, u8 id) {
+    NvRe1Entity* keep = E;
+
+    E = e;
+    Snd_em(id);
+    E = keep;
+}
+
 /* ---- the entity helpers (EntityCommon.cpp) ---- */
 
 static u8 check_line_of_sight(s32 x, s32 z) {
