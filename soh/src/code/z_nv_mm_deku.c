@@ -629,10 +629,97 @@ void NvMmDeku_DrawHandFlower(PlayState* play, Player* this, s32 limbIndex) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
+
+/* ---- the bubble on B (MM's Player_UpperAction_7/8 for Deku, func_808306F8; the bubble: z_nv_mm_bubble.c) ---- */
+
+#define ANIM_TAMAHAKIDF MMANIM("gPlayerAnim_pn_tamahakidf")
+#define ANIM_TAMAHAKI MMANIM("gPlayerAnim_pn_tamahaki")
+
+s32 NvMmActor_Id(s32 mmId);
+void NvMmBubble_Fire(Actor* thisx, PlayState* play);
+s32 NvMmBubble_Blowing(Actor* thisx);
+
+static Actor* sBubble;
+
+static void NvMmDeku_Blow(Player* this, PlayState* play) {
+    Input* input = &play->state.input[0];
+    f32 speedTarget;
+    s16 yawTarget;
+
+    LinkAnimation_Update(play, &this->skelAnime);
+    Player_DecelerateToZero(this);
+    if (Player_GetMovementSpeedAndYaw(this, &speedTarget, &yawTarget, 0.018f, play) && (speedTarget > 0.0f)) {
+        Math_ScaledStepToS(&this->yaw, yawTarget, 0x258); // (turning to aim, as MM lets him)
+    }
+    this->actor.shape.rot.y = this->yaw;
+    if ((sBubble != NULL) && (sBubble->update == NULL)) {
+        sBubble = NULL;
+    }
+    if ((sBubble != NULL) && NvMmBubble_Blowing(sBubble)) {
+        if (!CHECK_BTN_ALL(input->cur.button, BTN_B)) { // let go: off it goes
+            NvMmBubble_Fire(sBubble, play);
+            LinkAnimation_PlayOnce(play, &this->skelAnime, ANIM_TAMAHAKI);
+            NvMmDeku_Log("bubble");
+        }
+    } else if ((this->skelAnime.animation != ANIM_TAMAHAKI) ||
+               (this->skelAnime.curFrame >= Animation_GetLastFrame(ANIM_TAMAHAKI))) {
+        if ((sBubble != NULL) && (this->skelAnime.animation != ANIM_TAMAHAKI)) { // (it went on its own)
+            LinkAnimation_PlayOnce(play, &this->skelAnime, ANIM_TAMAHAKI);
+            return;
+        }
+        sBubble = NULL;
+        func_80839F90(this, play);
+    }
+}
+
+/** z_nv_mm_mask.c's head hook: the bubble being blown sits at his mouth (MM's D_801C0EA0, in the
+ * head's space, turned a quarter as MM does). */
+void NvMmDeku_HeadPostLimb(PlayState* play, Player* this) {
+    static Vec3f sMouth = { 1300.0f, -400.0f, 0.0f };
+    MtxF mf;
+
+    if ((sBubble == NULL) || (sBubble->update == NULL) || !NvMmBubble_Blowing(sBubble)) {
+        return;
+    }
+    Matrix_Push();
+    Matrix_MultVec3f(&sMouth, &sBubble->world.pos);
+    Matrix_RotateZYX(0, 0x4000, 0, MTXMODE_APPLY);
+    Matrix_Get(&mf);
+    Matrix_MtxFToYXZRotS(&mf, &sBubble->shape.rot, 0);
+    sBubble->world.rot.y = sBubble->shape.rot.y;
+    Matrix_Pop();
+}
+
+/** B as Deku, standing: a bubble blown (MM's 2 magic). True if he started. */
+static s32 NvMmDeku_TryBubble(PlayState* play, Player* this) {
+    if (!CHECK_BTN_ALL(play->state.input[0].press.button, BTN_B)) {
+        return false;
+    }
+    if ((gSaveContext.magicLevel == 0) || !Magic_RequestChange(play, 2, MAGIC_CONSUME_NOW)) {
+        Sfx_PlaySfxCentered(NA_SE_SY_ERROR); // (no magic: as MM)
+        return true;
+    }
+    sBubble = Actor_SpawnAsChild(&play->actorCtx, &this->actor, play, NvMmActor_Id(0x00F), this->actor.world.pos.x,
+                                 this->actor.world.pos.y, this->actor.world.pos.z, 0, this->actor.shape.rot.y, 0, 0);
+    if (sBubble == NULL) {
+        return true;
+    }
+    Player_SetupAction(play, this, NvMmDeku_Blow, 0);
+    LinkAnimation_Change(play, &this->skelAnime, ANIM_TAMAHAKIDF, 1.0f, 0.0f, Animation_GetLastFrame(ANIM_TAMAHAKIDF),
+                         ANIMMODE_LOOP, -6.0f);
+    this->yaw = this->actor.shape.rot.y;
+    NvMmDeku_Log("blowing a bubble");
+    return true;
+}
+
 /* ---- the hooks (z_player.c) ---- */
 
 /** OoT's roll handler (A): MM's Deku spin, on the ground and out of the water. */
 s32 NvMmDeku_ActionA(PlayState* play, Player* this) {
+    if (NvMmDeku_Is(this) && (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) &&
+        !(this->stateFlags1 & (PLAYER_STATE1_IN_WATER | PLAYER_STATE1_ON_HORSE)) && NvMmDeku_TryBubble(play, this)) {
+        return true; // (B: the bubble; this hook is OoT's last free-standing handler, A's and B's)
+    }
     if (!NvMmDeku_Is(this) || !CHECK_BTN_ALL(play->state.input[0].press.button, BTN_A) ||
         !(this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) || (this->stateFlags1 & PLAYER_STATE1_IN_WATER) ||
         (this->stateFlags1 & PLAYER_STATE1_ON_HORSE)) {

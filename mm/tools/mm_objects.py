@@ -79,6 +79,9 @@ OBJECTS = {
         "gSquareShadowDL": 0x75A40,
         "gDekuMaskDL": 0x56C0,  # the Deku Mask on Link's face, put on (the transformation scene)
         "gPinkDekuFlowerIdleDL": 0xED80,  # the Deku flowers (Obj_Etcetera), at rest
+        "gameplay_keep_DL_06F380": 0x6F380,  # the Deku bubble (En_Arrow's): its setup,
+        "gameplay_keep_DL_06F9F0": 0x6F9F0,  # being blown,
+        "gameplay_keep_DL_06FAE0": 0x6FAE0,  # and flying
         "gGoldDekuFlowerIdleDL": 0x11BD0,
         "gCircleShadowDL": 0x76BC0,
         "gEffFire1DL": 0x7D590,  # a torch's flame (Obj_Syokudai)

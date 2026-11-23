@@ -832,8 +832,9 @@ in z_player.c (agreed with the user, 2026-11-23, RE1 to adjust if it needs to):
 
 Sounds are OoT's nearest (its Deku Scrubs', its jumps and water): MM's own wait for MM's audio.
 
-Dev: NV_DEKU_NOHOPS starts him with no hops (to try the sinking); the walker's `press:r:N` holds R
-N frames.
+Dev: NV_DEKU_NOHOPS starts him with no hops (to try the sinking); NV_MAGIC fills the magic meter
+(giving one if there's none: the debug save has none); the walker's `press:a:N`, `press:b:N` and
+`press:r:N` hold A, B or R N frames.
 
 **The Deku flowers** (2026-11-24, `soh/src/code/z_nv_mm_etcetera.c`, MM's Obj_Etcetera; the
 player's side in z_nv_mm_deku.c): the pink and gold flowers, MM's own models, animations (the rustle,
@@ -848,7 +849,15 @@ drops; A lets go). The hand flowers are drawn at his hands (a one-line hook in z
 MM's func_801271B0 with its keyframed scales). While he flies OoT is told he's airborne in an
 action of its own (its midair flag: otherwise it starts its own fall), and its jump camera follows.
 
-Not yet: the bubble on B (magic, MM's bubble), dropping Deku Nuts from the air on B (MM spawns its
+**The bubble on B** (2026-11-24, `soh/src/code/z_nv_mm_bubble.c`, MM's En_Arrow as its Deku
+bubble): B standing as Deku takes MM's 2 magic and blows a bubble at his mouth (placed by his head,
+MM's spot), growing as MM's does while B is held; he turns to aim; let go (or full for 20 frames) it
+flies off, the bigger the slower, for 99 frames, bursting on what it hits (as OoT's slingshot seed,
+for 1: OoT has no bubble damage). MM's look refracts the screen behind it (it reads the frame buffer,
+which SoH can't sample that way): here MM's mesh is shaded plainly in MM's colour. No magic: the
+error sound. Registered as MM's En_Arrow (0x00F), spawned only by him.
+
+Not yet: dropping Deku Nuts from the air on B (MM spawns its
 nut from En_Arrow; OoT's En_Arrow nut isn't made for it), MM's flight camera (OoT's jump camera
 lags well behind him in tight spots: the South Clock Town flower's corner), the flower's floor
 light, the hop counter on the A button, sinking into another room (put back only within the room
@@ -856,7 +865,8 @@ he's in).
 
 Tested headless: the spin and the guard in South Clock Town (A next to the gate guard talks first),
 a hop across Laundry Pool's water, the sinking and being put back on land; South Clock Town's
-flower: standing on it, diving in, charging, the launch, hovering and gliding back down onto it.
+flower: standing on it, diving in, charging, the launch, hovering and gliding back down onto it; a
+bubble blown and fired in South Clock Town.
 
 ### Young Link is MM's model in Termina (2026-11-23, `soh/src/code/z_nv_mm_link.c`)
 

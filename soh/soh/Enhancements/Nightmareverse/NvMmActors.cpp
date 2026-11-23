@@ -95,6 +95,11 @@ void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvMmEtceteraSize;
+void NvMmBubble_Init(Actor* thisx, PlayState* play);
+void NvMmBubble_Destroy(Actor* thisx, PlayState* play);
+void NvMmBubble_Update(Actor* thisx, PlayState* play);
+void NvMmBubble_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmBubbleSize;
 void NvMmTalk_Init(Actor* thisx, PlayState* play);
 void NvMmTalk_Destroy(Actor* thisx, PlayState* play);
 void NvMmTalk_Update(Actor* thisx, PlayState* play);
@@ -200,6 +205,9 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x183,
       { "Mm_Obj_Etcetera", "MM: a Deku flower", ACTORCAT_BG, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmEtceteraSize,
         NvMmEtcetera_Init, NvMmEtcetera_Destroy, NvMmEtcetera_Update, NvMmEtcetera_Draw } },
+    { 0x00F, // (MM's En_Arrow: here only its Deku bubble, spawned by Deku Link, never by a room)
+      { "Mm_En_Arrow_Bubble", "MM: Deku Link's bubble", ACTORCAT_ITEMACTION, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmBubbleSize,
+        NvMmBubble_Init, NvMmBubble_Destroy, NvMmBubble_Update, NvMmBubble_Draw } },
     { 0x261,
       { "Mm_En_Talk", "MM: something to read or check", ACTORCAT_ITEMACTION, ACTOR_FLAG_ATTENTION_ENABLED, &gNvMmTalkSize, NvMmTalk_Init,
         NvMmTalk_Destroy, NvMmTalk_Update, NULL } },

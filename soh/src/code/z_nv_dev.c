@@ -6,7 +6,7 @@
  *   NV_WALK="x,z;x,z;wait:N"  steer Link through waypoints with the control stick (camera-
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
  *                             (default 200); "wait:N" stands still N frames, "a" presses A, "b" B,
- *                             "press:cu" (cd, cl, cr, a, r) holds a button 8 frames (an ocarina note; "press:r:60" 60),
+ *                             "press:cu" (cd, cl, cr, a, b, r) holds a button 8 frames (an ocarina note; "press:r:60" 60),
  *                             "start" Start, "left"/"right"/"up"/"down" the D-pad, "sdown"/"sup"/"sleft"/"sright"
  *                             the stick 4 frames (a textbox choice), "choice:N" waits for a choice
  *                             box and takes choice N (0 first), "cl:N" holds
@@ -178,7 +178,7 @@ static void NvDev_ParsePath(void) {
             sNvPathLen++;
         } else if (strncmp(s, "press:", 6) == 0) { // a note's press: press:cu / cd / cl / cr / a, held 8 frames
             wp->kind = NV_WP_HOLD;
-            wp->x = (s[6] == 'a') ? BTN_A : (s[6] == 'r') ? BTN_R
+            wp->x = (s[6] == 'a') ? BTN_A : (s[6] == 'r') ? BTN_R : (s[6] == 'b') ? BTN_B
                     : (s[7] == 'u') ? BTN_CUP : (s[7] == 'd') ? BTN_CDOWN : (s[7] == 'l') ? BTN_CLEFT : BTN_CRIGHT;
             wp->wait = 8;
             {
@@ -345,6 +345,15 @@ void NvDev_Update(PlayState* play) {
     if (!sHealthSet && (getenv("NV_HEALTH") != NULL) && (play->gameplayFrames > 2)) {
         sHealthSet = true;
         gSaveContext.health = (s16)atoi(getenv("NV_HEALTH"));
+    }
+    // dev: NV_MAGIC fills the magic meter (giving a meter if there's none), e.g. for Deku Link's bubble
+    if ((getenv("NV_MAGIC") != NULL) && (play->gameplayFrames > 2) && (gSaveContext.magicState == 0) &&
+        (gSaveContext.magic < 0x30)) {
+        if (gSaveContext.magicLevel == 0) {
+            gSaveContext.magicLevel = 1;
+            gSaveContext.isMagicAcquired = true;
+        }
+        gSaveContext.magic = 0x30;
     }
 
     if ((player != NULL) && CHECK_BTN_ALL(input->cur.button, BTN_L) &&
