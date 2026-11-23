@@ -42,6 +42,7 @@ void NvEnemy_ScdSet(PlayState* play, const u8* rec);
 void NvEnemy_ScdProp(s32 slot, s32 subCmd, u16 param, u8 hit);
 void NvEnemy_ScdPos(s32 slot, s16 angle, s16 x, s16 y, s16 z);
 #include "z_nv_re1.h"
+#include "z_nv_songs.h"
 
 #define NV_RE1_SCALE 0.0217f // OoT units per RE1 unit (re1/tools/rdt2scene.py SCALE)
 s32 NvItems_InRoom(s32 n);
@@ -2439,10 +2440,8 @@ static const u8 sNvSongNotes[] = { OCARINA_BTN_C_DOWN, OCARINA_BTN_C_RIGHT, OCAR
 #define NV_SONG_CLIP_LENGTH_MS 8000
 
 s16 NvDoor_Entrance(const char* sceneFile, s32 spawn);
-static s32 sNvWarpIn;     // a warp song into the mansion is on its way
-static s32 sNvSongPlayed; // the mansion's song was just played (the warp sequence is running)
-static u8 sNvSongHeard[8] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }; // the last notes played in free play, newest last (0xFF none)
-static void NvSong_Restore(void);
+static s32 sNvWarpIn; // a warp song into the mansion is on its way
+static const NvSongDef sNvWarpSongDef;
 
 /*
  * The "Moonlight Sonata" (10F's piano bar; mod1's design, agreed again for here 2026-11-10, re1/IDEAS.md):
@@ -2465,8 +2464,8 @@ static u8 sNvPianoHeard[6];
 static s32 sNvPianoCount;
 static s32 sNvPianoResult; // 1 right, 2 wrong: dealt with once the staff has closed (NvPiano_Update)
 
-static s32 NvSonata_Known(void) {
-    return (gSaveContext.eventChkInf[NV_SONATA_INDEX] & NV_SONATA_MASK) != 0;
+static s32 NvSonata_Known(void) { // (dev: NV_SONATA_KNOWN as if learned)
+    return ((gSaveContext.eventChkInf[NV_SONATA_INDEX] & NV_SONATA_MASK) != 0) || (getenv("NV_SONATA_KNOWN") != NULL);
 }
 
 static void NvSonata_Learn(void) {
@@ -2687,132 +2686,23 @@ static void NvPiano_Phase(PlayState* play) {
  * the evening doors) without waiting. The night setup shows at the next scene change, as OoT's own.
  * Termina's clock (the Majora's Mask branch) follows whatever it sets.
  */
-static void NvSonata_Night(PlayState* play) {
-    s32 k;
+static s32 NvSonata_Ready(PlayState* play) {
+    return NvSonata_Known() && !NvRe1_IsScene(play->sceneNum);
+}
 
-    if (!NvSonata_Known() || (NvRe1_IsScene(play->sceneNum))) {
-        return;
-    }
-    for (k = 0; k < 6; k++) {
-        if (sNvSongHeard[sizeof(sNvSongHeard) - 6 + k] != sNvSonataNotes[k]) {
-            return;
-        }
-    }
-    memset(sNvSongHeard, 0xFF, sizeof(sNvSongHeard));
+static void NvSonata_Night(PlayState* play) {
     gSaveContext.dayTime = CLOCK_TIME(19, 1);
     Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
     printf("NVSONG the Moonlight Sonata: 19:01\n");
     fflush(stdout);
 }
 
-/**
- * The notes heard so far go (z_message_PAL.c): as the ocarina comes out, and when OoT recognises
- * one of its own songs. A song of ours is matched only from notes played in one go: the Moonlight
- * Sonata (A, C-Down, C-Right twice) is the Song of Time shifted by a note, and leftovers from one
- * Song of Time would complete it on the next one's first note. (Before the first, the buffer read
- * as A notes: 0 is OCARINA_BTN_A.)
- */
-void NvSong_Reset(void) {
-    memset(sNvSongHeard, 0xFF, sizeof(sNvSongHeard));
+static s32 NvWarpSong_Ready(PlayState* play) {
+    return NvDoor_Entrance("re1_106_scene", 0) >= 0; // (no mansion in the mod files: nothing)
 }
 
-/** A note played in free play (z_message_PAL.c): true when it completes the mansion's song. */
-s32 NvSong_Note(PlayState* play, u8 button) {
-    s32 n = ARRAY_COUNT(sNvSongNotes);
-    s32 k;
-
-    sNvSongPlayed = false; // (a song played where OoT won't warp leaves nothing pending)
-    NvSong_Restore();
-    memmove(sNvSongHeard, sNvSongHeard + 1, sizeof(sNvSongHeard) - 1);
-    sNvSongHeard[sizeof(sNvSongHeard) - 1] = button;
-    if (getenv("NV_LOG")) {
-        printf("NVSONG note %d (action %d)\n", (int)button, (int)play->msgCtx.ocarinaAction);
-        fflush(stdout);
-    }
-    if (play->msgCtx.ocarinaAction != OCARINA_ACTION_FREE_PLAY) {
-        return false;
-    }
-    if (NvPiano_Note(play, button)) { // (at the piano, the notes are the piano's)
-        return false;
-    }
-    NvSonata_Night(play);
-    for (k = 0; k < n; k++) {
-        if (sNvSongHeard[sizeof(sNvSongHeard) - n + k] != sNvSongNotes[k]) {
-            return false;
-        }
-    }
-    if (NvDoor_Entrance("re1_106_scene", 0) < 0) { // no mansion in the mod files
-        return false;
-    }
-    memset(sNvSongHeard, 0xFF, sizeof(sNvSongHeard));
-    sNvSongPlayed = true;
+static void NvWarpSong_Played(PlayState* play) {
     NvMsg_EnsureHook(); // its warp question (NvMessages.cpp), wherever it's played
-    printf("NVSONG the mansion's song\n");
-    fflush(stdout);
-    return true;
-}
-
-/** The warp sequence is the mansion's song's (z_message_PAL.c plays its clip, not a melody). */
-s32 NvSong_Pending(void) {
-    return sNvSongPlayed;
-}
-
-/*
- * Its playback: OoT plays a correct song back from its note table (sOcarinaSongNotes), so while
- * the warp sequence runs ours stands in for Nocturne's there (the same feel as Nocturne's quick
- * run: 18 frames a note, the last held), and Nocturne's own notes go back once the warp starts.
- */
-extern OcarinaNote sOcarinaSongNotes[OCARINA_SONG_MAX][20];
-static OcarinaNote sNvSongSaved[20];
-static s32 sNvSongSwapped;
-
-static void NvSong_Restore(void) {
-    if (sNvSongSwapped) {
-        memcpy(sOcarinaSongNotes[NV_WARP_SONG], sNvSongSaved, sizeof(sNvSongSaved));
-        sNvSongSwapped = false;
-    }
-}
-
-static u8 NvSong_Pitch(u8 button) {
-    switch (button) {
-        case OCARINA_BTN_A:
-            return OCARINA_PITCH_D4;
-        case OCARINA_BTN_C_DOWN:
-            return OCARINA_PITCH_F4;
-        case OCARINA_BTN_C_RIGHT:
-            return OCARINA_PITCH_A4;
-        case OCARINA_BTN_C_LEFT:
-            return OCARINA_PITCH_B4;
-        default:
-            return OCARINA_PITCH_D5;
-    }
-}
-
-/** OoT's playback of the song, ours in Nocturne's slot (z_message_PAL.c, in place of its call). */
-void NvSong_Playback(void) {
-    OcarinaNote* n = sOcarinaSongNotes[NV_WARP_SONG];
-    s32 count = ARRAY_COUNT(sNvSongNotes);
-    s32 k;
-
-    if (!sNvSongSwapped) {
-        memcpy(sNvSongSaved, n, sizeof(sNvSongSaved));
-        sNvSongSwapped = true;
-    }
-    for (k = 0; k < count; k++) {
-        n[k].pitch = NvSong_Pitch(sNvSongNotes[k]);
-        n[k].length = (k == count - 1) ? 90 : 18;
-        n[k].volume = 86;
-        n[k].vibrato = 0;
-        n[k].bend = 0;
-        n[k].bFlat4Flag = 0;
-    }
-    n[count].pitch = OCARINA_PITCH_NONE; // the end
-    n[count].length = 0;
-    n[count].volume = 86;
-    n[count].vibrato = 0;
-    n[count].bend = 0;
-    n[count].bFlat4Flag = 0;
-    AudioOcarina_SetPlaybackSong(NV_WARP_SONG + 1, 1);
 }
 
 /*
@@ -2835,7 +2725,7 @@ static s32 NvSong_FanfareId(void) {
     return -1;
 }
 
-void NvSong_Fanfare(void) {
+static void NvWarpSong_Fanfare(void) {
     s32 id;
 
     if (!(gSaveContext.eventChkInf[NV_WARP_SEEN_INDEX] & NV_WARP_SEEN_MASK) && !getenv("NV_SONG_SEEN")) {
@@ -2850,7 +2740,7 @@ void NvSong_Fanfare(void) {
 }
 
 /** Its sound in the warp, after the playback (the opening movie's stretch, until the arrangement). */
-void NvSong_PlayClip(void) {
+static void NvWarpSong_Clip(void) {
     void NvMovie_SoundClip(s32 id, u32 startMs, u32 lengthMs);
 
     NvMovie_SoundClip(NV_SONG_CLIP_MOVIE, NV_SONG_CLIP_START_MS, NV_SONG_CLIP_LENGTH_MS);
@@ -2858,18 +2748,31 @@ void NvSong_PlayClip(void) {
 
 s16 NvSave_Enter(void);
 
+static const NvSongDef sNvSonataDef = {
+    "the Moonlight Sonata", sNvSonataNotes, ARRAY_COUNT(sNvSonataNotes), -1, NvSonata_Ready, NvSonata_Night, NULL, NULL,
+};
+static const NvSongDef sNvWarpSongDef = {
+    "the mansion's song", sNvSongNotes,     ARRAY_COUNT(sNvSongNotes), NV_WARP_SONG,
+    NvWarpSong_Ready,     NvWarpSong_Played, NvWarpSong_Clip,          NvWarpSong_Fanfare,
+};
+
+/** RE1's songs (z_nv_songs.c, as the first note's heard): the Sonata first, as before; the piano listens. */
+void NvSongs_RegisterRe1(void) {
+    NvSongs_Register(&sNvSonataDef);
+    NvSongs_Register(&sNvWarpSongDef);
+    NvSongs_SetListener(NvPiano_Note);
+}
+
 s16 NvWarp_SongEntrance(s32 song, s16 entrance) {
     s16 foyer;
 
     if (song == -1) { // the dev boot's (NV_BOOT_ENTRANCE=warp): as if the song were played
-        sNvSongPlayed = true;
+        NvSongs_SetPending(&sNvWarpSongDef);
         song = NV_WARP_SONG;
     }
-    if ((song != NV_WARP_SONG) || !sNvSongPlayed) {
+    if (NvSongs_Take(song) != &sNvWarpSongDef) { // (and the playback's done: Nocturne's notes back)
         return entrance;
     }
-    sNvSongPlayed = false;
-    NvSong_Restore(); // the playback's done: Nocturne's notes back
     foyer = NvDoor_Entrance("re1_106_scene", 0);
     if (foyer < 0) {
         return entrance;

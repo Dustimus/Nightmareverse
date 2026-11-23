@@ -51,10 +51,18 @@ where the data folder is the one holding Stage1..Stage7 ("USA" in the GOG releas
 
 The way in: the mansion's own warp song, played on the ocarina anywhere in free play (C-Down,
 C-Right, A, C-Right, C-Left, A, C-Left, C-Up: the opening phrase of the basement theme), warps
-into the foyer (`z_nv_script.c`, NvSong). It rides OoT's warp-song sequence in Nocturne of
+into the foyer (`z_nv_script.c`). It rides OoT's warp-song sequence in Nocturne of
 Shadow's slot, playing a stretch of RE1's opening movie's sound in place of a melody, and the first
 arrival plays the whole opening movie (seen once: save event flag 0xD7). For testing, a file
 `nv_boot.txt` holding `re1_106` in the SoH folder starts the game in the foyer.
+
+Our songs, RE1's and the Majora's Mask side's, share `z_nv_songs.c`: each registers its notes, its
+effect and, optionally, the OoT song slot it borrows (the warp song: Nocturne's), and the notes
+played in free play are matched there in the order registered, from notes played in one go
+(`z_message_PAL.c` empties the buffer as the ocarina comes out and when one of OoT's own songs is
+recognised). RE1's register in `NvSongs_RegisterRe1` (the Moonlight Sonata, then the warp song),
+and 10F's piano listens for its own notes first. Dev: `NV_SONATA_KNOWN` plays as if the Sonata were
+learned.
 
 The mansion on the way back (RE1's stages 6 and 7: the return trip's own rooms, scripts and
 enemies on the first visit's backgrounds) is its own set of rooms, as in RE1. Once the return flag
