@@ -835,12 +835,28 @@ Sounds are OoT's nearest (its Deku Scrubs', its jumps and water): MM's own wait 
 Dev: NV_DEKU_NOHOPS starts him with no hops (to try the sinking); the walker's `press:r:N` holds R
 N frames.
 
-Not yet: the bubble on B (magic, MM's bubble), the Deku flowers (MM's Obj_Etcetera isn't ported:
-the dive, the launch, the flight wait for it), the hop counter on the A button, sinking into another
-room (put back only within the room he's in).
+**The Deku flowers** (2026-11-24, `soh/src/code/z_nv_mm_etcetera.c`, MM's Obj_Etcetera; the
+player's side in z_nv_mm_deku.c): the pink and gold flowers, MM's own models, animations (the rustle,
+the bounce as he launches) and collision from gameplay_keep (the converter now takes a `col` entry:
+Torch's OoT collision, as the scenes'). Clock Town's four are placed by MM's rooms. A on a flower
+dives into it (MM's func_80836DC0 and Player_Action_93: spinning down, squashing, the depth drawn
+as his shape's offset); held, it charges (10 frames: a high launch); let go, he launches (MM's
+2700 or 1450, a gold flower 1.74 times as high), hits on the way up (2, radius 20), and with the
+charge hovers on the two flowers in his hands (MM's Player_Action_94: their spin, the pollen
+sparkles, gliding slowly down, steered, 600 units from a pink flower and 960 from a gold before he
+drops; A lets go). The hand flowers are drawn at his hands (a one-line hook in z_player_lib.c,
+MM's func_801271B0 with its keyframed scales). While he flies OoT is told he's airborne in an
+action of its own (its midair flag: otherwise it starts its own fall), and its jump camera follows.
+
+Not yet: the bubble on B (magic, MM's bubble), dropping Deku Nuts from the air on B (MM spawns its
+nut from En_Arrow; OoT's En_Arrow nut isn't made for it), MM's flight camera (OoT's jump camera
+lags well behind him in tight spots: the South Clock Town flower's corner), the flower's floor
+light, the hop counter on the A button, sinking into another room (put back only within the room
+he's in).
 
 Tested headless: the spin and the guard in South Clock Town (A next to the gate guard talks first),
-a hop across Laundry Pool's water, the sinking and being put back on land.
+a hop across Laundry Pool's water, the sinking and being put back on land; South Clock Town's
+flower: standing on it, diving in, charging, the launch, hovering and gliding back down onto it.
 
 ### Young Link is MM's model in Termina (2026-11-23, `soh/src/code/z_nv_mm_link.c`)
 

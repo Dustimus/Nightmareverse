@@ -160,6 +160,475 @@ static void NvMmDeku_Guard(Player* this, PlayState* play) {
     }
 }
 
+
+/* ---- the Deku flowers (MM's func_80836DC0, Player_Action_93 and Player_Action_94) ---- */
+
+#define ANIM_KAKKU MMANIM("gPlayerAnim_pn_kakku")
+#define ANIM_KAKKUFINISH MMANIM("gPlayerAnim_pn_kakkufinish")
+#define ANIM_BATABATA MMANIM("gPlayerAnim_pn_batabata")
+#define ANIM_RAKKAFINISH MMANIM("gPlayerAnim_pn_rakkafinish")
+#define NUTS(name) ("__OTR__mm/objects/object_link_nuts/" name)
+
+s32 NvMmEtcetera_IsFlower(Actor* actor, s32* gold);
+
+/** MM's Math_AsymStepToS (not in OoT): towards target, by incrStep going up, decrStep going down. */
+static s32 NvMm_AsymStepToS(s16* pValue, s16 target, s16 incrStep, s16 decrStep) {
+    s16 step = (target >= *pValue) ? incrStep : decrStep;
+
+    if (step != 0) {
+        if (target < *pValue) {
+            step = -step;
+        }
+        *pValue += step;
+        if (((*pValue - target) * step) >= 0) {
+            *pValue = target;
+            return true;
+        }
+    } else if (target == *pValue) {
+        return true;
+    }
+    return false;
+}
+#define Math_AsymStepToS NvMm_AsymStepToS
+
+/** MM's Math_Vec3f_StepToXZ (not in OoT): x and z towards target's, `speed` at most. */
+static void NvMm_Vec3f_StepToXZ(Vec3f* start, Vec3f* target, f32 speed) {
+    f32 dx = target->x - start->x;
+    f32 dz = target->z - start->z;
+    f32 dist = sqrtf(SQ(dx) + SQ(dz));
+
+    if (dist > speed) {
+        start->x += dx * (speed / dist);
+        start->z += dz * (speed / dist);
+    } else {
+        start->x = target->x;
+        start->z = target->z;
+    }
+}
+#define Math_Vec3f_StepToXZ NvMm_Vec3f_StepToXZ
+void Player_AnimPlayLoop(PlayState* play, Player* this, LinkAnimationHeader* anim);
+
+static f32 sDepth;       // MM's unk_ABC: how deep in the flower (model units, below 0)
+static f32 sDepthVel;    // MM's unk_B48
+static s32 sStage;       // MM's av1.actionVar1 burrowing: 0 in, 1 down, 2 waiting (A held), 3 out
+static s32 sCharge;      // MM's av2.actionVar2: A held this long (10: a high launch, and hovering)
+static s32 sBudSound;    // MM's unk_B86[0]
+static s32 sLaunching;   // MM's PLAYER_STATE3_200
+static s32 sHovering;    // MM's PLAYER_STATE3_2000
+static s32 sFlyFrom;     // MM's av1.actionVar1 flying: -1 not from a flower, 0 a pink, 1 a gold
+static s32 sFlyTimer;    // MM's av2.actionVar2 flying
+static Vec3f sLaunchPos; // MM's unk_AF0[0]
+static s16 sPropSpeed;   // MM's unk_B86[1]: the hand flowers' turn
+static s16 sPropAngle;   // MM's unk_B8A
+static s16 sTiltX;       // MM's unk_B8C
+static s16 sTiltZ;       // MM's unk_B8E
+static u8 sSparkle;      // MM's unk_B66
+
+s32 NvMmDeku_Launching(void) {
+    return sLaunching;
+}
+
+s32 NvMmDeku_Hovering(void) {
+    return sHovering;
+}
+
+s32 NvMmDeku_StartingBurrow(void) { // (MM: unk_ABC < 0 and not yet PLAYER_STATE3_100)
+    return (sDepth < 0.0f) && (sDepth >= -1500.0f);
+}
+
+static Actor* NvMmDeku_FloorFlower(PlayState* play, Player* this, s32* gold) {
+    DynaPolyActor* dyna;
+
+    if (this->actor.floorBgId == BGCHECK_SCENE) {
+        return NULL;
+    }
+    dyna = DynaPoly_GetActor(&play->colCtx, this->actor.floorBgId);
+    return ((dyna != NULL) && NvMmEtcetera_IsFlower(&dyna->actor, gold)) ? &dyna->actor : NULL;
+}
+
+/** MM's func_808566C0: sparkles from a hand (the flowers' pollen). */
+static void NvMmDeku_Sparkle(PlayState* play, Player* this, s32 part, f32 base, f32 range, f32 accel, s32 life) {
+    Color_RGBA8 prim = { 255, 200, 200, 0 };
+    Color_RGBA8 env = { 255, 255, 0, 0 };
+    Vec3f vel = { 0.0f, 0.3f, 0.0f };
+    Vec3f acc = { 0.0f, -0.025f, 0.0f };
+    Vec3f pos;
+    f32 sign = (Rand_ZeroOne() < 0.5f) ? -1.0f : 1.0f;
+
+    vel.x = (Rand_ZeroFloat(range) + base) * sign;
+    acc.x = accel * sign;
+    sign = (Rand_ZeroOne() < 0.5f) ? -1.0f : 1.0f;
+    vel.z = (Rand_ZeroFloat(range) + base) * sign;
+    acc.z = accel * sign;
+    pos.x = this->bodyPartsPos[part].x;
+    pos.y = Rand_ZeroFloat(15.0f) + this->bodyPartsPos[part].y;
+    pos.z = this->bodyPartsPos[part].z;
+    EffectSsKiraKira_SpawnDispersed(play, &pos, &vel, &acc, &prim, &env, (Rand_ZeroOne() < 0.5f) ? 2000 : -150, life);
+}
+
+static void NvMmDeku_Fly(Player* this, PlayState* play);
+
+static void NvMmDeku_EndFlower(Player* this) {
+    this->stateFlags1 &= ~(PLAYER_STATE1_JUMPING | PLAYER_STATE1_FREEFALL);
+    sLaunching = sHovering = false;
+    sDepth = 0.0f;
+    this->actor.shape.yOffset = 0.0f;
+    Actor_SetScale(&this->actor, 0.01f);
+}
+
+/** MM's func_80833AA0: out of the air, falling (OoT's midair). */
+static void NvMmDeku_Fall(Player* this, PlayState* play, LinkAnimationHeader* anim) {
+    NvMmDeku_EndFlower(this);
+    NvMmDeku_ResetCylinder(this);
+    this->actor.gravity = REG(68) / 100.0f;
+    this->actor.minVelocityY = -20.0f;
+    Player_SetupAction(play, this, Player_Action_8084411C, 0);
+    if (anim != NULL) { // (MM's func_808355D8: the flowers close, falling)
+        LinkAnimation_Change(play, &this->skelAnime, anim, 1.0f, 0.0f, Animation_GetLastFrame(anim), ANIMMODE_ONCE,
+                             0.0f);
+        Player_PlaySfx(&this->actor, NA_SE_EN_NUTS_DOWN); // (MM: NA_SE_IT_DEKUNUTS_FLOWER_CLOSE)
+    } else {
+        LinkAnimation_PlayLoop(play, &this->skelAnime, &gPlayerAnim_link_normal_landing_wait);
+    }
+}
+
+/** MM's Player_Action_93: into the flower, waiting there while A is held, and out. */
+static void NvMmDeku_Burrow(Player* this, PlayState* play) {
+    Input* input = &play->state.input[0];
+    f32 f;
+
+    LinkAnimation_Update(play, &this->skelAnime);
+    if (sStage == 0) {
+        sDepth += sDepthVel;
+        if (sDepth < -1000.0f) {
+            sDepth = -1000.0f;
+            sStage = 1;
+            sDepthVel = 0.0f;
+        }
+    } else if (sStage == 1) {
+        sDepthVel += -22.0f;
+        if (sDepthVel < -170.0f) {
+            sDepthVel = -170.0f;
+        }
+        sDepth += sDepthVel;
+        if (sDepth < -3900.0f) {
+            sDepth = -3900.0f;
+            sStage = 2;
+            this->actor.shape.rot.y = Camera_GetInputDirYaw(GET_ACTIVE_CAM(play));
+            this->actor.scale.y = 0.01f;
+            this->yaw = this->actor.world.rot.y = this->actor.shape.rot.y;
+        } else {
+            Actor* flower;
+
+            f = Math_SinS((1000.0f + sDepth) * (-30.0f)) * 0.004f;
+            this->actor.scale.y = 0.01f + f;
+            this->actor.scale.z = this->actor.scale.x = 0.01f - (sDepthVel * -0.000015f);
+            this->actor.shape.rot.y += (s16)(sDepthVel * 130.0f);
+            flower = NvMmDeku_FloorFlower(play, this, NULL);
+            if (flower != NULL) {
+                Math_Vec3f_StepToXZ(&this->actor.world.pos, &flower->world.pos, 1.0f);
+            }
+        }
+    } else if (sStage == 2) {
+        if (!CHECK_BTN_ALL(input->cur.button, BTN_A)) {
+            CollisionPoly* poly;
+            s32 bgId;
+            f32 ceilY;
+            Vec3f pos = this->actor.world.pos;
+
+            pos.y -= 20.0f;
+            if (BgCheck_EntityCheckCeiling(&play->colCtx, &ceilY, &pos, 30.0f, &poly, &bgId, &this->actor)) {
+                sCharge = 0; // (a ceiling above: no launch)
+            } else {
+                sStage = 3;
+                sDepthVel = (sCharge >= 10) ? 2700.0f : 1450.0f;
+                Player_PlaySfx(&this->actor, NA_SE_EN_NUTS_UP); // (MM: NA_SE_PL_DEKUNUTS_OUT_GRD)
+            }
+        } else if (sCharge < 15) {
+            sCharge++;
+        }
+        {
+            f32 speedTarget;
+            s16 yawTarget;
+
+            Player_GetMovementSpeedAndYaw(this, &speedTarget, &yawTarget, 0.018f, play);
+            Math_ScaledStepToS(&this->yaw, yawTarget, 0x258);
+            this->actor.shape.rot.y = this->yaw;
+        }
+    } else {
+        sDepth += sDepthVel;
+        if (sDepth >= 0.0f) { // out: launched
+            s32 gold = false;
+            f32 speed = sDepthVel * this->actor.scale.y;
+            f32 depth = sDepth;
+            Actor* flower = NvMmDeku_FloorFlower(play, this, &gold);
+
+            sFlyFrom = (flower == NULL) ? -1 : (gold ? 1 : 0);
+            if (gold) {
+                speed *= 174 / 100.0f;
+            }
+            Math_Vec3f_Copy(&sLaunchPos, &this->actor.world.pos);
+            sDepth = 0.0f;
+            this->actor.shape.yOffset = 0.0f;
+            this->actor.world.pos.y += depth * this->actor.scale.y;
+            func_80838940(this, ANIM_KAKKU, speed, play, NA_SE_VO_LI_SWORD_N);
+            Player_SetupAction(play, this, NvMmDeku_Fly, 1);
+            this->stateFlags3 |= PLAYER_STATE3_MIDAIR;
+            sLaunching = true;
+            sHovering = (sCharge >= 10);
+            sFlyTimer = 9999;
+            sPropSpeed = 0;
+            NvMmDeku_SetSpinCylinder(this); // (MM: DMG_DEKU_LAUNCH, 2, radius 20)
+            this->cylinder.info.toucher.damage = 2;
+            this->cylinder.dim.radius = 20;
+            NvMmDeku_Log(sHovering ? "launch (hover)" : "launch");
+            return;
+        }
+    }
+    if (sDepth < -1500.0f) {
+        if (sBudSound < 8) {
+            sBudSound++;
+            if (sBudSound == 8) {
+                Player_PlaySfx(&this->actor, NA_SE_EN_NUTS_FAINT); // (MM: NA_SE_PL_DEKUNUTS_BUD)
+            }
+        }
+    }
+    this->actor.shape.yOffset = sDepth;
+}
+
+/** MM's func_80836DC0: A on a Deku flower dives in; true if it did. */
+static s32 NvMmDeku_TryBurrow(PlayState* play, Player* this) {
+    if (NvMmDeku_FloorFlower(play, this, NULL) == NULL) {
+        return false;
+    }
+    Player_SetupAction(play, this, NvMmDeku_Burrow, 0);
+    this->stateFlags1 &= ~(PLAYER_STATE1_PARALLEL | PLAYER_STATE1_LOCK_ON_FORCED_TO_RELEASE);
+    Player_AnimChangeOnceMorph(play, this, ANIM_ATTACK);
+    this->linearVelocity = 0.0f;
+    this->actor.speedXZ = 0.0f;
+    this->actor.focus.rot.x = this->actor.focus.rot.z = 0;
+    this->headLimbRot.x = this->headLimbRot.y = this->headLimbRot.z = 0;
+    this->upperLimbRot.x = this->upperLimbRot.y = this->upperLimbRot.z = 0;
+    this->actor.shape.rot.y = this->yaw = this->actor.focus.rot.y;
+    sDepth = 0.0f;
+    sDepthVel = -2000.0f;
+    sStage = 0;
+    sCharge = 0;
+    sBudSound = 0;
+    Player_PlaySfx(&this->actor, NA_SE_EN_NUTS_DOWN); // (MM: NA_SE_PL_DEKUNUTS_IN_GRD)
+    NvMmDeku_Log("into the flower");
+    return true;
+}
+
+/** MM's Player_Action_94: up from the flower and, hovering, flying on the flowers in his hands. */
+static void NvMmDeku_Fly(Player* this, PlayState* play) {
+    Input* input = &play->state.input[0];
+
+    this->stateFlags3 |= PLAYER_STATE3_MIDAIR; // (OoT: airborne in an action of its own, not a fall)
+    this->stateFlags1 |= PLAYER_STATE1_JUMPING; // (OoT's jump camera, following him: MM has its own, CAM_MODE_DEKUFLY)
+
+    if (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) { // (MM's func_80837134)
+        NvMmDeku_EndFlower(this);
+        NvMmDeku_ResetCylinder(this);
+        if (CHECK_BTN_ALL(input->cur.button, BTN_A) && NvMmDeku_TryBurrow(play, this)) {
+            return;
+        }
+        NvMmDeku_Log("landed");
+        func_80839F90(this, play);
+        return;
+    }
+    if ((this->actor.velocity.y > 0.0f) && sLaunching) { // going up
+        this->actor.minVelocityY = -20.0f;
+        this->actor.gravity = -5.5f;
+        NvMmDeku_SetSpinCylinder(this);
+        this->cylinder.info.toucher.damage = 2;
+        this->cylinder.dim.radius = 20;
+        if (this->actor.bgCheckFlags & BGCHECKFLAG_CEILING) {
+            NvMmDeku_Fall(this, play, NULL);
+        }
+    } else if (!sHovering) {
+        NvMmDeku_Fall(this, play, NULL);
+    } else if (sLaunching) { // at the top: the flowers open
+        if (this->actor.velocity.y < 0.0f) {
+            if (sFlyFrom < 0) {
+                NvMmDeku_Fall(this, play, NULL);
+                return;
+            }
+            LinkAnimation_Update(play, &this->skelAnime);
+            if (this->skelAnime.curFrame > 6.0f) {
+                this->actor.velocity.y = 6.0f;
+                sLaunching = false;
+                Player_PlaySfx(&this->actor, NA_SE_EN_NUTS_THROW); // (MM: NA_SE_IT_DEKUNUTS_FLOWER_OPEN)
+                NvMmDeku_Log("flying");
+            }
+        }
+        this->actor.minVelocityY = -10.0f;
+        this->actor.gravity = -0.5f;
+        NvMmDeku_ResetCylinder(this);
+    } else if (CHECK_BTN_ALL(input->press.button, BTN_A)) { // let go
+        NvMmDeku_Fall(this, play, ANIM_KAKKUFINISH);
+    } else {
+        static const f32 sRange[] = { 600.0f, 960.0f }; // (MM's D_8085D958: pink, gold)
+        f32 left;
+        f32 speedTarget;
+        f32 step;
+        s16 yawTarget;
+        s16 propTarget;
+        s16 lean;
+        s32 t;
+
+        this->linearVelocity = sqrtf(SQ(this->actor.velocity.x) + SQ(this->actor.velocity.z));
+        if (this->linearVelocity != 0.0f) {
+            s16 dir = Math_Atan2S(this->actor.velocity.x, this->actor.velocity.z);
+
+            if (ABS((s16)(this->actor.shape.rot.y - dir)) > 0x4000) {
+                this->linearVelocity = -this->linearVelocity;
+                dir += 0x8000;
+            }
+            this->yaw = dir;
+        }
+        if (sFlyTimer != 0) {
+            sFlyTimer--;
+        }
+        left = sRange[sFlyFrom] - Math_Vec3f_DistXZ(&this->actor.world.pos, &sLaunchPos);
+        LinkAnimation_Update(play, &this->skelAnime);
+        if ((sFlyTimer != 0) && (left > 300.0f)) {
+            propTarget = 0x1770;
+            if (this->skelAnime.animation != ANIM_KAKKU) {
+                LinkAnimation_Change(play, &this->skelAnime, ANIM_KAKKUFINISH, 1.0f, 0.0f,
+                                     Animation_GetLastFrame(ANIM_KAKKUFINISH), ANIMMODE_ONCE, 0.0f);
+            } else if (LinkAnimation_OnFrame(&this->skelAnime, 8.0f)) {
+                s32 i;
+
+                for (i = 0; i < 13; i++) {
+                    NvMmDeku_Sparkle(play, this, PLAYER_BODYPART_L_HAND, 0.6f, 1.0f, 0.8f, 17);
+                    NvMmDeku_Sparkle(play, this, PLAYER_BODYPART_R_HAND, 0.6f, 1.0f, 0.8f, 17);
+                }
+            }
+        } else if ((sFlyTimer == 0) || (left < 0.0f)) { // (out of reach: dropping)
+            NvMmDeku_Fall(this, play, ANIM_RAKKAFINISH);
+            return;
+        } else {
+            propTarget = 0x1770 - (s32)((300.0f - left) * 10.0f);
+            if (this->skelAnime.animation != ANIM_BATABATA) {
+                Player_AnimPlayLoop(play, this, ANIM_BATABATA);
+            } else if (LinkAnimation_OnFrame(&this->skelAnime, 6.0f)) {
+                Player_PlaySfx(&this->actor, NA_SE_EN_NUTS_WALK); // (MM: NA_SE_PL_DEKUNUTS_STRUGGLE)
+            }
+        }
+        Math_AsymStepToS(&sPropSpeed, propTarget, 0x190, 0x190);
+        sPropAngle += sPropSpeed;
+        t = ABS(sPropSpeed);
+        if (t > 0xFA0) {
+            sSparkle += (u8)(ABS(sPropSpeed) * 0.01f);
+        }
+        if (sSparkle > 200) {
+            sSparkle -= 200;
+            NvMmDeku_Sparkle(play, this, PLAYER_BODYPART_L_HAND, 0.0f, 1.0f, 0.0f, 32);
+            NvMmDeku_Sparkle(play, this, PLAYER_BODYPART_R_HAND, 0.0f, 1.0f, 0.0f, 32);
+        }
+        if (this->actor.velocity.y < 0.0f) {
+            if (propTarget != 0) {
+                this->actor.minVelocityY = -0.38f;
+                this->actor.gravity = -0.2f;
+            } else {
+                this->actor.minVelocityY = (sPropSpeed * 0.0033f) + -20.0f;
+                this->actor.gravity = (sPropSpeed * 0.00004f) + (REG(68) / 100.0f);
+            }
+        }
+        this->fallDistance = 0;
+        Player_GetMovementSpeedAndYaw(this, &speedTarget, &yawTarget, 0.0f, play); // (SPEED_MODE_LINEAR)
+        if (speedTarget == 0.0f) {
+            step = 0.1f;
+        } else {
+            if (ABS((s16)(this->yaw - yawTarget)) > 0x4000) {
+                speedTarget = -speedTarget;
+                yawTarget += 0x8000;
+            }
+            step = 0.25f;
+        }
+        Math_SmoothStepToS(&sTiltX, speedTarget * 600.0f, 8, 0xFA0, 0x64);
+        Math_ScaledStepToS(&this->yaw, yawTarget, 0xFA);
+        lean = (s16)(yawTarget - this->yaw) * -2.0f;
+        lean = CLAMP(lean, -0x1F40, 0x1F40);
+        Math_SmoothStepToS(&sTiltZ, lean, 0x14, 0x320, 0x14);
+        speedTarget = (speedTarget * (sPropSpeed * 0.0004f)) * fabsf(Math_SinS(sTiltX));
+        Math_StepToF(&this->linearVelocity, speedTarget, step); // (MM's func_80856888)
+        speedTarget = sqrtf(SQ(this->linearVelocity) + SQ(this->actor.velocity.y));
+        if (speedTarget > 8.0f) {
+            speedTarget = 8.0f / speedTarget;
+            this->linearVelocity *= speedTarget;
+            this->actor.velocity.y *= speedTarget;
+        }
+        this->actor.shape.rot.y = this->yaw;
+    }
+}
+
+/** z_player_lib.c's hand hook (MM's func_801271B0): the flowers in his hands while he flies. */
+void NvMmDeku_DrawHandFlower(PlayState* play, Player* this, s32 limbIndex) {
+    typedef struct {
+        s16 frame;
+        Vec3s scale;
+    } Key; // MM's struct_80124618
+    static const Key sLaunchStem[] = { { 0, { 0, 0, 0 } }, { 6, { 0, 0, 0 } }, { 8, { 100, 100, 100 } }, { 11, { 100, 100, 100 } } };
+    static const Key sLaunchHead[] = { { 0, { 0, 0, 0 } }, { 7, { 1120, 112, 112 } }, { 8, { 140, 168, 168 } }, { 11, { 140, 140, 140 } } };
+    static const Key sLetGoStem[] = { { 0, { 100, 100, 100 } }, { 7, { 100, 100, 100 } }, { 8, { 70, 30, 70 } }, { 10, { 0, 0, 0 } }, { 14, { 0, 0, 0 } } };
+    static const Key sLetGoHead[] = { { 0, { 140, 140, 140 } }, { 1, { 0, 0, 0 } }, { 14, { 0, 0, 0 } } };
+    static const Key sDropStem[] = { { 0, { 100, 100, 100 } }, { 5, { 100, 100, 100 } }, { 6, { 0, 0, 0 } }, { 10, { 0, 0, 0 } } };
+    static const Key sDropHead[] = { { 0, { 140, 140, 140 } }, { 1, { 0, 0, 0 } }, { 10, { 0, 0, 0 } } };
+    static const Key sFlyStem[] = { { 0, { 100, 100, 100 } }, { 13, { 100, 100, 100 } } };
+    static const Key sFlyHead[] = { { 0, { 140, 140, 140 } }, { 13, { 140, 140, 140 } } };
+    const Key* keys[2] = { sLaunchStem, sLaunchHead };
+    LinkAnimationHeader* anim = this->skelAnime.animation;
+    s32 side = (limbIndex == PLAYER_LIMB_L_HAND) ? 0 : 1;
+    s32 k;
+    Vec3f scale;
+
+    if (!NvMmDeku_Is(this) || ((anim != ANIM_KAKKU) && (anim != ANIM_KAKKUFINISH) && (anim != ANIM_RAKKAFINISH) &&
+                               (anim != ANIM_BATABATA))) {
+        return;
+    }
+    if (anim == ANIM_KAKKUFINISH) {
+        keys[0] = sLetGoStem, keys[1] = sLetGoHead;
+    } else if (anim == ANIM_BATABATA) {
+        keys[0] = sFlyStem, keys[1] = sFlyHead;
+    } else if (anim == ANIM_RAKKAFINISH) {
+        keys[0] = sDropStem, keys[1] = sDropHead;
+    }
+    OPEN_DISPS(play->state.gfxCtx);
+    Matrix_Push();
+    Matrix_Translate(0.0f, 150.0f, 0.0f, MTXMODE_APPLY);
+    for (k = 0; k < 2; k++) {
+        const Key* a = keys[k];
+        s32 frame = (s32)this->skelAnime.curFrame;
+        f32 p;
+
+        while (a[1].frame < frame) { // (MM's func_80124618: the keyframes' scale)
+            a++;
+        }
+        p = (this->skelAnime.curFrame - a[0].frame) / (f32)(a[1].frame - a[0].frame);
+        scale.x = (a[0].scale.x + (a[1].scale.x - a[0].scale.x) * p) * 0.01f;
+        scale.y = (a[0].scale.y + (a[1].scale.y - a[0].scale.y) * p) * 0.01f;
+        scale.z = (a[0].scale.z + (a[1].scale.z - a[0].scale.z) * p) * 0.01f;
+        if (k == 1) {
+            Matrix_Translate(2150.0f, 0.0f, 0.0f, MTXMODE_APPLY);
+            Matrix_RotateX(BINANG_TO_RAD(sPropAngle), MTXMODE_APPLY);
+        }
+        Matrix_Push();
+        Matrix_Scale(scale.x, scale.y, scale.z, MTXMODE_APPLY);
+        gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        Matrix_Pop();
+        if (k == 0) {
+            gSPDisplayList(POLY_OPA_DISP++, (Gfx*)(side ? NUTS("gLinkDekuRightFlowerStemDL") : NUTS("gLinkDekuLeftFlowerStemDL")));
+        } else {
+            gSPDisplayList(POLY_OPA_DISP++, (Gfx*)((this->actor.velocity.y < -6.0f) ? NUTS("gLinkDekuClosedFlowerDL")
+                                                                                   : NUTS("gLinkDekuOpenFlowerDL")));
+        }
+    }
+    Matrix_Pop();
+    CLOSE_DISPS(play->state.gfxCtx);
+}
+
 /* ---- the hooks (z_player.c) ---- */
 
 /** OoT's roll handler (A): MM's Deku spin, on the ground and out of the water. */
@@ -168,6 +637,9 @@ s32 NvMmDeku_ActionA(PlayState* play, Player* this) {
         !(this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) || (this->stateFlags1 & PLAYER_STATE1_IN_WATER) ||
         (this->stateFlags1 & PLAYER_STATE1_ON_HORSE)) {
         return false;
+    }
+    if (NvMmDeku_TryBurrow(play, this)) { // (a Deku flower under him: into it)
+        return true;
     }
     Player_SetupAction(play, this, NvMmDeku_Spin, 0);
     this->stateFlags1 &= ~(PLAYER_STATE1_PARALLEL | PLAYER_STATE1_LOCK_ON_FORCED_TO_RELEASE);

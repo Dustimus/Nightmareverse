@@ -44,6 +44,7 @@ PORTED = {
     0x004,  # En_Light: flames and lamps (z_nv_mm_light.c)
     0x294,  # Obj_Yado: the inn's upstairs windows (z_nv_mm_yado.c)
     0x20A,  # Obj_Hariko: the bobblehead cow toy (z_nv_mm_hariko.c)
+    0x183,  # Obj_Etcetera: the Deku flowers (z_nv_mm_etcetera.c)
     0x261,  # En_Talk: things to read or check (z_nv_mm_talk.c)
 }
 

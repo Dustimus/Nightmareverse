@@ -78,13 +78,18 @@ OBJECTS = {
     "gameplay_keep": (649, {"segment": 4, "dl": {  # MM's main keep: what the ported actors share (shadows, ...)
         "gSquareShadowDL": 0x75A40,
         "gDekuMaskDL": 0x56C0,  # the Deku Mask on Link's face, put on (the transformation scene)
+        "gPinkDekuFlowerIdleDL": 0xED80,  # the Deku flowers (Obj_Etcetera), at rest
+        "gGoldDekuFlowerIdleDL": 0x11BD0,
         "gCircleShadowDL": 0x76BC0,
         "gEffFire1DL": 0x7D590,  # a torch's flame (Obj_Syokudai)
         "gameplay_keep_DL_01ACF0": 0x1ACF0,  # a small flame: candles, lamps (En_Light)
         "gDoorLeftDL": 0x20BB8,  # the plain wooden door (En_Door)
         "gDoorRightDL": 0x20D00,
-    }, "skel_normal": {"gDoorSkel": 0x22B28},
-        "anim": {"gDoorHumanOpenLeftAnim": 0x204B4, "gDoorHumanOpenRightAnim": 0x205A0}}),
+    }, "skel_normal": {"gDoorSkel": 0x22B28, "gPinkDekuFlowerSkel": 0x11518},
+        "skel": {"gGoldDekuFlowerSkel": 0x127E8},  # (the Deku flowers, animated: Obj_Etcetera)
+        "anim": {"gDoorHumanOpenLeftAnim": 0x204B4, "gDoorHumanOpenRightAnim": 0x205A0,
+                 "gDekuFlowerBounceAnim": 0xEB7C, "gDekuFlowerRustleAnim": 0x117A8},
+        "col": {"gPinkDekuFlowerCol": 0xE710, "gGoldDekuFlowerCol": 0x118D8}}),
     "gameplay_field_keep": (650, {"segment": 5, "dl": {  # MM's field keep (segment 5, as its dungeon keep): its doors (En_Door)
         "gFieldWoodDoorLeftDL": 0x4050,
         "gFieldWoodDoorRightDL": 0x4228,
@@ -194,10 +199,12 @@ OBJECTS = {
     }),
     "object_link_nuts": (657, {"deps": ["gameplay_keep"],  # Deku Link (MM's PLAYER_FORM_DEKU: the Deku Mask's form)
         "skel_lod": {"gLinkDekuSkel": 0xBA24},
-        "dl": {f"gLinkDeku{n}DL": o for n, o in {
+        "dl": {**{f"gLinkDeku{n}DL": o for n, o in {
             "Waist": 0x2C20, "Sheath": 0x35F0, "RightShoulder": 0x36B0, "RightForearm": 0x37B8,
             "RightHand": 0x38C0, "LeftShoulder": 0x39B0, "LeftForearm": 0x3AB8, "LeftHand": 0x3BC0,
             "ClosedFlower": 0x8AA0, "OpenFlower": 0x8C50}.items()},
+            # the flowers' stems in his hands, flying (MM's D_801C0B14: left, right)
+            "gLinkDekuLeftFlowerStemDL": 0x8760, "gLinkDekuRightFlowerStemDL": 0x8660},
     }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
@@ -336,6 +343,8 @@ def convert_objects(rom, out):
                       f"  count: {count}", "  array_type: VTX", ""]
         for sym, off in parts.get("anim", {}).items():
             extra += [f"{sym}:", "  type: OOT:ANIMATION", f"  offset: 0x{off:06X}", f"  symbol: {sym}", ""]
+        for sym, off in parts.get("col", {}).items():  # a prop's collision (as the scenes': OoT's format)
+            extra += [f"{sym}:", "  type: OOT:COLLISION", f"  offset: 0x{off:06X}", f"  symbol: {sym}", ""]
         for off in parts.get("dl", {}).values():
             w.walk((seg << 24) | off)
         extras[name], others[name] = extra, w.other_segments

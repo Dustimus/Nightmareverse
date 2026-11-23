@@ -90,6 +90,11 @@ void NvMmHariko_Destroy(Actor* thisx, PlayState* play);
 void NvMmHariko_Update(Actor* thisx, PlayState* play);
 void NvMmHariko_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvMmHarikoSize;
+void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
+void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
+void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
+void NvMmEtcetera_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmEtceteraSize;
 void NvMmTalk_Init(Actor* thisx, PlayState* play);
 void NvMmTalk_Destroy(Actor* thisx, PlayState* play);
 void NvMmTalk_Update(Actor* thisx, PlayState* play);
@@ -192,6 +197,9 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x20A,
       { "Mm_Obj_Hariko", "MM: the bobblehead cow toy", ACTORCAT_PROP, 0, &gNvMmHarikoSize, NvMmHariko_Init,
         NvMmHariko_Destroy, NvMmHariko_Update, NvMmHariko_Draw } },
+    { 0x183,
+      { "Mm_Obj_Etcetera", "MM: a Deku flower", ACTORCAT_BG, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmEtceteraSize,
+        NvMmEtcetera_Init, NvMmEtcetera_Destroy, NvMmEtcetera_Update, NvMmEtcetera_Draw } },
     { 0x261,
       { "Mm_En_Talk", "MM: something to read or check", ACTORCAT_ITEMACTION, ACTOR_FLAG_ATTENTION_ENABLED, &gNvMmTalkSize, NvMmTalk_Init,
         NvMmTalk_Destroy, NvMmTalk_Update, NULL } },

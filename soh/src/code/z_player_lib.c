@@ -1796,12 +1796,16 @@ s32 NvWeapon_Holding(void);
 
 void NvMmMask_DrawOnHead(PlayState* play, Player* player); // Nightmareverse
 void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList);   // Nightmareverse
+void NvMmDeku_DrawHandFlower(PlayState* play, Player* this, s32 limbIndex); // Nightmareverse
 
 void Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     Player* this = (Player*)thisx;
 
     if (*dList != NULL) {
         Matrix_MultVec3f(&sZeroVec, D_80160000);
+    }
+    if ((limbIndex == PLAYER_LIMB_L_HAND) || (limbIndex == PLAYER_LIMB_R_HAND)) {
+        NvMmDeku_DrawHandFlower(play, this, limbIndex); // Nightmareverse: Deku Link's flowers, flying
     }
 
     if (limbIndex == PLAYER_LIMB_L_HAND) {
