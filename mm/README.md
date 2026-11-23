@@ -778,10 +778,17 @@ Nothing of OoT's player code (z_player.c) is rewritten for this. Deku Link is Oo
 - Changing takes any worn mask off (as MM). Plain masks are for human Link only (as MM). As Deku,
   only the ocarina and the masks can be used for now.
 
-The change: MM's transformation scene isn't in yet (it needs MM's player animations: cl_setmask,
-pn_maskoffstart). Here it's the scene's end alone, a white fill (MM's 220,220,220, 45 a frame) with
-the change at full white. MM's rule for the scene, from the decomp: it plays every time; into a form
-it can be skipped only after it's been watched to the end once, back to human always.
+The change is MM's transformation scene (Player_Action_86 and 87): Link turns to the camera and
+puts the mask on (MM's cl_setmask and cl_setmaskend; the Deku Mask drawn on his face from frame 12,
+squashing onto it, the fused mask from frame 51: gameplay_keep's gDekuMaskDL and object_mask_nuts,
+now converted), or as Deku pulls it off (pn_maskoffstart); the light darkens, flashes with the
+lightning and turns blue, a light flares by him (MM's D_8085D848, D_8085D910); the screen goes white
+(45 a frame), he changes, and it comes back. MM's rule: it plays every time; into a form it can be
+skipped (A, B, a C button) only once that form's scene has been watched to the end (a bit per form in
+the save), back to human always. The camera is a close one of our own on his face (MM's is its
+cutscene manager's); the sounds are OoT's nearest (MM's transformation voice and flash are MM's own).
+The proposal to skip it by default with a setting to watch it (NV_GAMES.md) stays open: it needs a
+settings page.
 
 Not yet: the bubble, the flower launch (below, "Deku Link's moves"), MM's Deku items, adult
 Link (forms don't depend on age, leaning yes: open), the other forms, the people's Deku lines (each

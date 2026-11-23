@@ -293,6 +293,11 @@ static void NvMmMask_DrawGreatFairysHair(PlayState* play, Player* player) {
 
 /** Player_PostLimbDrawGameplay's hook at the head (z_player_lib.c): the mask, in the head's space. */
 void NvMmMask_DrawOnHead(PlayState* play, Player* player) {
+    s32 NvMmForm_DrawSceneMask(PlayState * play, Player * player);
+
+    if (NvMmForm_DrawSceneMask(play, player)) { // (a form's mask going on: z_nv_mm_form.c)
+        return;
+    }
     if (sWorn == 0) {
         return;
     }

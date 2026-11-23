@@ -35,6 +35,7 @@ typedef struct {
     int32_t form;
     int32_t savedB;
     int32_t savedSwordless;
+    int32_t sceneSeen;
 } NvMmFormSave;
 NvMmFormSave* NvMmForm_SaveVars(void);
 }
@@ -75,6 +76,7 @@ static void NvMmSave_Save(const SaveContext& saveContext, int sectionID, bool fu
         SaveManager::Instance->SaveData("form", form->form);
         SaveManager::Instance->SaveData("formSavedB", form->savedB);
         SaveManager::Instance->SaveData("formSavedSwordless", form->savedSwordless);
+        SaveManager::Instance->SaveData("formSceneSeen", form->sceneSeen);
         SaveManager::Instance->SaveStruct("scenes", []() { // collectibles, visited rooms and floors
             for (int32_t i = 0; i < NvMmScene_Count(); i++) {
                 SavedSceneFlags* f = NvMmScene_At(i);
@@ -123,6 +125,7 @@ static void NvMmSave_Load() {
         SaveManager::Instance->LoadData("form", form->form, (int32_t)4);
         SaveManager::Instance->LoadData("formSavedB", form->savedB, (int32_t)0xFF);
         SaveManager::Instance->LoadData("formSavedSwordless", form->savedSwordless, (int32_t)0);
+        SaveManager::Instance->LoadData("formSceneSeen", form->sceneSeen, (int32_t)0);
         SaveManager::Instance->LoadStruct("scenes", []() {
             for (int32_t i = 0; i < NvMmScene_Count(); i++) {
                 SavedSceneFlags* f = NvMmScene_At(i);

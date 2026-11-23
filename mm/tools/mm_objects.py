@@ -77,6 +77,7 @@ OBJECTS = {
     }}),
     "gameplay_keep": (649, {"segment": 4, "dl": {  # MM's main keep: what the ported actors share (shadows, ...)
         "gSquareShadowDL": 0x75A40,
+        "gDekuMaskDL": 0x56C0,  # the Deku Mask on Link's face, put on (the transformation scene)
         "gCircleShadowDL": 0x76BC0,
         "gEffFire1DL": 0x7D590,  # a torch's flame (Obj_Syokudai)
         "gameplay_keep_DL_01ACF0": 0x1ACF0,  # a small flame: candles, lamps (En_Light)
@@ -230,6 +231,8 @@ MASK_OBJECTS = {
     "object_mask_bree": (671, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_bree_DL_0003C0": 0x3C0}}),
     "object_mask_bakuretu": (676, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_bakuretu_DL_0005C0": 0x5C0}}),
     "object_mask_bu_san": (677, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_bu_san_DL_000710": 0x710}}),
+    # the Deku Mask fusing with Link's face (the transformation scene's second half: MM's D_801C0B20[27])
+    "object_mask_nuts": (680, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_nuts_DL_001D90": 0x1D90}}),
     "object_mask_kyojin": (666, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_kyojin_DL_000380": 0x380}}),
 }
 OBJECTS.update(MASK_OBJECTS)
