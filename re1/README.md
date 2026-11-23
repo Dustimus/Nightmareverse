@@ -393,7 +393,8 @@ design notes).
 
 Weapons (2026-11-03, first pass): in RE1's rooms the weapon equipped on the status screen takes
 its C button (C-Left, or the one pressed on it there: saved with the equipped slot, in that byte's
-top bits; RE1's icon on the button; the OoT item there is back outside the mansion), in
+top bits; RE1's icon on the button, its blue ground cut out and scaled to fill it as OoT's item icons
+(`re1/ui/cicons`, `tools/soh_ui.py` cicons_blob, as Mod1 made them); the OoT item there is back outside the mansion), in
 `soh/src/code/z_nv_weapon.c`. Holding the button squares Link up as RE1's aim does: he stops, the stick
 turns him, up/down aims high or low, and Jill's raise and hold for that weapon and direction play
 on him (`re1/weapons/w<id>`, `tools/soh_weapons.py`: her PLAYERS/W1x.EMW by RE1's g_weaponPathTable,
