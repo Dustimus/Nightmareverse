@@ -677,9 +677,11 @@ Inverted Song of Time), half (3DS's), normal, double, triple, the current one ma
 still while it's open, the clock stopped. The clock shows "x1/3", "x1/2", "x2" or "x3" when the
 speed isn't normal. The Song of Time puts it back to normal, as MM's does; it's saved (the old
 "speedOffset" field now holds the half steps; an older save's MM offset is read as one). People
-walking by the time follow it (`NvMmClock_Speed`: this frame's step). Opened for now only by the
-dev switch NV_MM_SPEED_MENU=1; the Inverted Song of Time will open it once `z_nv_songs.c` (RE1's
-shared song listener) is in. Tested headless: the list, half chosen, the clock's "x1/2".
+walking by the time follow it (`NvMmClock_Speed`: this frame's step). The Inverted Song of Time opens
+it (`z_nv_mm_songs.c`, registered with the shared song listener `z_nv_songs.c` that the RE1 side
+wrote, after RE1's songs): in Termina only, OoT's correct chime, the ocarina put away as B puts it
+away, then the list. Dev: NV_MM_SPEED_MENU=1 opens it on the first frame. Tested headless: the
+song played in the inn (`press:` notes), the list, half chosen, the clock's "x1/2".
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 

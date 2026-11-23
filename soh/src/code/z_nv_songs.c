@@ -25,6 +25,7 @@ static u8 sNvSongHeard[NV_SONG_MAX_NOTES]; // the last notes played in free play
 static const NvSongDef* sNvSongPending;    // a slot's song just played (its sequence is running)
 
 void NvSongs_RegisterRe1(void); // z_nv_script.c
+void NvSongs_RegisterMm(void);  // z_nv_mm_songs.c
 
 static void NvSongs_Init(void) {
     if (sNvSongsReady) {
@@ -33,7 +34,8 @@ static void NvSongs_Init(void) {
     sNvSongsReady = true;
     memset(sNvSongHeard, 0xFF, sizeof(sNvSongHeard));
     NvSongs_RegisterRe1();
-    // (each side's own register goes here, after RE1's: the Majora's Mask side's songs)
+    NvSongs_RegisterMm(); // the Majora's Mask side's (z_nv_mm_songs.c)
+    // (each side's own register goes here, after RE1's)
 }
 
 void NvSongs_Register(const NvSongDef* song) {

@@ -11,21 +11,15 @@
 #include "global.h"
 #include <stdio.h>
 #include <stdlib.h>
-
-// (until re1/foyer's shared listener is merged into this branch, the song isn't registered: the
-// rest builds without it)
-#if __has_include("z_nv_songs.h")
 #include "z_nv_songs.h"
-#define NV_MM_HAVE_SONGS 1
-#endif
 
 void NvMmClock_OpenSpeedMenu(PlayState* play);
 
 static const u8 sInvertedSongOfTime[] = { OCARINA_BTN_C_DOWN, OCARINA_BTN_A, OCARINA_BTN_C_RIGHT,
                                           OCARINA_BTN_C_DOWN, OCARINA_BTN_A, OCARINA_BTN_C_RIGHT };
 static s32 sInvertedPending; // played: the list opens once the ocarina is put away
+static s32 sInvertedClosing; // the ocarina's being put away
 
-#ifdef NV_MM_HAVE_SONGS
 static s32 NvMmSongs_InTermina(PlayState* play) {
     return NvMm_IsScene(play->sceneNum);
 }
@@ -47,7 +41,6 @@ static const NvSongDef sInvertedDef = {
 void NvSongs_RegisterMm(void) {
     NvSongs_Register(&sInvertedDef);
 }
-#endif
 
 /** Every frame in Termina (z_nv_mm.c): a played Inverted Song of Time puts the ocarina away and
  * opens the speed list. */
@@ -56,9 +49,15 @@ void NvMmSongs_Update(PlayState* play) {
         return;
     }
     if (play->msgCtx.msgMode != MSGMODE_NONE) {
-        Message_CloseTextbox(play); // (the ocarina's staff: put away)
+        if (!sInvertedClosing) { // the ocarina put away, as B does in free play (z_message_PAL.c)
+            sInvertedClosing = true;
+            AudioOcarina_SetInstrument(OCARINA_INSTRUMENT_OFF);
+            play->msgCtx.ocarinaMode = OCARINA_MODE_04;
+            Message_CloseTextbox(play);
+        }
         return;
     }
+    sInvertedClosing = false;
     sInvertedPending = false;
     NvMmClock_OpenSpeedMenu(play);
 }
