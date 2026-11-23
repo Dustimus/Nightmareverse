@@ -78,6 +78,7 @@ OBJECTS = {
     "gameplay_keep": (649, {"segment": 4, "dl": {  # MM's main keep: what the ported actors share (shadows, ...)
         "gSquareShadowDL": 0x75A40,
         "gDekuMaskDL": 0x56C0,  # the Deku Mask on Link's face, put on (the transformation scene)
+        "gGoronMaskDL": 0x5A10,  # the Goron Mask, the same
         "gPinkDekuFlowerIdleDL": 0xED80,  # the Deku flowers (Obj_Etcetera), at rest
         "gameplay_keep_DL_06F380": 0x6F380,  # the Deku bubble (En_Arrow's): its setup,
         "gameplay_keep_DL_06F9F0": 0x6F9F0,  # being blown,
@@ -200,6 +201,15 @@ OBJECTS = {
                 **{f"gLinkHumanMouth{n}Tex": (o, "CI8", 32, 32, 0x5200) for n, o in {
                     "Closed": 0x4000, "Half": 0x4400, "Open": 0x4800, "Smile": 0x4C00}.items()}},
     }),
+    "object_link_goron": (655, {"deps": ["gameplay_keep"],  # Goron Link (MM's PLAYER_FORM_GORON: the Goron Mask's form)
+        "skel_lod": {"gLinkGoronSkel": 0x17A84},
+        "dl": {f"gLinkGoron{n}DL": o for n, o in {
+            "Waist": 0x8C00, "Sheath": 0x99D8, "RightHandOpen": 0x9EF8, "LeftHandOpen": 0xA500,
+            "LeftHandClosed": 0xDE68, "RightHandClosed": 0xE7E8, "Curled": 0xBDD8,
+            "RollingSpikesAndEffect": 0x14690, "GoronPunchEffect": 0x11AB8}.items()},
+        "tex": {f"gLinkGoronEyes{n}Tex": (o, "CI8", 64, 32, 0x2200) for n, o in {
+            "Open": 0x0, "Half": 0x800, "Closed": 0x1000, "Surprised": 0x1800}.items()},
+    }),
     "object_link_nuts": (657, {"deps": ["gameplay_keep"],  # Deku Link (MM's PLAYER_FORM_DEKU: the Deku Mask's form)
         "skel_lod": {"gLinkDekuSkel": 0xBA24},
         "dl": {**{f"gLinkDeku{n}DL": o for n, o in {
@@ -242,6 +252,7 @@ MASK_OBJECTS = {
     "object_mask_bakuretu": (676, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_bakuretu_DL_0005C0": 0x5C0}}),
     "object_mask_bu_san": (677, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_bu_san_DL_000710": 0x710}}),
     # the Deku Mask fusing with Link's face (the transformation scene's second half: MM's D_801C0B20[27])
+    "object_mask_goron": (678, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_goron_DL_0014A0": 0x14A0}}),
     "object_mask_nuts": (680, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_nuts_DL_001D90": 0x1D90}}),
     "object_mask_kyojin": (666, {"segment": 10, "deps": ["gameplay_keep"], "dl": {"object_mask_kyojin_DL_000380": 0x380}}),
 }

@@ -812,6 +812,24 @@ a frame; MM's idle is OoT's to the value), so OoT's player code plays them as it
 path as a LinkAnimationHeader*, as SoH's own animations are. `mm_player_anims.py` is the names and
 header offsets in gameplay_keep, from the decomp's XML (no game data).
 
+### Goron Link, the first stage (2026-11-24, `soh/src/code/z_nv_mm_form.c`)
+
+The form code is now a table of forms (sFormDefs: model, hands open and closed, waist, sheath,
+eyes, MM's sizes, height and speeds, the mask's two models in the scene, the mask-off animation);
+Goron Link joins Deku Link there. The Goron Mask changes him (MM's scene, the Goron Mask on his face
+and fused: gameplay_keep's gGoronMaskDL, object_mask_goron, both converted) into Goron Link: MM's
+object_link_goron (his skeleton, hands, waist, sheath, his eyes in OoT's eye table while he's Goron:
+open, half, closed, surprised for OoT's "shock"), MM's Goron size (unk_08 0.74), height 80 and speeds
+(MM's PLAYER_BOOTS_GORON). In deep water he sinks and is put back on land (MM lets him walk the
+bottom: not yet). One form's mask while another's on changes him straight across. The gate guards
+already had MM's Goron lines (they let him out).
+
+Not yet: everything Goron Link does (the punch on B, the roll on A, the ground pound, the curl on
+R, the drums), the heavy switches, the Zora and Fierce Deity forms.
+
+Tested headless: the Goron Mask equipped, the change and back (the scene both ways), Goron Link
+standing by the gate guard in South Clock Town at MM's size.
+
 ### Deku Link's moves (2026-11-23, `soh/src/code/z_nv_mm_deku.c`)
 
 MM's Deku moves on OoT's Link: our own action functions, set as Link's action (OoT's actionFunc),

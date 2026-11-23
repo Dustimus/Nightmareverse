@@ -1,18 +1,21 @@
 /*
- * Nightmareverse: Majora's Mask's forms on Link (mm/README.md "The forms"). The first: the Deku form.
+ * Nightmareverse: Majora's Mask's forms on Link (mm/README.md "The forms"): Deku Link and Goron Link
+ * so far (a table, sFormDefs: the Zora and the Fierce Deity slot in the same way).
  *
- * Wearing the Deku Mask (its C button, as MM's) turns Link into Deku Link, and pressing it again
- * turns him back. He stays Deku through doors and loads, and in the save (as MM: the form is kept),
- * in Termina and in Hyrule alike (NV_GAMES.md: the forms are carried over).
+ * Wearing a form's mask (its C button, as MM's) turns Link into that form, and pressing it again
+ * turns him back (another form's mask: straight into that one). He stays in his form through doors
+ * and loads, and in the save (as MM: the form is kept), in Termina and in Hyrule alike (NV_GAMES.md:
+ * the forms are carried over).
  *
- * Nothing of OoT's player code is rewritten for this. Deku Link is OoT's young Link with:
- * - MM's Deku skeleton (object_link_nuts) under OoT's animations: MM's Deku Link plays the same
- *   animations as its human Link for walking, running, standing... (MM's D_8085BE84 has no form
- *   column), and the two skeletons have the same 21 joints in the same order;
- * - MM's Deku hands, waist and sheath (z_player_lib.c's limb hook asks NvMmForm_OverrideLimb),
- *   no sword, no shield (B is empty while Deku, as MM's: the sword is put back when he's human);
- * - MM's Deku size: the ceiling, wall, ledge and water heights of MM's sPlayerAgeProperties for
- *   PLAYER_FORM_DEKU, over OoT's young Link's (OoT's voice and animations kept).
+ * Nothing of OoT's player code is rewritten for this. A form is OoT's young Link with:
+ * - MM's skeleton for it (object_link_nuts, object_link_goron) under OoT's animations: MM's forms
+ *   play the same animations as its human Link for walking, running, standing... (MM's D_8085BE84
+ *   has no form column), and the skeletons have the same 21 joints in the same order;
+ * - its hands, waist and sheath (z_player_lib.c's limb hook asks NvMmForm_OverrideLimb), its eyes
+ *   (Goron Link's, in OoT's eye table while he's Goron), no sword, no shield (B is empty, as MM's:
+ *   the sword is put back when he's human);
+ * - its size (MM's sPlayerAgeProperties for the form over OoT's young Link's: OoT's voice and
+ *   animations kept), its height for the camera, its speeds (MM's boot data);
  * - MM's people see the form: NvMmForm_Get, MM's GET_PLAYER_FORM (the message scripts' CHECK_DEKU).
  *
  * MM's transformation scene (Player_Action_86, then Player_Action_87 after the change), as MM's:
@@ -37,11 +40,84 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MM_FORM_DEKU 3 // MM's PLAYER_FORM_*: Fierce Deity 0, Goron 1, Zora 2, Deku 3, human 4
+#define MM_FORM_GORON 1 // MM's PLAYER_FORM_*: Fierce Deity 0, Goron 1, Zora 2, Deku 3, human 4
+#define MM_FORM_DEKU 3
 #define MM_FORM_HUMAN 4
 #define MM_ITEM_MASK_DEKU 0x32
+#define MM_ITEM_MASK_GORON 0x33
 
 #define DEKU(name) ("__OTR__mm/objects/object_link_nuts/" name)
+#define GORON(name) ("__OTR__mm/objects/object_link_goron/" name)
+#define KEEP(name) ("__OTR__mm/objects/gameplay_keep/" name)
+#define MMANIM(name) ((LinkAnimationHeader*)("__OTR__mm/player_anim/" name))
+
+/** A form, as MM has it: its model, its size (MM's sPlayerAgeProperties: the sizes; OoT's voice and
+ * animations kept), its height (MM's Player_GetHeight), its speeds (MM's boot data, on OoT's movement
+ * registers: OoT has no REG(39), MM's 9th left out), its mask on his face in the scene. */
+typedef struct {
+    s32 mmItem;          // its mask (MM's item id)
+    const char* name;    // (the log)
+    const char* skel;
+    const char* handL[2]; // open, closed (OoT's choice: closed running)
+    const char* handR[2];
+    const char* waist;
+    const char* sheath;
+    const char* eyes[8]; // OoT's eight eye slots (NULL: the face has no eye texture)
+    f32 sizes[17];       // ceilingCheckHeight ... unk_40
+    Vec3s v44;
+    Vec3s v4A[4];
+    Vec3s v62[4];
+    Vec3s v7A[4];        // (OoT's unk_7A[2] and unk_86[2]: MM's unk_7A[4])
+    f32 height;
+    s16 bootRegs[17];
+    const char* maskDL;      // the mask going on (MM's D_801C0B20, the form's mask)
+    const char* fusedMaskDL; // fused with his face (MM's D_801C0B20, + 4)
+    const char* maskOffAnim; // pulling it off (MM's D_8085D160)
+} NvMmFormDef;
+
+static const NvMmFormDef sFormDefs[5] = {
+    [MM_FORM_GORON] = {
+        MM_ITEM_MASK_GORON, "Goron", GORON("gLinkGoronSkel"),
+        { GORON("gLinkGoronLeftHandOpenDL"), GORON("gLinkGoronLeftHandClosedDL") },
+        { GORON("gLinkGoronRightHandOpenDL"), GORON("gLinkGoronRightHandClosedDL") },
+        GORON("gLinkGoronWaistDL"), GORON("gLinkGoronSheathDL"),
+        // (MM's: open, half, closed; its surprised for OoT's "shock"; the rest open)
+        { GORON("gLinkGoronEyesOpenTex"), GORON("gLinkGoronEyesHalfTex"), GORON("gLinkGoronEyesClosedTex"),
+          GORON("gLinkGoronEyesOpenTex"), GORON("gLinkGoronEyesOpenTex"), GORON("gLinkGoronEyesSurprisedTex"),
+          GORON("gLinkGoronEyesOpenTex"), GORON("gLinkGoronEyesOpenTex") },
+        { 70.0f, 90.0f, 0.74f, 111.0f, 70.0f, 79.4f, 59.0f, 41.0f, 19.0f, 36.0f, 50.0f, 56.0f, 68.0f, 70.0f, 19.5f,
+          18.2f, 80.0f },
+        { 0x17, 0xF3B, 0xDF },
+        { { 0x18, 0xF3B, 0xDF }, { 0x17, 0x14CF, 0xDF }, { 0x18, 0xF3B, 0xDF }, { 0x17, 0x14CF, 0xDF } },
+        { { 0x17, 0x14CF, 0xDF }, { 0x18, 0x1AF2, 0xDF }, { 0x17, 0x14CF, 0xDF }, { 0x18, 0x1AF2, 0xDF } },
+        { { 8, 0x1256, 0x17C }, { 9, 0x17EA, 0x167 }, { -0x638, 0x1256, 0x17C }, { -0x637, 0x17EA, 0x167 } },
+        80.0f,
+        { 200, 1000, 300, 700, 550, 270, 700, 200, 800, 600, -140, 600, 590, 750, 125, 200, 130 },
+        KEEP("gGoronMaskDL"), "__OTR__mm/objects/object_mask_goron/object_mask_goron_DL_0014A0",
+        "__OTR__mm/player_anim/gPlayerAnim_pg_maskoffstart",
+    },
+    [MM_FORM_DEKU] = {
+        MM_ITEM_MASK_DEKU, "Deku", DEKU("gLinkDekuSkel"),
+        { DEKU("gLinkDekuLeftHandDL"), DEKU("gLinkDekuLeftHandDL") },
+        { DEKU("gLinkDekuRightHandDL"), DEKU("gLinkDekuRightHandDL") },
+        DEKU("gLinkDekuWaistDL"), DEKU("gLinkDekuSheathDL"),
+        { NULL },
+        { 35.0f, 50.0f, 0.3f, 71.0f, 50.0f, 49.0f, 39.0f, 27.0f, 19.0f, 8.0f, 13.6f, 24.0f, 24.0f, 70.0f, 14.0f, 12.0f,
+          55.0f },
+        { -0x18, 0xDED, 0x36C },
+        { { -0x18, 0xD92, 0x35E }, { -0x18, 0x1371, 0x3A9 }, { 8, 0x1256, 0x17C }, { 9, 0x17EA, 0x167 } },
+        { { -0x18, 0x1371, 0x3A9 }, { -0x18, 0x195F, 0x3A9 }, { 9, 0x17EA, 0x167 }, { 9, 0x1E0D, 0x17C } },
+        { { 8, 0x1256, 0x17C }, { 9, 0x17EA, 0x167 }, { -0x638, 0x1256, 0x17C }, { -0x637, 0x17EA, 0x167 } },
+        36.0f,
+        { 200, 1000, 300, 700, 550, 270, 600, 1000, 800, 600, -100, 600, 590, 750, 125, 200, 130 },
+        KEEP("gDekuMaskDL"), "__OTR__mm/objects/object_mask_nuts/object_mask_nuts_DL_001D90",
+        "__OTR__mm/player_anim/gPlayerAnim_pn_maskoffstart",
+    },
+};
+
+static const NvMmFormDef* NvMmForm_Def(s32 form) {
+    return ((form >= 0) && (form < MM_FORM_HUMAN) && (sFormDefs[form].skel != NULL)) ? &sFormDefs[form] : NULL;
+}
 
 typedef struct {
     s32 form;  // MM's PLAYER_FORM_* (4: human)
@@ -65,7 +141,8 @@ static s16 sFaceYaw;
 static LightInfo sLightInfo;
 static LightNode* sLightNode;
 static s16 sSavedAdj[10];    // OoT's light adjustments before the scene (MM's D_80862B50)
-static PlayerAgeProperties sDekuProperties;
+static PlayerAgeProperties sFormProperties; // the current form's (OoT's young Link's with MM's sizes)
+static s32 sFormPropertiesFor = -1;
 static const void* sAppliedLimbs; // the skeleton Link was last given
 static PlayerAgeProperties* sOotProperties;
 
@@ -81,7 +158,43 @@ s32 NvMmForm_Get(void) {
 
 /** z_actor.c's Player_GetHeight (the camera's and others' Link height): MM's for the form, 0 as human. */
 f32 NvMmForm_Height(void) {
-    return (sForm.form == MM_FORM_DEKU) ? 36.0f : 0.0f;
+    const NvMmFormDef* def = NvMmForm_Def(sForm.form);
+
+    return (def != NULL) ? def->height : 0.0f;
+}
+
+/** The form's speeds on OoT's movement registers (z_nv_mm_deku.c's Update, each frame): false as human. */
+s32 NvMmForm_SetBootRegs(PlayState* play) {
+    const NvMmFormDef* def = NvMmForm_Def(sForm.form);
+    const s16* r;
+
+    if (def == NULL) {
+        return false;
+    }
+    r = def->bootRegs;
+    REG(27) = 2000;
+    REG(48) = 370;
+    REG(19) = r[0];
+    REG(30) = r[1];
+    REG(32) = r[2];
+    REG(34) = r[3];
+    REG(35) = r[4];
+    REG(36) = r[5];
+    REG(37) = r[6];
+    REG(38) = r[7];
+    REG(43) = r[8]; // (R_DECELERATE_RATE)
+    REG(45) = r[9]; // (R_RUN_SPEED_LIMIT)
+    REG(68) = r[10];
+    REG(69) = r[11];
+    IREG(66) = r[12];
+    IREG(67) = r[13];
+    IREG(68) = r[14];
+    IREG(69) = r[15];
+    MREG(95) = r[16];
+    if (play->roomCtx.curRoom.behaviorType1 == ROOM_BEHAVIOR_TYPE1_2) { // (indoors, as OoT and MM)
+        REG(45) = 500;
+    }
+    return true;
 }
 
 NvMmFormSave* NvMmForm_SaveVars(void) {
@@ -96,30 +209,51 @@ void NvMmForm_NewGame(void) {
     sChangeTo = -1;
 }
 
-/** MM's sPlayerAgeProperties[PLAYER_FORM_DEKU] over OoT's young Link's: the sizes, not the animations. */
-static void NvMmForm_MakeDekuProperties(PlayerAgeProperties* oot) {
-    static const f32 sSizes[] = { 35.0f, 50.0f, 0.3f,  71.0f, 50.0f, 49.0f, 39.0f, 27.0f, 19.0f,
-                                  8.0f,  13.6f, 24.0f, 24.0f, 70.0f, 14.0f, 12.0f, 55.0f };
-    static const Vec3s s44 = { -0x18, 0xDED, 0x36C };
-    static const Vec3s s4A[4] = { { -0x18, 0xD92, 0x35E }, { -0x18, 0x1371, 0x3A9 }, { 8, 0x1256, 0x17C },
-                                  { 9, 0x17EA, 0x167 } };
-    static const Vec3s s62[4] = { { -0x18, 0x1371, 0x3A9 }, { -0x18, 0x195F, 0x3A9 }, { 9, 0x17EA, 0x167 },
-                                  { 9, 0x1E0D, 0x17C } };
-    static const Vec3s s7A[4] = { { 8, 0x1256, 0x17C }, { 9, 0x17EA, 0x167 }, { -0x638, 0x1256, 0x17C },
-                                  { -0x637, 0x17EA, 0x167 } };
+/** MM's sPlayerAgeProperties for the form over OoT's young Link's: the sizes, not the animations. */
+static void NvMmForm_MakeProperties(PlayerAgeProperties* oot, const NvMmFormDef* def) {
+    sFormProperties = *oot; // (OoT's voice, sounds and animations)
+    memcpy(&sFormProperties, def->sizes, sizeof(def->sizes)); // ceilingCheckHeight ... unk_40
+    sFormProperties.unk_44 = def->v44;
+    memcpy(sFormProperties.unk_4A, def->v4A, sizeof(def->v4A));
+    memcpy(sFormProperties.unk_62, def->v62, sizeof(def->v62));
+    memcpy(sFormProperties.unk_7A, def->v7A, sizeof(def->v7A));
+}
 
-    sDekuProperties = *oot; // (OoT's voice, sounds and animations)
-    memcpy(&sDekuProperties, sSizes, sizeof(sSizes)); // ceilingCheckHeight ... unk_40
-    sDekuProperties.unk_44 = s44;
-    memcpy(sDekuProperties.unk_4A, s4A, sizeof(s4A));
-    memcpy(sDekuProperties.unk_62, s62, sizeof(s62));
-    memcpy(sDekuProperties.unk_7A, s7A, sizeof(s7A)); // (OoT's unk_7A[2] and unk_86[2]: MM's unk_7A[4])
+/* the form's eyes in OoT's eye table (young Link's row; put back as human) */
+extern void* sEyeTextures[2][8];
+static void* sEyesKept[8];
+static s32 sEyesSet;
+
+static void NvMmForm_SetEyes(const NvMmFormDef* def) {
+    s32 i;
+
+    if ((def == NULL) || (def->eyes[0] == NULL)) {
+        if (sEyesSet) {
+            for (i = 0; i < 8; i++) {
+                sEyeTextures[1][i] = sEyesKept[i];
+            }
+            sEyesSet = false;
+        }
+        return;
+    }
+    if (!sEyesSet || (sEyeTextures[1][0] != (void*)def->eyes[0])) { // (or the table was rewritten: a scene's start)
+        for (i = 0; i < 8; i++) {
+            if (!sEyesSet || (sEyeTextures[1][0] != (void*)def->eyes[0])) {
+                sEyesKept[i] = sEyeTextures[1][i];
+            }
+        }
+        for (i = 0; i < 8; i++) {
+            sEyeTextures[1][i] = (void*)def->eyes[i];
+        }
+        sEyesSet = true;
+    }
 }
 
 /** Link's skeleton and size for his form (now, and on each new Link: a scene's start). */
 static void NvMmForm_Apply(PlayState* play, Player* player) {
     FlexSkeletonHeader* header;
-    const char* path = (sForm.form == MM_FORM_DEKU) ? DEKU("gLinkDekuSkel") : (const char*)gPlayerSkelHeaders[1];
+    const NvMmFormDef* def = NvMmForm_Def(sForm.form);
+    const char* path = (def != NULL) ? def->skel : (const char*)gPlayerSkelHeaders[1];
 
     header = ResourceMgr_LoadSkeletonByName(path, &player->skelAnime);
     if (header == NULL) {
@@ -131,19 +265,23 @@ static void NvMmForm_Apply(PlayState* play, Player* player) {
     player->upperSkelAnime.dListCount = header->dListCount;
     sAppliedLimbs = player->skelAnime.skeleton;
 
-    if (sForm.form == MM_FORM_DEKU) {
-        if (player->ageProperties != &sDekuProperties) {
-            sOotProperties = player->ageProperties;
-            NvMmForm_MakeDekuProperties(sOotProperties);
-            player->ageProperties = &sDekuProperties;
+    if (def != NULL) {
+        if ((player->ageProperties != &sFormProperties) || (sFormPropertiesFor != sForm.form)) {
+            if (player->ageProperties != &sFormProperties) {
+                sOotProperties = player->ageProperties;
+            }
+            NvMmForm_MakeProperties(sOotProperties, def);
+            sFormPropertiesFor = sForm.form;
+            player->ageProperties = &sFormProperties;
         }
-    } else if ((player->ageProperties == &sDekuProperties) && (sOotProperties != NULL)) {
+    } else if ((player->ageProperties == &sFormProperties) && (sOotProperties != NULL)) {
         player->ageProperties = sOotProperties;
     }
+    NvMmForm_SetEyes(def);
 }
 
 static void NvMmForm_Change(PlayState* play, Player* player, s32 form) {
-    if (form == MM_FORM_DEKU) {
+    if (form != MM_FORM_HUMAN) {
         if (sForm.form == MM_FORM_HUMAN) {
             sForm.savedB = gSaveContext.equips.buttonItems[0];
             sForm.savedSwordless = gSaveContext.infTable[29];
@@ -163,7 +301,7 @@ static void NvMmForm_Change(PlayState* play, Player* player, s32 form) {
     sForm.form = form;
     NvMmForm_Apply(play, player);
     if (getenv("NV_LOG") != NULL) {
-        printf("NVMM form: %s\n", (form == MM_FORM_DEKU) ? "Deku" : "human");
+        printf("NVMM form: %s\n", (NvMmForm_Def(form) != NULL) ? NvMmForm_Def(form)->name : "human");
         fflush(stdout);
     }
 }
@@ -430,8 +568,10 @@ static void NvMmForm_StartScene(PlayState* play, Player* player, s32 to) {
     Player_SetupAction(play, player, NvMmForm_Scene, 0);
     player->stateFlags1 |= PLAYER_STATE1_IN_CUTSCENE;
     player->actor.velocity.y = 0.0f;
-    LinkAnimation_Change(play, &player->skelAnime, (sFromForm == MM_FORM_HUMAN) ? ANIM_SETMASK : ANIM_DEKU_MASKOFF,
-                         1.0f, 0.0f, Animation_GetLastFrame((sFromForm == MM_FORM_HUMAN) ? ANIM_SETMASK : ANIM_DEKU_MASKOFF),
+    LinkAnimationHeader* anim =
+        (sFromForm == MM_FORM_HUMAN) ? ANIM_SETMASK : (LinkAnimationHeader*)NvMmForm_Def(sFromForm)->maskOffAnim;
+
+    LinkAnimation_Change(play, &player->skelAnime, anim, 1.0f, 0.0f, Animation_GetLastFrame(anim),
                          ANIMMODE_ONCE, -6.0f);
     for (i = 0; i < 3; i++) {
         sSavedAdj[i] = play->envCtx.adjAmbientColor[i];
@@ -471,15 +611,22 @@ s32 NvMmForm_DrawSceneMask(PlayState* play, Player* player) {
     Matrix_Scale(1.0f, 1.0f - sMaskSquashY, 1.0f - sMaskSquashZ, MTXMODE_APPLY);
     gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
     Matrix_Pop();
-    gSPDisplayList(POLY_OPA_DISP++, fused ? (Gfx*)"__OTR__mm/objects/object_mask_nuts/object_mask_nuts_DL_001D90"
-                                          : (Gfx*)"__OTR__mm/objects/gameplay_keep/gDekuMaskDL");
+    gSPDisplayList(POLY_OPA_DISP++,
+                   (Gfx*)(fused ? NvMmForm_Def(sChangeTo)->fusedMaskDL : NvMmForm_Def(sChangeTo)->maskDL));
     CLOSE_DISPS(play->state.gfxCtx);
     return true;
 }
 
 /** NvMmMask_UseItem (z_nv_mm_mask.c): a form's mask pressed (MM's item id); true if handled. */
 s32 NvMmForm_UseMask(PlayState* play, Player* player, s32 mmItem) {
-    s32 form = (mmItem == MM_ITEM_MASK_DEKU) ? MM_FORM_DEKU : -1;
+    s32 form = -1;
+    s32 i;
+
+    for (i = 0; i < MM_FORM_HUMAN; i++) { // (the form whose mask it is)
+        if ((NvMmForm_Def(i) != NULL) && (NvMmForm_Def(i)->mmItem == mmItem)) {
+            form = i;
+        }
+    }
 
     if ((form < 0) || !NvMmItem_Has(mmItem) || (sChangeTo >= 0) || !LINK_IS_CHILD) {
         Sfx_PlaySfxCentered(NA_SE_SY_ERROR); // (the other forms, and adult Link: not yet)
@@ -498,7 +645,7 @@ s32 NvMmForm_BlocksItem(s32 item) {
     if (sForm.form == MM_FORM_HUMAN) {
         return false;
     }
-    // Deku Link: the ocarina (MM's pipes) and the masks; MM's other Deku items wait for MM's items
+    // the forms: the ocarina (MM's pipes and drums) and the masks; their other items wait for MM's items
     if ((item == ITEM_OCARINA_FAIRY) || (item == ITEM_OCARINA_TIME) || (item == ITEM_NONE)) {
         return false;
     }
@@ -530,34 +677,39 @@ void NvMmForm_Update(PlayState* play) {
     if ((sForm.form != MM_FORM_HUMAN) && (player->skelAnime.skeleton != sAppliedLimbs)) {
         NvMmForm_Apply(play, player); // (a new Link: a scene's start)
     }
-    if (sForm.form == MM_FORM_DEKU) {
-        if (player->ageProperties != &sDekuProperties) {
+    if (sForm.form != MM_FORM_HUMAN) {
+        if ((player->ageProperties != &sFormProperties) || (sFormPropertiesFor != sForm.form)) {
             NvMmForm_Apply(play, player);
         }
+        NvMmForm_SetEyes(NvMmForm_Def(sForm.form)); // (kept: a scene's start may rewrite the table)
         player->currentShield = PLAYER_SHIELD_NONE;
     }
     NvMmDeku_Update(play, player); // (Deku Link's moves: z_nv_mm_deku.c)
 }
 
-/** z_player_lib.c's limb hook: Deku Link's own hands, waist and sheath (MM's form tables). */
+/** z_player_lib.c's limb hook: the form's own hands, waist and sheath (MM's form tables; the hands
+ * closed running, as OoT's). */
 void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
-    const char* dl = NULL;
+    const NvMmFormDef* def = NvMmForm_Def(sForm.form);
+    Player* player = (gPlayState != NULL) ? GET_PLAYER(gPlayState) : NULL;
+    s32 closed = (player != NULL) && (player->actor.speedXZ > 2.0f);
+    const char* dl;
 
-    if ((sForm.form != MM_FORM_DEKU)) {
+    if (def == NULL) {
         return;
     }
     switch (limbIndex) {
         case PLAYER_LIMB_L_HAND:
-            dl = DEKU("gLinkDekuLeftHandDL");
+            dl = def->handL[closed];
             break;
         case PLAYER_LIMB_R_HAND:
-            dl = DEKU("gLinkDekuRightHandDL");
+            dl = def->handR[closed];
             break;
         case PLAYER_LIMB_SHEATH:
-            dl = DEKU("gLinkDekuSheathDL");
+            dl = def->sheath;
             break;
         case PLAYER_LIMB_WAIST:
-            dl = DEKU("gLinkDekuWaistDL");
+            dl = def->waist;
             break;
         default:
             return;

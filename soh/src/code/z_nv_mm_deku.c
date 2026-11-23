@@ -757,13 +757,25 @@ s32 NvMmDeku_ActionR(PlayState* play, Player* this) {
 
 static void NvMmDeku_Sink(Player* this, PlayState* play);
 
-/** Where OoT would start Link swimming: Deku Link hops off the water, or sinks; true if handled. */
+/** Where OoT would start Link swimming: Deku Link hops off the water, or sinks; Goron Link sinks
+ * (MM: he can't swim either; MM's own walk on the bottom isn't in: put back on land); true if handled. */
 s32 NvMmDeku_IntoWater(PlayState* play, Player* this) {
     LinkAnimationHeader* anim;
     f32 speed;
     s16 yawDiff;
 
     if (!NvMmDeku_Is(this)) {
+        if ((NvMmForm_Get() == 1) && (this->actor.category == ACTORCAT_PLAYER)) { // Goron
+            if (this->actionFunc != NvMmDeku_Sink) {
+                Player_SetupAction(play, this, NvMmDeku_Sink, 0);
+                this->stateFlags1 |= PLAYER_STATE1_IN_CUTSCENE;
+                sSinkStep = 1;
+                sSinkAlpha = 0;
+                Player_PlaySfx(&this->actor, NA_SE_EV_DIVE_INTO_WATER_L);
+                NvMmDeku_Log("sink (Goron)");
+            }
+            return true;
+        }
         return false;
     }
     if (this->actionFunc == NvMmDeku_Sink) {
@@ -845,56 +857,32 @@ static void NvMmDeku_Sink(Player* this, PlayState* play) {
 
 /* ---- each frame ---- */
 
-// MM's boot data for PLAYER_BOOTS_DEKU, on OoT's registers (OoT has no REG(39): MM's 9th left out)
-static const s16 sDekuBootRegs[] = { 200, 1000, 300, 700, 550, 270, 600, 1000, 800, 600, -100, 600, 590, 750, 125, 200, 130 };
-
-static void NvMmDeku_SetBootRegs(PlayState* play) {
-    const s16* r = sDekuBootRegs;
-
-    REG(27) = 2000;
-    REG(48) = 370;
-    REG(19) = r[0];
-    REG(30) = r[1];
-    REG(32) = r[2];
-    REG(34) = r[3];
-    REG(35) = r[4];
-    REG(36) = r[5];
-    REG(37) = r[6];
-    REG(38) = r[7];
-    REG(43) = r[8]; // (R_DECELERATE_RATE)
-    REG(45) = r[9]; // (R_RUN_SPEED_LIMIT)
-    REG(68) = r[10];
-    REG(69) = r[11];
-    IREG(66) = r[12];
-    IREG(67) = r[13];
-    IREG(68) = r[14];
-    IREG(69) = r[15];
-    MREG(95) = r[16];
-    if (play->roomCtx.curRoom.behaviorType1 == ROOM_BEHAVIOR_TYPE1_2) { // (indoors, as OoT and MM)
-        REG(45) = 500;
-    }
-}
-
+s32 NvMmForm_SetBootRegs(PlayState* play); // (z_nv_mm_form.c: the form's speeds, MM's boot data)
 void Player_SetBootData(PlayState* play, Player* this);
 
-/** z_nv_mm_form.c, each frame: the hops, the last hop's spin, MM's Deku speeds. */
+/** z_nv_mm_form.c, each frame: the form's speeds (any form), and Deku Link's hops and last hop's spin. */
 void NvMmDeku_Update(PlayState* play, Player* this) {
+    static s32 sWasForm;
     static s32 sWasDeku;
 
+    if ((this->actor.category == ACTORCAT_PLAYER) && NvMmForm_SetBootRegs(play)) {
+        sWasForm = true;
+    } else if (sWasForm) { // (human again: OoT's speeds)
+        sWasForm = false;
+        Player_SetBootData(play, this);
+    }
     if (!NvMmDeku_Is(this)) {
-        if (sWasDeku) { // (human again: OoT's speeds, OoT's cylinder)
+        if (sWasDeku) { // (Deku no more: OoT's cylinder back)
             sWasDeku = false;
             NvMmDeku_ResetCylinder(this);
             if (sSavedAc >= 0) {
                 this->cylinder.base.acFlags = sSavedAc;
                 sSavedAc = -1;
             }
-            Player_SetBootData(play, this);
         }
         return;
     }
     sWasDeku = true;
-    NvMmDeku_SetBootRegs(play);
     if ((this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) && !(this->stateFlags1 & PLAYER_STATE1_IN_WATER)) {
         sHops = (getenv("NV_DEKU_NOHOPS") != NULL) ? 0 : DEKU_HOPS; // (MM: remainingHopsCounter, back to 5
         // on the ground; dev: NV_DEKU_NOHOPS, none, to try the sinking)
