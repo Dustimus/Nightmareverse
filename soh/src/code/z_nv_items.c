@@ -773,9 +773,16 @@ static void NvItems_TakeOne(s32 i) {
  * from the biggest stack of its ammo (item weapon + 9), up to the gun's capacity; a stack it
  * empties is gone. Returns the rounds loaded (0: no ammo for it).
  */
+// g_ItemMaxQty for the guns that load (2 the handgun .. 9 the bazooka's flame rounds)
+static const u8 sNvGunCap[10] = { 0, 0, 15, 7, 6, 6, 240, 6, 6, 6 };
+
+/** How many rounds gun item id holds loaded (0: the knife, not a gun). */
+s32 NvItems_GunCapacity(s32 id) {
+    return ((id >= 0) && (id < 10)) ? sNvGunCap[id] : 0;
+}
+
 s32 NvItems_Reload(s32 gun) {
-    // g_ItemMaxQty for the guns that load (2 the handgun .. 9 the bazooka's flame rounds)
-    static const u8 sCap[10] = { 0, 0, 15, 7, 6, 6, 240, 6, 6, 6 };
+    const u8* sCap = sNvGunCap;
     s32 weapon;
     s32 ammo;
     s32 best = -1;

@@ -4905,6 +4905,41 @@ void Interface_DrawAmmoCount(PlayState* play, s16 button, s16 alpha) {
 
     OPEN_DISPS(play->state.gfxCtx);
 
+    // Nightmareverse: RE1's gun on its C button: the rounds loaded in it (green when full, grey
+    // when empty, as OoT's counts; up to three digits: the flamethrower holds 240)
+    {
+        s32 NvWeapon_GunButton(PlayState * play);
+        s32 NvWeapon_LoadedAmmo(s32 * ammo, s32 * full);
+        s32 nvAmmo;
+        s32 nvFull;
+
+        if ((button >= 1) && (button <= 3) && (button == NvWeapon_GunButton(play))) {
+            if (NvWeapon_LoadedAmmo(&nvAmmo, &nvFull)) {
+                s16 x = ItemIconPos[button][0]; // (the tens there, as OoT's; hundreds before them)
+                s32 hundreds = nvAmmo / 100;
+                s32 tens = (nvAmmo / 10) % 10;
+
+                gDPPipeSync(OVERLAY_DISP++);
+                if (nvAmmo == 0) {
+                    gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 100, 100, 100, alpha);
+                } else if (nvFull) {
+                    gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 120, 255, 0, alpha);
+                }
+                if (hundreds != 0) {
+                    OVERLAY_DISP = Gfx_TextureIA8(OVERLAY_DISP, (u8*)_gAmmoDigit0Tex[hundreds], 8, 8, x - 6,
+                                                  ItemIconPos[button][1], 8, 8, 1 << 10, 1 << 10);
+                }
+                if ((hundreds != 0) || (tens != 0)) {
+                    OVERLAY_DISP = Gfx_TextureIA8(OVERLAY_DISP, (u8*)_gAmmoDigit0Tex[tens], 8, 8, x,
+                                                  ItemIconPos[button][1], 8, 8, 1 << 10, 1 << 10);
+                }
+                OVERLAY_DISP = Gfx_TextureIA8(OVERLAY_DISP, (u8*)_gAmmoDigit0Tex[nvAmmo % 10], 8, 8, x + 6,
+                                              ItemIconPos[button][1], 8, 8, 1 << 10, 1 << 10);
+            }
+            goto nvDone; // (none of OoT's counts)
+        }
+    }
+
     i = gSaveContext.equips.buttonItems[button];
 
     if (GameInteractor_Should(VB_DRAW_AMMO_COUNT,
@@ -4957,6 +4992,7 @@ void Interface_DrawAmmoCount(PlayState* play, s16 button, s16 alpha) {
                                       ItemIconPos[button][1], 8, 8, 1 << 10, 1 << 10);
     }
 
+nvDone:
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
@@ -5550,6 +5586,9 @@ void Interface_Draw(PlayState* play) {
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
             Interface_DrawItemIconTexture(play, NULL, 1);
             gDPPipeSync(OVERLAY_DISP++);
+            gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
+                              PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
+            Interface_DrawAmmoCount(play, 1, interfaceCtx->cLeftAlpha); // (the rounds loaded)
         } else if (gSaveContext.equips.buttonItems[1] < 0xF0) {
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->cLeftAlpha);
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
@@ -5568,6 +5607,9 @@ void Interface_Draw(PlayState* play) {
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
             Interface_DrawItemIconTexture(play, NULL, 2);
             gDPPipeSync(OVERLAY_DISP++);
+            gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
+                              PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
+            Interface_DrawAmmoCount(play, 2, interfaceCtx->cDownAlpha); // (the rounds loaded)
         } else if (gSaveContext.equips.buttonItems[2] < 0xF0) {
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->cDownAlpha);
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
@@ -5586,6 +5628,9 @@ void Interface_Draw(PlayState* play) {
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);
             Interface_DrawItemIconTexture(play, NULL, 3);
             gDPPipeSync(OVERLAY_DISP++);
+            gDPSetCombineLERP(OVERLAY_DISP++, PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0,
+                              PRIMITIVE, ENVIRONMENT, TEXEL0, ENVIRONMENT, TEXEL0, 0, PRIMITIVE, 0);
+            Interface_DrawAmmoCount(play, 3, interfaceCtx->cRightAlpha); // (the rounds loaded)
         } else if (gSaveContext.equips.buttonItems[3] < 0xF0) {
             gDPSetPrimColor(OVERLAY_DISP++, 0, 0, 255, 255, 255, interfaceCtx->cRightAlpha);
             gDPSetCombineMode(OVERLAY_DISP++, G_CC_MODULATERGBA_PRIM, G_CC_MODULATERGBA_PRIM);

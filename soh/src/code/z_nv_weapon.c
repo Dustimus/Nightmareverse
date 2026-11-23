@@ -594,6 +594,25 @@ void NvWeapon_Draw(PlayState* play, Player* player) {
  * Its C button's icon while the RE1 weapon has it (z_parameter.c Interface_DrawItemIconTexture): RE1's
  * icon (40 x 30) in the button's square, at (x, y), w wide. True when drawn.
  */
+/**
+ * What's loaded in the gun on its C button (z_parameter.c Interface_DrawAmmoCount: the count on the
+ * button, as OoT's arrows on the bow): false for none (the knife). full: it holds all it takes.
+ */
+s32 NvWeapon_LoadedAmmo(s32* ammo, s32* full) {
+    s32 NvItems_GunCapacity(s32 id);
+    s32 item = NvGun_Equipped();
+    s32 cap = NvItems_GunCapacity(item);
+    s32 qty = 0;
+
+    if (cap <= 0) {
+        return false;
+    }
+    NvItems_Slot(NvItems_Equipped(), &qty);
+    *ammo = CLAMP(qty, 0, 999);
+    *full = (qty >= cap);
+    return true;
+}
+
 s32 NvWeapon_DrawCIcon(PlayState* play, s16 x, s16 y, s16 w) {
     const u32* NvStatus_CIconFor(s32 id);
     const u32* cicon = NvStatus_CIconFor(NvGun_Equipped());
