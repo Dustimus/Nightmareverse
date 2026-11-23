@@ -6,6 +6,7 @@
  *   NV_WALK="x,z;x,z;wait:N"  steer Link through waypoints with the control stick (camera-
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
  *                             (default 200); "wait:N" stands still N frames, "a" presses A, "b" B,
+ *                             "hold:a"/"release:a" keep A (b, r, z) held across steps,
  *                             "press:cu" (cd, cl, cr, a, b, r) holds a button 8 frames (an ocarina note; "press:r:60" 60),
  *                             "start" Start, "left"/"right"/"up"/"down" the D-pad, "sdown"/"sup"/"sleft"/"sright"
  *                             the stick 4 frames (a textbox choice), "choice:N" waits for a choice
@@ -47,7 +48,7 @@ u32 NvScript_MsgFlags(void);
 
 #define NV_MAX_WAYPOINTS 512
 
-typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE, NV_WP_CHECK, NV_WP_DROP, NV_WP_EQUIP, NV_WP_FACEENEMY, NV_WP_OOTSAVE, NV_WP_BOMB, NV_WP_NUT, NV_WP_CHOICE } NvWaypointKind;
+typedef enum { NV_WP_WALK, NV_WP_WAIT, NV_WP_A, NV_WP_POS, NV_WP_ENTR, NV_WP_MARK, NV_WP_FACE, NV_WP_FACERECT, NV_WP_B, NV_WP_START, NV_WP_DPAD, NV_WP_HOLDCL, NV_WP_HOLD, NV_WP_DOOR, NV_WP_AOT, NV_WP_LIST, NV_WP_SAVE, NV_WP_USE, NV_WP_CHECK, NV_WP_DROP, NV_WP_EQUIP, NV_WP_FACEENEMY, NV_WP_OOTSAVE, NV_WP_BOMB, NV_WP_NUT, NV_WP_CHOICE, NV_WP_HOLDSET } NvWaypointKind;
 
 typedef struct {
     s16 kind;
@@ -58,6 +59,7 @@ typedef struct {
     s16 z1;
 } NvWaypoint;
 
+static u16 sNvHeldSet; // NV_WALK's hold: buttons, held until release:
 u32 gNvDevHeld; // a held button the ocarina's own pad read adds (NV_WALK's press:, 0 otherwise)
 
 static NvWaypoint sNvPath[NV_MAX_WAYPOINTS];
@@ -175,6 +177,15 @@ static void NvDev_ParsePath(void) {
                    (strncmp(s, "down", 4) == 0)) {
             wp->kind = NV_WP_DPAD;
             wp->wait = (s[0] == 'l') ? BTN_DLEFT : (s[0] == 'r') ? BTN_DRIGHT : (s[0] == 'u') ? BTN_DUP : BTN_DDOWN;
+            sNvPathLen++;
+        } else if ((strncmp(s, "hold:", 5) == 0) || (strncmp(s, "release:", 8) == 0)) {
+            // "hold:a" keeps A held through the steps after it (walking, other presses), "release:a" lets go
+            // (a, b, r, z): Goron Link's roll, steered, with B for the pound
+            const char* b = s + ((s[0] == 'h') ? 5 : 8);
+
+            wp->kind = NV_WP_HOLDSET;
+            wp->x = (b[0] == 'a') ? BTN_A : (b[0] == 'b') ? BTN_B : (b[0] == 'r') ? BTN_R : BTN_Z;
+            wp->wait = (s[0] == 'h');
             sNvPathLen++;
         } else if (strncmp(s, "press:", 6) == 0) { // a note's press: press:cu / cd / cl / cr / a, held 8 frames
             wp->kind = NV_WP_HOLD;
@@ -383,6 +394,13 @@ void NvDev_Update(PlayState* play) {
     }
     if (sNvPathLen < 0) {
         NvDev_ParsePath();
+    }
+    {
+        static u16 sLastHeld; // (hold:: the held buttons, pressed on the frame they're first held)
+
+        input->cur.button |= sNvHeldSet;
+        input->press.button |= sNvHeldSet & ~sLastHeld;
+        sLastHeld = sNvHeldSet;
     }
     if ((play->gameplayFrames > 20) && (sNvPathIdx < sNvPathLen)) {
         NvWaypoint* wp = &sNvPath[sNvPathIdx];
@@ -778,6 +796,13 @@ void NvDev_Update(PlayState* play) {
             } else {
                 input->cur.button |= BTN_CLEFT;
             }
+        } else if (wp->kind == NV_WP_HOLDSET) {
+            if (wp->wait) {
+                sNvHeldSet |= (u16)wp->x;
+            } else {
+                sNvHeldSet &= ~(u16)wp->x;
+            }
+            sNvPathIdx++;
         } else if (wp->kind == NV_WP_HOLD) {
             if (sNvTimer == 0) {
                 input->press.button |= (u16)wp->x;

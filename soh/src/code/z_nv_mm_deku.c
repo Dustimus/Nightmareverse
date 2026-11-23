@@ -715,7 +715,12 @@ static s32 NvMmDeku_TryBubble(PlayState* play, Player* this) {
 /* ---- the hooks (z_player.c) ---- */
 
 /** OoT's roll handler (A): MM's Deku spin, on the ground and out of the water. */
+s32 NvMmGoron_ActionAB(PlayState* play, Player* this); // (z_nv_mm_goron.c)
+
 s32 NvMmDeku_ActionA(PlayState* play, Player* this) {
+    if (NvMmGoron_ActionAB(play, this)) { // (Goron Link's roll and punches share this hook)
+        return true;
+    }
     if (NvMmDeku_Is(this) && (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) &&
         !(this->stateFlags1 & (PLAYER_STATE1_IN_WATER | PLAYER_STATE1_ON_HORSE)) && NvMmDeku_TryBubble(play, this)) {
         return true; // (B: the bubble; this hook is OoT's last free-standing handler, A's and B's)

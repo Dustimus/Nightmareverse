@@ -297,6 +297,11 @@ void NvMmMask_DrawOnHead(PlayState* play, Player* player) {
     void NvMmDeku_HeadPostLimb(PlayState * play, Player * player);
 
     NvMmDeku_HeadPostLimb(play, player); // (Deku Link's bubble at his mouth: z_nv_mm_deku.c)
+    {
+        void NvMmGoron_DrawBall(PlayState * play, Player * player);
+
+        NvMmGoron_DrawBall(play, player); // (Goron Link curled: z_nv_mm_goron.c)
+    }
 
     if (NvMmForm_DrawSceneMask(play, player)) { // (a form's mask going on: z_nv_mm_form.c)
         return;

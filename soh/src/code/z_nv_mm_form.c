@@ -151,6 +151,8 @@ s32 NvMmItem_Has(s32 item);
 void NvMmDeku_Update(PlayState* play, Player* player);
 void NvMmMask_TakeOff(void);
 
+s32 NvMmGoron_Curled(Player* player);
+
 /** MM's GET_PLAYER_FORM: Link's form (MM's PLAYER_FORM_*). */
 s32 NvMmForm_Get(void) {
     return sForm.form;
@@ -160,6 +162,9 @@ s32 NvMmForm_Get(void) {
 f32 NvMmForm_Height(void) {
     const NvMmFormDef* def = NvMmForm_Def(sForm.form);
 
+    if ((def != NULL) && (gPlayState != NULL) && NvMmGoron_Curled(GET_PLAYER(gPlayState))) {
+        return 34.0f; // (MM: Goron Link curled, PLAYER_STATE3_1000)
+    }
     return (def != NULL) ? def->height : 0.0f;
 }
 
@@ -696,6 +701,10 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
     const char* dl;
 
     if (def == NULL) {
+        return;
+    }
+    if ((player != NULL) && NvMmGoron_Curled(player)) { // (curled: the ball's drawn instead, z_nv_mm_goron.c)
+        *dList = NULL;
         return;
     }
     switch (limbIndex) {

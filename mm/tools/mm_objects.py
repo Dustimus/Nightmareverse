@@ -206,7 +206,7 @@ OBJECTS = {
         "dl": {f"gLinkGoron{n}DL": o for n, o in {
             "Waist": 0x8C00, "Sheath": 0x99D8, "RightHandOpen": 0x9EF8, "LeftHandOpen": 0xA500,
             "LeftHandClosed": 0xDE68, "RightHandClosed": 0xE7E8, "Curled": 0xBDD8,
-            "RollingSpikesAndEffect": 0x14690, "GoronPunchEffect": 0x11AB8}.items()},
+            "RollingSpikesAndEffect": 0x14690, "GoronPunchEffect": 0x11AB8, "Spikes": 0xC540}.items()},
         "tex": {f"gLinkGoronEyes{n}Tex": (o, "CI8", 64, 32, 0x2200) for n, o in {
             "Open": 0x0, "Half": 0x800, "Closed": 0x1000, "Surprised": 0x1800}.items()},
     }),

@@ -824,11 +824,32 @@ open, half, closed, surprised for OoT's "shock"), MM's Goron size (unk_08 0.74),
 bottom: not yet). One form's mask while another's on changes him straight across. The gate guards
 already had MM's Goron lines (they let him out).
 
-Not yet: everything Goron Link does (the punch on B, the roll on A, the ground pound, the curl on
-R, the drums), the heavy switches, the Zora and Fierce Deity forms.
+**His moves** (2026-11-24, `soh/src/code/z_nv_mm_goron.c`): our own actions from the same hook as
+Deku Link's (OoT's last free-standing handler), MM's numbers:
+- **A, the roll** (MM's Player_Action_96, streamlined): he curls (MM's pg_maru_change, or straight
+  from a run), rolls while A is held, steered (the stick times 2.6, the turn quicker with speed),
+  bouncing off walls at 12 and up; after rolling hard for MM's 50 frames, with magic, the spikes
+  (MM's 18 speed; 2 magic at once, then 1 every 10 frames: MM's own drain has no OoT twin), lost on
+  letting go, a wall, or no magic. Curled he's drawn as MM draws him: the ball (gLinkGoronCurledDL)
+  turning as he rolls, squashed and stretched, the spikes (MM's lg_spike_model), blue after a
+  pound; his body's limbs aren't drawn (the form's limb hook). MM's curled height (34) for the camera.
+- **B while rolling, the pound**: MM's hop (14), the hang at the top, the slam (gravity -10), a white
+  shockwave and a quake, hitting all round (4, radius 60).
+- **B standing, the punches**: MM's pg_punchA, B and C, B again in time chaining the next.
+- The hits are OoT's nearest kinds (OoT has no Goron damage): the roll as the Deku Stick, the spikes
+  and punches as the hammer's swing, the pound as the hammer's jump (so OoT's hammer targets answer).
+
+Dev: NV_GORON_SPIKES lets any roll charge the spikes; the walker's `hold:a` / `release:a` keep A
+held across steps (a roll steered by waypoints, B pressed during it).
+
+Not yet: MM's roll physics on slopes, its dust and tracks, the punch's fist effect and hit spots
+(here his body's cylinder reaches out), MM's roll camera (CAM_MODE_GORONDASH), the curl on R (MM's
+shielding skeleton), the drums, the heavy switches, rolling into doors (he goes through exits as a
+ball: MM uncurls him), the Zora and Fierce Deity forms.
 
 Tested headless: the Goron Mask equipped, the change and back (the scene both ways), Goron Link
-standing by the gate guard in South Clock Town at MM's size.
+standing by the gate guard in South Clock Town at MM's size; the three punches, curling, rolling
+steered round the square, the hop and pound, the spikes (with NV_GORON_SPIKES), uncurling.
 
 ### Deku Link's moves (2026-11-23, `soh/src/code/z_nv_mm_deku.c`)
 
