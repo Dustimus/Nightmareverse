@@ -31,6 +31,12 @@ const char* NvMmScene_Name(int32_t i);
 SavedSceneFlags* NvMmScene_At(int32_t i);
 uint8_t* NvMm_WeekEventReg(void);
 uint8_t* NvMmItem_Array(void);
+typedef struct {
+    int32_t form;
+    int32_t savedB;
+    int32_t savedSwordless;
+} NvMmFormSave;
+NvMmFormSave* NvMmForm_SaveVars(void);
 }
 
 static bool sTerminaLoaded; // this load had a "termina" section
@@ -65,6 +71,10 @@ static void NvMmSave_Save(const SaveContext& saveContext, int sectionID, bool fu
         // MM's own items (z_nv_mm_getitem.c: masks, trade items...; the Song of Time clears its share)
         uint8_t* items = NvMmItem_Array();
         SaveManager::Instance->SaveArray("mmItems", 256, [items](size_t i) { SaveManager::Instance->SaveData("", items[i]); });
+        NvMmFormSave* form = NvMmForm_SaveVars(); // Link's form (z_nv_mm_form.c: kept, as MM)
+        SaveManager::Instance->SaveData("form", form->form);
+        SaveManager::Instance->SaveData("formSavedB", form->savedB);
+        SaveManager::Instance->SaveData("formSavedSwordless", form->savedSwordless);
         SaveManager::Instance->SaveStruct("scenes", []() { // collectibles, visited rooms and floors
             for (int32_t i = 0; i < NvMmScene_Count(); i++) {
                 SavedSceneFlags* f = NvMmScene_At(i);
@@ -109,6 +119,10 @@ static void NvMmSave_Load() {
     SaveManager::Instance->LoadStruct("permanent", []() {
         uint8_t* items = NvMmItem_Array();
         SaveManager::Instance->LoadArray("mmItems", 256, [items](size_t i) { SaveManager::Instance->LoadData("", items[i], (uint8_t)0); });
+        NvMmFormSave* form = NvMmForm_SaveVars();
+        SaveManager::Instance->LoadData("form", form->form, (int32_t)4);
+        SaveManager::Instance->LoadData("formSavedB", form->savedB, (int32_t)0xFF);
+        SaveManager::Instance->LoadData("formSavedSwordless", form->savedSwordless, (int32_t)0);
         SaveManager::Instance->LoadStruct("scenes", []() {
             for (int32_t i = 0; i < NvMmScene_Count(); i++) {
                 SavedSceneFlags* f = NvMmScene_At(i);

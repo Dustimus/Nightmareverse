@@ -14,8 +14,8 @@
  * space, after the head; the same skeleton). MM's people see it: NvMmMask_Worn gives MM's
  * PLAYER_MASK_* for their checks (the message scripts' CHECK_WORN_MASK, the actors' Player_GetMask).
  *
- * Not yet: the transformation masks (the forms: Deku, Goron, Zora, the Fierce Deity; their buttons
- * give OoT's error), MM's put-on animation (the mask goes on at once, with OoT's sound), what masks
+ * The transformation masks' buttons go to z_nv_mm_form.c (the Deku form so far; the others give
+ * OoT's error). Not yet: MM's put-on animation (the mask goes on at once, with OoT's sound), what masks
  * do beyond being seen (the Bunny Hood's speed, the Stone Mask, the Blast Mask's blast, the Great
  * Fairy's Mask, the Giant's Mask...), the moving parts some have (the Bunny Hood's ears, the Couple's
  * Mask, the Circus Leader's tears), adult Link (plain masks on adult: an open question).
@@ -64,6 +64,9 @@ static const struct {
 static s32 sWorn; // MM's PLAYER_MASK_* worn (0: none)
 
 s32 NvMmItem_Has(s32 item);
+s32 NvMmForm_UseMask(PlayState* play, Player* player, s32 mmItem);
+s32 NvMmForm_BlocksItem(s32 item);
+s32 NvMmForm_Get(void);
 
 /** MM's mask item as the item id it has on a C button (0 if it isn't a mask). */
 s32 NvMmMask_ButtonItem(s32 mmItem) {
@@ -114,10 +117,17 @@ s32 NvMmMask_UseItem(PlayState* play, Player* player, s32 item) {
     s32 mask;
 
     if (mmItem < 0) {
+        if (NvMmForm_BlocksItem(item)) { // (a form's hands: z_nv_mm_form.c)
+            Sfx_PlaySfxCentered(NA_SE_SY_ERROR);
+            return true;
+        }
         return false;
     }
     mask = NvMmMask_PlayerMask(mmItem);
-    if ((mask == 0) || !NvMmItem_Has(mmItem)) { // (a form: not yet)
+    if (mask == 0) { // a form's mask: z_nv_mm_form.c
+        return NvMmForm_UseMask(play, player, mmItem);
+    }
+    if (!NvMmItem_Has(mmItem) || (NvMmForm_Get() != 4)) { // (plain masks: human Link only, as MM)
         Sfx_PlaySfxCentered(NA_SE_SY_ERROR);
         return true;
     }
@@ -335,6 +345,11 @@ void NvMmMask_Equip(PlayState* play, s32 mmItem, s32 button) {
     gSaveContext.equips.cButtonSlots[button - 1] = SLOT_NONE;
     Audio_PlaySfxGeneral(NA_SE_SY_DECIDE, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale, &gSfxDefaultFreqAndVolScale,
                          &gSfxDefaultReverb);
+}
+
+/** z_nv_mm_form.c: a change of form takes the mask off. */
+void NvMmMask_TakeOff(void) {
+    sWorn = 0;
 }
 
 void NvMmMask_NewGame(void) {

@@ -1404,10 +1404,14 @@ f32 Actor_HeightDiff(Actor* actorA, Actor* actorB) {
     return actorB->world.pos.y - actorA->world.pos.y;
 }
 
+f32 NvMmForm_Height(void); // Nightmareverse: an MM form's height (z_nv_mm_form.c; 0: Link's own)
+
 f32 Player_GetHeight(Player* player) {
     f32 offset = (player->stateFlags1 & PLAYER_STATE1_ON_HORSE) ? 32.0f : 0.0f;
 
-    if (LINK_IS_ADULT) {
+    if (NvMmForm_Height() > 0.0f) {
+        return offset + NvMmForm_Height();
+    } else if (LINK_IS_ADULT) {
         return offset + 68.0f;
     } else {
         return offset + 44.0f;

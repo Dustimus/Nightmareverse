@@ -10,7 +10,7 @@
  * - text ids are MM's: shown as ours, 0xB000 + id (NvMmText.cpp); MM's item prompt (text 0xFF: an
  *   item shown from the pause menu mid-talk) isn't shown, OoT has no such step: the actor's
  *   callback then goes on as if the prompt was closed;
- * - Link is always MM's human form for now (no Deku, Goron, Zora yet): the form checks follow that;
+ * - Link's form is MM's GET_PLAYER_FORM (z_nv_mm_form.c: human or Deku so far);
  * - MM's items: given as MM's get-items (z_nv_mm_getitem.c: into OoT's inventory where OoT has the
  *   same thing, else kept as MM's), checked and taken the same way; MM's songs and quest items are
  *   MM's own; the worn-mask check is MM's masks worn (z_nv_mm_mask.c);
@@ -121,13 +121,18 @@ static s32 NvMmMsgEvent_Command(Actor* actor, PlayState* play, u8** script, MsgS
                 *script += (s16)PACK_16(c[3], c[4]);
             }
             return false;
-        case MSCRIPT_CMD_ID_CHECK_GORON:
+        case MSCRIPT_CMD_ID_CHECK_GORON: // (MM's GET_PLAYER_FORM: z_nv_mm_form.c)
         case MSCRIPT_CMD_ID_CHECK_ZORA:
         case MSCRIPT_CMD_ID_CHECK_DEKU:
-            return false; // (Link is human)
-        case MSCRIPT_CMD_ID_CHECK_HUMAN:
-            *script += (s16)PACK_16(c[1], c[2]);
+        case MSCRIPT_CMD_ID_CHECK_HUMAN: {
+            static const s32 sForms[] = { 1, 2, 3, 4 }; // MM's PLAYER_FORM_GORON, ZORA, DEKU, HUMAN
+            s32 NvMmForm_Get(void);
+
+            if (NvMmForm_Get() == sForms[c[0] - MSCRIPT_CMD_ID_CHECK_GORON]) {
+                *script += (s16)PACK_16(c[1], c[2]);
+            }
             return false;
+        }
         case MSCRIPT_CMD_ID_CHECK_TEXT_CHOICE:
             skip = 0;
             if (play->msgCtx.choiceIndex <= 2) {

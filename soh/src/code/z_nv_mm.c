@@ -61,7 +61,10 @@ static void NvMm_SaveTest(PlayState* play) {
 static u32 sNvMmFrames;       // play->state.frames last frame (it starts over with each scene load)
 static s32 sNvMmBackNote;     // a "back" arrival waiting for the fade to finish
 
+void NvMmForm_Update(PlayState* play);
+
 void NvMm_Update(PlayState* play) {
+    NvMmForm_Update(play); // (MM's forms: in every scene, z_nv_mm_form.c)
     if (!NvMm_IsScene(play->sceneNum)) {
         sNvMmFrames = 0;
         NvMmClock_Update(play);

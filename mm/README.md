@@ -49,6 +49,9 @@ before building a new system; add a line whenever a new one is made.
 - **Masks and forms:** forms don't depend on age (leaning yes); OoT's people react to the
   Goron and Zora forms as to the masks; OoT-only masks join MM's mask screen; a fake Majora's
   Mask at the end; the Fierce Deity's sword and size (NV_GAMES.md, 2026-11-19 to 21).
+- **The forms' transformation scene:** MM's rule, from the decomp: plays every time, skippable
+  once watched (into a form), always back to human (NV_GAMES.md, checked 2026-11-23). The
+  proposal stays: skipped by default, a setting to watch it.
 - **Adult Link and MM (an idea, not to start yet):** sequenced through OoT's ending
   (NV_GAMES.md "Another way round the adult-Link question", 2026-11-20).
 - **The Deku Stick's model** to check when MM's item models come (below, 2026-11-20).
@@ -748,6 +751,43 @@ adult Link (plain masks on adult: open), OoT's people reacting to MM's masks.
 
 Tested headless (young Link in the inn): the masks page's C buttons, the icons on the HUD, the
 Postman's Hat, the Bunny Hood, Keaton, the All-Night, Stone, Blast and Great Fairy's masks worn.
+
+### The forms: Deku Link (2026-11-23, `soh/src/code/z_nv_mm_form.c`)
+
+The Deku Mask on a C button (from MM's masks page) changes young Link into Deku Link, and pressing
+it again changes him back. He stays Deku through doors and loads, in Termina and in Hyrule alike
+(the forms are carried over), and the form is in the save ("termina" section's "permanent": form,
+and the sword and the "no sword" flag it put aside).
+
+Nothing of OoT's player code (z_player.c) is rewritten for this. Deku Link is OoT's young Link with:
+- MM's Deku skeleton (object_link_nuts, now converted) under OoT's animations. MM's Deku Link walks,
+  runs and stands with the same animations as its human Link (MM's animation table has no form
+  column), and the two skeletons have the same 21 joints in the same order. Applied to Link as he
+  is (both skeleton pointers), and again to each new Link (a scene's start).
+- MM's Deku hands, waist and sheath (a one-line hook in z_player_lib.c's limb override).
+- No sword and no shield: B is left empty (OoT's own swordless B, its `infTable[29]` flag; without
+  it OoT puts the Deku Stick on B), the sword put back on B when he's human.
+- MM's Deku size: MM's sPlayerAgeProperties for PLAYER_FORM_DEKU (ceiling, ledges, water depths,
+  wall radius, the root's 0.3 scale) over OoT's young Link's (OoT's voice and animations kept),
+  and MM's Deku height (36) for the camera (a hook in z_actor.c's Player_GetHeight).
+- MM's people see the form: `NvMmForm_Get` is MM's GET_PLAYER_FORM, and the message scripts'
+  CHECK_DEKU / CHECK_HUMAN / CHECK_GORON / CHECK_ZORA ask it.
+- Changing takes any worn mask off (as MM). Plain masks are for human Link only (as MM). As Deku,
+  only the ocarina and the masks can be used for now.
+
+The change: MM's transformation scene isn't in yet (it needs MM's player animations: cl_setmask,
+pn_maskoffstart). Here it's the scene's end alone, a white fill (MM's 220,220,220, 45 a frame) with
+the change at full white. MM's rule for the scene, from the decomp: it plays every time; into a form
+it can be skipped only after it's been watched to the end once, back to human always.
+
+Not yet: Deku Link's moves (the spin on B, the bubble, the hop across water, the flower launch, the
+shell guard on R), MM's rule that he can't swim (deep water sends him back), MM's Deku items, adult
+Link (forms don't depend on age, leaning yes: open), the other forms, the people's Deku lines (each
+actor's form branches; the message scripts' checks already work).
+
+Tested headless: equipping the Deku Mask, the change and back, Deku Link walking in South Clock
+Town at MM's size next to a guard, B empty and the sword back, the form kept through a warp into
+an OoT scene.
 
 ### Young Link is MM's model in Termina (2026-11-23, `soh/src/code/z_nv_mm_link.c`)
 

@@ -202,8 +202,10 @@ The default is shared or carried over. A Termina-only piece needs a reason.
     it, and he changes back into whichever age he was. The forms are their own size anyway
     (MM's Zora Link is about adult height), so there's no separate "adult Deku".
   - The transformation scene: the user remembers it playing on every use in MM, skippable.
-    Check the MM decomp for the real rule. Proposal: skipped by default, with a setting to
-    watch it.
+    The decomp's rule (Player_Action_86, checked 2026-11-23): it plays on every change; changing
+    into a form can be skipped with any button only once that form's scene has been watched to
+    the end once (a week event flag per form); changing back to human can always be skipped.
+    Proposal: skipped by default, with a setting to watch it.
   - Possibly a setting, "adult can transform", on by default.
   - Still open: plain masks (Bunny Hood and so on) on adult.
 - **Trivial is fine (the user, 2026-11-19).** Link breezing through is half the fun, the same

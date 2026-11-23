@@ -191,6 +191,13 @@ OBJECTS = {
                 **{f"gLinkHumanMouth{n}Tex": (o, "CI8", 32, 32, 0x5200) for n, o in {
                     "Closed": 0x4000, "Half": 0x4400, "Open": 0x4800, "Smile": 0x4C00}.items()}},
     }),
+    "object_link_nuts": (657, {"deps": ["gameplay_keep"],  # Deku Link (MM's PLAYER_FORM_DEKU: the Deku Mask's form)
+        "skel_lod": {"gLinkDekuSkel": 0xBA24},
+        "dl": {f"gLinkDeku{n}DL": o for n, o in {
+            "Waist": 0x2C20, "Sheath": 0x35F0, "RightShoulder": 0x36B0, "RightForearm": 0x37B8,
+            "RightHand": 0x38C0, "LeftShoulder": 0x39B0, "LeftForearm": 0x3AB8, "LeftHand": 0x3BC0,
+            "ClosedFlower": 0x8AA0, "OpenFlower": 0x8C50}.items()},
+    }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)

@@ -1448,6 +1448,7 @@ s32 Player_OverrideLimbDrawGameplayDefault(PlayState* play, s32 limbIndex, Gfx**
         }
     }
 
+    NvMmForm_OverrideLimb(limbIndex, dList); // Nightmareverse: an MM form's own hands (z_nv_mm_form.c)
     GameInteractor_Should(VB_PLAYER_OVERRIDE_LIMB_DRAW, true, limbIndex, dList, thisx, play);
 
     if (GameInteractor_InvisibleLinkActive()) {
@@ -1794,6 +1795,7 @@ void NvWeapon_NoteHand(void);
 s32 NvWeapon_Holding(void);
 
 void NvMmMask_DrawOnHead(PlayState* play, Player* player); // Nightmareverse
+void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList);   // Nightmareverse
 
 void Player_PostLimbDrawGameplay(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* thisx) {
     Player* this = (Player*)thisx;
