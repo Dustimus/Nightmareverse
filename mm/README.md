@@ -53,7 +53,8 @@ could also be a base for other games' time systems (Monster Rancher's weeks).
   - **RE1's Moonlight Sonata skips to the hour it sets:** midnight today, 19:01 once RE1 changes
     it (below; Termina may get its own target).
 - **The Song of Time** (once its message closes) goes back to the dawn of the first day, at
-  South Clock Town's clock tower door.
+  South Clock Town's clock tower door. Only when played in Termina: in Hyrule it's still OoT's
+  (the Door of Time, the blocks). What it resets: "What the Song of Time takes", below.
 
 **On screen:** a text line, "Day N hh:mm", and "Dawn of the ... Day" as each day starts.
 Placeholders for MM's clock and its day titles.
@@ -67,7 +68,6 @@ at the tower. The light follows the time.
   comes first);
 - the final hours (music, the countdown);
 - the moon's fall itself (for now it's a Song of Time);
-- what resets with the Song of Time (Termina's flags, once there are any);
 - headless checks of the songs (they need ocarina steps in `NV_WALK`).
 
 Dev: `NV_MM_TIME="day,hhmm"`, `NV_MM_SPEED=n`, `NV_LOG` ("NVMM ...").
@@ -230,6 +230,10 @@ the world contradicting the player:
 - Zora Eggs and the Deku Princess in bottles;
 - small keys, since the dungeon's doors relock;
 - the trade items (Room Key, Title Deeds, letters).
+
+In code since 2026-11-23 (`z_nv_mm_getitem.c` NvMmItem_EndsWithCycle), with the Moon's Tear and
+the Pendant of Memories read as trade items too; everything else MM's Sram_SaveEndOfCycle takes
+(the wallet, ammo, bottle contents, the Powder Keg) stays.
 
 Rewards can't be duplicated either way, since they'll be permanent checks. Some are balance
 questions for later, such as Powder Kegs. None of these items exist yet.
@@ -609,14 +613,15 @@ One inventory: what OoT has too (rupees, hearts, heart pieces, magic, ammo and i
 bow, hookshots, lens, beans, bottles and the contents OoT knows) goes into OoT's own; what only MM
 has (masks, MM's songs, the trade items, the Pictograph Box, the Powder Keg, MM's bottle contents,
 MM's swords and shields...) is kept by MM's item id in the "termina" save section. The Song of Time
-takes what MM's Sram_SaveEndOfCycle takes from those (the trade items, the keg, MM's bottled
-things). MM's message scripts now give, check and take items through this (OFFER_ITEM, CHECK_ITEM,
-DELETE_ITEM, the quest items and songs, the Powder Keg); wearing masks isn't in, so the worn-mask
-check stays false; showing an item from the pause menu mid-talk waits for a pause screen for MM's
-items.
+takes from it only the event items decided above ("What the Song of Time takes": Zora Eggs and the
+Deku Princess in bottles, small keys, the trade items: the Moon's Tear and the deeds, the Room
+Key, the letters, the Pendant of Memories), never OoT's side. MM's message scripts now give,
+check and take items through this (OFFER_ITEM, CHECK_ITEM, DELETE_ITEM, the quest items and
+songs, the Powder Keg); wearing masks isn't in, so the worn-mask check stays false; showing an
+item from the pause menu mid-talk waits for a pause screen for MM's items.
 
-Open, for the user: what the Song of Time does to the shared OoT side (MM empties the wallet, the
-ammo and the bottles each cycle); where MM's own items show (a pause page). Tested headless: the
+Open: where MM's own items show (a pause page); the Moon's Tear and the Pendant counted as trade
+items (the decided list named the Room Key, deeds and letters); the Powder Keg kept for now. Tested headless: the
 Knife Chamber's chest (MM's chest, MM's Silver Rupee model and text, 100 rupees, the wallet's
 limit), Anju's Room Key at the desk (MM's text, kept as MM's).
 

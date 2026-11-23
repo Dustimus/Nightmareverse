@@ -15,9 +15,9 @@
  * upgrades, the bow, hookshots, lens, beans, bottles and the contents OoT knows) goes into OoT's
  * own; what only MM has (masks, MM's songs, the trade items, the Pictograph Box, the Powder Keg,
  * MM's bottle contents, swords and shields MM's own...) is kept here, by MM's item ids, saved in
- * the "termina" save section (NvMmSave.cpp). The Song of Time takes from it what MM's
- * Sram_SaveEndOfCycle takes (the trade items, the keg, MM's bottled things); what it does to OoT's
- * shared rupees, ammo and bottles is still to be decided (it touches Hyrule's side).
+ * the "termina" save section (NvMmSave.cpp). The Song of Time takes nothing of Link's but a short
+ * list of event items (decided with the user: mm/README.md "What the Song of Time takes"); OoT's
+ * side (rupees, ammo, bottles) it never touches.
  */
 #include "global.h"
 #include <stdio.h>
@@ -416,13 +416,27 @@ s32 NvMmGetItem_IsMm(GetItemEntry* e) {
 
 static u8 sMmItems[256]; // MM's item id -> how many (1 for most: owned)
 
-// MM's items the Song of Time takes (MM's Sram_SaveEndOfCycle and the trade-item slots it clears)
+// What the Song of Time takes: only the event items the user decided on (mm/README.md "What the
+// Song of Time takes", 2026-11-20), not MM's Sram_SaveEndOfCycle. Nothing else of Link's goes:
+// rupees, ammo, bottles and their contents, masks, songs, everything else carries over.
 static s32 NvMmItem_EndsWithCycle(s32 item) {
-    return ((item >= 0x13) && (item <= 0x27)) || // MM's bottled things (here: those OoT hasn't)
-           ((item >= 0x28) && (item <= 0x31)) || // the Moon's Tear, the deeds, the Room Key, the letters, the
-                                                 // Pendant, Tingle's maps
-           (item == 0x0C) ||                     // the Powder Keg
-           (item == 0x77) || (item == 0x78) || (item == 0x74) || (item == 0x75) || (item == 0x76); // dungeon things
+    switch (item) {
+        case 0x21: // ITEM_ZORA_EGG (in a bottle)
+        case 0x17: // ITEM_DEKU_PRINCESS (in a bottle)
+        case 0x78: // ITEM_KEY_SMALL (the dungeon's doors relock)
+        case 0x28: // ITEM_MOONS_TEAR      } the trade items: the deeds' chain (the Moon's Tear at its
+        case 0x29: // ITEM_DEED_LAND       } start), the Room Key, the letters; the Pendant of Memories
+        case 0x2A: // ITEM_DEED_SWAMP      } goes with Anju and Kafei's story the cycle undoes
+        case 0x2B: // ITEM_DEED_MOUNTAIN   }
+        case 0x2C: // ITEM_DEED_OCEAN      }
+        case 0x2D: // ITEM_ROOM_KEY        }
+        case 0x2E: // ITEM_LETTER_MAMA     }
+        case 0x2F: // ITEM_LETTER_TO_KAFEI }
+        case 0x30: // ITEM_PENDANT_OF_MEMORIES
+            return true;
+        default: // (the Powder Keg: a balance question for later; it stays for now)
+            return false;
+    }
 }
 
 s32 NvMmItem_Has(s32 item) {
@@ -480,7 +494,7 @@ void NvMmItem_Delete(s32 item) {
     }
 }
 
-/** The Song of Time (z_nv_mm_scene.c NvMmScene_SongOfTime): MM's end-of-cycle losses. */
+/** The Song of Time (z_nv_mm_scene.c NvMmScene_SongOfTime): the event items it takes. */
 void NvMmItem_NewCycle(void) {
     s32 i;
 
