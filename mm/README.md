@@ -844,8 +844,7 @@ held across steps (a roll steered by waypoints, B pressed during it).
 
 Not yet: MM's roll physics on slopes, its dust and tracks, the punch's fist effect and hit spots
 (here his body's cylinder reaches out), MM's roll camera (CAM_MODE_GORONDASH), the curl on R (MM's
-shielding skeleton), the drums, the heavy switches, rolling into doors (he goes through exits as a
-ball: MM uncurls him), the Zora and Fierce Deity forms.
+shielding skeleton), the drums, the heavy switches, MM's bump off doors (func_80840A30: a small hop back), the Zora and Fierce Deity forms.
 
 Tested headless: the Goron Mask equipped, the change and back (the scene both ways), Goron Link
 standing by the gate guard in South Clock Town at MM's size; the three punches, curling, rolling
