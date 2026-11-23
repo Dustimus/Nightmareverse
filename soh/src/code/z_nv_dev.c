@@ -6,7 +6,7 @@
  *   NV_WALK="x,z;x,z;wait:N"  steer Link through waypoints with the control stick (camera-
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
  *                             (default 200); "wait:N" stands still N frames, "a" presses A, "b" B,
- *                             "press:cu" (cd, cl, cr, a) holds a button 8 frames (an ocarina note),
+ *                             "press:cu" (cd, cl, cr, a, r) holds a button 8 frames (an ocarina note; "press:r:60" 60),
  *                             "start" Start, "left"/"right"/"up"/"down" the D-pad, "sdown"/"sup"/"sleft"/"sright"
  *                             the stick 4 frames (a textbox choice), "choice:N" waits for a choice
  *                             box and takes choice N (0 first), "cl:N" holds
@@ -178,9 +178,16 @@ static void NvDev_ParsePath(void) {
             sNvPathLen++;
         } else if (strncmp(s, "press:", 6) == 0) { // a note's press: press:cu / cd / cl / cr / a, held 8 frames
             wp->kind = NV_WP_HOLD;
-            wp->x = (s[6] == 'a') ? BTN_A
+            wp->x = (s[6] == 'a') ? BTN_A : (s[6] == 'r') ? BTN_R
                     : (s[7] == 'u') ? BTN_CUP : (s[7] == 'd') ? BTN_CDOWN : (s[7] == 'l') ? BTN_CLEFT : BTN_CRIGHT;
             wp->wait = 8;
+            {
+                const char* n = strchr(s + 6, ':'); // "press:r:60": held 60 frames
+
+                if ((n != NULL) && ((strchr(s + 6, ';') == NULL) || (n < strchr(s + 6, ';')))) {
+                    wp->wait = (s16)atoi(n + 1);
+                }
+            }
             sNvPathLen++;
         } else if (strncmp(s, "cl:", 3) == 0) { // hold C-Left that many frames, then let go
             wp->kind = NV_WP_HOLDCL;

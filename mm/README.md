@@ -52,6 +52,9 @@ before building a new system; add a line whenever a new one is made.
 - **The forms' transformation scene:** MM's rule, from the decomp: plays every time, skippable
   once watched (into a form), always back to human (NV_GAMES.md, checked 2026-11-23). The
   proposal stays: skipped by default, a setting to watch it.
+- **The forms in z_player.c:** our own action functions in our files, started from one-line hooks
+  in z_player.c; the user's go-ahead without asking RE1 first ("it can adjust if it needs to",
+  2026-11-23). Deku Link's spin is on A, his bubble on B (as MM).
 - **Adult Link and MM (an idea, not to start yet):** sequenced through OoT's ending
   (NV_GAMES.md "Another way round the adult-Link question", 2026-11-20).
 - **The Deku Stick's model** to check when MM's item models come (below, 2026-11-20).
@@ -780,14 +783,52 @@ pn_maskoffstart). Here it's the scene's end alone, a white fill (MM's 220,220,22
 the change at full white. MM's rule for the scene, from the decomp: it plays every time; into a form
 it can be skipped only after it's been watched to the end once, back to human always.
 
-Not yet: Deku Link's moves (the spin on B, the bubble, the hop across water, the flower launch, the
-shell guard on R), MM's rule that he can't swim (deep water sends him back), MM's Deku items, adult
+Not yet: the bubble, the flower launch (below, "Deku Link's moves"), MM's Deku items, adult
 Link (forms don't depend on age, leaning yes: open), the other forms, the people's Deku lines (each
 actor's form branches; the message scripts' checks already work).
 
 Tested headless: equipping the Deku Mask, the change and back, Deku Link walking in South Clock
 Town at MM's size next to a guard, B empty and the sword back, the form kept through a warp into
 an OoT scene.
+
+### MM's player animations (2026-11-23, `tools/mm_player_anims.py`, `mm_objects.write_player_anims`)
+
+All 695 of MM's player animations are in mm.o2r, at `mm/player_anim/<MM's name>` (e.g.
+`gPlayerAnim_pn_attack`), each a SoH Link animation whose frames are at `mm/link_animetion/<offset>`
+(MM's file 7, stored uncompressed). MM's frames are OoT's format exactly (22 joints and the face,
+a frame; MM's idle is OoT's to the value), so OoT's player code plays them as its own: in C, the
+path as a LinkAnimationHeader*, as SoH's own animations are. `mm_player_anims.py` is the names and
+header offsets in gameplay_keep, from the decomp's XML (no game data).
+
+### Deku Link's moves (2026-11-23, `soh/src/code/z_nv_mm_deku.c`)
+
+MM's Deku moves on OoT's Link: our own action functions, set as Link's action (OoT's actionFunc),
+using MM's animations, numbers and order; OoT's player code otherwise as it is. Three one-line hooks
+in z_player.c (agreed with the user, 2026-11-23, RE1 to adjust if it needs to):
+- **A, the spin** (OoT's roll handler, last in its lists, so talking and the rest come first; MM
+  gives Deku Link the spin on A, B is the bubble): MM's Player_Action_95, the turn slowing 800 a
+  frame from 20000, steerable, hitting as OoT's Deku Stick for 1 (MM: DMG_DEKU_SPIN, 1, radius 30)
+  through OoT's own way of letting Link's body cylinder hit.
+- **R, the shell guard** (OoT's shield handler): pn_gurd held while R is; hits are kept off his body
+  (OoT has no shell collider).
+- **Water** (where OoT would start him swimming): MM's hops, five from the ground, each MM's jump
+  speed times 0.3 + 0.18 a hop already made (at least 4), the fifth spinning in the air; with none
+  left he sinks, the screen goes black (20 a frame) and he's put back where he last stood (OoT's
+  "down" respawn, as MM's), untouchable 40 frames. No damage (as MM).
+- Each frame as Deku: MM's Deku speeds (MM's boot data for PLAYER_BOOTS_DEKU on OoT's movement
+  registers: a run of 6 against young Link's 5.5); OoT's again as human.
+
+Sounds are OoT's nearest (its Deku Scrubs', its jumps and water): MM's own wait for MM's audio.
+
+Dev: NV_DEKU_NOHOPS starts him with no hops (to try the sinking); the walker's `press:r:N` holds R
+N frames.
+
+Not yet: the bubble on B (magic, MM's bubble), the Deku flowers (MM's Obj_Etcetera isn't ported:
+the dive, the launch, the flight wait for it), the hop counter on the A button, sinking into another
+room (put back only within the room he's in), MM's transformation scene (the animations are in now).
+
+Tested headless: the spin and the guard in South Clock Town (A next to the gate guard talks first),
+a hop across Laundry Pool's water, the sinking and being put back on land.
 
 ### Young Link is MM's model in Termina (2026-11-23, `soh/src/code/z_nv_mm_link.c`)
 

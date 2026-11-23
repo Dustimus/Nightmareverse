@@ -73,6 +73,7 @@ def main():
     for s in scenes:
         mm_scene.write_scene(rom, s, mm_rom.CLOCK_TOWN[s], res)
     mm_objects.write_matanims(res)
+    mm_objects.write_player_anims(rom, res)  # MM's player animations (the forms', the masks')
     mm_pause.write_textures(rom, res)  # MM's pause icons, names and page tiles (from its yar archives)
     # MM's messages, in OoT's text codes (mm_text.py), as one blob resource
     msgs = mm_text.messages(rom)

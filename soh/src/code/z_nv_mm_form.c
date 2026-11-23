@@ -20,8 +20,8 @@
  * always skippable). Until MM's player animations are in (cl_setmask, pn_maskoffstart), the change
  * here is the scene's white flash alone (its 45-a-frame fill to white and back, its sounds).
  *
- * Not yet: Deku Link's own moves (the spin, the bubble, the hop across water, the flower launch, the
- * shell guard), MM's rule that he can't swim (deep water sends him back), the items he may use (only
+ * His moves (the spin, the guard, the hops across water, sinking): z_nv_mm_deku.c.
+ * Not yet: the bubble, the flower launch, the items he may use (only
  * masks and the ocarina, the pipes, for now), adult Link (forms don't depend on age: open), the
  * Goron, Zora and Fierce Deity forms.
  */
@@ -54,6 +54,7 @@ static PlayerAgeProperties* sOotProperties;
 
 extern FlexSkeletonHeader* gPlayerSkelHeaders[];
 s32 NvMmItem_Has(s32 item);
+void NvMmDeku_Update(PlayState* play, Player* player);
 void NvMmMask_TakeOff(void);
 
 /** MM's GET_PLAYER_FORM: Link's form (MM's PLAYER_FORM_*). */
@@ -220,6 +221,7 @@ void NvMmForm_Update(PlayState* play) {
         }
         player->currentShield = PLAYER_SHIELD_NONE;
     }
+    NvMmDeku_Update(play, player); // (Deku Link's moves: z_nv_mm_deku.c)
 }
 
 /** z_player_lib.c's limb hook: Deku Link's own hands, waist and sheath (MM's form tables). */

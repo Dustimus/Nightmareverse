@@ -249,6 +249,40 @@ def _skeleton_limbs(data, off):
 MATANIMS = {}  # resource path -> "MMAT" blob (make_mod.py writes them into the archive)
 
 
+OTR_ANIMATION = 0x4F414E4D  # "OANM": SoH's Animation (here its Link type: frame count, the data's path)
+OTR_PLAYER_ANIMATION = 0x4F50414D  # "OPAM": SoH's PlayerAnimation (the frames' joint values)
+
+
+def write_player_anims(rom, res):
+    """MM's player animations (all of them: mm_player_anims.py) as SoH's own Link animations, at
+    "mm/player_anim/<name>", each with its frames at "mm/link_animetion/<offset>". MM's frames are
+    OoT's format (22 joints and the face, a frame), so OoT's player code plays them as its own."""
+    import mm_player_anims
+    keep, _ = _load(rom, OBJECTS["gameplay_keep"][0])
+    vs, ve, ps, pe = rom.entry_index(LINK_ANIMETION)
+    frames = rom.data[ps:ps + ve - vs]  # (stored uncompressed)
+    done = set()
+    for name, off in mm_player_anims.PLAYER_ANIMS.items():
+        count, seg = struct.unpack_from(">hxxI", keep, off)
+        data_off = seg & 0xFFFFFF
+        data_path = f"mm/link_animetion/{data_off:06X}"
+        if data_off not in done:
+            done.add(data_off)
+            n = count * (22 * 3 + 1)
+            vals = struct.unpack_from(f">{n}h", frames, data_off)
+            os.makedirs(os.path.join(res, "mm", "link_animetion"), exist_ok=True)
+            open(os.path.join(res, data_path), "wb").write(
+                mm_scene._otr_header(OTR_PLAYER_ANIMATION) + struct.pack(f"<I{n}h", n, *vals))
+        path = "__OTR__" + data_path
+        os.makedirs(os.path.join(res, "mm", "player_anim"), exist_ok=True)
+        open(os.path.join(res, "mm", "player_anim", name), "wb").write(
+            mm_scene._otr_header(OTR_ANIMATION) + struct.pack("<IhI", 1, count, len(path)) + path.encode())
+    print(f"player animations: {len(mm_player_anims.PLAYER_ANIMS)} ({len(done)} frame blocks)")
+
+
+LINK_ANIMETION = 7  # MM's file of player animation frames (segment 7)
+
+
 def write_matanims(res):
     for path, blob in MATANIMS.items():
         os.makedirs(os.path.dirname(os.path.join(res, path)), exist_ok=True)

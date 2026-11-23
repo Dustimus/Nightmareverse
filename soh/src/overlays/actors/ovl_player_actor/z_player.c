@@ -6466,7 +6466,14 @@ void func_8083C148(Player* this, PlayState* play) {
  * These extra behaviors are not new actions themselves, so they will result in `false` being returned
  * even if they occur.
  */
+s32 NvMmDeku_ActionA(PlayState* play, Player* this); // Nightmareverse: Deku Link (z_nv_mm_deku.c)
+s32 NvMmDeku_ActionR(PlayState* play, Player* this);
+s32 NvMmDeku_IntoWater(PlayState* play, Player* this);
+
 s32 Player_ActionHandler_Roll(Player* this, PlayState* play) {
+    if (NvMmDeku_ActionA(play, this)) { // Nightmareverse: Deku Link's spin on A
+        return true;
+    }
     if (!Player_UpdateHostileLockOn(this) && !sUpperBodyIsBusy && !(this->stateFlags1 & PLAYER_STATE1_ON_HORSE) &&
         CHECK_BTN_ALL(sControlInput->press.button, BTN_A)) {
         if (Player_TryRoll(this, play)) {
@@ -6484,6 +6491,10 @@ s32 Player_ActionHandler_Roll(Player* this, PlayState* play) {
 s32 Player_ActionHandler_11(Player* this, PlayState* play) {
     LinkAnimationHeader* anim;
     f32 frame;
+
+    if (NvMmDeku_ActionR(play, this)) { // Nightmareverse: Deku Link's shell guard on R
+        return true;
+    }
 
     if ((play->shootingGalleryStatus == 0) && (this->currentShield != PLAYER_SHIELD_NONE) &&
         CHECK_BTN_ALL(sControlInput->cur.button, BTN_R) &&
@@ -6958,7 +6969,9 @@ void func_8083D53C(PlayState* play, Player* this) {
                  (Player_Action_8084D610 != this->actionFunc) && (Player_Action_8084D84C != this->actionFunc) &&
                  (Player_Action_8084DAB4 != this->actionFunc) && (Player_Action_8084DC48 != this->actionFunc) &&
                  (Player_Action_8084E1EC != this->actionFunc) && (Player_Action_8084D7C4 != this->actionFunc))) {
-                func_8083D36C(play, this);
+                if (!NvMmDeku_IntoWater(play, this)) { // Nightmareverse: Deku Link hops or sinks
+                    func_8083D36C(play, this);
+                }
                 return;
             }
         } else if ((this->stateFlags1 & PLAYER_STATE1_IN_WATER) &&
