@@ -1,6 +1,8 @@
 # The pause menu across the games (design note)
 
-Status: a design, not built. Written 2026-11-20 with the user, for the MM work and for RE1 (whose
+Status: started (2026-11-23): the shared column (`soh/src/code/z_nv_pause.c`) with MM's item and
+mask pages in the Items and Equipment columns (`z_nv_mm_pause.c`, mm/README.md). The Quest and Map
+columns aren't built yet (RE1's screens move into the Map column with the RE1 side). Originally: a design, not built. Written 2026-11-20 with the user, for the MM work and for RE1 (whose
 status and map screens already live in the pause menu). Anything built from this goes through
 the user first, and through the RE1 chat for the parts RE1 uses.
 

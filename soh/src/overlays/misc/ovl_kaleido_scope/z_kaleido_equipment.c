@@ -1,4 +1,5 @@
 #include "z_kaleido_scope.h"
+#include "code/z_nv_pause.h" // Nightmareverse: the pause menu's columns
 #include "textures/icon_item_static/icon_item_static.h"
 #include "textures/parameter_static/parameter_static.h"
 #include "soh/Enhancements/cosmetics/cosmeticsTypes.h"
@@ -336,6 +337,7 @@ void KaleidoScope_DrawEquipment(PlayState* play) {
                         pauseCtx->cursorY[PAUSE_EQUIP] = cursorY;
                         pauseCtx->cursorPoint[PAUSE_EQUIP] = cursorPoint;
                         cursorMoveResult = 3;
+                        NvPause_Edge(play, PAUSE_EQUIP, -1); // Nightmareverse: past the top row, the column slides
                     }
                 } else if ((pauseCtx->stickRelY < -30) || (dpad && CHECK_BTN_ALL(input->press.button, BTN_DDOWN))) {
                     if (pauseCtx->cursorY[PAUSE_EQUIP] < 3) {
@@ -355,6 +357,7 @@ void KaleidoScope_DrawEquipment(PlayState* play) {
                         pauseCtx->cursorY[PAUSE_EQUIP] = cursorY;
                         pauseCtx->cursorPoint[PAUSE_EQUIP] = cursorPoint;
                         cursorMoveResult = 3;
+                        NvPause_Edge(play, PAUSE_EQUIP, 1); // Nightmareverse: past the bottom row, the column slides
                     }
                 } else {
                     cursorMoveResult = 4;

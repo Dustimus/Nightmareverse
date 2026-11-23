@@ -3,6 +3,7 @@
 s32 NvStatus_InMansion(PlayState* play);
 void NvStatus_Draw(PlayState* play, GraphicsContext* gfxCtx, s32 interactive);
 s32 NvStatus_HoldsB(void);
+#include "code/z_nv_pause.h" // Nightmareverse: the pause menu's columns
 #include <stdlib.h>
 #include <string.h>
 
@@ -1603,10 +1604,13 @@ void KaleidoScope_DrawPages(PlayState* play, GraphicsContext* gfxCtx) {
 
             gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-            POLY_OPA_DISP = KaleidoScope_DrawPageSections(POLY_OPA_DISP, pauseCtx->itemPageVtx,
-                                                          sSelectItemTexs[gSaveContext.language]);
+            // Nightmareverse: the side's column of pages (z_nv_pause.c); false: OoT's page alone, as ever
+            if (!NvPause_DrawColumn(play, PAUSE_ITEM, pauseCtx->itemPageVtx, sSelectItemTexs[gSaveContext.language], KaleidoScope_DrawItemSelect)) {
+                POLY_OPA_DISP = KaleidoScope_DrawPageSections(POLY_OPA_DISP, pauseCtx->itemPageVtx,
+                                                              sSelectItemTexs[gSaveContext.language]);
 
-            KaleidoScope_DrawItemSelect(play);
+                KaleidoScope_DrawItemSelect(play);
+            }
         }
 
         if (pauseCtx->pageIndex != PAUSE_EQUIP) {
@@ -1620,10 +1624,13 @@ void KaleidoScope_DrawPages(PlayState* play, GraphicsContext* gfxCtx) {
 
             gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-            POLY_OPA_DISP = KaleidoScope_DrawPageSections(POLY_OPA_DISP, pauseCtx->equipPageVtx,
-                                                          sEquipmentTexs[gSaveContext.language]);
+            // Nightmareverse: the side's column of pages (z_nv_pause.c); false: OoT's page alone, as ever
+            if (!NvPause_DrawColumn(play, PAUSE_EQUIP, pauseCtx->equipPageVtx, sEquipmentTexs[gSaveContext.language], KaleidoScope_DrawEquipment)) {
+                POLY_OPA_DISP = KaleidoScope_DrawPageSections(POLY_OPA_DISP, pauseCtx->equipPageVtx,
+                                                              sEquipmentTexs[gSaveContext.language]);
 
-            KaleidoScope_DrawEquipment(play);
+                KaleidoScope_DrawEquipment(play);
+            }
         }
 
         if (pauseCtx->pageIndex != PAUSE_QUEST) {
@@ -1690,10 +1697,13 @@ void KaleidoScope_DrawPages(PlayState* play, GraphicsContext* gfxCtx) {
 
                 gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-                POLY_OPA_DISP = KaleidoScope_DrawPageSections(POLY_OPA_DISP, pauseCtx->itemPageVtx,
-                                                              sSelectItemTexs[gSaveContext.language]);
+                // Nightmareverse: the side's column of pages (z_nv_pause.c); false: OoT's page alone, as ever
+                if (!NvPause_DrawColumn(play, PAUSE_ITEM, pauseCtx->itemPageVtx, sSelectItemTexs[gSaveContext.language], KaleidoScope_DrawItemSelect)) {
+                    POLY_OPA_DISP = KaleidoScope_DrawPageSections(POLY_OPA_DISP, pauseCtx->itemPageVtx,
+                                                                  sSelectItemTexs[gSaveContext.language]);
 
-                KaleidoScope_DrawItemSelect(play);
+                    KaleidoScope_DrawItemSelect(play);
+                }
                 break;
 
             case PAUSE_MAP:
@@ -1759,10 +1769,13 @@ void KaleidoScope_DrawPages(PlayState* play, GraphicsContext* gfxCtx) {
 
                 gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
 
-                POLY_OPA_DISP = KaleidoScope_DrawPageSections(POLY_OPA_DISP, pauseCtx->equipPageVtx,
-                                                              sEquipmentTexs[gSaveContext.language]);
+                // Nightmareverse: the side's column of pages (z_nv_pause.c); false: OoT's page alone, as ever
+                if (!NvPause_DrawColumn(play, PAUSE_EQUIP, pauseCtx->equipPageVtx, sEquipmentTexs[gSaveContext.language], KaleidoScope_DrawEquipment)) {
+                    POLY_OPA_DISP = KaleidoScope_DrawPageSections(POLY_OPA_DISP, pauseCtx->equipPageVtx,
+                                                                  sEquipmentTexs[gSaveContext.language]);
 
-                KaleidoScope_DrawEquipment(play);
+                    KaleidoScope_DrawEquipment(play);
+                }
 
                 if (pauseCtx->cursorSpecialPos == 0) {
                     KaleidoScope_DrawCursor(play, PAUSE_EQUIP);
@@ -2455,6 +2468,21 @@ void KaleidoScope_UpdateNamePanel(PlayState* play) {
 
         pauseCtx->namedItem = pauseCtx->cursorItem[pauseCtx->pageIndex];
         sp2A = pauseCtx->namedItem;
+
+        { // Nightmareverse: an alternate page in front names its own (z_nv_pause.c)
+            s32 nvNamed;
+            const char* nvName = NvPause_Name(play, &nvNamed);
+
+            if (!nvNamed) {
+                if (nvName != NULL) {
+                    memcpy(pauseCtx->nameSegment, nvName, strlen(nvName) + 1);
+                    pauseCtx->nameDisplayTimer = 0;
+                } else {
+                    pauseCtx->namedItem = PAUSE_ITEM_NONE;
+                }
+                return;
+            }
+        }
 
         osCreateMesgQueue(&pauseCtx->loadQueue, &pauseCtx->loadMsg, 1);
 

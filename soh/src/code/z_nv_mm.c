@@ -85,6 +85,21 @@ void NvMm_Update(PlayState* play) {
         NvMsg_Show(play, "The rest of Termina isn't built yet.&You turn back.");
     }
     sNvMmFrames = play->state.frames + 1; // (+1: never 0 once in Termina)
+    {
+        static s32 sDevItems; // dev: NV_MM_ITEMS="2d,38,32" gives these MM items (hex ids) on arrival
+        const char* list = getenv("NV_MM_ITEMS");
+        void NvMmItem_Give(PlayState * play, s32 item);
+
+        if ((list != NULL) && !sDevItems) {
+            sDevItems = true;
+            while (*list != '\0') {
+                NvMmItem_Give(play, (s32)strtol(list, (char**)&list, 16));
+                while ((*list == ',') || (*list == ' ')) {
+                    list++;
+                }
+            }
+        }
+    }
     NvMmClock_Update(play);
     NvMmSongs_Update(play); // (z_nv_mm_songs.c: MM's songs on the shared listener)
     NvMmHalfDay_Update(play);

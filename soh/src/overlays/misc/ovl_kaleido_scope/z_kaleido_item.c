@@ -1,4 +1,5 @@
 #include "z_kaleido_scope.h"
+#include "code/z_nv_pause.h" // Nightmareverse: the pause menu's columns
 #include "textures/parameter_static/parameter_static.h"
 #include "textures/icon_item_static/icon_item_static.h"
 #include "soh/Enhancements/randomizer/ShuffleTradeItems.h"
@@ -626,6 +627,7 @@ void KaleidoScope_DrawItemSelect(PlayState* play) {
                                 pauseCtx->cursorPoint[PAUSE_ITEM] = cursorPoint;
 
                                 moveCursorResult = 2;
+                                NvPause_Edge(play, PAUSE_ITEM, -1); // Nightmareverse: past the top row, the column slides
                             }
                         } else if ((pauseCtx->stickRelY < -30) ||
                                    (dpad && CHECK_BTN_ALL(input->press.button, BTN_DDOWN))) {
@@ -641,6 +643,7 @@ void KaleidoScope_DrawItemSelect(PlayState* play) {
                                 pauseCtx->cursorPoint[PAUSE_ITEM] = cursorPoint;
 
                                 moveCursorResult = 2;
+                                NvPause_Edge(play, PAUSE_ITEM, 1); // Nightmareverse: past the bottom row, the column slides
                             }
                         }
                     }

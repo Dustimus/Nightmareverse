@@ -7,7 +7,7 @@
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
  *                             (default 200); "wait:N" stands still N frames, "a" presses A, "b" B,
  *                             "press:cu" (cd, cl, cr, a) holds a button 8 frames (an ocarina note),
- *                             "start" Start, "left"/"right"/"up"/"down" the D-pad, "sdown"/"sup"
+ *                             "start" Start, "left"/"right"/"up"/"down" the D-pad, "sdown"/"sup"/"sleft"/"sright"
  *                             the stick 4 frames (a textbox choice), "choice:N" waits for a choice
  *                             box and takes choice N (0 first), "cl:N" holds
  *                             C-Left N frames (RE1's gun's aim; letting go fires),
@@ -164,10 +164,11 @@ static void NvDev_ParsePath(void) {
             wp->wait = atoi(s + 7);
             wp->z = 0;
             sNvPathLen++;
-        } else if ((strncmp(s, "sdown", 5) == 0) || (strncmp(s, "sup", 3) == 0)) { // the stick down/up a frame
+        } else if ((strncmp(s, "sdown", 5) == 0) || (strncmp(s, "sup", 3) == 0) || (strncmp(s, "sleft", 5) == 0) ||
+                   (strncmp(s, "sright", 6) == 0)) { // the stick down/up/left/right (x: +-80 up-down, +-81 left-right)
             wp->kind = NV_WP_DPAD;
             wp->wait = 0;
-            wp->x = (s[1] == 'd') ? -80 : 80;
+            wp->x = (s[1] == 'd') ? -80 : (s[1] == 'u') ? 80 : (s[1] == 'l') ? -81 : 81;
             wp->z = 0;
             sNvPathLen++;
         } else if ((strncmp(s, "left", 4) == 0) || (strncmp(s, "right", 5) == 0) || (strncmp(s, "up", 2) == 0) ||
@@ -735,8 +736,12 @@ void NvDev_Update(PlayState* play) {
         } else if (wp->kind == NV_WP_DPAD) {
             input->press.button |= (u16)wp->wait;
             input->cur.button |= (u16)wp->wait;
-            if (wp->wait == 0) { // (sdown / sup: a choice, by the stick, held 4 frames so the box sees it)
-                input->cur.stick_y = input->rel.stick_y = (s8)wp->x;
+            if (wp->wait == 0) { // (sdown / sup / sleft / sright: the stick, held 4 frames so a box or menu sees it)
+                if (ABS(wp->x) == 81) {
+                    input->cur.stick_x = input->rel.stick_x = (wp->x < 0) ? -80 : 80;
+                } else {
+                    input->cur.stick_y = input->rel.stick_y = (s8)wp->x;
+                }
             }
             if ((wp->wait != 0) || (++wp->z >= 4)) {
                 sNvPathIdx++;

@@ -29,6 +29,7 @@ import mm_objects  # noqa: E402
 import mm_text  # noqa: E402
 import mm_rom  # noqa: E402
 import mm_scene  # noqa: E402
+import mm_pause  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(HERE))
 
@@ -72,6 +73,7 @@ def main():
     for s in scenes:
         mm_scene.write_scene(rom, s, mm_rom.CLOCK_TOWN[s], res)
     mm_objects.write_matanims(res)
+    mm_pause.write_textures(rom, res)  # MM's pause icons, names and page tiles (from its yar archives)
     # MM's messages, in OoT's text codes (mm_text.py), as one blob resource
     msgs = mm_text.messages(rom)
     os.makedirs(os.path.join(res, "mm", "text"), exist_ok=True)

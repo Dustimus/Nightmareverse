@@ -683,6 +683,39 @@ wrote, after RE1's songs): in Termina only, OoT's correct chime, the ocarina put
 away, then the list. Dev: NV_MM_SPEED_MENU=1 opens it on the first frame. Tested headless: the
 song played in the inn (`press:` notes), the list, half chosen, the clock's "x1/2".
 
+### MM's pause pages (2026-11-23, `soh/src/code/z_nv_pause.c`, `z_nv_mm_pause.c`, `tools/mm_pause.py`)
+
+The design is `../NV_PAUSE_MENU.md` (decided with the user, 2026-11-20). The shared part,
+`z_nv_pause.c`: each side of OoT's box is a column of pages, OoT's first, then any game's
+registered pages, looping. At rest the page in front sits exactly where OoT's does and a sliver of
+each neighbour (its frame, its title) peeks at the screen's top and bottom; the cursor past the
+top or bottom row slides the column one whole page (8 frames; dev NV_PAUSE_SLIDE=n slows it).
+Hooks in the kaleido (small ones): the item and equipment sides are drawn through
+`NvPause_DrawColumn` (a side with no alternates is OoT's alone, as before), OoT's item and equipment
+cursors call `NvPause_Edge` where they stop at the top and bottom rows, the name bar asks
+`NvPause_Name`.
+
+MM's two pages, MM's own throughout: the items page in the Items column and the masks page in the
+Equipment column, with MM's tiles and titles ("SELECT ITEM", "MASKS"), MM's flat colour (its tiles
+are see-through in places, as MM's are), MM's icons and English names, MM's 6 by 4 grid and slot
+order. In Termina they open in front; elsewhere they're a slide away. What a slot shows follows the
+one inventory: shared things from OoT's (the ocarina, arrows, bombs, sticks, nuts, beans, the
+Lens, OoT's four bottles), MM's own from MM's (the Hero's Bow and Hookshot, the keg, the
+Pictograph Box, the Great Fairy's Sword, the trade items, MM's own bottled things after OoT's
+bottles, the masks).
+
+MM's pause textures live in "yar" archives Torch can't read; `tools/mm_pause.py` unpacks them and
+writes the 330 textures (icons, names, tiles, titles) straight into the mod as libultraship
+textures, by a list generated once from the decomp (`mm_pause_textures.py`, committed).
+
+Dev: NV_MM_ITEMS="2d,38,32" gives MM items (hex ids) on arrival in Termina; NV_WALK's "sleft" and
+"sright" push the stick sideways (turning the box). Tested headless: the items page in front in the
+inn with its items, the slide down to OoT's page and back up, the slivers, the masks page, names.
+
+Not yet: using MM's items and wearing masks from C buttons (the pages still show OoT's "to Equip"
+prompt; a C button does nothing on them), ammo counts on MM's icons, the Quest and Map columns, the
+slivers' titles under the HUD (the open question in the design).
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the
