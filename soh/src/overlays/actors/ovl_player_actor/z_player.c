@@ -4899,7 +4899,7 @@ s32 func_808382DC(Player* this, PlayState* play) {
                      SurfaceType_IsWallDamage(&play->colCtx, this->actor.floorPoly, this->actor.floorBgId) &&
                      (this->floorTypeTimer >= D_808544F4[sp48])) ||
                     ((sp48 >= 0) &&
-                     ((this->currentTunic != PLAYER_TUNIC_GORON && CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) == 0) ||
+                     ((this->currentTunic != PLAYER_TUNIC_GORON && (CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) || NvMmForm_SuperTunic()) == 0) ||
                       (this->floorTypeTimer >= D_808544F4[sp48])))) {
                     this->floorTypeTimer = 0;
                     this->actor.colChkInfo.damage = 4;
@@ -9576,7 +9576,7 @@ static AnimSfxEntry D_808545F0[] = {
 };
 
 void Player_Action_80843CEC(Player* this, PlayState* play) {
-    if (this->currentTunic != PLAYER_TUNIC_GORON && CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) == 0) {
+    if (this->currentTunic != PLAYER_TUNIC_GORON && (CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) || NvMmForm_SuperTunic()) == 0) {
         if ((play->roomCtx.curRoom.behaviorType2 == ROOM_BEHAVIOR_TYPE2_3) || (sFloorType == 9) ||
             ((func_80838144(sFloorType) >= 0) &&
              !SurfaceType_IsWallDamage(&play->colCtx, this->actor.floorPoly, this->actor.floorBgId))) {
@@ -11686,7 +11686,7 @@ void Player_UpdateBodyBurn(PlayState* play, Player* this) {
     s32 sp58;
     s32 sp54;
 
-    if (this->currentTunic == PLAYER_TUNIC_GORON || CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) != 0) {
+    if (this->currentTunic == PLAYER_TUNIC_GORON || (CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) || NvMmForm_SuperTunic()) != 0) {
         sp54 = 20;
     } else {
         sp54 = (s32)(this->linearVelocity * 0.4f) + 1;

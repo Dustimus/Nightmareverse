@@ -758,6 +758,15 @@ s32 NvMmForm_BlocksItem(s32 item) {
 }
 
 /**
+ * The Fierce Deity: fireproof and breathing underwater, both tunics at once (the user, 2026-11-24: his
+ * tunic can't change colour, so he has both). Read where OoT reads SoH's Super Tunic cheat (the hot
+ * rooms' timer, the drowning timer, burning floors, the "it's hot" text).
+ */
+s32 NvMmForm_SuperTunic(void) {
+    return sForm.form == MM_FORM_FD;
+}
+
+/**
  * The Equipment screen's age check (z_kaleido_scope.h's hook): the Fierce Deity takes adult Link's swords,
  * the Master Sword and Biggoron's (NV_GAMES.md, the user 2026-11-20), as well as his own in the Kokiri
  * Sword's place. Nothing else of adult Link's: his tunic, boots and shield stay as the forms have them.

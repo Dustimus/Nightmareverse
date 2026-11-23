@@ -948,12 +948,12 @@ s32 Player_GetEnvironmentalHazard(PlayState* play) {
 
         if ((triggerEntry->flag != 0) && !(gSaveContext.textTriggerFlags & triggerEntry->flag) &&
             (((envHazard == (PLAYER_ENV_HAZARD_HOTROOM - 1)) &&
-              (this->currentTunic != PLAYER_TUNIC_GORON && CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) == 0 &&
+              (this->currentTunic != PLAYER_TUNIC_GORON && (CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) || NvMmForm_SuperTunic()) == 0 &&
                CVarGetInteger(CVAR_ENHANCEMENT("DisableTunicWarningText"), 0) == 0)) ||
              (((envHazard == (PLAYER_ENV_HAZARD_UNDERWATER_FLOOR - 1)) ||
                (envHazard == (PLAYER_ENV_HAZARD_UNDERWATER_FREE - 1))) &&
               (this->currentBoots == PLAYER_BOOTS_IRON) &&
-              (this->currentTunic != PLAYER_TUNIC_ZORA && CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) == 0 &&
+              (this->currentTunic != PLAYER_TUNIC_ZORA && (CVarGetInteger(CVAR_CHEAT("SuperTunic"), 0) || NvMmForm_SuperTunic()) == 0 &&
                CVarGetInteger(CVAR_ENHANCEMENT("DisableTunicWarningText"), 0) == 0)))) {
             Message_StartTextbox(play, triggerEntry->textId, NULL);
             gSaveContext.textTriggerFlags |= triggerEntry->flag;

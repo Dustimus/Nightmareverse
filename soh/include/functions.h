@@ -1093,6 +1093,7 @@ void Inventory_ChangeAmmo(s16 item, s16 ammoChange);
 void Magic_Fill(PlayState* play);
 void Magic_Reset(PlayState* play);
 s32 Magic_RequestChange(PlayState* play, s16 amount, s16 type);
+s32 NvMmForm_SuperTunic(void); // Nightmareverse: the Fierce Deity, fireproof and breathing underwater (z_nv_mm_form.c)
 void Interface_SetSubTimer(s16 seconds);
 void Interface_SetSubTimerToFinalSecond(PlayState* play);
 void Interface_SetTimer(s16 arg0);

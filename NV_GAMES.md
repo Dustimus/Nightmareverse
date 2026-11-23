@@ -226,8 +226,14 @@ The default is shared or carried over. A Termina-only piece needs a reason.
     and the damage following the equipped sword. Built 2026-11-24 (mm/README.md): his fist with
     the sword half of OoT's hand-and-sword models; the Kokiri Sword's slot is his Double Helix.
   - **The swords, decided (the user, 2026-11-24):**
-    - **A second Equipment page** (in the Equipment column, under OoT's), for now at least: the
-      fallback for anything that doesn't fit OoT's 3-wide page; organized properly later.
+    - **A second page in the Equipment column** (under OoT's), for now at least: not a strict
+      equipment page but **a plain 24-slot page** (6 by 4, as MM's item pages), room to work with
+      (the user, 2026-11-24: an equipment-shaped page would get clunky with this much); organized
+      properly later.
+    - **The Fierce Deity's tunic** can't change colour, so he has both tunics' effects: fireproof
+      and breathing underwater (the user, 2026-11-24). Built: `NvMmForm_SuperTunic`, read where
+      OoT reads SoH's Super Tunic cheat (one-line hooks in z_player.c, z_player_lib.c,
+      z_parameter.c).
     - **Its sword row:** the Kokiri Sword (MM's Razor and Gilded are its upgrades, as in MM: the
       Razor wears back to the Kokiri after 100 hits, the Gilded stays), the Master Sword, the
       Giant's Knife, Biggoron's Sword, the Double Helix (the Fierce Deity's). The Kokiri-slot stand-in
