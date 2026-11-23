@@ -55,6 +55,7 @@ before building a new system; add a line whenever a new one is made.
 - **The forms in z_player.c:** our own action functions in our files, started from one-line hooks
   in z_player.c; the user's go-ahead without asking RE1 first ("it can adjust if it needs to",
   2026-11-23). Deku Link's spin is on A, his bubble on B (as MM).
+- **The swords and the second Equipment page (2026-11-24):** see NV_GAMES.md ("The swords, decided"); the shields still to go over with the user.
 - **The Fierce Deity:** usable anywhere; adult Link's size except in boss rooms (MM's 1.5 there); his
   beam as a light arrow to start (a sword strike: maybe later) (NV_GAMES.md, the user, 2026-11-24).
 - **Adult Link and MM (an idea, not to start yet):** sequenced through OoT's ending

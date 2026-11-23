@@ -225,6 +225,22 @@ The default is shared or carried over. A Termina-only piece needs a reason.
     overpowered everywhere. To work out then: his hand's attachment point for OoT's sword models,
     and the damage following the equipped sword. Built 2026-11-24 (mm/README.md): his fist with
     the sword half of OoT's hand-and-sword models; the Kokiri Sword's slot is his Double Helix.
+  - **The swords, decided (the user, 2026-11-24):**
+    - **A second Equipment page** (in the Equipment column, under OoT's), for now at least: the
+      fallback for anything that doesn't fit OoT's 3-wide page; organized properly later.
+    - **Its sword row:** the Kokiri Sword (MM's Razor and Gilded are its upgrades, as in MM: the
+      Razor wears back to the Kokiri after 100 hits, the Gilded stays), the Master Sword, the
+      Giant's Knife, Biggoron's Sword, the Double Helix (the Fierce Deity's). The Kokiri-slot stand-in
+      for the Double Helix goes once the page exists.
+    - **The Giant's Knife and Biggoron's Sword are two items** (OoT keeps them in one slot with
+      bgsFlag; Biggoron's overwrites the Knife). Both kept, separately owned (a flag of our own).
+      Medigoron keeps selling a new Knife for 200 rupees indefinitely (OoT stops once you have
+      Biggoron's: that stop goes). The broken Knife: the Knife slot's broken state (repairable), to
+      start.
+    - **The Great Fairy's Sword equips to B** (in MM it's a C item, two-handed), as a sword: OoT's
+      two-handed handling (Biggoron's), its own model and damage. Human Link only, as in MM.
+    - **The shields: to go over with the user** (they asked not to let them forget, 2026-11-24).
+      OoT's Deku, Hylian and Mirror; MM's Hero's and Mirror shields.
   - **His size (checked in the two ROMs, 2026-11-21):** the Fierce Deity's skeleton is adult Link's
     exactly (all 21 bones, same lengths and hierarchy). MM draws him at 1.5 times (scale 0.015
     against 0.01, `z_player_lib.c`), with his movement values scaled to match (ceiling check 84

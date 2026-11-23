@@ -53,7 +53,7 @@ Decided with the user (2026-11-20):
 | Side | Its column (opens on the one for where Link is) |
 |---|---|
 | Items | OoT's items; MM's items; RE1's inventory (a proper item list) |
-| Equipment | OoT's equipment; MM's masks (worn, like tunics and boots; the forms change Link as the Iron Boots do) |
+| Equipment | OoT's equipment; a second equipment page (the user, 2026-11-24: all the swords, Great Fairy's on B, the shields to decide; NV_GAMES.md); MM's masks (worn, like tunics and boots; the forms change Link as the Iron Boots do) |
 | Quest Status | OoT's; MM's (songs, remains, Bomber's Notebook); later maybe one page with every game's songs |
 | Map | Hyrule's; Termina's; RE1's map and status screens (as now) |
 
