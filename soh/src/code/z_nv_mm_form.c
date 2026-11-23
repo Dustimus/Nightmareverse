@@ -740,7 +740,43 @@ s32 NvMmForm_BlocksItem(s32 item) {
     if ((item == ITEM_OCARINA_FAIRY) || (item == ITEM_OCARINA_TIME) || (item == ITEM_NONE)) {
         return false;
     }
+    if ((sForm.form == MM_FORM_FD) && (item >= ITEM_SWORD_KOKIRI) && (item <= ITEM_SWORD_BGS)) {
+        return false; // (the Fierce Deity's B: his sword, swung as Link's)
+    }
     return true;
+}
+
+/**
+ * The Fierce Deity's sword beam (MM's func_808332A0, from Player_ActionHandler_7's swing): a swing begun while
+ * targeting, with magic, sends one (z_nv_mm_beam.c), pitched at what he's locked on to; 1 magic (MM's).
+ */
+static void NvMmForm_FdBeam(PlayState* play, Player* player) {
+    static s8 sPrevWeaponState = 0;
+    s32 NvMmActor_Id(s32 mmId);
+    s32 begun = (sPrevWeaponState == 0) && (player->meleeWeaponState != 0);
+
+    sPrevWeaponState = player->meleeWeaponState;
+    if (!begun || (player->meleeWeaponAnimation >= PLAYER_MWA_SPIN_ATTACK_1H)) {
+        return;
+    }
+    if ((player->focusActor == NULL) && !(player->stateFlags1 & PLAYER_STATE1_PARALLEL)) {
+        return;
+    }
+    if (gSaveContext.magic <= 0) {
+        return;
+    }
+    {
+        Vec3f* pos = &player->bodyPartsPos[PLAYER_BODYPART_WAIST];
+        s16 pitch = (player->focusActor != NULL) ? Math_Vec3f_Pitch(pos, &player->focusActor->focus.pos) : 0;
+
+        if (Actor_Spawn(&play->actorCtx, play, NvMmActor_Id(0x035), pos->x, pos->y, pos->z, pitch, 0, 0, 0) != NULL) {
+            gSaveContext.magic = MAX(gSaveContext.magic - 1, 0); // (OoT's meter drains 2 a step: an odd cost would empty it)
+            if (getenv("NV_LOG") != NULL) {
+                printf("NVMM fierce deity: sword beam (pitch %d, magic %d)\n", pitch, gSaveContext.magic);
+                fflush(stdout);
+            }
+        }
+    }
 }
 
 /** Each frame (z_nv_mm.c, in every scene): a change under way, and Link kept in his form. */
@@ -787,6 +823,7 @@ void NvMmForm_Update(PlayState* play) {
             }
         }
         Actor_SetScale(&player->actor, 0.01f * sFdSize);
+        NvMmForm_FdBeam(play, player);
     } else if ((sFdSize != 1.0f) || (player->actor.scale.y != 0.01f)) {
         if ((player->actor.category == ACTORCAT_PLAYER) && (player->actor.scale.y > 0.0f)) {
             sFdSize = 1.0f;

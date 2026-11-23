@@ -81,6 +81,7 @@ OBJECTS = {
         "gGoronMaskDL": 0x5A10,  # the Goron Mask, the same
         "gZoraMaskDL": 0x5360,  # the Zora Mask, the same
         "gFierceDeityMaskDL": 0xB260,  # the Fierce Deity's Mask, the same
+        "gSwordBeamDL": 0x27CA0,  # the Fierce Deity's sword beam (En_M_Thunder)
         "gPinkDekuFlowerIdleDL": 0xED80,  # the Deku flowers (Obj_Etcetera), at rest
         "gameplay_keep_DL_06F380": 0x6F380,  # the Deku bubble (En_Arrow's): its setup,
         "gameplay_keep_DL_06F9F0": 0x6F9F0,  # being blown,

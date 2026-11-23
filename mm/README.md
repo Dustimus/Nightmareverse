@@ -894,11 +894,26 @@ nine boss scenes and Ganon's; MM's to come) he grows, a step a frame, to MM's 1.
 (the other forms have none) and swings it as OoT's Link; drawn out, it's his Double Helix Sword (MM's
 gLinkFierceDeityLeftHandHoldingSwordDL).
 
+**The sword beam** (`soh/src/code/z_nv_mm_beam.c`, MM's En_M_Thunder as the beam, MM id 0x035): a
+swing begun while Z-targeting (locked on, or Z with nothing to lock on to), not a spin, with magic,
+sends MM's beam from his waist along his facing, pitched at what he's locked on to (MM's
+func_808332A0); 1 magic, taken straight off the meter (OoT's meter drains 2 a step and would empty
+on an odd cost). MM's flight: 80 units a frame, growing to 12, fading over 20 frames, its light with
+it; MM's model (gameplay_keep's gSwordBeamDL, scrolling, MM's colours). It hits as OoT's light arrow
+(DMG_ARROW_LIGHT) for MM's 3: the decision. The user's thought, for later: it might rather count as a
+sword strike.
+
+Also: a form's item block (z_nv_mm_mask.c's Player_UseItem hook) let no form use B's sword; the
+Fierce Deity's swords now pass. And NV_MAGIC sets the meter's capacity too (with none, OoT's consume
+step empties it).
+
 Not yet: his sword's own ways (the decision: the swords from the menu as adult Link's, the Double
-Helix's damage), the sword beam (as a light arrow, the decision), MM's boss rooms.
+Helix's damage), MM's boss rooms.
 
 Tested headless: the Fierce Deity's Mask equipped, the change, him at adult size by the gate guard,
-warped into Gohma's room and grown to 1.5 (by the log; the room's dark).
+warped into Gohma's room and grown to 1.5 (by the log; the room's dark). The beam: Z on the gate
+guard and B, twice, a beam each (pitched up at the guard's head, 1 magic each), seen flying off;
+in Gohma's corridor with Z on nothing (by the log; at 1.5 the camera sits in the corridor's wall).
 
 ### Deku Link's moves (2026-11-23, `soh/src/code/z_nv_mm_deku.c`)
 

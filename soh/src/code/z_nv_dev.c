@@ -364,6 +364,9 @@ void NvDev_Update(PlayState* play) {
             gSaveContext.magicLevel = 1;
             gSaveContext.isMagicAcquired = true;
         }
+        if (gSaveContext.magicCapacity < 0x30) {
+            gSaveContext.magicCapacity = 0x30; // (OoT's meter: its consume steps clamp to the capacity)
+        }
         gSaveContext.magic = 0x30;
     }
 
