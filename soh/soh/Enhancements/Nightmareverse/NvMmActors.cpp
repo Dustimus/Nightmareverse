@@ -236,3 +236,15 @@ extern "C" s16 NvMmActor_TransitionId(PlayState* play, s16 id) {
     }
     return id;
 }
+
+// Termina's young Link is MM's model (z_nv_mm_link.c): its tables set on each scene's start, before
+// Link is made.
+#include "soh/ShipInit.hpp"
+extern "C" void NvMmLink_SceneInit(s16 sceneNum);
+
+static void NvMmLink_Register() {
+    GameInteractor::Instance->RegisterGameHook<GameInteractor::OnSceneInit>(
+        [](int16_t sceneNum) { NvMmLink_SceneInit(sceneNum); });
+}
+
+static RegisterShipInitFunc sNvMmLinkInit(NvMmLink_Register);

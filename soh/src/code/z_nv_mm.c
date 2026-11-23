@@ -70,6 +70,10 @@ void NvMm_Update(PlayState* play) {
     if ((sNvMmFrames == 0) || (play->state.frames + 1 < sNvMmFrames)) { // a new scene load
         sNvMmBackNote = (gSaveContext.entranceIndex >= ENTR_MM_BACK_FIRST) &&
                         (gSaveContext.entranceIndex <= ENTR_MM_BACK_LAST);
+        {
+            void NvMmLink_Check(PlayState * play);
+            NvMmLink_Check(play);
+        }
         if (sNvMmBackNote && getenv("NV_LOG")) {
             printf("NVMM back: entrance 0x%X (a way not built yet)\n", (unsigned)gSaveContext.entranceIndex);
             fflush(stdout);

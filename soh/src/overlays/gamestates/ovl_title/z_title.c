@@ -179,6 +179,9 @@ static s32 Title_NvBootApply(const char* entr, s32 bootFile) {
         Sram_InitDebugSave();
         gSaveContext.fileNum = 0xFF;
     }
+    if ((getenv("NV_BOOT_AGE") != NULL) && (getenv("NV_BOOT_AGE")[0] == 'c')) { // dev: NV_BOOT_AGE=child
+        gSaveContext.linkAge = LINK_AGE_CHILD;
+    }
     gSaveContext.gameMode = GAMEMODE_NORMAL;
     gSaveContext.entranceIndex = entrance;
     gSaveContext.dayTime = 0x8000;

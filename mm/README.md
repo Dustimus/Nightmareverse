@@ -52,6 +52,8 @@ before building a new system; add a line whenever a new one is made.
 - **Adult Link and MM (an idea, not to start yet):** sequenced through OoT's ending
   (NV_GAMES.md "Another way round the adult-Link question", 2026-11-20).
 - **The Deku Stick's model** to check when MM's item models come (below, 2026-11-20).
+- **Young Link in Termina is MM's own model** (2026-11-23); in Hyrule OoT's for now. Moving MM's
+  model (and MM's held items) everywhere is likely once MM's items are used outside Termina.
 - **Commits and branches:** this side works on its own branch; re1/foyer is RE1's; merges only
   when the user asks; no game data in the repository.
 
@@ -715,6 +717,29 @@ inn with its items, the slide down to OoT's page and back up, the slivers, the m
 Not yet: using MM's items and wearing masks from C buttons (the pages still show OoT's "to Equip"
 prompt; a C button does nothing on them), ammo counts on MM's icons, the Quest and Map columns, the
 slivers' titles under the HUD (the open question in the design).
+
+### Young Link is MM's model in Termina (2026-11-23, `soh/src/code/z_nv_mm_link.c`)
+
+Decided with the user. The two games' young Link skeletons are the same (21 limbs, the same joints
+but the sheath's, 27 units lower in MM's), so OoT's animations and player code drive MM's model
+as they are. Nothing of OoT's player code is changed: OoT reads young Link's skeleton, face and
+hands from its own tables (z_player_lib.c), and on each scene's start (SoH's OnSceneInit, before
+Link is made; registered in NvMmActors.cpp) those entries become MM's in Termina and go back to
+OoT's elsewhere. Adult Link is never touched.
+
+MM's: the skeleton and everything it draws (body, head, hat), the face (MM's eight eyes and four
+mouths; OoT's "shock" shown as MM's wincing, its two unnamed as looking up and down), the open and
+closed hands, the hand holding the Ocarina of Time. Still OoT's, sitting right on MM's body: what's
+held or worn (the sword in hand, sword and shield on the back, the Deku Shield, the slingshot, the
+boomerang, the bottle, the Fairy Ocarina). OoT bakes the item into the hand, MM draws hand and
+item apart, so MM's way comes with MM's items in hand.
+
+The converter now handles Link's kind of skeleton (LOD limbs: `skel_lod` in mm_objects.py).
+
+Dev: NV_BOOT_AGE=child boots young (the debug save is adult Link, so the Termina tests before
+this one all showed adult Link); NV_MM_OOT_LINK=1 keeps OoT's model in Termina, to compare.
+Tested headless: young Link in the inn, MM's model next to OoT's, the skeleton the one Link is
+made with, the sword drawn.
 
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 

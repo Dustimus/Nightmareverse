@@ -180,6 +180,17 @@ OBJECTS = {
             ("Base", ""): 0x6F0, ("Base", "Gilded"): 0xA50, ("Base", "Ornate"): 0xDB0,
             ("Lid", ""): 0x12E8, ("Lid", "Gilded"): 0x1850, ("Lid", "Ornate"): 0x1D58}.items()},
     }),
+    "object_link_child": (654, {"deps": ["gameplay_keep"],  # young Link (MM's "human" Link): Termina's
+        "skel_lod": {"gLinkHumanSkel": 0x1E244},
+        "dl": {f"gLinkHuman{n}DL": o for n, o in {
+            "Waist": 0xBDB0, "RightHandOpen": 0xD058, "LeftHandOpen": 0xD528, "LeftHandClosed": 0xE1C8,
+            "RightHandClosed": 0xE738, "RightHandHoldingOcarina": 0xED18}.items()},
+        "tex": {**{f"gLinkHumanEyes{n}Tex": (o, "CI8", 64, 32, 0x5000) for n, o in {
+            "Open": 0x0, "Half": 0x800, "Closed": 0x1000, "Right": 0x1800, "Left": 0x2000, "Up": 0x2800,
+            "Down": 0x3000, "Wincing": 0x3800}.items()},
+                **{f"gLinkHumanMouth{n}Tex": (o, "CI8", 32, 32, 0x5200) for n, o in {
+                    "Closed": 0x4000, "Half": 0x4400, "Open": 0x4800, "Smile": 0x4C00}.items()}},
+    }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)
@@ -236,17 +247,18 @@ def convert_objects(rom, out):
             segs[files[dep][0].seg] = files[dep][0]
         w = Walker(segs)
         extra = []
-        skels = [(sym, off, True) for sym, off in parts.get("skel", {}).items()]
-        skels += [(sym, off, False) for sym, off in parts.get("skel_normal", {}).items()]
-        for sym, off, flex in skels:
+        skels = [(sym, off, True, "Standard") for sym, off in parts.get("skel", {}).items()]
+        skels += [(sym, off, False, "Standard") for sym, off in parts.get("skel_normal", {}).items()]
+        skels += [(sym, off, True, "LOD") for sym, off in parts.get("skel_lod", {}).items()]  # (Link's: near, far)
+        for sym, off, flex, ltype in skels:
             for lo in _skeleton_limbs(a.data, off):
-                dl = struct.unpack_from(">I", a.data, lo + 8)[0]
-                if dl:
-                    w.walk(dl)
+                for dl in struct.unpack_from(">II" if ltype == "LOD" else ">I", a.data, lo + 8):
+                    if dl:
+                        w.walk(dl)
                 extra += [f"{name}_Limb_{lo:06X}:", "  type: OOT:LIMB", f"  offset: 0x{lo:06X}",
-                          f"  symbol: {name}_Limb_{lo:06X}", "  limb_type: Standard", ""]
+                          f"  symbol: {name}_Limb_{lo:06X}", f"  limb_type: {ltype}", ""]
             extra += [f"{sym}:", "  type: OOT:SKELETON", f"  offset: 0x{off:06X}", f"  symbol: {sym}",
-                      "  limb_type: Standard", f"  skel_type: {'Flex' if flex else 'Normal'}", ""]
+                      f"  limb_type: {ltype}", f"  skel_type: {'Flex' if flex else 'Normal'}", ""]
         for sym, (off, fmt, tw, th, *tlut) in parts.get("tex", {}).items():  # named: an actor sets them
             extra += [f"{sym}:", "  type: TEXTURE", f"  offset: 0x{off:06X}", f"  symbol: {sym}", f"  format: {fmt}",
                       f"  width: {tw}", f"  height: {th}"] + ([f"  tlut: 0x{tlut[0]:X}"] if tlut else []) + [""]
