@@ -12,6 +12,7 @@ The table below holds only names and offsets (no data); the files come from the 
 import os
 import struct
 
+import mm_scene
 import yaz0
 from mm2torch import Assets, Walker, yml_assets
 
@@ -78,6 +79,7 @@ OBJECTS = {
         "gSquareShadowDL": 0x75A40,
         "gCircleShadowDL": 0x76BC0,
         "gEffFire1DL": 0x7D590,  # a torch's flame (Obj_Syokudai)
+        "gameplay_keep_DL_01ACF0": 0x1ACF0,  # a small flame: candles, lamps (En_Light)
         "gDoorLeftDL": 0x20BB8,  # the plain wooden door (En_Door)
         "gDoorRightDL": 0x20D00,
     }, "skel_normal": {"gDoorSkel": 0x22B28},
@@ -166,6 +168,13 @@ OBJECTS = {
         "tex": {f"object_dai_Tex_{o:06X}": (o, "RGBA16", 32, 32) for o in
                 (0x107B0, 0x10FB0, 0x117B0, 0x11FB0, 0x127B0)},
     }),
+    "object_yado_obj": (1089, {  # the inn's upstairs windows (Obj_Yado): colors in segments 9, 0xA
+        "dl": {"object_yado_obj_DL_000320": 0x320, "object_yado_obj_DL_000430": 0x430},
+        "matanim": {"object_yado_obj_Matanimheader_0012E8": 0x12E8},
+    }),
+    "object_hariko": (976, {  # the bobblehead cow toy (Obj_Hariko)
+        "dl": {"gHarikoBodyDL": 0x80, "gHarikoFaceDL": 0x110},
+    }),
     "object_daiku": (779, {  # the carpenters (En_Daiku)
         "skel": {"object_daiku_Skel_00A850": 0xA850},
         "dl": {"object_daiku_DL_0070C0": 0x70C0, "object_daiku_DL_006FB0": 0x6FB0,  # their hats (by type)
@@ -183,6 +192,16 @@ def _skeleton_limbs(data, off):
     table = struct.unpack_from(">I", data, off)[0] & 0xFFFFFF
     count = data[off + 4]
     return [struct.unpack_from(">I", data, table + 4 * i)[0] & 0xFFFFFF for i in range(count)]
+
+
+MATANIMS = {}  # resource path -> "MMAT" blob (make_mod.py writes them into the archive)
+
+
+def write_matanims(res):
+    for path, blob in MATANIMS.items():
+        os.makedirs(os.path.dirname(os.path.join(res, path)), exist_ok=True)
+        open(os.path.join(res, path), "wb").write(
+            mm_scene._otr_header(mm_scene.LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
 
 
 def _load(rom, index):
@@ -244,6 +263,8 @@ def convert_objects(rom, out):
         names = {off: sym for sym, off in parts.get("dl", {}).items()}
         open(os.path.join(out, f"{name}.yml"), "w").write(
             yml_assets(a, name, header, names) + "\n".join(extras[name]) + "\n")
+        for sym, moff in parts.get("matanim", {}).items():  # MM's AnimatedMaterial lists, as blobs
+            MATANIMS[f"mm/objects/{name}/{sym}"] = mm_scene.matanim_blob_at(a.data, moff)
         print(f"{name}: {len(a.dls)} display lists, {len(a.vtx_arrays())} vertex arrays, {len(a.tex)} textures"
               + (f", {len(parts.get('anim', {}))} animations" if parts.get("anim") else "")
               + (f"; segments not handled: {sorted(others[name])}" if others[name] else ""))

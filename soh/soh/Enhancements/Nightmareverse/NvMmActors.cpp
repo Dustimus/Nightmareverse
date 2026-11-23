@@ -75,6 +75,25 @@ void NvMmAh_Destroy(Actor* thisx, PlayState* play);
 void NvMmAh_Update(Actor* thisx, PlayState* play);
 void NvMmAh_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvMmAhSize;
+void NvMmLight_Init(Actor* thisx, PlayState* play);
+void NvMmLight_Destroy(Actor* thisx, PlayState* play);
+void NvMmLight_Update(Actor* thisx, PlayState* play);
+void NvMmLight_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmLightSize;
+void NvMmYado_Init(Actor* thisx, PlayState* play);
+void NvMmYado_Destroy(Actor* thisx, PlayState* play);
+void NvMmYado_Update(Actor* thisx, PlayState* play);
+void NvMmYado_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmYadoSize;
+void NvMmHariko_Init(Actor* thisx, PlayState* play);
+void NvMmHariko_Destroy(Actor* thisx, PlayState* play);
+void NvMmHariko_Update(Actor* thisx, PlayState* play);
+void NvMmHariko_Draw(Actor* thisx, PlayState* play);
+extern const size_t gNvMmHarikoSize;
+void NvMmTalk_Init(Actor* thisx, PlayState* play);
+void NvMmTalk_Destroy(Actor* thisx, PlayState* play);
+void NvMmTalk_Update(Actor* thisx, PlayState* play);
+extern const size_t gNvMmTalkSize;
 void NvMmIg_Init(Actor* thisx, PlayState* play);
 void NvMmIg_Destroy(Actor* thisx, PlayState* play);
 void NvMmIg_Update(Actor* thisx, PlayState* play);
@@ -164,6 +183,18 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
         ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED |
             ACTOR_FLAG_DRAW_CULLING_DISABLED,
         &gNvMmIgSize, NvMmIg_Init, NvMmIg_Destroy, NvMmIg_Update, NvMmIg_Draw } },
+    { 0x004,
+      { "Mm_En_Light", "MM: a flame or lamp", ACTORCAT_ITEMACTION, ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmLightSize, NvMmLight_Init,
+        NvMmLight_Destroy, NvMmLight_Update, NvMmLight_Draw } },
+    { 0x294,
+      { "Mm_Obj_Yado", "MM: the inn's upstairs window", ACTORCAT_BG, ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmYadoSize, NvMmYado_Init,
+        NvMmYado_Destroy, NvMmYado_Update, NvMmYado_Draw } },
+    { 0x20A,
+      { "Mm_Obj_Hariko", "MM: the bobblehead cow toy", ACTORCAT_PROP, 0, &gNvMmHarikoSize, NvMmHariko_Init,
+        NvMmHariko_Destroy, NvMmHariko_Update, NvMmHariko_Draw } },
+    { 0x261,
+      { "Mm_En_Talk", "MM: something to read or check", ACTORCAT_ITEMACTION, ACTOR_FLAG_ATTENTION_ENABLED, &gNvMmTalkSize, NvMmTalk_Init,
+        NvMmTalk_Destroy, NvMmTalk_Update, NULL } },
 };
 
 /** The SoH actor id for one of MM's actor ids, or -1 if it isn't ported. */

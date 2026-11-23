@@ -39,6 +39,11 @@ static Actor* NvMmHalfDay_Spawn(PlayState* play, s32 i) {
         }
         a = Actor_Spawn(&play->actorCtx, play, id, e->pos.x, e->pos.y, e->pos.z, e->rot.x, e->rot.y, e->rot.z,
                         e->params);
+        if (getenv("NV_LOG") != NULL) { // (dev: what of MM's came)
+            printf("NVMM spawn %03X params=%04X at %d,%d,%d: %s\n", e->id - NV_MM_ACTOR_MARKER, (u16)e->params,
+                   e->pos.x, e->pos.y, e->pos.z, (a != NULL) ? "ok" : "failed");
+            fflush(stdout);
+        }
     } else {
         a = Actor_SpawnEntry(&play->actorCtx, e, play);
     }

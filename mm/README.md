@@ -574,6 +574,23 @@ two; the Postman's scripts are now all MM's, generated to `nv_mm_msgscripts/En_P
 headless: "Ah! Uh, uh, umm... What is t..." through to the Bombers' Notebook events for meeting
 both.
 
+### The inn's props (2026-11-23)
+
+MM's own, ported as they are: the flames and lamps (`z_nv_mm_light.c`, MM's En_Light: candles,
+the fireplace, their flickering light), the upstairs windows' light shafts by day and by night
+(`z_nv_mm_yado.c`, Obj_Yado, with its animated material), the bobblehead cow toy on the desk
+(`z_nv_mm_hariko.c`, Obj_Hariko: it bobs in a quake) and the things Link can read (`z_nv_mm_talk.c`,
+En_Talk: Granny's diary). Objects' animated materials now come over too (mm_objects.py
+"matanim", drawn by `NvMmMatAnim_Draw` in z_nv_mm_scene.c, the same code as the scenes'). With
+NV_LOG, the MM actors a room spawns are logged ("NVMM spawn"). Tested headless: they spawn, the
+fireplace and a hall candle burn, the diary reads.
+
+Not yet, for want of other systems: the two chests (staff room, Knife Chamber) hold MM's Silver
+Rupee (100), which OoT has no item for, so they wait for MM's get-items; the toilet hand
+(En_Bjt), Kafei (En_Test3) and the night guests in the Large Suite (Gorman, the Rosa Sisters,
+the jugglers, Guru-Guru) are bigger stories of their own; Obj_Kinoko (the Mask of Scents' smell)
+and the bugs wait for MM's masks and bottles.
+
 ### Where RE1 and MM meet (from RE1's README as of re1/foyer 561c55c5, 2026-11-19)
 
 RE1 is close to finished: the whole game plays, from the opening to the endings. These are the

@@ -286,6 +286,11 @@ u16 NvMmClock_HalfDayBit(void) {
     return 1 << (9 - 2 * day - night);
 }
 
+/** MM's gSaveContext.save.isNight: 18:00 to 6:00. */
+s32 NvMmClock_IsNight(void) {
+    return (sMmTime >= 0xC000) || (sMmTime < MM_DAWN);
+}
+
 /** MM's Environment_SetTimeJump: the clock jumped ahead (minutes), through any dawn on the way. */
 void NvMmClock_Jump(PlayState* play, u32 minutes) {
     NvMmClock_Advance(play, (minutes * 0x10000) / (24 * 60));

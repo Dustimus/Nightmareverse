@@ -71,6 +71,7 @@ def main():
         z.extractall(res)
     for s in scenes:
         mm_scene.write_scene(rom, s, mm_rom.CLOCK_TOWN[s], res)
+    mm_objects.write_matanims(res)
     # MM's messages, in OoT's text codes (mm_text.py), as one blob resource
     msgs = mm_text.messages(rom)
     os.makedirs(os.path.join(res, "mm", "text"), exist_ok=True)

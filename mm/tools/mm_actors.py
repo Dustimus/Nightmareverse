@@ -41,6 +41,10 @@ PORTED = {
     0x253,  # En_Ah: Anju's mother (z_nv_mm_ah.c)
     0x243,  # En_Nb: Anju's grandmother (z_nv_mm_nb.c)
     0x276,  # En_Ig: the Goron at the inn (z_nv_mm_ig.c)
+    0x004,  # En_Light: flames and lamps (z_nv_mm_light.c)
+    0x294,  # Obj_Yado: the inn's upstairs windows (z_nv_mm_yado.c)
+    0x20A,  # Obj_Hariko: the bobblehead cow toy (z_nv_mm_hariko.c)
+    0x261,  # En_Talk: things to read or check (z_nv_mm_talk.c)
 }
 
 # MM's ids (the decomp's actor table)

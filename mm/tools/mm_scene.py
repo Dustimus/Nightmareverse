@@ -286,7 +286,12 @@ def matanim_blob(sdata):
     cmd = {c: (b, w) for c, b, w in commands(sdata, 0)}
     if 0x1A not in cmd:
         return None
-    p = cmd[0x1A][1] & 0xFFFFFF
+    return matanim_blob_at(sdata, cmd[0x1A][1] & 0xFFFFFF)
+
+
+def matanim_blob_at(sdata, p):
+    """The same, from an AnimatedMaterial list at offset p of a file (a scene's, or an object's:
+    MM's actors draw theirs with AnimatedMat_Draw)."""
     entries = []
     while True:
         seg, typ, par = struct.unpack_from(">bxhI", sdata, p)

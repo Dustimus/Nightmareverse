@@ -289,25 +289,14 @@ static void NvMmScene_DrawColor(PlayState* play, s32 segment, s32 type, const u8
     }
 }
 
-/** After the scene's draw config (Scene_Draw, z_scene_table.c): MM's rooms call display lists in
- * segments 8-0xD, which MM's scenes fill with their animated materials (MM's
- * Scene_DrawConfigMatAnim, AnimatedMat_Draw: the step is the frame count); the ones a scene sets
- * none in are an empty list, as in MM. Set here for Termina's scenes, before the rooms draw. */
-void NvMmScene_Draw(PlayState* play) {
-    static Gfx sEmptyDL[] = { gsSPEndDisplayList() };
+/** MM's AnimatedMat_Draw for a list of "MMAT" entries (mm_scene.py matanim_blob): the step is the
+ * frame count. */
+static void NvMmMatAnim_DrawEntries(PlayState* play, const u8* entries, s32 count) {
     u32 step = play->gameplayFrames;
     const u8* e;
-    s32 seg;
     s32 i;
 
-    if (!NvMm_IsScene(play->sceneNum)) {
-        return;
-    }
-    for (seg = 0x08; seg <= 0x0D; seg++) {
-        NvMmScene_SetSegment(play, seg, sEmptyDL);
-    }
-    NvMmScene_LoadMatAnim(play);
-    for (i = 0, e = sMat; (e != NULL) && (i < sMatCount); i++) {
+    for (i = 0, e = entries; (e != NULL) && (i < count); i++) {
         s8 segment = (s8)e[0];
         u8 type = e[1];
         u16 len;
@@ -337,4 +326,36 @@ void NvMmScene_Draw(PlayState* play) {
         }
         e = d + len;
     }
+}
+
+/** An object's animated materials (MM's AnimatedMat_Draw in an actor's draw): `path` its "MMAT"
+ * blob (mm_objects.py "matanim"; the resource manager keeps it loaded). */
+void NvMmMatAnim_Draw(PlayState* play, const char* path) {
+    const u8* data;
+    s32 count;
+
+    if (!ResourceMgr_FileExists(path) || ((data = (const u8*)ResourceGetDataByName(path)) == NULL) ||
+        (memcmp(data, "MMAT", 4) != 0)) {
+        return;
+    }
+    memcpy(&count, data + 4, sizeof(count));
+    NvMmMatAnim_DrawEntries(play, data + 8, count);
+}
+
+/** After the scene's draw config (Scene_Draw, z_scene_table.c): MM's rooms call display lists in
+ * segments 8-0xD, which MM's scenes fill with their animated materials (MM's
+ * Scene_DrawConfigMatAnim, AnimatedMat_Draw: the step is the frame count); the ones a scene sets
+ * none in are an empty list, as in MM. Set here for Termina's scenes, before the rooms draw. */
+void NvMmScene_Draw(PlayState* play) {
+    static Gfx sEmptyDL[] = { gsSPEndDisplayList() };
+    s32 seg;
+
+    if (!NvMm_IsScene(play->sceneNum)) {
+        return;
+    }
+    for (seg = 0x08; seg <= 0x0D; seg++) {
+        NvMmScene_SetSegment(play, seg, sEmptyDL);
+    }
+    NvMmScene_LoadMatAnim(play);
+    NvMmMatAnim_DrawEntries(play, sMat, sMatCount);
 }
