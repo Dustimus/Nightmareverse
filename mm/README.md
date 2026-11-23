@@ -860,11 +860,25 @@ He swims as OoT's Link does for now. The forms' extras are drawn from one per-li
 z_player_lib.c (`NvMmForm_PostLimb`, which the Deku flowers' hand hook became), and the faces are kept
 right each frame (the forms' own textures are never taken for OoT's or MM's human ones).
 
-Not yet: everything Zora Link does (the fast swim and the dive, walking the bottom, the punches and
-kicks, the fins thrown, the electric barrier, the guitar), the Fierce Deity.
+**His moves** (2026-11-24, `soh/src/code/z_nv_mm_zora.c`), our own actions as the other forms':
+- **B on land, the punches and kick**: MM's pz_attackA, B, C, chained (the punch chain is now shared
+  with Goron Link's, z_nv_mm_goron.c, each with MM's own hit frames: Goron 6-8, 12-18, 8-14; Zora 2-5,
+  3-8, 3-10), hitting as OoT's Kokiri Sword's slash (1, the kick 2).
+- **A held swimming, the fast swim** (MM's func_80850734, Player_Action_56): the dash (MM's water roll,
+  a burst of 16), then gliding at 9 while A is held, the stick pitching him (up dives, as MM's) and
+  turning him, rolling over in hard turns, kept under near the surface; let go, he slows into OoT's
+  own swimming. His body is pitched and rolled as he goes; his back fins are out (MM's D_801C0ABC).
+  Where OoT would restart his swimming each frame, our water hook leaves him be while he glides.
+- **R held, the barrier** (MM's func_8082F1AC), on land or in water, while there's magic: MM's light
+  circling him, stunning what touches him (OoT's Deku Nut, its nearest) and keeping hits off him;
+  1 magic every 6 frames.
+
+Not yet: the fins thrown (MM's boomerang: its En_Boom isn't ported), walking the bottom (MM's Zora
+boots), jumping out of the water, the barrier's colour on the scene, the guitar, the Fierce Deity.
 
 Tested headless: the Zora Mask equipped, the change and back (the scene both ways), Zora Link in South
-Clock Town, his face and fins.
+Clock Town, his face and fins; the punches and the barrier in Laundry Pool, the fast swim in its pool
+(started, gliding, back to swimming: by the log, the pool's water hides him from the camera).
 
 ### Deku Link's moves (2026-11-23, `soh/src/code/z_nv_mm_deku.c`)
 

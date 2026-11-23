@@ -727,6 +727,11 @@ void NvMmForm_Update(PlayState* play) {
     }
     NvMmForm_SetEyes(NvMmForm_Def(sForm.form)); // (each frame: a scene's start may rewrite the tables)
     NvMmDeku_Update(play, player); // (Deku Link's moves: z_nv_mm_deku.c)
+    {
+        void NvMmZora_Update(PlayState * play, Player * this);
+
+        NvMmZora_Update(play, player); // (Zora Link's: z_nv_mm_zora.c)
+    }
 }
 
 /** z_player_lib.c's limb hook: the form's own hands, waist and sheath (MM's form tables; the hands
@@ -768,6 +773,7 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
  * folded, MM's 0.4, 0.6, 0.7, as when he isn't using them). */
 void NvMmForm_PostLimb(PlayState* play, Player* player, s32 limbIndex) {
     void NvMmDeku_DrawHandFlower(PlayState* play, Player* this, s32 limbIndex);
+    s32 NvMmZora_SwimFinsOut(Player* this);
 
     if ((limbIndex == PLAYER_LIMB_L_HAND) || (limbIndex == PLAYER_LIMB_R_HAND)) {
         NvMmDeku_DrawHandFlower(play, player, limbIndex);
@@ -781,6 +787,12 @@ void NvMmForm_PostLimb(PlayState* play, Player* player, s32 limbIndex) {
         gSPDisplayList(POLY_OPA_DISP++, (Gfx*)((limbIndex == PLAYER_LIMB_L_FOREARM) ? ZORA("gLinkZoraLeftFinDL")
                                                                                    : ZORA("gLinkZoraRightFinDL")));
         Matrix_Pop();
+        if (NvMmZora_SwimFinsOut(player)) { // (gliding: his back fins out too, MM's D_801C0ABC)
+            gSPMatrix(POLY_OPA_DISP++, MATRIX_NEWMTX(play->state.gfxCtx), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+            gSPDisplayList(POLY_OPA_DISP++, (Gfx*)((limbIndex == PLAYER_LIMB_L_FOREARM)
+                                                       ? ZORA("gLinkZoraLeftSwimFinDL")
+                                                       : ZORA("gLinkZoraRightSwimFinDL")));
+        }
         CLOSE_DISPS(play->state.gfxCtx);
     }
 }

@@ -101,6 +101,15 @@ static void NvMmGoron_EndSpikes(PlayState* play) {
     }
 }
 
+/** z_nv_mm_zora.c: the same body hit (Zora Link's barrier), and its end. */
+void NvMmForm_BodyAttack(Player* this, u32 dmgFlags, u8 damage, s16 radius) {
+    NvMmGoron_Attack(this, dmgFlags, damage, radius);
+}
+
+void NvMmForm_EndBodyAttack(Player* this) {
+    NvMmGoron_EndAttack(this);
+}
+
 /* ---- the roll (MM's Player_Action_96) ---- */
 
 static void NvMmGoron_Roll(Player* this, PlayState* play);
@@ -315,43 +324,76 @@ static void NvMmGoron_StartRoll(PlayState* play, Player* this) {
     NvMmGoron_Log("curl");
 }
 
-/* ---- the punches (MM's Goron melee: pg_punchA, B, C) ---- */
+/* ---- the punches (MM's form melee: Goron Link's pg_punchA, B, C; Zora Link's pz_attackA, B, C) ---- */
 
-static s32 sPunch;    // 0, 1, 2: A, B, C
+typedef struct {
+    LinkAnimationHeader* anim[3]; // the three in the chain (MM's PLAYER_MWA_*_PUNCH_*)
+    LinkAnimationHeader* end[3];
+    s8 hitFrom[3];                // the frames the hit is out (MM's sMeleeAttackAnimInfo's last two)
+    s8 hitTo[3];
+    u32 dmgFlags;                 // (OoT's nearest kind: OoT has no Goron or Zora damage)
+    u8 damage[3];
+    s16 reach;
+    u16 sfx;
+} NvMmPunchDef;
+
+static const NvMmPunchDef sGoronPunches = {
+    { MMANIM("gPlayerAnim_pg_punchA"), MMANIM("gPlayerAnim_pg_punchB"), MMANIM("gPlayerAnim_pg_punchC") },
+    { MMANIM("gPlayerAnim_pg_punchAend"), MMANIM("gPlayerAnim_pg_punchBend"), MMANIM("gPlayerAnim_pg_punchCend") },
+    { 6, 12, 8 }, { 8, 18, 14 }, DMG_HAMMER_SWING, { 2, 2, 2 }, 40, NA_SE_IT_HAMMER_SWING,
+};
+static const NvMmPunchDef sZoraPunches = {
+    { MMANIM("gPlayerAnim_pz_attackA"), MMANIM("gPlayerAnim_pz_attackB"), MMANIM("gPlayerAnim_pz_attackC") },
+    { MMANIM("gPlayerAnim_pz_attackAend"), MMANIM("gPlayerAnim_pz_attackBend"), MMANIM("gPlayerAnim_pz_attackCend") },
+    { 2, 3, 3 }, { 5, 8, 10 }, DMG_SLASH_KOKIRI, { 1, 1, 2 }, 35, NA_SE_IT_SWORD_SWING,
+};
+
+static const NvMmPunchDef* sPunchDef;
+static s32 sPunch; // 0, 1, 2 in the chain; -1 the last one's end
 static s32 sPunchNext;
 
-static void NvMmGoron_Punch(Player* this, PlayState* play) {
-    static LinkAnimationHeader* sPunches[] = { MMANIM("gPlayerAnim_pg_punchA"), MMANIM("gPlayerAnim_pg_punchB"),
-                                                MMANIM("gPlayerAnim_pg_punchC") };
-    static LinkAnimationHeader* sEnds[] = { MMANIM("gPlayerAnim_pg_punchAend"), MMANIM("gPlayerAnim_pg_punchBend"),
-                                             MMANIM("gPlayerAnim_pg_punchCend") };
+static void NvMmForm_Punch(Player* this, PlayState* play) {
+    const NvMmPunchDef* def = sPunchDef;
     s32 done = LinkAnimation_Update(play, &this->skelAnime);
     f32 frame = this->skelAnime.curFrame;
 
     Player_DecelerateToZero(this);
-    if (CHECK_BTN_ALL(play->state.input[0].press.button, BTN_B) && (sPunch < 2) && (frame > 3.0f)) {
+    if ((sPunch >= 0) && (sPunch < 2) && CHECK_BTN_ALL(play->state.input[0].press.button, BTN_B) &&
+        (frame > def->hitFrom[sPunch])) {
         sPunchNext = true;
     }
-    if ((frame >= 2.0f) && (frame <= 7.0f) && !done) { // (the fist out: MM's hit frames, about)
-        NvMmGoron_Attack(this, DMG_HAMMER_SWING, 2, 40);
+    if ((sPunch >= 0) && !done && (frame >= def->hitFrom[sPunch]) && (frame <= def->hitTo[sPunch])) {
+        NvMmGoron_Attack(this, def->dmgFlags, def->damage[sPunch], def->reach);
     } else {
         NvMmGoron_EndAttack(this);
     }
     if (done) {
-        if (sPunchNext) { // the next punch in the chain
+        if (sPunchNext) { // the next in the chain
             sPunchNext = false;
             sPunch++;
-            LinkAnimation_PlayOnce(play, &this->skelAnime, sPunches[sPunch]);
-            Player_PlaySfx(&this->actor, NA_SE_IT_HAMMER_SWING);
+            LinkAnimation_PlayOnce(play, &this->skelAnime, def->anim[sPunch]);
+            Player_PlaySfx(&this->actor, def->sfx);
             NvMmGoron_Log("punch");
-        } else if (sPunch >= 0) { // the end of the swing, then standing
-            LinkAnimation_PlayOnce(play, &this->skelAnime, sEnds[sPunch]);
+        } else if (sPunch >= 0) { // the swing's end, then standing
+            LinkAnimation_PlayOnce(play, &this->skelAnime, def->end[sPunch]);
             sPunch = -1;
         } else {
             NvMmGoron_EndAttack(this);
             func_80839F90(this, play);
         }
     }
+}
+
+/** B, a form's punch chain starting (MM's Goron and Zora melee). */
+s32 NvMmForm_StartPunch(PlayState* play, Player* this, s32 form) {
+    sPunchDef = (form == MM_FORM_GORON) ? &sGoronPunches : &sZoraPunches;
+    Player_SetupAction(play, this, NvMmForm_Punch, 0);
+    sPunch = 0;
+    sPunchNext = false;
+    LinkAnimation_PlayOnce(play, &this->skelAnime, sPunchDef->anim[0]);
+    Player_PlaySfx(&this->actor, sPunchDef->sfx);
+    NvMmGoron_Log("punch");
+    return true;
 }
 
 /* ---- the hook (z_nv_mm_deku.c's: OoT's last free-standing handler) ---- */
@@ -369,13 +411,7 @@ s32 NvMmGoron_ActionAB(PlayState* play, Player* this) {
         return true;
     }
     if (CHECK_BTN_ALL(input->press.button, BTN_B)) {
-        Player_SetupAction(play, this, NvMmGoron_Punch, 0);
-        sPunch = 0;
-        sPunchNext = false;
-        LinkAnimation_PlayOnce(play, &this->skelAnime, MMANIM("gPlayerAnim_pg_punchA"));
-        Player_PlaySfx(&this->actor, NA_SE_IT_HAMMER_SWING); // (MM: NA_SE_VO_LI_SWORD_N, the punch)
-        NvMmGoron_Log("punch");
-        return true;
+        return NvMmForm_StartPunch(play, this, MM_FORM_GORON);
     }
     return false;
 }

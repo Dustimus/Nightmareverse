@@ -716,9 +716,11 @@ static s32 NvMmDeku_TryBubble(PlayState* play, Player* this) {
 
 /** OoT's roll handler (A): MM's Deku spin, on the ground and out of the water. */
 s32 NvMmGoron_ActionAB(PlayState* play, Player* this); // (z_nv_mm_goron.c)
+s32 NvMmZora_ActionAB(PlayState* play, Player* this);  // (z_nv_mm_zora.c)
+s32 NvMmZora_InFastSwim(Player* this);
 
 s32 NvMmDeku_ActionA(PlayState* play, Player* this) {
-    if (NvMmGoron_ActionAB(play, this)) { // (Goron Link's roll and punches share this hook)
+    if (NvMmGoron_ActionAB(play, this) || NvMmZora_ActionAB(play, this)) { // (the other forms share this hook)
         return true;
     }
     if (NvMmDeku_Is(this) && (this->actor.bgCheckFlags & BGCHECKFLAG_GROUND) &&
@@ -770,6 +772,9 @@ s32 NvMmDeku_IntoWater(PlayState* play, Player* this) {
     s16 yawDiff;
 
     if (!NvMmDeku_Is(this)) {
+        if (NvMmZora_InFastSwim(this)) { // (Zora Link gliding: z_nv_mm_zora.c's own swimming)
+            return true;
+        }
         if ((NvMmForm_Get() == 1) && (this->actor.category == ACTORCAT_PLAYER)) { // Goron
             if (this->actionFunc != NvMmDeku_Sink) {
                 Player_SetupAction(play, this, NvMmDeku_Sink, 0);
