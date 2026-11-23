@@ -375,6 +375,17 @@ static void NvMmForm_Change(PlayState* play, Player* player, s32 form) {
     s32 hadSword = (sForm.form == MM_FORM_HUMAN) || (sForm.form == MM_FORM_FD);
     s32 hasSword = (form == MM_FORM_HUMAN) || (form == MM_FORM_FD);
 
+    if ((sForm.form == MM_FORM_FD) && (form != MM_FORM_FD) && LINK_IS_CHILD &&
+        (CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) >= EQUIP_VALUE_SWORD_MASTER)) {
+        // the Fierce Deity's adult sword put back: young Link's own again (the Kokiri Sword, if he has it)
+        s32 kokiri = CHECK_OWNED_EQUIP(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_KOKIRI);
+
+        Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, kokiri ? EQUIP_VALUE_SWORD_KOKIRI : EQUIP_VALUE_SWORD_NONE);
+        gSaveContext.equips.buttonItems[0] = kokiri ? ITEM_SWORD_KOKIRI : ITEM_NONE;
+        if (!kokiri) {
+            gSaveContext.infTable[29] = 1;
+        }
+    }
     if (hadSword && !hasSword) {
         sForm.savedB = gSaveContext.equips.buttonItems[0];
         sForm.savedSwordless = gSaveContext.infTable[29];
@@ -747,6 +758,15 @@ s32 NvMmForm_BlocksItem(s32 item) {
 }
 
 /**
+ * The Equipment screen's age check (z_kaleido_scope.h's hook): the Fierce Deity takes adult Link's swords,
+ * the Master Sword and Biggoron's (NV_GAMES.md, the user 2026-11-20), as well as his own in the Kokiri
+ * Sword's place. Nothing else of adult Link's: his tunic, boots and shield stay as the forms have them.
+ */
+s32 NvMmForm_EquipAgeOk(s32 row, s32 col) {
+    return (sForm.form == MM_FORM_FD) && (row == 0) && (col >= 1);
+}
+
+/**
  * The Fierce Deity's sword beam (MM's func_808332A0, from Player_ActionHandler_7's swing): a swing begun while
  * targeting, with magic, sends one (z_nv_mm_beam.c), pitched at what he's locked on to; 1 magic (MM's).
  */
@@ -839,6 +859,106 @@ void NvMmForm_Update(PlayState* play) {
     }
 }
 
+/** libultraship's CRC64 of a resource path (as a display list's texture hashes), for C. */
+static u64 NvMmForm_PathHash(const char* path) {
+    static u64 sTable[256];
+    u64 crc = ~0ULL;
+
+    if (sTable[1] == 0) {
+        s32 i, k;
+
+        for (i = 0; i < 256; i++) {
+            u64 c = (u64)i << 56;
+
+            for (k = 0; k < 8; k++) {
+                c = (c & (1ULL << 63)) ? ((c << 1) ^ 0x42F0E1EBA9EA3693ULL) : (c << 1);
+            }
+            sTable[i] = c;
+        }
+    }
+    while (*path != '\0') {
+        crc = sTable[(u8)(crc >> 56) ^ (u8)*path++] ^ (crc << 8);
+    }
+    return crc;
+}
+
+/**
+ * The Fierce Deity holding one of OoT's adult swords (NV_GAMES.md: he equips them from the menu as adult
+ * Link does): his own fist (MM's gLinkFierceDeityLeftHandDL, as MM's sword hand is his fist and then the
+ * Double Helix) and then the sword half of OoT's adult hand-and-sword list. OoT's lists draw the sword
+ * first and the hand from the gauntlet's texture on (the same in the Master Sword's, Biggoron's and the
+ * broken knife's), so the copy stops at the sync before that texture. Built once per list, kept.
+ */
+static Gfx* NvMmForm_FdHoldingOotSword(const char* ootHandDL) {
+    static struct {
+        const char* name;
+        Gfx* gfx;
+    } sBuilt[4];
+    static u64 sGauntletHash;
+    Gfx* src;
+    Gfx* out;
+    Gfx* g;
+    s32 i, n, cut = -1, lastSync = -1;
+
+    for (i = 0; i < ARRAY_COUNT(sBuilt); i++) {
+        if (sBuilt[i].name == ootHandDL) {
+            return sBuilt[i].gfx;
+        }
+    }
+    if (sGauntletHash == 0) {
+        sGauntletHash = NvMmForm_PathHash("objects/object_link_boy/gLinkAdultDefaultGauntlet1Tex");
+    }
+    src = ResourceMgr_LoadGfxByName(ootHandDL);
+    if (src == NULL) {
+        return NULL;
+    }
+    for (i = 0; i < 1024; i++) {
+        u8 op = (u8)(src[i].words.w0 >> 24);
+
+        if (op == (u8)G_ENDDL) {
+            break;
+        }
+        if (op == (u8)G_RDPPIPESYNC) {
+            lastSync = i;
+        }
+        if (op == (u8)G_SETTIMG_OTR_HASH) {
+            u64 hash = ((u64)src[i + 1].words.w0 << 32) | (u64)(u32)src[i + 1].words.w1;
+
+            if (hash == sGauntletHash) {
+                cut = lastSync;
+                break;
+            }
+        }
+        if ((op == (u8)G_SETTIMG_OTR_HASH) || (op == (u8)G_DL_OTR_HASH) || (op == (u8)G_VTX_OTR_HASH) ||
+            (op == (u8)G_MARKER) || (op == (u8)G_MTX_OTR) || (op == (u8)G_MOVEMEM_OTR) ||
+            (op == (u8)G_BRANCH_Z_OTR)) {
+            i++; // (a two-word command)
+        }
+    }
+    if (cut <= 0) {
+        return NULL;
+    }
+    n = cut + 2;
+    out = malloc(n * sizeof(Gfx));
+    g = out;
+    gSPDisplayList(g++, ResourceMgr_LoadGfxByName(BOY("gLinkFierceDeityLeftHandDL")));
+    memcpy(g, src, cut * sizeof(Gfx));
+    g += cut;
+    gSPEndDisplayList(g++);
+    for (i = 0; i < ARRAY_COUNT(sBuilt); i++) {
+        if (sBuilt[i].name == NULL) {
+            sBuilt[i].name = ootHandDL;
+            sBuilt[i].gfx = out;
+            break;
+        }
+    }
+    if (getenv("NV_LOG") != NULL) {
+        printf("NVMM fierce deity: %s's sword, %d commands\n", ootHandDL, cut);
+        fflush(stdout);
+    }
+    return out;
+}
+
 /** z_player_lib.c's limb hook: the form's own hands, waist and sheath (MM's form tables; the hands
  * closed running, as OoT's). */
 void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
@@ -859,7 +979,22 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
             dl = def->handL[closed];
             if ((sForm.form == MM_FORM_FD) && (player != NULL) && ((player->leftHandType == PLAYER_MODELTYPE_LH_SWORD) ||
                                                                  (player->leftHandType == PLAYER_MODELTYPE_LH_BGS))) {
-                dl = BOY("gLinkFierceDeityLeftHandHoldingSwordDL"); // (the sword out: his Double Helix Sword)
+                const char* oot = NULL;
+                Gfx* held;
+
+                if (player->leftHandType == PLAYER_MODELTYPE_LH_BGS) { // (Biggoron's, or the broken knife)
+                    oot = (gSaveContext.swordHealth <= 0.0f) ? "__OTR__objects/object_link_boy/gLinkAdultHandHoldingBrokenGiantsKnifeDL"
+                                                            : "__OTR__objects/object_link_boy/gLinkAdultLeftHandHoldingBgsNearDL";
+                } else if (CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_MASTER) {
+                    oot = "__OTR__objects/object_link_boy/gLinkAdultLeftHandHoldingMasterSwordNearDL";
+                }
+                // (the Kokiri Sword's place: his own Double Helix Sword, MM's)
+                held = (oot != NULL) ? NvMmForm_FdHoldingOotSword(oot) : NULL;
+                if (held != NULL) {
+                    *dList = held;
+                    return;
+                }
+                dl = BOY("gLinkFierceDeityLeftHandHoldingSwordDL");
             }
             break;
         case PLAYER_LIMB_R_HAND:

@@ -907,8 +907,25 @@ Also: a form's item block (z_nv_mm_mask.c's Player_UseItem hook) let no form use
 Fierce Deity's swords now pass. And NV_MAGIC sets the meter's capacity too (with none, OoT's consume
 step empties it).
 
-Not yet: his sword's own ways (the decision: the swords from the menu as adult Link's, the Double
-Helix's damage), MM's boss rooms.
+**His swords from the menu** (NV_GAMES.md, the user 2026-11-20): on the Equipment screen he takes
+adult Link's Master Sword and Biggoron's (or the Giant's Knife, whole or broken); the Kokiri Sword's
+place is his own Double Helix Sword (young Link's sword makes no sense in his hand). Two one-line
+hooks in the kaleido: the equip check (`CHECK_AGE_REQ_EQUIP`, z_kaleido_scope.h) and the icons'
+greying (z_kaleido_equipment.c), both asking `NvMmForm_EquipAgeOk` (the sword row only: his tunic,
+boots and shield stay as the forms have them). Drawn: OoT bakes each sword into adult Link's hand
+(and each shield into the other hand), but each of those lists draws the sword first and the hand
+from the gauntlet's texture on, so `NvMmForm_FdHoldingOotSword` copies the sword half (up to the sync
+before gLinkAdultDefaultGauntlet1Tex, found by its hash) after his own fist (MM's
+gLinkFierceDeityLeftHandDL: MM's own sword hand is that fist and then the Double Helix). Built once,
+kept. Changing out of him with an adult sword on, young Link gets the Kokiri Sword back (or none).
+Damage follows OoT's sword (the Double Helix's own damage: later). Dev: NV_OOT_SWORDS=1 owns the
+Master Sword and Biggoron's (=broken: the broken knife).
+
+Tested headless: as the Fierce Deity, the Equipment screen (slid down from MM's masks), the Master
+Sword lit and equipped, swung at the gate guard in his fist (and the beams); the same with
+Biggoron's. Not yet seen: the broken knife, and the change back to young Link with one on.
+
+Not yet: the Double Helix's damage, MM's boss rooms.
 
 Tested headless: the Fierce Deity's Mask equipped, the change, him at adult size by the gate guard,
 warped into Gohma's room and grown to 1.5 (by the log; the room's dark). The beam: Z on the gate

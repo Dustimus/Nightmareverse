@@ -357,6 +357,13 @@ void NvDev_Update(PlayState* play) {
         sHealthSet = true;
         gSaveContext.health = (s16)atoi(getenv("NV_HEALTH"));
     }
+    // dev: NV_OOT_SWORDS gives the Master Sword and Biggoron's (owned, not equipped), e.g. for the Fierce
+    // Deity's swords from the Equipment screen; NV_OOT_SWORDS=broken gives the broken knife instead
+    if ((getenv("NV_OOT_SWORDS") != NULL) && (play->gameplayFrames == 3)) {
+        gSaveContext.inventory.equipment |= (1 << (EQUIP_INV_SWORD_MASTER + 0)) | (1 << (EQUIP_INV_SWORD_BIGGORON + 0));
+        gSaveContext.bgsFlag = (strcmp(getenv("NV_OOT_SWORDS"), "broken") != 0);
+        gSaveContext.swordHealth = gSaveContext.bgsFlag ? 8.0f : 0.0f;
+    }
     // dev: NV_MAGIC fills the magic meter (giving a meter if there's none), e.g. for Deku Link's bubble
     if ((getenv("NV_MAGIC") != NULL) && (play->gameplayFrames > 2) && (gSaveContext.magicState == 0) &&
         (gSaveContext.magic < 0x30)) {

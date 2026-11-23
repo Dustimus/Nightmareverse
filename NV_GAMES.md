@@ -223,7 +223,8 @@ The default is shared or carried over. A Termina-only piece needs a reason.
     Double Helix Sword). Here he'd equip swords from the menu as adult Link does: the Master
     Sword (or Biggoron's) as well as the Double Helix. That also keeps him from being
     overpowered everywhere. To work out then: his hand's attachment point for OoT's sword models,
-    and the damage following the equipped sword.
+    and the damage following the equipped sword. Built 2026-11-24 (mm/README.md): his fist with
+    the sword half of OoT's hand-and-sword models; the Kokiri Sword's slot is his Double Helix.
   - **His size (checked in the two ROMs, 2026-11-21):** the Fierce Deity's skeleton is adult Link's
     exactly (all 21 bones, same lengths and hierarchy). MM draws him at 1.5 times (scale 0.015
     against 0.01, `z_player_lib.c`), with his movement values scaled to match (ceiling check 84

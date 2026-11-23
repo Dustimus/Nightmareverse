@@ -825,7 +825,7 @@ void KaleidoScope_DrawEquipment(PlayState* play) {
         for (k = 0, bit = rowStart, point = 4; k < 3; k++, point += 4, temp++, bit++) {
 
             int itemId = ITEM_SWORD_KOKIRI + temp;
-            bool age_restricted = !CHECK_AGE_REQ_ITEM(itemId);
+            bool age_restricted = !CHECK_AGE_REQ_ITEM(itemId) && !NvMmForm_EquipAgeOk(i, k + 1); // Nightmareverse
             if (age_restricted) {
                 gDPSetGrayscaleColor(POLY_OPA_DISP++, 109, 109, 109, 255);
                 gSPGrayscale(POLY_OPA_DISP++, true);

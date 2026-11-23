@@ -24,8 +24,10 @@ extern u8 gAreaGsFlags[];
 #define CHECK_AGE_REQ_EQUIP(i, j)                                           \
     GameInteractor_Should(VB_PLAYER_MEETS_AGE_REQ,                          \
                           (gEquipAgeReqs[i][j] == AGE_REQ_NONE) ||          \
-                              (gEquipAgeReqs[i][j] == ((void)0, gSaveContext.linkAge)), \
+                              (gEquipAgeReqs[i][j] == ((void)0, gSaveContext.linkAge)) || \
+                              NvMmForm_EquipAgeOk(i, j) /* Nightmareverse: the Fierce Deity's swords */, \
                           gEquipAgeReqs[i][j])
+s32 NvMmForm_EquipAgeOk(s32 row, s32 col); // Nightmareverse (z_nv_mm_form.c)
 
 #define CHECK_AGE_REQ_SLOT(slotIndex)                                       \
     GameInteractor_Should(VB_SLOT_MEETS_AGE_REQ,                            \
