@@ -277,6 +277,7 @@ static const char* sNvStActions[] = { "Equip", "Use", "Check", "Combine" };
 s32 NvItems_Equippable(s32 id);
 s32 NvItems_Equipped(void);
 s32 NvItems_ToggleEquip(s32 i);
+s32 NvItems_EquipTo(s32 i, s32 btn);
 s32 NvFiles_Count(void);
 void NvFiles_Open(PlayState* play, s32 k);
 const char* NvFiles_Name(s32 k);
@@ -457,6 +458,24 @@ static void NvSt_Input(PlayState* play) {
             break;
         case NV_ST_BROWSE:
             NvSt_MoveCursor(dir, true);
+            if ((sNvStCursor != NV_ST_TABS_ROW) && CHECK_BTN_ANY(input->press.button, BTN_CLEFT | BTN_CDOWN | BTN_CRIGHT)) {
+                // a C button on a weapon: equipped onto that button, as OoT's item screen does
+                s32 btn = CHECK_BTN_ALL(input->press.button, BTN_CLEFT)   ? 0
+                          : CHECK_BTN_ALL(input->press.button, BTN_CDOWN) ? 1
+                                                                          : 2;
+                static const char* sBtnName[] = { "C-Left", "C-Down", "C-Right" };
+
+                if (NvItems_EquipTo(sNvStCursor, btn)) {
+                    snprintf(sNvStLine, sizeof(sNvStLine), "Equipped to %s.", sBtnName[btn]);
+                    NvSt_Sfx(NA_SE_SY_DECIDE);
+                    printf("NVSTATUS slot %d equipped to %s\n", (int)sNvStCursor, sBtnName[btn]);
+                    fflush(stdout);
+                } else if (NvItems_Slot(sNvStCursor, NULL) != 0) {
+                    snprintf(sNvStLine, sizeof(sNvStLine), "You can't equip that.");
+                    NvSt_Sfx(NA_SE_SY_ERROR);
+                }
+                break;
+            }
             if (!pressA) {
                 break;
             }

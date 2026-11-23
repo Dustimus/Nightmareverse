@@ -2501,7 +2501,7 @@ s32 Player_GetItemOnButton(PlayState* play, s32 index) {
  *    - Use an item on the B button or any C button if the corresponding button is pressed
  *    - Keep track of the current item button being held down
  */
-s32 NvWeapon_OwnsCLeft(PlayState* play); // Nightmareverse (z_nv_weapon.c)
+s32 NvWeapon_GunButton(PlayState* play); // Nightmareverse (z_nv_weapon.c)
 
 void Player_ProcessItemButtons(Player* this, PlayState* play) {
     s32 maskItemAction;
@@ -2546,7 +2546,7 @@ void Player_ProcessItemButtons(Player* this, PlayState* play) {
                 break;
             }
         }
-        if ((i == 1) && NvWeapon_OwnsCLeft(play)) { // Nightmareverse: C-Left is RE1's gun (z_nv_weapon.c)
+        if ((i != 0) && (i == NvWeapon_GunButton(play))) { // Nightmareverse: that C button is RE1's gun (z_nv_weapon.c)
             i = ARRAY_COUNT(sItemButtons);
         }
 
@@ -2559,7 +2559,7 @@ void Player_ProcessItemButtons(Player* this, PlayState* play) {
                     break;
                 }
             }
-            if ((i == 1) && NvWeapon_OwnsCLeft(play)) {
+            if ((i != 0) && (i == NvWeapon_GunButton(play))) {
                 i = ARRAY_COUNT(sItemButtons);
             }
 
@@ -12245,7 +12245,6 @@ s32 Player_UpdateNoclip(Player* this, PlayState* play);
 s32 NvClimb_UpdatePlayer(Player* player, PlayState* play); // Nightmareverse: RE1 stairs (z_nv_climb.c)
 void NvWeapon_PreUpdate(Player* player, PlayState* play, Input* input);
 s32 NvWeapon_Holding(void);
-s32 NvWeapon_OwnsCLeft(PlayState* play);
 void NvWeapon_Draw(PlayState* play, Player* player);
 void NvLinkAnim_Apply(Player* player, PlayState* play);
 
@@ -12314,7 +12313,7 @@ void Player_Update(Actor* thisx, PlayState* play) {
             }
         }
 
-        // Nightmareverse: RE1's gun on C-Left in the mansion, squared up while it's raised (z_nv_weapon.c)
+        // Nightmareverse: RE1's gun on its C button in the mansion, squared up while it's raised (z_nv_weapon.c)
         NvWeapon_PreUpdate(this, play, &input);
         if (NvWeapon_Holding() && (this->heldItemAction != PLAYER_IA_NONE)) {
             Player_UseItem(play, this, ITEM_NONE); // (the sword or item in hand goes away for it)

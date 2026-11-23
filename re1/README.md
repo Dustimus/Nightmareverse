@@ -316,7 +316,9 @@ mixed herbs have theirs), RE1's digits for counts and RE1's cursors. A on an ite
 box: Equip (weapons only; RE1's g_EquippedItemId, which follows its slot as slots close up; see
 Weapons), Use (heals by RE1's g_ItemHealTable: a third, two thirds or
 all of Link's hearts; an item that would do nothing isn't used up), Check, Combine (then the second
-item; below). Up from the top slots reaches the tabs: Exit closes the pause menu, File
+item; below). As OoT's item screen does, a C button pressed on a weapon (2026-11-23) equips it onto that
+button straight away, skipping the action box; the box's Equip stays for now (it puts the weapon on
+the button it was last on, C-Left at first). Up from the top slots reaches the tabs: Exit closes the pause menu, File
 lists the files found, Map opens RE1's map screen (below), and Radio (2026-11-20, menu_tab_radio)
 is RE1's blank plate until Jill has the radio (bank 0 flag 0x7F); with it, where the room lets her
 call (an action entry raising item-use flag 0x3F: the courtyard's 300 and 304, at their moment) it's
@@ -390,8 +392,9 @@ second; the names and the preview are clipped to their windows. Not yet: Hyrule'
 design notes).
 
 Weapons (2026-11-03, first pass): in RE1's rooms the weapon equipped on the status screen takes
-C-Left (RE1's icon on the button; the OoT item there is back outside the mansion), in
-`soh/src/code/z_nv_weapon.c`. Holding C-Left squares Link up as RE1's aim does: he stops, the stick
+its C button (C-Left, or the one pressed on it there: saved with the equipped slot, in that byte's
+top bits; RE1's icon on the button; the OoT item there is back outside the mansion), in
+`soh/src/code/z_nv_weapon.c`. Holding the button squares Link up as RE1's aim does: he stops, the stick
 turns him, up/down aims high or low, and Jill's raise and hold for that weapon and direction play
 on him (`re1/weapons/w<id>`, `tools/soh_weapons.py`: her PLAYERS/W1x.EMW by RE1's g_weaponPathTable,
 mirrored, as Link is
@@ -586,6 +589,11 @@ What the run showed about RE1's story (Jill), all from the rooms' own scripts:
   in, the guns might go in with something else's, or on a weapons screen of their own; the user is
   looking at Majora's Mask's menus (in the other chat) before deciding. Until then the guns are
   equipped from RE1's status screen, which is enough to test both ways.
+- The user's plan for it (2026-11-23): the item screens get remade anyway for Majora's Mask. A
+  third of the 24-slot grid (8 slots) would simply be Jill's RE1 inventory, the same 8 slots as
+  the status screen, with an item box icon that opens the box from anywhere, except inside the
+  mansion (there it's the rooms' own boxes, as RE1). Guns stay on C buttons, as the bow does (no
+  dedicated gun button: a player who wants one maps a C button to a face or shoulder button).
 
 - Link takes Jill's place; Jill stays only where the FMVs need her.
 - Guns (when they come back): Link is left-handed, as in OoT, so the Beretta and the rest

@@ -30,6 +30,7 @@ static NvItemSlot sNvSlots[NV_SLOTS_MAX];
 static NvItemSlot sNvBox[NV_BOX_SLOTS];
 static u8 sNvMapsOwned; // bit n: map item 0x4E + n
 static s8 sNvEquipped;  // RE1's g_EquippedItemId: the equipped slot, one-based (0: none)
+static u8 sNvGunBtn;    // the C button it's on: 0 C-Left, 1 C-Down, 2 C-Right (saved in the same byte's top bits)
 
 /** The run's items for the typewriter's save (z_nv_save.c): its size, written to p if not NULL. */
 u32 NvItems_SaveState(u8* p) {
@@ -39,7 +40,7 @@ u32 NvItems_SaveState(u8* p) {
         memcpy(p, sNvSlots, sizeof(sNvSlots));
         memcpy(p + sizeof(sNvSlots), sNvBox, sizeof(sNvBox));
         p[n - 2] = sNvMapsOwned;
-        p[n - 1] = (u8)sNvEquipped;
+        p[n - 1] = (u8)((sNvEquipped & 0x0F) | (sNvGunBtn << 4));
     }
     return n;
 }
@@ -50,7 +51,11 @@ void NvItems_LoadState(const u8* p) {
     memcpy(sNvSlots, p, sizeof(sNvSlots));
     memcpy(sNvBox, p + sizeof(sNvSlots), sizeof(sNvBox));
     sNvMapsOwned = p[n - 2];
-    sNvEquipped = (s8)p[n - 1];
+    sNvEquipped = (s8)(p[n - 1] & 0x0F);
+    sNvGunBtn = (p[n - 1] >> 4) & 3; // (a save from before: 0, C-Left)
+    if (sNvGunBtn > 2) {
+        sNvGunBtn = 0;
+    }
 }
 
 /** A new run: nothing carried, the box empty. */
@@ -59,6 +64,7 @@ void NvItems_NewRun(void) {
     memset(sNvBox, 0, sizeof(sNvBox));
     sNvMapsOwned = 0;
     sNvEquipped = 0;
+    sNvGunBtn = 0;
 }
 
 // The items' plain names, by RE1's item id (Types.h ITEM_*)
@@ -974,6 +980,24 @@ s32 NvItems_ToggleEquip(s32 i) {
     }
     sNvEquipped = (sNvEquipped == i + 1) ? 0 : i + 1;
     return true;
+}
+
+/**
+ * Slot i's weapon equipped onto a C button (0 C-Left, 1 C-Down, 2 C-Right), as OoT's item screen
+ * equips: the status screen, a C button pressed on it. True when the slot holds a weapon.
+ */
+s32 NvItems_EquipTo(s32 i, s32 btn) {
+    if (!NvItems_Equippable(NvItems_Slot(i, NULL)) || (btn < 0) || (btn > 2)) {
+        return false;
+    }
+    sNvEquipped = i + 1;
+    sNvGunBtn = btn;
+    return true;
+}
+
+/** The C button the equipped weapon is on (0 C-Left, 1 C-Down, 2 C-Right). */
+s32 NvItems_GunButton(void) {
+    return sNvGunBtn;
 }
 
 /* ---- poison (RE1's player status: the snakes', the wasps', the spiders' and the first Yawn's) ---- */

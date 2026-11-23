@@ -1,12 +1,13 @@
 /*
  * Nightmareverse: RE1's guns in Link's hands.
  *
- * In RE1's rooms the weapon equipped on RE1's status screen (z_nv_items.c) takes C-Left (its RE1
- * icon on the button; the OoT item there comes back outside the mansion). Holding C-Left squares
+ * In RE1's rooms the weapon equipped on RE1's status screen (z_nv_items.c) takes a C button (C-Left
+ * unless a C button was pressed on it there; its RE1 icon on the button; the OoT item there comes back
+ * outside the mansion). Holding the button squares
  * Link up as RE1's aim does (PlayerAnimations.cpp player_behavior_12_gun_aim): he stops, the stick
  * turns him on the spot and up/down aims high or low, and Jill's raise and hold for that weapon
  * and direction play on him (re1/tools/soh_weapons.py, mirrored: Link is left-handed; through
- * z_nv_linkanim.c). Releasing C-Left fires (B fires too and keeps the aim); a shot spends a round
+ * z_nv_linkanim.c). Releasing it fires (B fires too and keeps the aim); a shot spends a round
  * from the slot (the knife none) and plays Jill's fire.
  *
  * The aim: Z-targeting picks the target when the lock-on is one of RE1's enemies; otherwise, as
@@ -152,10 +153,17 @@ s32 NvWeapon_EquippedItem(void) {
     return NvGun_Equipped();
 }
 
-/** Whether the equipped RE1 weapon has C-Left here (z_player.c, z_parameter.c). */
-s32 NvWeapon_OwnsCLeft(PlayState* play) {
-    return NvStatus_InMansion(play) && (NvGun_Equipped() != 0);
+s32 NvItems_GunButton(void);
+
+/**
+ * The item button RE1's gun has in the mansion (OoT's item button index: 1 C-Left, 2 C-Down,
+ * 3 C-Right; the status screen sets it), or 0: none (no weapon equipped, or not in the mansion).
+ */
+s32 NvWeapon_GunButton(PlayState* play) {
+    return (NvStatus_InMansion(play) && (NvGun_Equipped() != 0)) ? 1 + NvItems_GunButton() : 0;
 }
+
+static const u16 sNvGunBtnMask[] = { 0, BTN_CLEFT, BTN_CDOWN, BTN_CRIGHT };
 
 /** Whether the gun is up (drawn in Link's fist; his left hand a fist). */
 s32 NvWeapon_Holding(void) {
@@ -417,11 +425,13 @@ static void NvGun_Fire(PlayState* play, Player* player) {
 
 /**
  * Each frame, before Link acts on the input (z_player.c Player_Update, on its copy of it): RE1's
- * aim and fire on C-Left; while the gun is up the stick turns him and he doesn't walk or swing.
+ * aim and fire on its C button; while the gun is up the stick turns him and he doesn't walk or swing.
  */
 void NvWeapon_PreUpdate(Player* player, PlayState* play, Input* input) {
-    s32 item = NvWeapon_OwnsCLeft(play) ? NvGun_Equipped() : 0;
-    s32 held = CHECK_BTN_ALL(input->cur.button, BTN_CLEFT);
+    s32 gunBtn = NvWeapon_GunButton(play);
+    u16 mask = sNvGunBtnMask[gunBtn];
+    s32 item = (gunBtn != 0) ? NvGun_Equipped() : 0;
+    s32 held = (mask != 0) && CHECK_BTN_ALL(input->cur.button, mask);
     s32 raise, fire, hold;
     s32 dir;
 
@@ -440,7 +450,7 @@ void NvWeapon_PreUpdate(Player* player, PlayState* play, Input* input) {
         return;
     }
     // another item button while the gun is up: that item instead (the gun goes away)
-    if ((sNvGunState != NV_GUN_NONE) && CHECK_BTN_ANY(input->press.button, BTN_CDOWN | BTN_CRIGHT)) {
+    if ((sNvGunState != NV_GUN_NONE) && CHECK_BTN_ANY(input->press.button, (BTN_CLEFT | BTN_CDOWN | BTN_CRIGHT) & ~mask)) {
         NvGun_Lower();
         return;
     }
@@ -462,7 +472,7 @@ void NvWeapon_PreUpdate(Player* player, PlayState* play, Input* input) {
     NvGun_Anims(item, dir, &raise, &fire, &hold);
 
     switch (sNvGunState) {
-        case NV_GUN_NONE: // C-Left: the gun comes up
+        case NV_GUN_NONE: // its button: the gun comes up
             sNvGunState = NV_GUN_RAISE;
             sNvGunDir = dir;
             NvGun_Play(raise);
@@ -527,8 +537,8 @@ void NvWeapon_PreUpdate(Player* player, PlayState* play, Input* input) {
     player->actor.speedXZ = 0.0f;
     input->rel.stick_x = input->rel.stick_y = 0;
     input->cur.stick_x = input->cur.stick_y = 0;
-    input->press.button &= ~(BTN_A | BTN_B | BTN_CLEFT);
-    input->cur.button &= ~(BTN_A | BTN_B | BTN_CLEFT);
+    input->press.button &= ~(BTN_A | BTN_B | mask);
+    input->cur.button &= ~(BTN_A | BTN_B | mask);
 }
 
 /** Link's left hand's matrix as his skeleton draws (z_player_lib.c Player_PostLimbDrawGameplay). */
@@ -581,7 +591,7 @@ void NvWeapon_Draw(PlayState* play, Player* player) {
 }
 
 /**
- * C-Left's icon while the RE1 weapon has it (z_parameter.c Interface_DrawItemIconTexture): RE1's
+ * Its C button's icon while the RE1 weapon has it (z_parameter.c Interface_DrawItemIconTexture): RE1's
  * icon (40 x 30) in the button's square, at (x, y), w wide. True when drawn.
  */
 s32 NvWeapon_DrawCIcon(PlayState* play, s16 x, s16 y, s16 w) {
