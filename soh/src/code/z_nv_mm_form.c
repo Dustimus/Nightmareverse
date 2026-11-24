@@ -369,6 +369,8 @@ static void NvMmForm_Apply(PlayState* play, Player* player) {
     NvMmForm_SetEyes(def);
 }
 
+static s32 NvMmForm_FdShield(void);
+
 static void NvMmForm_Change(PlayState* play, Player* player, s32 form) {
     // the sword on B: human Link's and the Fierce Deity's (he swings it: his own sword's ways later);
     // the other forms have none (B left empty, OoT's swordless B), the sword kept for when it's back
@@ -386,6 +388,12 @@ static void NvMmForm_Change(PlayState* play, Player* player, s32 form) {
             gSaveContext.infTable[29] = 1;
         }
     }
+    if ((sForm.form == MM_FORM_FD) && (form != MM_FORM_FD) && LINK_IS_CHILD &&
+        (CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_MIRROR)) { // (OoT's Mirror put back)
+        Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, CHECK_OWNED_EQUIP(EQUIP_TYPE_SHIELD, EQUIP_INV_SHIELD_HYLIAN) ? EQUIP_VALUE_SHIELD_HYLIAN
+                                                     : CHECK_OWNED_EQUIP(EQUIP_TYPE_SHIELD, EQUIP_INV_SHIELD_DEKU) ? EQUIP_VALUE_SHIELD_DEKU
+                                                                                                                  : EQUIP_VALUE_SHIELD_NONE);
+    }
     if (hadSword && !hasSword) {
         sForm.savedB = gSaveContext.equips.buttonItems[0];
         sForm.savedSwordless = gSaveContext.infTable[29];
@@ -396,7 +404,9 @@ static void NvMmForm_Change(PlayState* play, Player* player, s32 form) {
         gSaveContext.infTable[29] = sForm.savedSwordless;
         sForm.savedB = ITEM_NONE;
     }
-    player->currentShield = (form == MM_FORM_HUMAN) ? CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) : PLAYER_SHIELD_NONE;
+    player->currentShield = (form == MM_FORM_HUMAN) ? CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD)
+                            : (form == MM_FORM_FD)  ? NvMmForm_FdShield() // (adult Link's: his)
+                                                    : PLAYER_SHIELD_NONE;
     Interface_LoadItemIcon1(play, 0);
     NvMmMask_TakeOff(); // (MM: a change takes the mask worn off)
     player->currentMask = PLAYER_MASK_NONE;
@@ -766,13 +776,19 @@ s32 NvMmForm_SuperTunic(void) {
     return sForm.form == MM_FORM_FD;
 }
 
+/** The Fierce Deity (young Link underneath): OoT's child-with-the-Hylian rules (the shield kept on
+ * his back, held over his head) don't apply to him (z_player_lib.c's hook). */
+s32 NvMmForm_IsFierceDeity(void) {
+    return sForm.form == MM_FORM_FD;
+}
+
 /**
  * The Equipment screen's age check (z_kaleido_scope.h's hook): the Fierce Deity takes adult Link's swords,
  * the Master Sword and Biggoron's (NV_GAMES.md, the user 2026-11-20), as well as his own in the Kokiri
  * Sword's place. Nothing else of adult Link's: his tunic, boots and shield stay as the forms have them.
  */
 s32 NvMmForm_EquipAgeOk(s32 row, s32 col) {
-    return (sForm.form == MM_FORM_FD) && (row == 0) && (col >= 1);
+    return (sForm.form == MM_FORM_FD) && (((row == 0) && (col >= 1)) || ((row == 1) && (col == 3))); // (+ OoT's Mirror)
 }
 
 /**
@@ -837,7 +853,7 @@ void NvMmForm_Update(PlayState* play) {
         if ((player->ageProperties != &sFormProperties) || (sFormPropertiesFor != sForm.form)) {
             NvMmForm_Apply(play, player);
         }
-        player->currentShield = PLAYER_SHIELD_NONE;
+        player->currentShield = (sForm.form == MM_FORM_FD) ? NvMmForm_FdShield() : PLAYER_SHIELD_NONE;
     }
     if ((sForm.form == MM_FORM_FD) && (player->actor.category == ACTORCAT_PLAYER)) {
         // the Fierce Deity's size: MM's 1.5 in a boss room, adult Link's elsewhere, a step at a time
@@ -968,6 +984,116 @@ static Gfx* NvMmForm_FdHoldingOotSword(const char* ootHandDL) {
     return out;
 }
 
+/**
+ * The Fierce Deity with one of OoT's adult shields (NV_GAMES.md: he takes adult Link's shields): his
+ * own part first (`prefixDL`: his right fist, or nothing on his back), then OoT's list with the parts
+ * that aren't the shield left out. OoT's shield-in-hand lists interleave the shield and the hand (the
+ * Hylian's back is drawn after the hand) and its shield-on-back lists draw the sheath too, so the
+ * parts go by texture: the triangles drawn with adult Link's hand or sheath textures are dropped,
+ * everything else (the shield's faces, its handle, the render state) is kept. Built once, kept.
+ */
+static Gfx* NvMmForm_FdOotShield(const char* ootDL, const char* prefixDL) {
+    static const char* const sDrop[] = {
+        "objects/object_link_boy/gLinkAdultDefaultGauntlet1Tex", "objects/object_link_boy/gLinkAdultDefaultGauntlet2Tex",
+        "objects/object_link_boy/gLinkAdultClosedHandThumbTex",  "objects/object_link_boy/gLinkAdultClosedHandSideTex",
+        "objects/object_link_boy/gLinkAdultHandTex",             "objects/object_link_boy/gLinkAdultSheathTex",
+        "objects/object_link_boy/gLinkAdultSheathBandTex",
+    };
+    static const char* const sKeep[] = {
+        "objects/gameplay_keep/gHylianShieldDesignTex",        "objects/object_link_boy/gLinkAdultShieldHandleTex",
+        "objects/object_link_boy/gLinkAdultHylianShieldBackTex",
+        "objects/object_link_boy/gLinkAdultMirrorShieldLowerDesignTex",
+        "objects/object_link_boy/gLinkAdultMirrorShieldUpperDesignTex", "objects/gameplay_keep/gHilite1Tex",
+        "objects/gameplay_keep/gHilite2Tex",
+    };
+    static struct {
+        const char* name;
+        const char* prefix;
+        Gfx* gfx;
+    } sBuilt[6];
+    static u64 sDropHash[ARRAY_COUNT(sDrop)], sKeepHash[ARRAY_COUNT(sKeep)];
+    Gfx* src;
+    Gfx* out;
+    Gfx* g;
+    s32 i, k, n, dropping = false;
+
+    for (i = 0; i < ARRAY_COUNT(sBuilt); i++) {
+        if ((sBuilt[i].name == ootDL) && (sBuilt[i].prefix == prefixDL)) {
+            return sBuilt[i].gfx;
+        }
+    }
+    if (sDropHash[0] == 0) {
+        for (k = 0; k < ARRAY_COUNT(sDrop); k++) {
+            sDropHash[k] = NvMmForm_PathHash(sDrop[k]);
+        }
+        for (k = 0; k < ARRAY_COUNT(sKeep); k++) {
+            sKeepHash[k] = NvMmForm_PathHash(sKeep[k]);
+        }
+    }
+    src = ResourceMgr_LoadGfxByName(ootDL);
+    if (src == NULL) {
+        return NULL;
+    }
+    for (n = 0; (n < 2048) && ((u8)(src[n].words.w0 >> 24) != (u8)G_ENDDL); n++) {
+    }
+    out = malloc((n + 3) * sizeof(Gfx));
+    g = out;
+    if (prefixDL != NULL) {
+        gSPDisplayList(g++, ResourceMgr_LoadGfxByName(prefixDL));
+    }
+    for (i = 0; i < n; i++) {
+        u8 op = (u8)(src[i].words.w0 >> 24);
+        s32 two = (op == (u8)G_SETTIMG_OTR_HASH) || (op == (u8)G_DL_OTR_HASH) || (op == (u8)G_VTX_OTR_HASH) ||
+                  (op == (u8)G_MARKER) || (op == (u8)G_MTX_OTR) || (op == (u8)G_MOVEMEM_OTR) ||
+                  (op == (u8)G_BRANCH_Z_OTR);
+
+        if (op == (u8)G_SETTIMG_OTR_HASH) { // (a texture: which part follows; a palette leaves it as it was)
+            u64 hash = ((u64)src[i + 1].words.w0 << 32) | (u64)(u32)src[i + 1].words.w1;
+
+            for (k = 0; k < ARRAY_COUNT(sDrop); k++) {
+                if (hash == sDropHash[k]) {
+                    dropping = true;
+                }
+            }
+            for (k = 0; k < ARRAY_COUNT(sKeep); k++) {
+                if (hash == sKeepHash[k]) {
+                    dropping = false;
+                }
+            }
+        }
+        if (dropping && ((op == (u8)G_TRI1) || (op == (u8)G_TRI2) || (op == (u8)G_QUAD))) {
+            continue;
+        }
+        *g++ = src[i];
+        if (two) {
+            *g++ = src[++i];
+        }
+    }
+    gSPEndDisplayList(g++);
+    for (i = 0; i < ARRAY_COUNT(sBuilt); i++) {
+        if (sBuilt[i].name == NULL) {
+            sBuilt[i].name = ootDL;
+            sBuilt[i].prefix = prefixDL;
+            sBuilt[i].gfx = out;
+            break;
+        }
+    }
+    if (getenv("NV_LOG") != NULL) {
+        printf("NVMM fierce deity: %s's shield, %d commands\n", ootDL, (int)(g - out));
+        fflush(stdout);
+    }
+    return out;
+}
+
+/** The Fierce Deity's shield: OoT's adult Hylian or Mirror, worn (his others: none, as MM). */
+static s32 NvMmForm_FdShield(void) {
+    s32 shield = CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD);
+
+    return ((shield == EQUIP_VALUE_SHIELD_HYLIAN) || (shield == EQUIP_VALUE_SHIELD_MIRROR)) ? shield : 0;
+}
+
+#define OOT_BOY(name) ("__OTR__objects/object_link_boy/" name)
+
 /** z_player_lib.c's limb hook: the form's own hands, waist and sheath (MM's form tables; the hands
  * closed running, as OoT's). */
 void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
@@ -1008,9 +1134,34 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
             break;
         case PLAYER_LIMB_R_HAND:
             dl = def->handR[closed];
+            if ((sForm.form == MM_FORM_FD) && (player != NULL) && NvMmForm_FdShield() &&
+                (player->rightHandType == PLAYER_MODELTYPE_RH_SHIELD)) { // (his shield in hand: OoT's, his fist)
+                Gfx* held = NvMmForm_FdOotShield((NvMmForm_FdShield() == EQUIP_VALUE_SHIELD_MIRROR)
+                                                     ? OOT_BOY("gLinkAdultRightHandHoldingMirrorShieldNearDL")
+                                                     : OOT_BOY("gLinkAdultRightHandHoldingHylianShieldNearDL"),
+                                                 BOY("gLinkFierceDeityRightHandDL"));
+
+                if (held != NULL) {
+                    *dList = held;
+                    return;
+                }
+            }
             break;
         case PLAYER_LIMB_SHEATH:
             dl = def->sheath;
+            if ((sForm.form == MM_FORM_FD) && (player != NULL) && NvMmForm_FdShield() &&
+                ((player->sheathType == PLAYER_MODELTYPE_SHEATH_18) ||
+                 (player->sheathType == PLAYER_MODELTYPE_SHEATH_19))) { // (his shield on his back, no sheath)
+                Gfx* back = NvMmForm_FdOotShield((NvMmForm_FdShield() == EQUIP_VALUE_SHIELD_MIRROR)
+                                                     ? OOT_BOY("gLinkAdultMirrorShieldAndSheathNearDL")
+                                                     : OOT_BOY("gLinkAdultHylianShieldAndSheathNearDL"),
+                                                 NULL);
+
+                if (back != NULL) {
+                    *dList = back;
+                    return;
+                }
+            }
             break;
         case PLAYER_LIMB_WAIST:
             dl = def->waist;

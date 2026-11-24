@@ -169,8 +169,8 @@ static s32 NvGear_CanUse(s32 kind) {
         case GEAR_BGS: return adult || fd;
         case GEAR_HELIX: return fd;
         case GEAR_SHIELD_DEKU: return !adult && !fd;
-        case GEAR_SHIELD_HYLIAN: return !fd; // (his shields: to come)
-        case GEAR_SHIELD_MIRROR: return adult;
+        case GEAR_SHIELD_HYLIAN: return true;
+        case GEAR_SHIELD_MIRROR: return adult || fd; // (adult Link's shields: his too)
         default: return false; // (the Great Fairy's Sword on B, MM's shields: to come)
     }
 }

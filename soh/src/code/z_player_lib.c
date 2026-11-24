@@ -527,7 +527,8 @@ s32 Player_CheckHostileLockOn(Player* this) {
 }
 
 s32 Player_IsChildWithHylianShield(Player* this) {
-    return gSaveContext.linkAge != 0 && (this->currentShield == PLAYER_SHIELD_HYLIAN);
+    return gSaveContext.linkAge != 0 && (this->currentShield == PLAYER_SHIELD_HYLIAN) &&
+           !NvMmForm_IsFierceDeity(); // Nightmareverse: he holds it as adult Link does (z_nv_mm_form.c)
 }
 
 s32 Player_ActionToModelGroup(Player* this, s32 itemAction) {

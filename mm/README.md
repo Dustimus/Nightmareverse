@@ -64,11 +64,19 @@ before building a new system; add a line whenever a new one is made.
   OoT's one slot holds the one in hand); Medigoron sells a Knife whenever there's no whole one
   (z_en_gm.c hook, not in a randomizer). Our pages' cursors now step once a push, repeating when held
   (`NvPause_Steps`; MM's pages had moved every frame). Dev: NV_OOT_SWORDS=both, NV_GEAR_TAKE="3,4".
-  Not yet: the Great Fairy's Sword on B, MM's Hero's and Mirror shields, the Razor and Gilded, the
-  Fierce Deity's shields, a title for the page, the Double Helix's own B icon (the Kokiri's shows).
+  **The Fierce Deity's shields** (adult Link's, the decision): the Hylian and OoT's Mirror, from the
+  gear page or OoT's (its age check lets him have OoT's Mirror). Drawn from OoT's adult lists with
+  the hand's and the sheath's triangles left out by texture (`NvMmForm_FdOotShield`; OoT interleaves
+  the shield's and the hand's parts): in his own fist when the sword's out or he guards, on his back
+  otherwise (he has no sheath). He's young Link underneath, so OoT's child-with-the-Hylian rules (on
+  the back, over the head) are switched off for him (`Player_IsChildWithHylianShield` hook,
+  z_player_lib.c). The Deku Shield isn't his (none shown). Changing out of him with OoT's Mirror on,
+  young Link gets the Hylian back (or the Deku, or none).
+  Not yet: the Great Fairy's Sword on B, MM's Hero's and Mirror shields, the Razor and Gilded, a
+  title for the page, the Double Helix's own B icon (the Kokiri's shows).
   Tested headless: the page, young Link taking the Kokiri Sword and the Deku Shield (outlines move),
   the Fierce Deity taking the Knife, Biggoron's, the Knife again, the Double Helix (the Kokiri Sword
-  and the Hylian refused for him).
+  refused for him); his Hylian and Mirror shields on his back walking and in his fist guarding.
 - **The Fierce Deity:** usable anywhere; adult Link's size except in boss rooms (MM's 1.5 there); his
   beam as a light arrow to start (a sword strike: maybe later) (NV_GAMES.md, the user, 2026-11-24).
 - **Adult Link and MM (an idea, not to start yet):** sequenced through OoT's ending
