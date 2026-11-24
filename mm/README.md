@@ -20,6 +20,19 @@ MM actor it comes from.
 Every decision made with the user for the MM side, with where it's written out. Check here
 before building a new system; add a line whenever a new one is made.
 
+**Which Link model is on screen (check before drawing anything on Link; getting this wrong cost real
+work, the user, 2026-11-24):**
+- **Young Link in Termina is MM's own model** (`soh/src/code/z_nv_mm_link.c`: MM's skeleton, body,
+  face, hands, waist swapped in on each Termina scene's start). MM's own display lists for him (his
+  hands holding things, the shields on his back with their matrices) go on **as they are**: no
+  re-placing, no mixing in OoT's hands. Ask `NvMmLink_IsMm()`.
+- **Young Link outside Termina is OoT's model.** MM's items on him need OoT's hands and placements.
+- **Adult Link is always OoT's model.**
+- **The forms are MM's models** (Deku, Goron, Zora, the Fierce Deity: their skeletons swapped in by
+  z_nv_mm_form.c). The Fierce Deity is young Link underneath (OoT's child rules need switching off
+  for him, as his height and legs, z_player_lib.c hooks) and wears OoT's adult swords and shields
+  cut from OoT's adult lists.
+
 - **One game:** one Link, one inventory, one save; MM's content becomes part of OoT's, no
   switching games (`../NV_GAMES.md` "Majora's Mask merged into OoT", 2026-11-19).
 - **Porting:** MM's actors ported closely from the decomp; MM's own props and models in MM's
