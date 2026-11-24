@@ -13,6 +13,7 @@ typedef struct {
     int32_t bgs;
     float knifeHealth;
     int32_t gfs;
+    int32_t mmShield;
 } NvGearSave;
 NvGearSave* NvGear_SaveVars(void);
 void NvGear_NewGame(void);
@@ -27,6 +28,7 @@ static void NvGearSave_Save(const SaveContext& saveContext, int sectionID, bool 
     SaveManager::Instance->SaveData("bgs", g->bgs);
     SaveManager::Instance->SaveData("knifeHealth", g->knifeHealth);
     SaveManager::Instance->SaveData("gfs", g->gfs);
+    SaveManager::Instance->SaveData("mmShield", g->mmShield);
 }
 
 static void NvGearSave_Load() {
@@ -37,6 +39,7 @@ static void NvGearSave_Load() {
     SaveManager::Instance->LoadData("bgs", g->bgs, (int32_t)0);
     SaveManager::Instance->LoadData("knifeHealth", g->knifeHealth, 0.0f);
     SaveManager::Instance->LoadData("gfs", g->gfs, (int32_t)0);
+    SaveManager::Instance->LoadData("mmShield", g->mmShield, (int32_t)0);
     sGearLoaded = true;
 }
 

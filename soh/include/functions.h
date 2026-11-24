@@ -1095,6 +1095,7 @@ void Magic_Reset(PlayState* play);
 s32 Magic_RequestChange(PlayState* play, s16 amount, s16 type);
 void NvGear_GotItem(s32 getItemId); // Nightmareverse (z_nv_gear.c)
 void* NvGear_BIcon(void* oot);      // Nightmareverse: B's icon for our swords (z_nv_gear.c)
+s32 NvGear_MmShield(void);          // Nightmareverse: MM's shield young Link has on (z_nv_gear.c)
 s32 NvGear_MedigoronCase(void);     // Nightmareverse (z_nv_gear.c)
 s32 NvMmForm_SuperTunic(void);
 s32 NvMmForm_IsFierceDeity(void); // Nightmareverse (z_nv_mm_form.c) // Nightmareverse: the Fierce Deity, fireproof and breathing underwater (z_nv_mm_form.c)

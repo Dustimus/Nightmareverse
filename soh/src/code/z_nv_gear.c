@@ -40,6 +40,7 @@ typedef struct {
     s32 bgs;         // Biggoron's Sword owned
     f32 knifeHealth; // the Knife's (OoT's swordHealth while it's the one in the slot)
     s32 gfs;         // the Great Fairy's Sword is the one on B (in OoT's two-handed slot, as Biggoron's)
+    s32 mmShield;    // MM's shield worn (1 the Hero's, in OoT's Hylian slot; 2 MM's Mirror, in OoT's Mirror slot)
 } NvGearSave;
 
 static NvGearSave sGear;
@@ -60,6 +61,11 @@ void NvGear_NewGame(void) {
 /** Each frame (z_play.c): what OoT's one slot holds now, into ours (it changes by OoT's own code: the
  * Knife breaking, Biggoron handing his over, an old save). */
 void NvGear_Update(PlayState* play) {
+    if ((sGear.mmShield != 0) &&
+        (LINK_IS_ADULT || (CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) !=
+                           ((sGear.mmShield == 1) ? EQUIP_VALUE_SHIELD_HYLIAN : EQUIP_VALUE_SHIELD_MIRROR)))) {
+        sGear.mmShield = 0; // (another shield on, eaten by a Like Like, grown up)
+    }
     if (sGear.gfs) {
         if ((CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_BIGGORON) &&
             (gSaveContext.equips.buttonItems[0] == ITEM_SWORD_BGS)) {
@@ -116,6 +122,12 @@ static void NvGear_RestSlot(void) {
 /** The Great Fairy's Sword is the one on B (z_nv_mm_form.c draws it, z_parameter.c shows its icon). */
 s32 NvGear_GfsOn(void) {
     return sGear.gfs;
+}
+
+/** MM's shield young Link has on (1 the Hero's, 2 MM's Mirror; 0 none, or not him just now): OoT's
+ * Hylian or Mirror slot stands in, z_nv_mm_form.c draws MM's (and holds the Hero's as MM does). */
+s32 NvGear_MmShield(void) {
+    return ((NvMmForm_Get() == 4) && !LINK_IS_ADULT) ? sGear.mmShield : 0;
 }
 
 /** Off it, OoT's slot back as it rests. */
@@ -230,11 +242,13 @@ static s32 NvGear_CanUse(s32 kind) {
         case GEAR_KNIFE:
         case GEAR_BGS: return adult || fd;
         case GEAR_HELIX: return fd;
-        case GEAR_GREAT_FAIRY: return (form == 4) && !adult; // (MM's human Link's)
+        case GEAR_GREAT_FAIRY: return form == 4; // (human Link's, either age: the user, 2026-11-24)
+        case GEAR_SHIELD_HERO:
+        case GEAR_SHIELD_MIRROR_MM: return (form == 4) && !adult; // (MM's young Link's)
         case GEAR_SHIELD_DEKU: return !adult && !fd;
         case GEAR_SHIELD_HYLIAN: return true;
         case GEAR_SHIELD_MIRROR: return adult || fd; // (adult Link's shields: his too)
-        default: return false; // (MM's shields: to come)
+        default: return false;
     }
 }
 
@@ -253,8 +267,10 @@ static s32 NvGear_Worn(s32 kind) {
         case GEAR_BGS: return (sword == EQUIP_VALUE_SWORD_BIGGORON) && gSaveContext.bgsFlag && !sGear.gfs;
         case GEAR_GREAT_FAIRY: return sGear.gfs;
         case GEAR_SHIELD_DEKU: return CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_DEKU;
-        case GEAR_SHIELD_HYLIAN: return CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_HYLIAN;
-        case GEAR_SHIELD_MIRROR: return CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_MIRROR;
+        case GEAR_SHIELD_HYLIAN: return (CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_HYLIAN) && (sGear.mmShield != 1);
+        case GEAR_SHIELD_MIRROR: return (CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_MIRROR) && (sGear.mmShield != 2);
+        case GEAR_SHIELD_HERO: return (CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_HYLIAN) && (sGear.mmShield == 1);
+        case GEAR_SHIELD_MIRROR_MM: return (CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_MIRROR) && (sGear.mmShield == 2);
         default: return false;
     }
 }
@@ -332,12 +348,23 @@ static void NvGear_Take(PlayState* play, s32 kind) {
             NvGear_HoldBig(kind == GEAR_BGS);
             break;
         case GEAR_SHIELD_DEKU:
+            sGear.mmShield = 0;
             Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_DEKU);
             break;
         case GEAR_SHIELD_HYLIAN:
+            sGear.mmShield = 0;
             Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HYLIAN);
             break;
         case GEAR_SHIELD_MIRROR:
+            sGear.mmShield = 0;
+            Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
+            break;
+        case GEAR_SHIELD_HERO: // (OoT's Hylian slot stands in: metal, held in hand as MM holds it)
+            sGear.mmShield = 1;
+            Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_HYLIAN);
+            break;
+        case GEAR_SHIELD_MIRROR_MM: // (OoT's Mirror slot stands in: it reflects light as OoT's)
+            sGear.mmShield = 2;
             Inventory_ChangeEquipment(EQUIP_TYPE_SHIELD, EQUIP_VALUE_SHIELD_MIRROR);
             break;
     }
@@ -347,10 +374,10 @@ static void NvGear_Take(PlayState* play, s32 kind) {
     }
     NvGear_Sfx(NA_SE_SY_DECIDE);
     if (getenv("NV_LOG") != NULL) {
-        printf("NVGEAR took %d: equips %04X owned %08X B %d bgsFlag %d health %d; knife %d bgs %d gfs %d\n", (int)kind,
+        printf("NVGEAR took %d: equips %04X owned %08X B %d bgsFlag %d health %d; knife %d bgs %d gfs %d mmShield %d\n", (int)kind,
                (unsigned)gSaveContext.equips.equipment, (unsigned)gSaveContext.inventory.equipment,
                (int)gSaveContext.equips.buttonItems[0], (int)gSaveContext.bgsFlag, (int)gSaveContext.swordHealth,
-               (int)sGear.knife, (int)sGear.bgs, (int)sGear.gfs);
+               (int)sGear.knife, (int)sGear.bgs, (int)sGear.gfs, (int)sGear.mmShield);
         fflush(stdout);
     }
 }

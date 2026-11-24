@@ -83,9 +83,21 @@ before building a new system; add a line whenever a new one is made.
   icon (`NvGear_BIcon`, z_parameter.c's B icon hook; the Double Helix's icon for the Fierce Deity
   too). The slot's own Knife/Biggoron's come back as they were when another sword's taken (here or
   on OoT's page). Changing into the Fierce Deity gives him his Double Helix in its place.
-  Not yet for it: adult Link (MM's is young Link's), its own damage, MM's draw-it-from-nowhere (it's
-  on no sheath; nothing shows on his back).
-  Not yet: MM's Hero's and Mirror shields, the Razor and Gilded, a
+  Adult Link takes it too (the user, 2026-11-24), in his own fist. Not yet for it: its own damage,
+  MM's draw-it-from-nowhere (it's on no sheath; nothing shows on his back).
+  **MM's Hero's and Mirror shields** on young Link (human; not the Fierce Deity, not adult Link): OoT's
+  Hylian slot stands in for the Hero's (metal; OoT's child-with-the-Hylian rules off for it, so it's
+  held in hand as MM holds it, `Player_IsChildWithHylianShield` hook), OoT's Mirror slot for MM's
+  Mirror (it reflects as OoT's). Drawn as MM's: in hand OoT's child fist and MM's shield (as MM's own
+  holding lists are its fist and the shield); on his back OoT's sheath, then OoT's own placing of a
+  shield there (the matrix OoT uses for the Deku Shield, `NvMmForm_MmShieldOnBack`), with MM's
+  shield first turned into that matrix's space ((x, y, z) -> (y, -z, -x - 100), measured on OoT's
+  Deku Shield) and over in its plane (OoT's Deku is drawn upside down, which its round face hides;
+  MM's crest doesn't). MM's own "with matrix" lists place it from MM's sheath, not OoT's.
+  Known: taking OoT's Hylian on OoT's page while the Hero's is on keeps showing the Hero's (the
+  same slot underneath).
+  Tested headless: both on his back walking (the Hero's upright); in hand only glimpsed.
+  Not yet: the Razor and Gilded, a
   title for the page.
   Tested headless: the page, young Link taking the Kokiri Sword and the Deku Shield (outlines move),
   the Fierce Deity taking the Knife, Biggoron's, the Knife again, the Double Helix (the Kokiri Sword

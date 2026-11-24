@@ -1099,6 +1099,77 @@ static s32 NvMmForm_FdShield(void) {
 
 #define OOT_BOY(name) ("__OTR__objects/object_link_boy/" name)
 
+/** Two lists drawn one after the other (OoT's hand and MM's sword or shield in it), built once a pair. */
+static Gfx* NvMmForm_Pair(const char* first, const char* second) {
+    static struct {
+        const char* a;
+        const char* b;
+        Gfx gfx[3];
+    } sPairs[12];
+    s32 i;
+
+    for (i = 0; i < ARRAY_COUNT(sPairs); i++) {
+        if ((sPairs[i].a == first) && (sPairs[i].b == second)) {
+            return sPairs[i].gfx;
+        }
+        if (sPairs[i].a == NULL) {
+            Gfx* g = sPairs[i].gfx;
+
+            sPairs[i].a = first;
+            sPairs[i].b = second;
+            gSPDisplayList(g++, ResourceMgr_LoadGfxByName(first));
+            gSPDisplayList(g++, ResourceMgr_LoadGfxByName(second));
+            gSPEndDisplayList(g++);
+            return sPairs[i].gfx;
+        }
+    }
+    return NULL;
+}
+
+/**
+ * MM's shield on young Link's back: OoT's sheath, then OoT's own placing of a shield on his back (the
+ * matrix of gLinkChildDekuShieldWithMatrixDL, which OoT uses for the Deku Shield there), then MM's
+ * shield. MM's shields are modelled in the hand's space; OoT's matrix takes the Deku Shield's own
+ * space, which is the hand's with its axes turned: (x, y, z) -> (y, -z, -x - 100) (measured: every
+ * vertex of OoT's held Deku Shield, texture coordinates too, lands on one of its plain model's). MM's own "with matrix" lists
+ * place it from MM's sheath, which OoT's isn't. Built once per sheath and shield.
+ */
+static Gfx* NvMmForm_MmShieldOnBack(s32 swordIn, s32 hero) {
+    static Gfx sBack[2][2][8];
+    static Mtx sHandToShield;
+    Gfx* g = sBack[swordIn][hero];
+
+    if (g[0].words.w0 == 0) {
+        Gfx* deku = ResourceMgr_LoadGfxByName("__OTR__objects/object_link_child/gLinkChildDekuShieldWithMatrixDL");
+        s32 i;
+
+        if (sHandToShield.m[0][0] == 0) {
+            // (and first, MM's shield turned over in its own plane, about its middle (-127, 42): OoT's Deku
+            // Shield is drawn upside down in the hand, which its round face never shows; MM's crest does)
+            MtxF mf = { { { 0, 0, 1, 0 }, { -1, 0, 0, 0 }, { 0, -1, 0, 0 }, { 84, 0, 154, 1 } } };
+
+            Matrix_MtxFToMtx(&mf, &sHandToShield);
+        }
+        gSPDisplayList(g++, ResourceMgr_LoadGfxByName(swordIn ? "__OTR__objects/object_link_child/gLinkChildSwordAndSheathNearDL"
+                                                               : "__OTR__objects/object_link_child/gLinkChildSheathNearDL"));
+        for (i = 0; i < 8; i++) { // (OoT's matrix: its command, two words)
+            if ((u8)(deku[i].words.w0 >> 24) == (u8)G_MTX_OTR) {
+                *g++ = deku[i];
+                *g++ = deku[i + 1];
+                break;
+            }
+            if ((u8)(deku[i].words.w0 >> 24) == (u8)G_MARKER) {
+                i++;
+            }
+        }
+        gSPMatrix(g++, &sHandToShield, G_MTX_NOPUSH | G_MTX_MUL | G_MTX_MODELVIEW);
+        gSPDisplayList(g++, ResourceMgr_LoadGfxByName(hero ? "__OTR__mm/objects/object_link_child/gLinkHumanHerosShieldDL"
+                                                           : "__OTR__mm/objects/object_link_child/gLinkHumanMirrorShieldDL"));
+        gSPEndDisplayList(g++);
+    }
+    return sBack[swordIn][hero];
+}
+
 /** z_player_lib.c's limb hook: the form's own hands, waist and sheath (MM's form tables; the hands
  * closed running, as OoT's). */
 void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
@@ -1110,19 +1181,30 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
 
     if ((def == NULL) && (limbIndex == PLAYER_LIMB_L_HAND) && (player != NULL) && NvGear_GfsOn() &&
         (player->leftHandType == PLAYER_MODELTYPE_LH_BGS)) {
-        // the Great Fairy's Sword in young Link's hand (the gear page): OoT's fist and MM's sword, as MM's
+        // the Great Fairy's Sword in human Link's hand (the gear page): OoT's fist and MM's sword, as MM's
         // own gLinkHumanLeftHandHoldingGreatFairysSwordDL is MM's fist and the sword
-        static Gfx sHand[3];
-
-        if (sHand[0].words.w0 == 0) {
-            Gfx* g = sHand;
-
-            gSPDisplayList(g++, ResourceMgr_LoadGfxByName("__OTR__objects/object_link_child/gLinkChildLeftFistNearDL"));
-            gSPDisplayList(g++, ResourceMgr_LoadGfxByName("__OTR__mm/objects/object_link_child/gLinkHumanGreatFairysSwordDL"));
-            gSPEndDisplayList(g++);
-        }
-        *dList = sHand;
+        *dList = NvMmForm_Pair(LINK_IS_ADULT ? "__OTR__objects/object_link_boy/gLinkAdultLeftHandClosedNearDL"
+                                             : "__OTR__objects/object_link_child/gLinkChildLeftFistNearDL",
+                               "__OTR__mm/objects/object_link_child/gLinkHumanGreatFairysSwordDL");
         return;
+    }
+    if ((def == NULL) && (player != NULL) && (NvGear_MmShield() != 0)) {
+        // MM's shield on young Link (the gear page), as MM draws it: in his fist (MM's own hand holding it
+        // is its fist and the shield), or on his back with his sheath (MM's shield "with matrix", placed
+        // from the sheath)
+        s32 hero = (NvGear_MmShield() == 1);
+
+        if ((limbIndex == PLAYER_LIMB_R_HAND) && (player->rightHandType == PLAYER_MODELTYPE_RH_SHIELD)) {
+            *dList = NvMmForm_Pair("__OTR__objects/object_link_child/gLinkChildRightHandClosedNearDL",
+                                   hero ? "__OTR__mm/objects/object_link_child/gLinkHumanHerosShieldDL"
+                                        : "__OTR__mm/objects/object_link_child/gLinkHumanMirrorShieldDL");
+            return;
+        }
+        if ((limbIndex == PLAYER_LIMB_SHEATH) && ((player->sheathType == PLAYER_MODELTYPE_SHEATH_18) ||
+                                                  (player->sheathType == PLAYER_MODELTYPE_SHEATH_19))) {
+            *dList = NvMmForm_MmShieldOnBack(player->sheathType == PLAYER_MODELTYPE_SHEATH_18, hero);
+            return;
+        }
     }
     if (def == NULL) {
         return;
