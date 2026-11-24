@@ -544,6 +544,26 @@ identical. (Group 1 above put OoT's pots, crates and torches in; they're being s
   draws with its smoke at 7:20; West Clock Town's torch burns at 20:00 (its night copy); a rooftop magic pot breaks to the
   sword and drops its magic jar.
 
+### Clock Town's scenery (2026-11-24, `soh/src/code/z_nv_mm_scenery.c`)
+
+MM's own, ported as they are, MM's models and collision (`tools/mm_objects.py`):
+- **The carnival platforms and flags** (Obj_Tokei_Turret, `object_tokei_turret`): South Clock Town's
+  tower going up over the three days (its pieces are placed in MM's half-days: 2 on day 1, 3 on day
+  2, 5 on day 3), the base and the platform top stood on, the flag strings over the square.
+- **The branching tree** (Obj_Tree, `object_tree`): North Clock Town's; its top stood on, its trunk
+  solid, swaying (MM's sway) when hit by the sword, a stick, a spin or a Goron hit.
+- **West Clock Town's market stalls** (Bg_Market_Step, `object_market_obj`): the day and the night
+  stalls and the bank's adverts, each in its half-days.
+- **The magic mushrooms** (Obj_Kinoko): seen only with the Mask of Scents on, glowing (gameplay_keep's
+  glow). Not yet: catching one in a bottle.
+- The object files: MM's object table (in `code`) gives each object's ROM address, matched to the
+  file table (object_tokei_turret 991, object_tree 999, object_market_obj 920). Grass (En_Kusa) and the
+  square signposts (En_Kanban) are their own actors, still to come.
+- Dev: NV_POS takes a height (`x,z,yaw,y`) and NV_POS_AT=frames places Link after a gate's walk-in.
+- Tested headless: the carnival tower and flags on day 3 (South), the stalls by day (West), the tree
+  (North), each by a shot with it drawn and one with it switched off. Not yet seen: standing on the
+  platforms or the tree, the tree's sway, a mushroom.
+
 ### MM's schedules, and MM's doors (2026-11-22)
 
 **Schedules** (`soh/src/code/z_nv_mm_schedule.c`, MM's z_schedule.c). MM asks small scripts where its

@@ -71,12 +71,24 @@ OBJECTS = {
     "ovl_Obj_Entotu": (299, {  # the chimney actor's own data: the smoke's seven vertices
         "vtx": {"ovl_Obj_Entotu_Vtx_000D10": (0xD10, 7)},
     }),
+    "object_tokei_turret": (991, {"dl": {  # South Clock Town's carnival platforms and flags (Obj_Tokei_Turret)
+        "gClockTownTurretPlatformBaseDL": 0x2508, "gClockTownTurretPlatformTopDL": 0x2A88,
+        "gClockTownFlagsDL": 0x3038},
+        "col": {"gClockTownTurretBaseCol": 0x26A0, "gClockTownTurretPlatformCol": 0x2D80}}),
+    "object_tree": (999, {"dl": {  # the single branching tree, North Clock Town (Obj_Tree)
+        "gTreeBodyDL": 0x680, "gTreeLeavesDL": 0x7C8},
+        "col": {"gTreeTopCol": 0x1B2C}}),
+    "object_market_obj": (920, {"dl": {  # West Clock Town's market stalls, day and night (Bg_Market_Step)
+        "gWestClockTownMarketDayDL": 0x1F050, "gWestClockTownMarketNightDL": 0x18DA0,
+        "gWestClockTownMarketBankAdvertisementsAndDoorDayDL": 0x1EF10,
+        "gWestClockTownMarketBankAdvertisementsAndDoorNightDL": 0x18C60}}),
     "object_kibako": (862, {"dl": {  # the small crate, outdoors (Obj_Kibako)
         "gSmallCrateDL": 0x1180,
         "gSmallCrateFragmentDL": 0x1A70,
     }}),
     "gameplay_keep": (649, {"segment": 4, "dl": {  # MM's main keep: what the ported actors share (shadows, ...)
         "gSquareShadowDL": 0x75A40,
+        "gameplay_keep_DL_029D10": 0x29D10,  # the mushroom's purple glow (Obj_Kinoko)
         "gDekuMaskDL": 0x56C0,  # the Deku Mask on Link's face, put on (the transformation scene)
         "gGoronMaskDL": 0x5A10,  # the Goron Mask, the same
         "gZoraMaskDL": 0x5360,  # the Zora Mask, the same

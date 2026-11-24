@@ -2,7 +2,7 @@
  * Nightmareverse (dev): scripted play for headless room checks, switched on by environment
  * variables (nothing happens without them):
  *
- *   NV_POS="x,z[,yaw]"        put Link there once the scene is up (OoT units, binang)
+ *   NV_POS="x,z[,yaw[,y]]"    put Link there once the scene is up (OoT units, binang; NV_POS_AT=frames: later)
  *   NV_WALK="x,z;x,z;wait:N"  steer Link through waypoints with the control stick (camera-
  *                             relative, as a player would), up to NV_WALK_TIMEOUT frames each
  *                             (default 200); "wait:N" stands still N frames, "a" presses A, "b" B,
@@ -396,12 +396,15 @@ void NvDev_Update(PlayState* play) {
         sNvPosDone = false;
     }
     pos = getenv("NV_POS");
-    if (!sNvPosDone && (pos != NULL) && (play->gameplayFrames > 10)) {
+    if (!sNvPosDone && (pos != NULL) &&
+        (play->gameplayFrames > (u32)((getenv("NV_POS_AT") != NULL) ? atoi(getenv("NV_POS_AT")) : 10))) { // (NV_POS_AT: after a walk-in)
         int x;
         int z;
         int yaw = player->actor.shape.rot.y;
+        int y = (int)player->actor.world.pos.y;
 
-        if (sscanf(pos, "%d,%d,%d", &x, &z, &yaw) >= 2) {
+        if (sscanf(pos, "%d,%d,%d,%d", &x, &z, &yaw, &y) >= 2) { // (a 4th number: the height to drop from)
+            player->actor.world.pos.y = player->actor.home.pos.y = y;
             player->actor.world.pos.x = player->actor.home.pos.x = x;
             player->actor.world.pos.z = player->actor.home.pos.z = z;
             player->actor.shape.rot.y = player->actor.world.rot.y = player->yaw = (s16)yaw;

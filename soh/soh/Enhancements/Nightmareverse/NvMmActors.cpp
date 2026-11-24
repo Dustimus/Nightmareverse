@@ -90,6 +90,16 @@ void NvMmHariko_Destroy(Actor* thisx, PlayState* play);
 void NvMmHariko_Update(Actor* thisx, PlayState* play);
 void NvMmHariko_Draw(Actor* thisx, PlayState* play);
 extern const size_t gNvMmHarikoSize;
+#define NV_MM_SCENERY(Name) \
+    void NvMm##Name##_Init(Actor* thisx, PlayState* play); \
+    void NvMm##Name##_Destroy(Actor* thisx, PlayState* play); \
+    void NvMm##Name##_Update(Actor* thisx, PlayState* play); \
+    void NvMm##Name##_Draw(Actor* thisx, PlayState* play); \
+    extern const size_t gNvMm##Name##Size;
+NV_MM_SCENERY(Turret)
+NV_MM_SCENERY(Tree)
+NV_MM_SCENERY(MarketStep)
+NV_MM_SCENERY(Kinoko)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -207,6 +217,19 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x20A,
       { "Mm_Obj_Hariko", "MM: the bobblehead cow toy", ACTORCAT_PROP, 0, &gNvMmHarikoSize, NvMmHariko_Init,
         NvMmHariko_Destroy, NvMmHariko_Update, NvMmHariko_Draw } },
+    { 0x221,
+      { "Mm_Obj_Tokei_Turret", "MM: a carnival platform or flags", ACTORCAT_BG, 0, &gNvMmTurretSize, NvMmTurret_Init,
+        NvMmTurret_Destroy, NvMmTurret_Update, NvMmTurret_Draw } },
+    { 0x229,
+      { "Mm_Obj_Tree", "MM: a branching tree", ACTORCAT_PROP, 0, &gNvMmTreeSize, NvMmTree_Init, NvMmTree_Destroy,
+        NvMmTree_Update, NvMmTree_Draw } },
+    { 0x1CC,
+      { "Mm_Bg_Market_Step", "MM: West Clock Town's market stalls", ACTORCAT_BG,
+        ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmMarketStepSize,
+        NvMmMarketStep_Init, NvMmMarketStep_Destroy, NvMmMarketStep_Update, NvMmMarketStep_Draw } },
+    { 0x23B,
+      { "Mm_Obj_Kinoko", "MM: a magic mushroom", ACTORCAT_ITEMACTION, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmKinokoSize, NvMmKinoko_Init,
+        NvMmKinoko_Destroy, NvMmKinoko_Update, NULL } },
     { 0x183,
       { "Mm_Obj_Etcetera", "MM: a Deku flower", ACTORCAT_BG, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmEtceteraSize,
         NvMmEtcetera_Init, NvMmEtcetera_Destroy, NvMmEtcetera_Update, NvMmEtcetera_Draw } },

@@ -46,6 +46,10 @@ PORTED = {
     0x20A,  # Obj_Hariko: the bobblehead cow toy (z_nv_mm_hariko.c)
     0x183,  # Obj_Etcetera: the Deku flowers (z_nv_mm_etcetera.c)
     0x261,  # En_Talk: things to read or check (z_nv_mm_talk.c)
+    0x221,  # Obj_Tokei_Turret: the carnival platforms and flags (z_nv_mm_scenery.c)
+    0x229,  # Obj_Tree: the branching tree (z_nv_mm_scenery.c)
+    0x1CC,  # Bg_Market_Step: West Clock Town's market stalls (z_nv_mm_scenery.c)
+    0x23B,  # Obj_Kinoko: the magic mushrooms (z_nv_mm_scenery.c)
 }
 
 # MM's ids (the decomp's actor table)
