@@ -125,6 +125,22 @@ here is agreed or scheduled.
   outfit fit for 1991 (in RE0's flashbacks he already has the slicked blond hair and sunglasses),
   so a clothing retexture: done at conversion from the user's own files (a recolor step or a
   texture the user supplies), never committed.
+- Young Wesker teaching the warp song (from the user, 2026-11-23; brainstorm, dialogue to write):
+  - Where: Kakariko. Nocturne of Shadow is taught there and the warp song already rides its slot;
+    the House of Skulltula (a family turned into monsters: an "infection" a researcher would want
+    to study) and the Bottom of the Well (Redeads, OoT's grimmest place, "worth samples") are both
+    there and open to young Link; and the windmill man already teaches young Link a song there.
+  - A possible flow: a polite man in a lab coat and sunglasses near the well or the cursed house;
+    after the well, or a few Skulltula tokens, he plays "a tune from home": the warp song. Played
+    as adult Link, it takes him to the mansion that man's company built.
+  - His look: RE1's lab-coat zombie body (EM1000: white coat, shirt and tie; EM1011 the same coat,
+    filthy green; both the same 15 parts as Wesker) with Wesker's head (EM1024), the coat repainted
+    clean (maybe an Umbrella logo), Wesker's own animations if the joints line up. He keeps the
+    sunglasses: RE0's lab-coat flashbacks have them too.
+  - The song itself could then come from one of Wesker's themes (the user picks the phrase and
+    the arrangement) instead of the basement-theme placeholder; swapping is the notes array
+    (z_nv_script.c sNvSongNotes, checked against the cross-game song list) and the fanfare's
+    sequence (make_mod.py --song, looked up by name in NvWarpSong_Fanfare).
 
 ## RE1 items outside the mansion (brainstorm, 2026-10-30)
 - Flare: a flash that stuns (as a Deku Nut) or lights a dark place for a while.
