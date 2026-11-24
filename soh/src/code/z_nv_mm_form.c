@@ -1145,9 +1145,10 @@ static Gfx* NvMmForm_MmShieldOnBack(s32 swordIn, s32 hero) {
         s32 i;
 
         if (sHandToShield.m[0][0] == 0) {
-            // (this hangs the Hero's crest upside down, as MM itself does: in Termina, MM's own model and
-            // MM's own placing, it comes out the same)
-            MtxF mf = { { { 0, 0, -1, 0 }, { 1, 0, 0, 0 }, { 0, -1, 0, 0 }, { 0, 0, -100, 1 } } };
+            // (and first, MM's shield turned over in its own plane, about its middle (-127, 42): OoT's Deku
+            // Shield is drawn upside down in the hand, which its round face never shows; without this the
+            // Hero's crest hangs upside down, where OoT's own child Hylian hangs upright)
+            MtxF mf = { { { 0, 0, 1, 0 }, { -1, 0, 0, 0 }, { 0, -1, 0, 0 }, { 84, 0, 154, 1 } } };
 
             Matrix_MtxFToMtx(&mf, &sHandToShield);
         }
