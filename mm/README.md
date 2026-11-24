@@ -56,6 +56,19 @@ before building a new system; add a line whenever a new one is made.
   in z_player.c; the user's go-ahead without asking RE1 first ("it can adjust if it needs to",
   2026-11-23). Deku Link's spin is on A, his bubble on B (as MM).
 - **The swords and the second Equipment page (2026-11-24):** see NV_GAMES.md ("The swords, decided", the shields with them).
+  Built: `soh/src/code/z_nv_gear.c`, the gear page (a plain 24-slot page under OoT's Equipment, before
+  MM's masks; MM's mask frame with the title left off, `gNvPauseBlankTop10Tex` made by mm_pause.py).
+  Row 1: Kokiri, Master, Giant's Knife, Biggoron's, Great Fairy's, Double Helix; row 2: Deku, Hero's,
+  Hylian, MM's Mirror, OoT's Mirror. A takes one (B for a sword); worn ones outlined as on OoT's page;
+  the wrong age's greyed. The Knife and Biggoron's owned apart (save section "gear", NvGearSave.cpp;
+  OoT's one slot holds the one in hand); Medigoron sells a Knife whenever there's no whole one
+  (z_en_gm.c hook, not in a randomizer). Our pages' cursors now step once a push, repeating when held
+  (`NvPause_Steps`; MM's pages had moved every frame). Dev: NV_OOT_SWORDS=both, NV_GEAR_TAKE="3,4".
+  Not yet: the Great Fairy's Sword on B, MM's Hero's and Mirror shields, the Razor and Gilded, the
+  Fierce Deity's shields, a title for the page, the Double Helix's own B icon (the Kokiri's shows).
+  Tested headless: the page, young Link taking the Kokiri Sword and the Deku Shield (outlines move),
+  the Fierce Deity taking the Knife, Biggoron's, the Knife again, the Double Helix (the Kokiri Sword
+  and the Hylian refused for him).
 - **The Fierce Deity:** usable anywhere; adult Link's size except in boss rooms (MM's 1.5 there); his
   beam as a light arrow to start (a sword strike: maybe later) (NV_GAMES.md, the user, 2026-11-24).
 - **Adult Link and MM (an idea, not to start yet):** sequenced through OoT's ending

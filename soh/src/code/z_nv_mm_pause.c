@@ -189,7 +189,9 @@ static void NvMmPause_Input(PlayState* play, NvMmPauseGrid* g) {
     s16 x = g->cursor % 6;
     s16 y = g->cursor / 6;
     s16 old = g->cursor;
+    s32 dx, dy;
 
+    NvPause_Steps(play, &dx, &dy);
     if (pauseCtx->cursorSpecialPos != 0) { // on a page arrow: back onto the grid
         if ((pauseCtx->cursorSpecialPos == PAUSE_CURSOR_PAGE_LEFT) && (pauseCtx->stickRelX > 30)) {
             pauseCtx->cursorSpecialPos = 0;
@@ -198,25 +200,25 @@ static void NvMmPause_Input(PlayState* play, NvMmPauseGrid* g) {
             pauseCtx->cursorSpecialPos = 0;
             g->cursor = y * 6 + 5;
         }
-    } else if ((pauseCtx->stickRelX < -30) || CHECK_BTN_ALL(input->press.button, BTN_DLEFT)) {
+    } else if (dx < 0) {
         if (x == 0) {
             KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_LEFT);
         } else {
             g->cursor--;
         }
-    } else if ((pauseCtx->stickRelX > 30) || CHECK_BTN_ALL(input->press.button, BTN_DRIGHT)) {
+    } else if (dx > 0) {
         if (x == 5) {
             KaleidoScope_MoveCursorToSpecialPos(play, PAUSE_CURSOR_PAGE_RIGHT);
         } else {
             g->cursor++;
         }
-    } else if ((pauseCtx->stickRelY > 30) || CHECK_BTN_ALL(input->press.button, BTN_DUP)) {
+    } else if (dy < 0) {
         if (y == 0) {
             NvPause_Edge(play, g->side, -1);
             return;
         }
         g->cursor -= 6;
-    } else if ((pauseCtx->stickRelY < -30) || CHECK_BTN_ALL(input->press.button, BTN_DDOWN)) {
+    } else if (dy > 0) {
         if (y == 3) {
             NvPause_Edge(play, g->side, 1);
             return;
@@ -296,6 +298,11 @@ static const char* NvMmPause_NameOf(u8 item) {
         return NULL;
     }
     return sMmItemNames[item];
+}
+
+/** MM's English name for an MM item (z_nv_gear.c). */
+const char* NvMmPause_NameTex(s32 mmItem) {
+    return ((mmItem >= 0) && (mmItem < 0xFF)) ? NvMmPause_NameOf((u8)mmItem) : NULL;
 }
 
 /** MM's icon for an MM item (z_nv_mm_mask.c: the masks on the C buttons). */

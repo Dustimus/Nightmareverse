@@ -42,14 +42,16 @@ void NvPause_Register(const NvPausePage* page) {
     }
 }
 
-void NvPauseMm_Register(void); // z_nv_mm_pause.c
+void NvPauseMm_Register(void);   // z_nv_mm_pause.c
+void NvPauseGear_Register(void); // z_nv_gear.c
 
 static void NvPause_Init(void) {
     static s32 sReady;
 
     if (!sReady) {
         sReady = true;
-        NvPauseMm_Register(); // (each game's pages; RE1's, when its screens move in)
+        NvPauseGear_Register(); // (the gear page: under OoT's Equipment, before MM's masks)
+        NvPauseMm_Register();   // (each game's pages; RE1's, when its screens move in)
     }
 }
 
@@ -150,6 +152,40 @@ s32 NvPause_DrawColumn(PlayState* play, s32 side, Vtx* pageVtx, void** ootTiles,
     }
     CLOSE_DISPS(play->state.gfxCtx);
     return true;
+}
+
+/**
+ * Our pages' cursor steps (MM's and the gear page): the stick or the D-pad as one step, then, held,
+ * a step every 4 frames after 10 (OoT's own pages' feel). *dx, *dy: -1, 0 or 1 (up is -1).
+ */
+void NvPause_Steps(PlayState* play, s32* dx, s32* dy) {
+    static s32 sHeldX, sHeldY, sTimerX, sTimerY;
+    PauseContext* pauseCtx = &play->pauseCtx;
+    Input* input = &play->state.input[0];
+    s32 x = ((pauseCtx->stickRelX < -30) || CHECK_BTN_ALL(input->cur.button, BTN_DLEFT))    ? -1
+            : ((pauseCtx->stickRelX > 30) || CHECK_BTN_ALL(input->cur.button, BTN_DRIGHT)) ? 1
+                                                                                          : 0;
+    s32 y = ((pauseCtx->stickRelY > 30) || CHECK_BTN_ALL(input->cur.button, BTN_DUP))      ? -1
+            : ((pauseCtx->stickRelY < -30) || CHECK_BTN_ALL(input->cur.button, BTN_DDOWN)) ? 1
+                                                                                          : 0;
+
+    *dx = *dy = 0;
+    if (x != sHeldX) {
+        sHeldX = x;
+        sTimerX = 10;
+        *dx = x;
+    } else if ((x != 0) && (--sTimerX <= 0)) {
+        sTimerX = 4;
+        *dx = x;
+    }
+    if (y != sHeldY) {
+        sHeldY = y;
+        sTimerY = 10;
+        *dy = y;
+    } else if ((y != 0) && (--sTimerY <= 0)) {
+        sTimerY = 4;
+        *dy = y;
+    }
 }
 
 /** The cursor went past the page's top (dir -1) or bottom row (dir 1): the column slides a page. */

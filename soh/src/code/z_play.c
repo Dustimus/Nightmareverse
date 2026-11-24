@@ -664,6 +664,7 @@ void NvMovie_Draw(PlayState* play);
 s32 NvBoxUi_Update(PlayState* play);
 void NvBoxUi_Draw(PlayState* play);
 void NvMm_Update(PlayState* play); // Nightmareverse: Termina (Majora's Mask), z_nv_mm.c
+void NvGear_Update(PlayState* play); // Nightmareverse: the gear page's swords (z_nv_gear.c)
 void NvMm_Draw(PlayState* play);
 void NvPanel_Draw(PlayState* play);
 s32 NvEnding_Update(PlayState* play);
@@ -727,6 +728,7 @@ void Play_Update(PlayState* play) {
     NvDoor_Update(play); // Nightmareverse: RE1 doors, A in front of them (z_nv_door.c)
     NvDoorScene_Update(play); // ...and RE1's door scenes between rooms (z_nv_doorscene.c)
     NvScript_Update(play);    // ...and the room's own scripts (z_nv_script.c)
+    NvGear_Update(play);      // Nightmareverse: the Knife and Biggoron's apart (z_nv_gear.c)
     NvMm_Update(play);        // Nightmareverse: Termina, in MM's scenes only: its clock, its exits (z_nv_mm.c)
 
     gSegments[4] = VIRTUAL_TO_PHYSICAL(play->objectCtx.status[play->objectCtx.mainKeepIndex].segment);

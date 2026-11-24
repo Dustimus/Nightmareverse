@@ -14105,6 +14105,7 @@ s32 func_8084DFF4(PlayState* play, Player* this) {
         if (!(giEntry.modIndex == MOD_RANDOMIZER && giEntry.itemId == RG_ICE_TRAP)) {
             if (giEntry.modIndex == MOD_NONE) {
                 // RANDOTOD: Move this into Item_Give() or some other more central location
+                NvGear_GotItem(giEntry.getItemId); // Nightmareverse: the Knife and Biggoron's apart (z_nv_gear.c)
                 if (giEntry.getItemId == GI_SWORD_BGS) {
                     gSaveContext.bgsFlag = true;
                     gSaveContext.swordHealth = 8;

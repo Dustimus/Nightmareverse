@@ -95,6 +95,8 @@ void EnGm_Destroy(Actor* thisx, PlayState* play) {
 s32 func_80A3D7C8(void) {
     if (LINK_AGE_IN_YEARS == YEARS_CHILD) {
         return 0;
+    } else if (!IS_RANDO) { // Nightmareverse: he sells a Knife whenever there's no whole one (z_nv_gear.c)
+        return NvGear_MedigoronCase();
     } else if (GameInteractor_Should(
                    VB_BE_ELIGIBLE_FOR_GIANTS_KNIFE_PURCHASE,
                    (!CHECK_OWNED_EQUIP_ALT(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BIGGORON) // Don't have giant's knife

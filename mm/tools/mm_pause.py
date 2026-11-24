@@ -98,7 +98,28 @@ def write_textures(rom, res):
             body = struct.pack("<IIII", kind, w, h, size) + data[off:off + size]
             open(os.path.join(d, tex), "wb").write(_otr_header(OTEX) + body)
             count += 1
+            if tex == "gPauseMasks10ENGTex":
+                _write_blank_top(res, data[off:off + size])
     print(f"MM pause textures: {count}")
+
+
+def _write_blank_top(res, masks10):
+    """Our own pages' top middle tile with no title (z_nv_gear.c): MM's mask page's (its corners carry
+    no text), the title's rows (6-17, columns 14-74) filled from the band's own grain at that row's
+    ends, blended left to right as the band's light falls off."""
+    from mm_scene import _otr_header
+    import random
+    rng = random.Random(1)  # (the same tile every build)
+    t = bytearray(masks10)
+    for y in range(5, 19):
+        row = masks10[y * 80:(y + 1) * 80]
+        for x in range(14, 75):
+            frac = (x - 14) / 60.0
+            t[y * 80 + x] = row[rng.randrange(0, 14)] if rng.random() >= frac else row[rng.randrange(75, 80)]
+    d = os.path.join(res, "mm", "textures", "nv_pause")
+    os.makedirs(d, exist_ok=True)
+    body = struct.pack("<IIII", FORMATS["ia8"][0], 80, 32, len(t)) + bytes(t)
+    open(os.path.join(d, "gNvPauseBlankTop10Tex"), "wb").write(_otr_header(OTEX) + body)
 
 
 if __name__ == "__main__":

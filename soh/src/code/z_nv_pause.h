@@ -29,6 +29,7 @@ typedef struct NvPausePage {
 } NvPausePage;
 
 void NvPause_Register(const NvPausePage* page);
+void NvPause_Steps(PlayState* play, s32* dx, s32* dy); // our pages' cursor: a step, then held, repeats
 
 // the kaleido's hooks (ovl_kaleido_scope)
 s32 NvPause_DrawColumn(PlayState* play, s32 side, Vtx* pageVtx, void** ootTiles, void (*ootDraw)(PlayState* play));
