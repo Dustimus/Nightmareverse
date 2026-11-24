@@ -78,6 +78,11 @@ static NvMmLinkSwap sSwaps[] = {
 
 static s32 sSwapped;
 
+/** Young Link is MM's model just now (Termina; z_nv_mm_form.c draws MM's gear on it MM's way). */
+s32 NvMmLink_IsMm(void) {
+    return sSwapped;
+}
+
 /** SoH's OnSceneInit (before Link is made): MM's young Link in Termina, OoT's elsewhere. */
 void NvMmMask_Init(void);
 

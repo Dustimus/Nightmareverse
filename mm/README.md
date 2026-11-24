@@ -88,15 +88,18 @@ before building a new system; add a line whenever a new one is made.
   **MM's Hero's and Mirror shields** on young Link (human; not the Fierce Deity, not adult Link): OoT's
   Hylian slot stands in for the Hero's (metal; OoT's child-with-the-Hylian rules off for it, so it's
   held in hand as MM holds it, `Player_IsChildWithHylianShield` hook), OoT's Mirror slot for MM's
-  Mirror (it reflects as OoT's). Drawn as MM's: in hand OoT's child fist and MM's shield (as MM's own
-  holding lists are its fist and the shield); on his back OoT's sheath, then OoT's own placing of a
+  Mirror (it reflects as OoT's). Drawn as MM's. In Termina young Link is MM's own model (z_nv_mm_link.c), so MM's own lists go on as
+  they are: its hand holding the shield, its shield "with matrix" from the sheath (the user: no
+  placing of our own needed there; MM's and OoT's animations are the same data, checked, so it sits
+  as in MM, the Hero's crest upside down on his back as MM hangs it). In Hyrule he's OoT's model:
+  OoT's child fist and MM's shield in hand; on his back OoT's sheath, then OoT's own placing of a
   shield there (the matrix OoT uses for the Deku Shield, `NvMmForm_MmShieldOnBack`), with MM's
   shield first turned into that matrix's space ((x, y, z) -> (y, -z, -x - 100), measured on OoT's
-  Deku Shield) and over in its plane (OoT's Deku is drawn upside down, which its round face hides;
-  MM's crest doesn't). MM's own "with matrix" lists place it from MM's sheath, not OoT's.
+  Deku Shield, texture coordinates too), which hangs it as MM does. The Great Fairy's Sword the same:
+  MM's own hand holding it in Termina, OoT's fist and MM's sword elsewhere and on adult Link.
   Known: taking OoT's Hylian on OoT's page while the Hero's is on keeps showing the Hero's (the
   same slot underneath).
-  Tested headless: both on his back walking (the Hero's upright); in hand only glimpsed.
+  Tested headless: both on his back walking in Clock Town (MM's own placing); in hand only glimpsed.
   Not yet: the Razor and Gilded, a
   title for the page.
   Tested headless: the page, young Link taking the Kokiri Sword and the Deku Shield (outlines move),

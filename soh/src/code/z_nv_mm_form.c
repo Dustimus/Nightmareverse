@@ -1127,7 +1127,8 @@ static Gfx* NvMmForm_Pair(const char* first, const char* second) {
 }
 
 /**
- * MM's shield on young Link's back: OoT's sheath, then OoT's own placing of a shield on his back (the
+ * MM's shield on young Link's back, on OoT's model (Hyrule; in Termina he's MM's own model and MM's own
+ * lists are drawn as they are): OoT's sheath, then OoT's own placing of a shield on his back (the
  * matrix of gLinkChildDekuShieldWithMatrixDL, which OoT uses for the Deku Shield there), then MM's
  * shield. MM's shields are modelled in the hand's space; OoT's matrix takes the Deku Shield's own
  * space, which is the hand's with its axes turned: (x, y, z) -> (y, -z, -x - 100) (measured: every
@@ -1144,9 +1145,9 @@ static Gfx* NvMmForm_MmShieldOnBack(s32 swordIn, s32 hero) {
         s32 i;
 
         if (sHandToShield.m[0][0] == 0) {
-            // (and first, MM's shield turned over in its own plane, about its middle (-127, 42): OoT's Deku
-            // Shield is drawn upside down in the hand, which its round face never shows; MM's crest does)
-            MtxF mf = { { { 0, 0, 1, 0 }, { -1, 0, 0, 0 }, { 0, -1, 0, 0 }, { 84, 0, 154, 1 } } };
+            // (this hangs the Hero's crest upside down, as MM itself does: in Termina, MM's own model and
+            // MM's own placing, it comes out the same)
+            MtxF mf = { { { 0, 0, -1, 0 }, { 1, 0, 0, 0 }, { 0, -1, 0, 0 }, { 0, 0, -100, 1 } } };
 
             Matrix_MtxFToMtx(&mf, &sHandToShield);
         }
@@ -1183,6 +1184,12 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
         (player->leftHandType == PLAYER_MODELTYPE_LH_BGS)) {
         // the Great Fairy's Sword in human Link's hand (the gear page): OoT's fist and MM's sword, as MM's
         // own gLinkHumanLeftHandHoldingGreatFairysSwordDL is MM's fist and the sword
+        s32 NvMmLink_IsMm(void);
+
+        if (!LINK_IS_ADULT && NvMmLink_IsMm()) { // (MM's own model in Termina: MM's own hand holding it)
+            *dList = ResourceMgr_LoadGfxByName("__OTR__mm/objects/object_link_child/gLinkHumanLeftHandHoldingGreatFairysSwordDL");
+            return;
+        }
         *dList = NvMmForm_Pair(LINK_IS_ADULT ? "__OTR__objects/object_link_boy/gLinkAdultLeftHandClosedNearDL"
                                              : "__OTR__objects/object_link_child/gLinkChildLeftFistNearDL",
                                "__OTR__mm/objects/object_link_child/gLinkHumanGreatFairysSwordDL");
@@ -1193,8 +1200,15 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
         // is its fist and the shield), or on his back with his sheath (MM's shield "with matrix", placed
         // from the sheath)
         s32 hero = (NvGear_MmShield() == 1);
+        s32 NvMmLink_IsMm(void);
+        s32 mmModel = NvMmLink_IsMm(); // (in Termina young Link is MM's own model: MM's lists as they are)
 
         if ((limbIndex == PLAYER_LIMB_R_HAND) && (player->rightHandType == PLAYER_MODELTYPE_RH_SHIELD)) {
+            if (mmModel) {
+                *dList = ResourceMgr_LoadGfxByName(hero ? "__OTR__mm/objects/object_link_child/gLinkHumanRightHandHoldingHerosShieldDL"
+                                                        : "__OTR__mm/objects/object_link_child/gLinkHumanRightHandHoldingMirrorShieldDL");
+                return;
+            }
             *dList = NvMmForm_Pair("__OTR__objects/object_link_child/gLinkChildRightHandClosedNearDL",
                                    hero ? "__OTR__mm/objects/object_link_child/gLinkHumanHerosShieldDL"
                                         : "__OTR__mm/objects/object_link_child/gLinkHumanMirrorShieldDL");
@@ -1202,6 +1216,14 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
         }
         if ((limbIndex == PLAYER_LIMB_SHEATH) && ((player->sheathType == PLAYER_MODELTYPE_SHEATH_18) ||
                                                   (player->sheathType == PLAYER_MODELTYPE_SHEATH_19))) {
+            if (mmModel) { // (MM's own: its shield "with matrix", placed from MM's sheath, as MM draws it)
+                *dList = NvMmForm_Pair((player->sheathType == PLAYER_MODELTYPE_SHEATH_18)
+                                           ? "__OTR__objects/object_link_child/gLinkChildSwordAndSheathNearDL"
+                                           : "__OTR__objects/object_link_child/gLinkChildSheathNearDL",
+                                       hero ? "__OTR__mm/objects/object_link_child/gLinkHumanHerosShieldWithMtxDL"
+                                            : "__OTR__mm/objects/object_link_child/gLinkHumanMirrorShieldWithMtxDL");
+                return;
+            }
             *dList = NvMmForm_MmShieldOnBack(player->sheathType == PLAYER_MODELTYPE_SHEATH_18, hero);
             return;
         }
