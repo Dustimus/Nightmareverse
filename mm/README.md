@@ -72,6 +72,10 @@ before building a new system; add a line whenever a new one is made.
   the back, over the head) are switched off for him (`Player_IsChildWithHylianShield` hook,
   z_player_lib.c). The Deku Shield isn't his (none shown). Changing out of him with OoT's Mirror on,
   young Link gets the Hylian back (or the Deku, or none).
+  **He'd stood sunk into the ground** (the user saw it, 2026-11-24): OoT draws young Link's body
+  lower (the root's height times 0.64) and fits his feet to the floor with a child's leg lengths,
+  and the Fierce Deity is young Link underneath; both now take adult Link's for him (z_player_lib.c:
+  the root's scale and func_8008F87C's legs, `NvMmForm_IsFierceDeity`).
   Not yet: the Great Fairy's Sword on B, MM's Hero's and Mirror shields, the Razor and Gilded, a
   title for the page, the Double Helix's own B icon (the Kokiri's shows).
   Tested headless: the page, young Link taking the Kokiri Sword and the Deku Shield (outlines move),

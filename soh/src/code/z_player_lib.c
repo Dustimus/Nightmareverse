@@ -1182,20 +1182,21 @@ void func_8008F87C(PlayState* play, Player* this, SkelAnime* skelAnime, Vec3f* p
     s16 temp1;
     s16 temp2;
     s32 temp3;
+    s32 legAge = NvMmForm_IsFierceDeity() ? LINK_AGE_ADULT : gSaveContext.linkAge; // Nightmareverse: adult legs
 
     if ((this->actor.scale.y >= 0.0f) && !(this->stateFlags1 & PLAYER_STATE1_DEAD) &&
         (Player_ActionToMagicSpell(this, this->itemAction) < 0)) {
         s32 pad;
 
-        sp7C = D_80126058[gSaveContext.linkAge];
-        sp78 = D_80126060[gSaveContext.linkAge];
-        sp74 = D_80126068[gSaveContext.linkAge] - this->unk_6C4;
+        sp7C = D_80126058[legAge];
+        sp78 = D_80126060[legAge];
+        sp74 = D_80126068[legAge] - this->unk_6C4;
 
         Matrix_Push();
         Matrix_TranslateRotateZYX(pos, rot);
         Matrix_MultVec3f(&sZeroVec, &spA4);
-        Matrix_TranslateRotateZYX(&D_80126038[gSaveContext.linkAge], &skelAnime->jointTable[shinLimbIndex]);
-        Matrix_Translate(D_80126050[gSaveContext.linkAge], 0.0f, 0.0f, MTXMODE_APPLY);
+        Matrix_TranslateRotateZYX(&D_80126038[legAge], &skelAnime->jointTable[shinLimbIndex]);
+        Matrix_Translate(D_80126050[legAge], 0.0f, 0.0f, MTXMODE_APPLY);
         Matrix_MultVec3f(&sZeroVec, &sp98);
         Matrix_MultVec3f(&D_80126070, &footprintPos);
         Matrix_Pop();
@@ -1296,7 +1297,7 @@ s32 Player_OverrideLimbDrawGameplayCommon(PlayState* play, s32 limbIndex, Gfx** 
         sRightHandType = this->rightHandType;
         D_80160000 = &this->meleeWeaponInfo[2].base;
 
-        if (!LINK_IS_ADULT) {
+        if (!LINK_IS_ADULT && !NvMmForm_IsFierceDeity()) { // Nightmareverse: his body is adult Link's
             if (!(this->skelAnime.movementFlags & 4) || (this->skelAnime.movementFlags & 1)) {
                 pos->x *= 0.64f;
                 pos->z *= 0.64f;
