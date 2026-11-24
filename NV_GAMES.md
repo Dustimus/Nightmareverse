@@ -233,7 +233,8 @@ The default is shared or carried over. A Termina-only piece needs a reason.
     - **The Fierce Deity's tunic** can't change colour, so he has both tunics' effects: fireproof
       and breathing underwater (the user, 2026-11-24). Built: `NvMmForm_SuperTunic`, read where
       OoT reads SoH's Super Tunic cheat (one-line hooks in z_player.c, z_player_lib.c,
-      z_parameter.c).
+      z_parameter.c). Tested headless: in Death Mountain Crater no heat timer for him, 1:00 for young
+      Link (the underwater timer, same check, not yet seen).
     - **Its sword row:** the Kokiri Sword (MM's Razor and Gilded are its upgrades, as in MM: the
       Razor wears back to the Kokiri after 100 hits, the Gilded stays), the Master Sword, the
       Giant's Knife, Biggoron's Sword, the Double Helix (the Fierce Deity's). The Kokiri-slot stand-in
