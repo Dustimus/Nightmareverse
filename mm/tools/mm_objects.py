@@ -197,7 +197,12 @@ OBJECTS = {
         "skel_lod": {"gLinkHumanSkel": 0x1E244},
         "dl": {f"gLinkHuman{n}DL": o for n, o in {
             "Waist": 0xBDB0, "RightHandOpen": 0xD058, "LeftHandOpen": 0xD528, "LeftHandClosed": 0xE1C8,
-            "RightHandClosed": 0xE738, "RightHandHoldingOcarina": 0xED18}.items()},
+            "RightHandClosed": 0xE738, "RightHandHoldingOcarina": 0xED18,
+            # the gear page (z_nv_gear.c): the Great Fairy's Sword, the Hero's and Mirror shields
+            "GreatFairysSword": 0x16898, "LeftHandHoldingGreatFairysSword": 0x1DCD8, "HerosShield": 0x17458,
+            "MirrorShield": 0x16480, "RightHandHoldingHerosShield": 0x1DC28,
+            "RightHandHoldingMirrorShield": 0x1DC48, "HerosShieldWithMtx": 0x1DBC8,
+            "MirrorShieldWithMtx": 0x1DC18}.items()},
         "tex": {**{f"gLinkHumanEyes{n}Tex": (o, "CI8", 64, 32, 0x5000) for n, o in {
             "Open": 0x0, "Half": 0x800, "Closed": 0x1000, "Right": 0x1800, "Left": 0x2000, "Up": 0x2800,
             "Down": 0x3000, "Wincing": 0x3800}.items()},

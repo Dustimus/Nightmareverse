@@ -5460,14 +5460,14 @@ void Interface_Draw(PlayState* play) {
             // B Button Icon & Ammo Count
             if (gSaveContext.equips.buttonItems[0] != ITEM_NONE) {
                 if (fullUi) {
-                    Interface_DrawItemIconTexture(play, gItemIcons[gSaveContext.equips.buttonItems[0]], 0);
+                    Interface_DrawItemIconTexture(play, NvGear_BIcon(gItemIcons[gSaveContext.equips.buttonItems[0]]), 0); // Nightmareverse
                 }
 
                 if ((player->stateFlags1 & PLAYER_STATE1_ON_HORSE) || (play->shootingGalleryStatus > 1) ||
                     ((play->sceneNum == SCENE_BOMBCHU_BOWLING_ALLEY) && Flags_GetSwitch(play, 0x38))) {
 
                     if (!fullUi) {
-                        Interface_DrawItemIconTexture(play, gItemIcons[gSaveContext.equips.buttonItems[0]], 0);
+                        Interface_DrawItemIconTexture(play, NvGear_BIcon(gItemIcons[gSaveContext.equips.buttonItems[0]]), 0); // Nightmareverse
                     }
 
                     gDPPipeSync(OVERLAY_DISP++);

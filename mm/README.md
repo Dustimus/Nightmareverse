@@ -76,8 +76,17 @@ before building a new system; add a line whenever a new one is made.
   lower (the root's height times 0.64) and fits his feet to the floor with a child's leg lengths,
   and the Fierce Deity is young Link underneath; both now take adult Link's for him (z_player_lib.c:
   the root's scale and func_8008F87C's legs, `NvMmForm_IsFierceDeity`).
-  Not yet: the Great Fairy's Sword on B, MM's Hero's and Mirror shields, the Razor and Gilded, a
-  title for the page, the Double Helix's own B icon (the Kokiri's shows).
+  **The Great Fairy's Sword on B** (the decision: a B sword, not MM's C item): young human Link takes it
+  from the gear page; OoT's two-handed slot stands in for it (B holds Biggoron's item, the slot set
+  unbreakable), so it swings as Biggoron's, two-handed, for Biggoron's damage; drawn as MM's sword in
+  OoT's child fist (`NvMmForm_OverrideLimb`, as MM's own hand is its fist and the sword), B shows its
+  icon (`NvGear_BIcon`, z_parameter.c's B icon hook; the Double Helix's icon for the Fierce Deity
+  too). The slot's own Knife/Biggoron's come back as they were when another sword's taken (here or
+  on OoT's page). Changing into the Fierce Deity gives him his Double Helix in its place.
+  Not yet for it: adult Link (MM's is young Link's), its own damage, MM's draw-it-from-nowhere (it's
+  on no sheath; nothing shows on his back).
+  Not yet: MM's Hero's and Mirror shields, the Razor and Gilded, a
+  title for the page.
   Tested headless: the page, young Link taking the Kokiri Sword and the Deku Shield (outlines move),
   the Fierce Deity taking the Knife, Biggoron's, the Knife again, the Double Helix (the Kokiri Sword
   refused for him); his Hylian and Mirror shields on his back walking and in his fist guarding.

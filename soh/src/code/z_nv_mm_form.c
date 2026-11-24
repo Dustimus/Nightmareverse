@@ -409,6 +409,11 @@ static void NvMmForm_Change(PlayState* play, Player* player, s32 form) {
                                                     : PLAYER_SHIELD_NONE;
     Interface_LoadItemIcon1(play, 0);
     NvMmMask_TakeOff(); // (MM: a change takes the mask worn off)
+    {
+        void NvGear_FormChanged(PlayState * play, s32 form);
+
+        NvGear_FormChanged(play, form); // (the Great Fairy's Sword: human Link's)
+    }
     player->currentMask = PLAYER_MASK_NONE;
     sForm.form = form;
     NvMmForm_Apply(play, player);
@@ -1101,7 +1106,24 @@ void NvMmForm_OverrideLimb(s32 limbIndex, Gfx** dList) {
     Player* player = (gPlayState != NULL) ? GET_PLAYER(gPlayState) : NULL;
     s32 closed = (player != NULL) && (player->actor.speedXZ > 2.0f);
     const char* dl;
+    s32 NvGear_GfsOn(void);
 
+    if ((def == NULL) && (limbIndex == PLAYER_LIMB_L_HAND) && (player != NULL) && NvGear_GfsOn() &&
+        (player->leftHandType == PLAYER_MODELTYPE_LH_BGS)) {
+        // the Great Fairy's Sword in young Link's hand (the gear page): OoT's fist and MM's sword, as MM's
+        // own gLinkHumanLeftHandHoldingGreatFairysSwordDL is MM's fist and the sword
+        static Gfx sHand[3];
+
+        if (sHand[0].words.w0 == 0) {
+            Gfx* g = sHand;
+
+            gSPDisplayList(g++, ResourceMgr_LoadGfxByName("__OTR__objects/object_link_child/gLinkChildLeftFistNearDL"));
+            gSPDisplayList(g++, ResourceMgr_LoadGfxByName("__OTR__mm/objects/object_link_child/gLinkHumanGreatFairysSwordDL"));
+            gSPEndDisplayList(g++);
+        }
+        *dList = sHand;
+        return;
+    }
     if (def == NULL) {
         return;
     }

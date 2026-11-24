@@ -39,9 +39,12 @@ typedef struct {
     s32 knife;       // 0 none, 1 whole, 2 broken
     s32 bgs;         // Biggoron's Sword owned
     f32 knifeHealth; // the Knife's (OoT's swordHealth while it's the one in the slot)
+    s32 gfs;         // the Great Fairy's Sword is the one on B (in OoT's two-handed slot, as Biggoron's)
 } NvGearSave;
 
 static NvGearSave sGear;
+
+static void NvGear_GfsOff(void);
 
 NvGearSave* NvGear_SaveVars(void) {
     return &sGear;
@@ -57,6 +60,13 @@ void NvGear_NewGame(void) {
 /** Each frame (z_play.c): what OoT's one slot holds now, into ours (it changes by OoT's own code: the
  * Knife breaking, Biggoron handing his over, an old save). */
 void NvGear_Update(PlayState* play) {
+    if (sGear.gfs) {
+        if ((CUR_EQUIP_VALUE(EQUIP_TYPE_SWORD) == EQUIP_VALUE_SWORD_BIGGORON) &&
+            (gSaveContext.equips.buttonItems[0] == ITEM_SWORD_BGS)) {
+            return; // (OoT's slot is standing in for it)
+        }
+        NvGear_GfsOff(); // (another sword taken by OoT's own page, or the age changed)
+    }
     if (!OWNS_SLOT() && !SLOT_BROKEN()) {
         return;
     }
@@ -87,8 +97,60 @@ s32 NvGear_MedigoronCase(void) {
     return (sGear.knife == 0) ? 1 : (sGear.knife == 2) ? 2 : 3;
 }
 
+/** OoT's slot as it rests with nothing of ours in it: Biggoron's if owned, else the Knife, else empty
+ * (the Great Fairy's Sword put away). */
+static void NvGear_RestSlot(void) {
+    gSaveContext.inventory.equipment &= ~OWNED_EQUIP_FLAG_ALT(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BROKENGIANTKNIFE);
+    if (sGear.bgs || sGear.knife) {
+        gSaveContext.inventory.equipment |= OWNED_EQUIP_FLAG(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BIGGORON);
+    } else {
+        gSaveContext.inventory.equipment &= ~OWNED_EQUIP_FLAG(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BIGGORON);
+    }
+    gSaveContext.bgsFlag = sGear.bgs;
+    if (!sGear.bgs && (sGear.knife == 2)) {
+        gSaveContext.inventory.equipment |= OWNED_EQUIP_FLAG_ALT(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BROKENGIANTKNIFE);
+    }
+    gSaveContext.swordHealth = sGear.bgs ? 8.0f : (sGear.knife == 2) ? 0.0f : sGear.knifeHealth;
+}
+
+/** The Great Fairy's Sword is the one on B (z_nv_mm_form.c draws it, z_parameter.c shows its icon). */
+s32 NvGear_GfsOn(void) {
+    return sGear.gfs;
+}
+
+/** Off it, OoT's slot back as it rests. */
+static void NvGear_GfsOff(void) {
+    if (sGear.gfs) {
+        sGear.gfs = false;
+        NvGear_RestSlot();
+    }
+}
+
+/** z_nv_mm_form.c: a change of form. The Great Fairy's Sword is human Link's (MM's): the Fierce Deity
+ * takes his Double Helix in its place. */
+void NvGear_FormChanged(PlayState* play, s32 form) {
+    if (sGear.gfs && (form == 0)) {
+        NvGear_GfsOff();
+        Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
+        gSaveContext.equips.buttonItems[0] = ITEM_SWORD_KOKIRI;
+    }
+}
+
+/** The B button's icon (z_parameter.c's hook): the Great Fairy's Sword's, the Double Helix's (MM's),
+ * where OoT's slot stands in for them; else OoT's. */
+void* NvGear_BIcon(void* oot) {
+    if (sGear.gfs && (gSaveContext.equips.buttonItems[0] == ITEM_SWORD_BGS)) {
+        return (void*)NvMmPause_Icon(0x10);
+    }
+    if ((NvMmForm_Get() == 0) && (gSaveContext.equips.buttonItems[0] == ITEM_SWORD_KOKIRI)) {
+        return (void*)NvMmPause_Icon(0x50);
+    }
+    return oot;
+}
+
 /** Puts the Knife (bgs false) or Biggoron's in OoT's slot and on B. */
 static void NvGear_HoldBig(s32 bgs) {
+    sGear.gfs = false;
     gSaveContext.inventory.equipment |= OWNED_EQUIP_FLAG(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BIGGORON);
     gSaveContext.inventory.equipment &= ~OWNED_EQUIP_FLAG_ALT(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BROKENGIANTKNIFE);
     if (bgs) {
@@ -168,10 +230,11 @@ static s32 NvGear_CanUse(s32 kind) {
         case GEAR_KNIFE:
         case GEAR_BGS: return adult || fd;
         case GEAR_HELIX: return fd;
+        case GEAR_GREAT_FAIRY: return (form == 4) && !adult; // (MM's human Link's)
         case GEAR_SHIELD_DEKU: return !adult && !fd;
         case GEAR_SHIELD_HYLIAN: return true;
         case GEAR_SHIELD_MIRROR: return adult || fd; // (adult Link's shields: his too)
-        default: return false; // (the Great Fairy's Sword on B, MM's shields: to come)
+        default: return false; // (MM's shields: to come)
     }
 }
 
@@ -186,8 +249,9 @@ static s32 NvGear_Worn(s32 kind) {
         case GEAR_KOKIRI: return (sword == EQUIP_VALUE_SWORD_KOKIRI) && !fd;
         case GEAR_HELIX: return (sword == EQUIP_VALUE_SWORD_KOKIRI) && fd;
         case GEAR_MASTER: return sword == EQUIP_VALUE_SWORD_MASTER;
-        case GEAR_KNIFE: return (sword == EQUIP_VALUE_SWORD_BIGGORON) && !gSaveContext.bgsFlag;
-        case GEAR_BGS: return (sword == EQUIP_VALUE_SWORD_BIGGORON) && gSaveContext.bgsFlag;
+        case GEAR_KNIFE: return (sword == EQUIP_VALUE_SWORD_BIGGORON) && !gSaveContext.bgsFlag && !sGear.gfs;
+        case GEAR_BGS: return (sword == EQUIP_VALUE_SWORD_BIGGORON) && gSaveContext.bgsFlag && !sGear.gfs;
+        case GEAR_GREAT_FAIRY: return sGear.gfs;
         case GEAR_SHIELD_DEKU: return CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_DEKU;
         case GEAR_SHIELD_HYLIAN: return CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_HYLIAN;
         case GEAR_SHIELD_MIRROR: return CUR_EQUIP_VALUE(EQUIP_TYPE_SHIELD) == EQUIP_VALUE_SHIELD_MIRROR;
@@ -242,7 +306,18 @@ static void NvGear_Take(PlayState* play, s32 kind) {
         NvGear_Sfx(NA_SE_SY_ERROR);
         return;
     }
+    if ((kind <= GEAR_HELIX) && (kind != GEAR_GREAT_FAIRY)) {
+        NvGear_GfsOff();
+    }
     switch (kind) {
+        case GEAR_GREAT_FAIRY: // (OoT's two-handed slot stands in: Biggoron's swings, never breaking)
+            sGear.gfs = true;
+            gSaveContext.bgsFlag = true;
+            gSaveContext.swordHealth = 8.0f;
+            gSaveContext.inventory.equipment &= ~OWNED_EQUIP_FLAG_ALT(EQUIP_TYPE_SWORD, EQUIP_INV_SWORD_BROKENGIANTKNIFE);
+            Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_BIGGORON);
+            gSaveContext.equips.buttonItems[0] = ITEM_SWORD_BGS;
+            break;
         case GEAR_KOKIRI:
         case GEAR_HELIX: // (the Double Helix is the Fierce Deity's Kokiri Sword slot, z_nv_mm_form.c)
             Inventory_ChangeEquipment(EQUIP_TYPE_SWORD, EQUIP_VALUE_SWORD_KOKIRI);
@@ -272,10 +347,10 @@ static void NvGear_Take(PlayState* play, s32 kind) {
     }
     NvGear_Sfx(NA_SE_SY_DECIDE);
     if (getenv("NV_LOG") != NULL) {
-        printf("NVGEAR took %d: equips %04X owned %08X B %d bgsFlag %d health %d; knife %d bgs %d\n", (int)kind,
+        printf("NVGEAR took %d: equips %04X owned %08X B %d bgsFlag %d health %d; knife %d bgs %d gfs %d\n", (int)kind,
                (unsigned)gSaveContext.equips.equipment, (unsigned)gSaveContext.inventory.equipment,
                (int)gSaveContext.equips.buttonItems[0], (int)gSaveContext.bgsFlag, (int)gSaveContext.swordHealth,
-               (int)sGear.knife, (int)sGear.bgs);
+               (int)sGear.knife, (int)sGear.bgs, (int)sGear.gfs);
         fflush(stdout);
     }
 }
