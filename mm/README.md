@@ -104,14 +104,14 @@ work, the user, 2026-11-24):**
   Mirror (it reflects as OoT's). Drawn as MM's. In Termina young Link is MM's own model (z_nv_mm_link.c), so MM's own lists go on as
   they are: its hand holding the shield, its shield "with matrix" from the sheath (the user: no
   placing of our own needed there; MM's and OoT's animations are the same data, checked, so it sits
-  as MM's data has it; see the open question below). In Hyrule he's OoT's model:
+  as MM's data has it, as in MM). In Hyrule he's OoT's model:
   OoT's child fist and MM's shield in hand; on his back OoT's sheath, then OoT's own placing of a
   shield there (the matrix OoT uses for the Deku Shield, `NvMmForm_MmShieldOnBack`), with MM's
   shield first turned into that matrix's space ((x, y, z) -> (y, -z, -x - 100), measured on OoT's
-  Deku Shield, texture coordinates too) and turned over in its plane, so its crest hangs upright as
-  OoT's own child Hylian does (the user caught it upside down, 2026-11-24). Open: in Termina, MM's
-  own data unchanged hangs the Hero's crest upside down; whether MM really shows it that way is for
-  the user to say (not checked against MM itself). The Great Fairy's Sword the same:
+  Deku Shield, texture coordinates too), which hangs it as MM's own data hangs it in Termina. Checked
+  against MM (the user's screenshot, 2026-11-24): the Hero's Shield's Triforce is under the bird by
+  its design (MM's icon shows it so), not above it as on OoT's Hylian; that's the right way up. (I
+  had judged it by the Hylian's crest and "fixed" it upside down for a while.) The Great Fairy's Sword the same:
   MM's own hand holding it in Termina, OoT's fist and MM's sword elsewhere and on adult Link.
   Known: taking OoT's Hylian on OoT's page while the Hero's is on keeps showing the Hero's (the
   same slot underneath).
