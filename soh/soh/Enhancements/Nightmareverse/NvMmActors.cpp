@@ -111,6 +111,10 @@ NV_MM_SCENERY(Step)
 NV_MM_SCENERY(Guruguru)
 NV_MM_SCENERY(Rz)
 NV_MM_SCENERY(Ja)
+NV_MM_SCENERY(Cha)
+NV_MM_SCENERY(Bell)
+NV_MM_SCENERY(Drs)
+NV_MM_SCENERY(Muto)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -277,6 +281,19 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
       { "Mm_En_Ja", "MM: a juggler", ACTORCAT_NPC,
         ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmJaSize,
         NvMmJa_Init, NvMmJa_Destroy, NvMmJa_Update, NvMmJa_Draw } },
+    { 0x270,
+      { "Mm_En_Cha", "MM: the Laundry Pool's bell", ACTORCAT_PROP, 0, &gNvMmChaSize, NvMmCha_Init, NvMmCha_Destroy,
+        NvMmCha_Update, NvMmCha_Draw } },
+    { 0x14E,
+      { "Mm_Obj_Bell", "MM: East Clock Town's big bell", ACTORCAT_PROP,
+        ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmBellSize, NvMmBell_Init,
+        NvMmBell_Destroy, NvMmBell_Update, NvMmBell_Draw } },
+    { 0x2A1,
+      { "Mm_En_Drs", "MM: the wedding dress's mannequin", ACTORCAT_PROP, 0, &gNvMmDrsSize, NvMmDrs_Init,
+        NvMmDrs_Destroy, NvMmDrs_Update, NvMmDrs_Draw } },
+    { 0x26B,
+      { "Mm_En_Muto", "MM: Mutoh", ACTORCAT_NPC, ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY, &gNvMmMutoSize,
+        NvMmMuto_Init, NvMmMuto_Destroy, NvMmMuto_Update, NvMmMuto_Draw } },
     { 0x183,
       { "Mm_Obj_Etcetera", "MM: a Deku flower", ACTORCAT_BG, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmEtceteraSize,
         NvMmEtcetera_Init, NvMmEtcetera_Destroy, NvMmEtcetera_Update, NvMmEtcetera_Draw } },

@@ -99,6 +99,19 @@ OBJECTS = {
         "anim": {f"object_boj_Anim_{o:06X}": o for o in (0x2734, 0x33B0, 0x4078, 0x5CE4)},
         "dl": {"object_boj_DL_00BA30": 0xBA30, "object_boj_DL_00BCC8": 0xBCC8},
         "tex": {f"object_boj_Tex_{o:06X}": (o, "CI8", 16, 16, 0x5DB0) for o in (0x62B0, 0x63B0, 0x64B0)}}),
+    "object_cha": (1048, {"dl": {  # the Laundry Pool's bell (En_Cha): frame, bell
+        "object_cha_DL_000710": 0x710, "object_cha_DL_000958": 0x958}}),
+    "object_f52_obj": (860, {"dl": {  # East Clock Town's big bell (Obj_Bell): post, bell, base, shadow, hook, designs
+        "object_f52_obj_DL_000570": 0x570, "object_f52_obj_DL_000698": 0x698, "object_f52_obj_DL_0007A8": 0x7A8,
+        "object_f52_obj_DL_000840": 0x840, "object_f52_obj_DL_0008D0": 0x8D0, "object_f52_obj_DL_000960": 0x960},
+        "col": {"object_f52_obj_Colheader_001BA8": 0x1BA8}}),
+    "object_drs": (1096, {  # the wedding dress's mannequin, Anju's room (En_Drs)
+        "skel": {"gWeddingDressMannequinSkel": 0x5A78},
+        "anim": {"gWeddingDressMannequinIdleAnim": 0x1C}}),
+    "object_msmo": (1097, {"dl": {"gMoonMaskDL": 0xE70}}),  # the Moon Mask, on the mannequin
+    "object_toryo": (778, {  # Mutoh, the carpenters' boss (En_Muto)
+        "skel": {"object_toryo_Skel_007150": 0x7150},
+        "anim": {"object_toryo_Anim_000E50": 0xE50}}),
     "object_ctower_rot": (718, {"dl": {  # inside the clock tower: cogs, water wheel, the twisting corridor, stone doors
         "gClockTowerCeilingCogDL": 0x10828, "gClockTowerCenterCogDL": 0x17018, "gClockTowerWaterWheelDL": 0x18118,
         "gClockTowerCorridorDL": 0x12DA0, "gClockTowerCorridorFoliageDL": 0x129D0,

@@ -61,6 +61,10 @@ PORTED = {
     0x248,  # En_Guruguru: Guru-Guru (z_nv_mm_guruguru.c)
     0x27B,  # En_Rz: the Rosa sisters (z_nv_mm_rz.c)
     0x244,  # En_Ja: the jugglers (z_nv_mm_ja.c)
+    0x270,  # En_Cha: the Laundry Pool's bell (z_nv_mm_townprops.c)
+    0x14E,  # Obj_Bell: East Clock Town's big bell (z_nv_mm_townprops.c)
+    0x2A1,  # En_Drs: the wedding dress's mannequin (z_nv_mm_townprops.c)
+    0x26B,  # En_Muto: Mutoh (z_nv_mm_townprops.c)
 }
 
 # MM's ids (the decomp's actor table)

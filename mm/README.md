@@ -545,6 +545,23 @@ inn: night). MM's message scripts: each brother speaks in turn (MM's FOCUS_TO_CH
 Left out: their heads turning to Link (MM's SubS_UpdateLimb), as for the inn's Goron.
 Tested headless: juggling at 12:00 in East Clock Town, their joke, both at the inn's table at 20:00.
 
+### Clock Town's bells, the mannequin and Mutoh (2026-11-25, `soh/src/code/z_nv_mm_townprops.c`)
+
+- **The Laundry Pool's bell** (MM's En_Cha, `object_cha`): rung by a hit, swinging on MM's damped
+  spring. The first ring sets week event 51_04; 60_04 (set by others) rings it too. MM's cutscene on
+  that first ring waits for Kafei (En_Test3).
+- **East Clock Town's big bell** (MM's Obj_Bell, `object_f52_obj`): swung by hits, harder by the
+  Goron's punch and harder still by explosions (MM's damage effects 15 and 14, here OoT's nearest
+  kinds: the hammer's and explosives'), knocking Link back when it swings into him. MM's spheres are
+  OoT's jointed spheres with one element each, moved with the swinging bell as MM does.
+- **The wedding dress** (MM's En_Drs, `object_drs`), Anju's room, the Moon Mask on top (`object_msmo`)
+  until the Couple's Mask scene starts (week event 87_02).
+- **Mutoh** (MM's En_Muto, `object_toryo`): in South Clock Town on the last night (MM's lines, Deku
+  Link's, Kafei's Mask's); in the mayor's room (params 1) for the meeting, which isn't in yet, so
+  there he only talks.
+- Sounds: OoT has no door bell or big bell; its ship bell stands in until MM's audio.
+Tested headless: both bells hit and swinging, the mannequin and mask, Mutoh's "Cowards! All of you!"
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near
