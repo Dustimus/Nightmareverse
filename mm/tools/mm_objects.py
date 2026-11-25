@@ -55,7 +55,7 @@ OBJECTS = {
                 "gBomberEyeClosedTex": (0xD520, "RGBA16", 32, 32),
                 "gBomberNumber1Tex": (0xE620, "I8", 32, 32), "gBomberNumber2Tex": (0xEA20, "I8", 32, 32),
                 "gBomberNumber3Tex": (0xEE20, "I8", 32, 32), "gBomberNumber4Tex": (0xDD20, "I8", 32, 32),
-                "gBomberNumber5Tex": (0xF220, "I8", 32, 32)},
+                "gBomberNumber5Tex": (0xF220, "I8", 32, 32), "gBomberWhiteShirtBackTex": (0xE220, "I8", 32, 32)},
     }),
     "object_sdn": (926, {  # the soldiers (En_Stop_heishi, and others)
         "skel": {"gSoldierSkel": 0xD640},

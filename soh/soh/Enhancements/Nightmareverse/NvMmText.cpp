@@ -68,6 +68,48 @@ extern "C" uint16_t NvMmText_Next(uint16_t id) {
     return (e != nullptr) ? e->next : 0xFFFF;
 }
 
+extern "C" int32_t NvMmMsg_Expand(uint8_t code, uint8_t* out, int32_t max, int32_t* isInput);
+
+/**
+ * MM's value codes (tools/mm_text.py's marker: 0x7F, MM's code) written out as MM's decoder would, as
+ * the message opens (z_nv_mm_msginput.c). A message with a number input waits at its end, as MM's:
+ * OoT's event code before its end.
+ */
+static std::string NvMmText_Expand(const char* text, size_t len) {
+    std::string out;
+    bool input = false;
+
+    for (size_t i = 0; i < len; i++) {
+        uint8_t c = (uint8_t)text[i];
+
+        if ((c == 0x7F) && (i + 1 < len)) {
+            uint8_t buf[64];
+            int32_t isInput = 0;
+            int32_t n = NvMmMsg_Expand((uint8_t)text[++i], buf, sizeof(buf), &isInput);
+
+            out.append((const char*)buf, n);
+            input = input || isInput;
+            continue;
+        }
+        out.push_back((char)c);
+        // (OoT's codes with arguments: copied as they are, never read as a marker)
+        int args = ((c == 0x05) || (c == 0x06) || (c == 0x0C) || (c == 0x0E) || (c == 0x14)) ? 1
+                   : ((c == 0x07) || (c == 0x11) || (c == 0x12))                               ? 2
+                                                                                               : 0;
+        for (; (args > 0) && (i + 1 < len); args--) {
+            out.push_back(text[++i]);
+        }
+    }
+    if (input && (out.find('\x0B') == std::string::npos)) {
+        size_t end = out.rfind('\x02');
+
+        if (end != std::string::npos) {
+            out.insert(end, 1, '\x0B');
+        }
+    }
+    return out;
+}
+
 static void NvMmText_OnOpenText(uint16_t* textId, bool* loadFromMessageTable) {
     const uint8_t* base;
 
@@ -81,7 +123,7 @@ static void NvMmText_OnOpenText(uint16_t* textId, bool* loadFromMessageTable) {
     // MM's box types follow OoT's where they share them (black, wooden, blue, ...); others as black
     TextBoxType type = (e->box <= TEXTBOX_TYPE_NONE_NO_SHADOW) ? (TextBoxType)e->box : TEXTBOX_TYPE_BLACK;
     TextBoxPosition pos = (e->pos <= TEXTBOX_POS_BOTTOM) ? (TextBoxPosition)e->pos : TEXTBOX_POS_BOTTOM;
-    CustomMessage msg(std::string((const char*)base + e->offset, e->len), type, pos);
+    CustomMessage msg(NvMmText_Expand((const char*)base + e->offset, e->len), type, pos);
     msg.LoadIntoFont(); // (already OoT's codes: no reformatting)
     *loadFromMessageTable = false;
 }

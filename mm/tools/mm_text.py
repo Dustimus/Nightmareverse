@@ -9,7 +9,8 @@ They become OoT's codes (z_message_PAL.c's):
 - newline, box breaks, shift, the player's name, quick text on and off, events, persistent,
   delayed box break and fade;
 - two and three choices; the button and stick icons;
-- MM's counters, timers, codes, prices and sound effects (MM's own sound ids) are left out.
+- MM's counters, timers, codes, prices and number inputs kept as a marker (0x7F, MM's code),
+  expanded as the message opens (NvMmText.cpp); its sound effects (MM's own ids) are left out.
 
 Written as one resource, `mm/text/messages` ("MTXT", by MM text id: box type, position, next id,
 OoT-coded text), which the game reads by id (NvMmText.cpp). Nothing here is committed: the
@@ -25,7 +26,7 @@ MESSAGE_TABLE = 0x1210D8                  # in `code`, US 1.0 (found by its shap
 
 COLOURS = {0: 0x40, 1: 0x41, 2: 0x42, 3: 0x43, 4: 0x46, 5: 0x44, 6: 0x45, 7: 0x40, 8: 0x46}
 BUTTONS = {0xB0: 0x9F, 0xB1: 0xA0, 0xB2: 0xA1, 0xB3: 0xA2, 0xB4: 0xA3, 0xB5: 0xA4, 0xB6: 0xA5, 0xB7: 0xA6,
-           0xB8: 0xA7, 0xB9: 0xA8, 0xBA: 0xA9, 0xBB: 0xAB}
+           0xB8: 0xA7, 0xB9: 0xA8, 0xBA: 0xA9, 0xBB: 0xAA}  # (MM's "control pad" is the stick: OoT's 0xAA)
 
 
 def _file(rom, index):
@@ -77,8 +78,10 @@ def convert(text):
             out.append(0x1B)
         elif c == 0xC3:
             out.append(0x1C)
-        elif 0xC4 <= c <= 0xE4:  # counters, timers, codes, prices: not shown
-            pass
+        elif (0x0B <= c <= 0x0F) or (0xC4 <= c <= 0xE8) or (0xF0 <= c <= 0xF4):
+            # counters, timers, codes, prices, inputs: a marker, expanded as the message opens
+            # (NvMmText.cpp, z_nv_mm_msginput.c)
+            out += bytes((0x7F, c))
         else:
             out.append(c)
     out.append(0x02)

@@ -562,6 +562,35 @@ Tested headless: juggling at 12:00 in East Clock Town, their joke, both at the i
 - Sounds: OoT has no door bell or big bell; its ship bell stands in until MM's audio.
 Tested headless: both bells hit and swinging, the mannequin and mask, Mutoh's "Cowards! All of you!"
 
+### MM's message values and number inputs (2026-11-25, `soh/src/code/z_nv_mm_msginput.c`)
+
+MM's text codes for values and number entry, which the text conversion had dropped:
+- **Values**: `tools/mm_text.py` keeps each as a marker (0x7F, then MM's code); `NvMmText.cpp`
+  writes it out as the message opens, as MM's decoder does: the time, the time and hours until the
+  moon falls or the next dawn, the rupees chosen or in total (" Rupee(s)" after), a held item's
+  price, the Bombers' code. Others (minigame scores, stray fairies, the Spider House's code...) show
+  nothing yet. (MM's codes 0x0B-0x0F had been passed through as OoT's own controls: fixed with it.)
+- **Inputs**: the bank's amount (3 digits, the cursor on the last), the dog race's bet (2), the
+  Bombers' code (5 digits 1-5, starting 11111), the lottery's numbers (3). The digits are written
+  as text, each behind its own colour code, and the box waits at its end (OoT's event code), as
+  MM's input boxes. While it waits the stick or D-pad changes the selected digit (repeating while
+  held) and moves between them, as MM's Message_Control*Input; the selected digit is red (MM draws
+  a flashing box behind it). Each change rewrites the digit and its glyph slot in place. The actor
+  reads the digits when A goes on (`NvMmMsgInput_Digit`, `NvMmMsgInput_Value`).
+  Hooked from Message_Update (one line).
+- **The Bombers' code**: MM's, five different digits 1-5 made with a new file (Sram_
+  GenerateRandomSaveFields), saved ("bomberCode"); a file from before gets one on load. Dev:
+  `NV_MM_BOMBERCODE=12345` fixes it.
+- MM's "control pad" icon is the stick (OoT's 0xAA), not OoT's D-pad glyph, which OoT's font lacks.
+
+### The Bombers' hideout guard (2026-11-25, `soh/src/code/z_nv_mm_bombers.c`, MM's En_Bombers2)
+
+In front of the hideout's way in (East Clock Town), asking for the code with MM's code box; a
+correct digit stays correct between tries while he's talked to, as MM. Right, he steps aside (week
+event 73_80), salutes and stays aside (also when Link comes out of the hideout). Goron and Zora Link
+get MM's other line. MM's cutscene camera as he steps aside is left out; the masks' reactions wait.
+Tested headless: a wrong code ("Wrong!"), the right one, his stepping aside and next lines.
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near

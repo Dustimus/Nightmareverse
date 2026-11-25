@@ -65,6 +65,7 @@ PORTED = {
     0x14E,  # Obj_Bell: East Clock Town's big bell (z_nv_mm_townprops.c)
     0x2A1,  # En_Drs: the wedding dress's mannequin (z_nv_mm_townprops.c)
     0x26B,  # En_Muto: Mutoh (z_nv_mm_townprops.c)
+    0x281,  # En_Bombers2: the Bombers' hideout guard (z_nv_mm_bombers.c)
 }
 
 # MM's ids (the decomp's actor table)

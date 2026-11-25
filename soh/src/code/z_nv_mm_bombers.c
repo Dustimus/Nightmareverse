@@ -435,3 +435,320 @@ void NvMmBombers_Draw(Actor* thisx, PlayState* play) {
                           NvMmBombers_OverrideLimbDraw, NULL, &this->actor);
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+/*
+ * ---- En_Bombers2: the hideout's guard (MM id 0x281), MM's ovl_En_Bombers2 ----
+ * The Bomber in East Clock Town who stands in front of the hideout's way in, asking for the Bombers'
+ * code: MM's code box (z_nv_mm_msginput.c: five digits, 1-5); right, he steps aside (week event
+ * 73_80) and stays aside. As MM, a correct digit stays correct between tries while he's talked to.
+ * Adapted: MM's cutscene camera as he steps aside is left out (the box closes, he walks, then
+ * salutes and speaks again); the masks' reactions (Text_GetFaceReaction) wait for MM's masks.
+ */
+#define WEEKEVENTREG_ENTERED_BOMBERS_CODE MM_WE(73, 0x80)
+#define WEEKEVENTREG_TALKED_TO_BOMBERS_GUARD MM_WE(86, 0x02)
+#define GUARD_TEXT_BLOCKED_GORON_ZORA 1 // (MM's sTextIds' indices)
+#define GUARD_TEXT_ASK 2
+#define GUARD_TEXT_INPUT 3
+#define GUARD_TEXT_WRONG 4
+#define GUARD_TEXT_WRONG_BYE 5
+#define GUARD_TEXT_RIGHT 6
+#define GUARD_TEXT_ASIDE 7
+
+void NvMm_SetWeekEvent(s32 flag);
+s32 NvMmMsgInput_Digit(s32 i);
+u8* NvMmMsg_BomberCode(void);
+
+static u16 sGuardTextIds[] = { 0x0727, 0x0728, 0x0726, 0x0729, 0x072B, 0x0725, 0x072A, 0x073C };
+static Gfx sGuardBandanaDL[] = { gsDPSetPrimColor(0, 0xFF, 198, 140, 0, 255), gsSPEndDisplayList() };
+
+enum { GUARD_WAITING, GUARD_TALKING, GUARD_WALKING };
+
+struct NvMmBombers2;
+typedef void (*NvMmBombers2Func)(struct NvMmBombers2*, PlayState*);
+
+typedef struct NvMmBombers2 {
+    Actor actor;
+    SkelAnime skelAnime;
+    Vec3s jointTable[BOMBER_LIMB_MAX];
+    Vec3s morphTable[BOMBER_LIMB_MAX];
+    NvMmBombers2Func func;
+    s16 headRotX, headRotZ, headRotTargetX, headRotTargetZ;
+    s16 textIdIndex;
+    s16 animPhase;
+    s16 action;
+    s16 eyeIndex;
+    s16 blinkTimer;
+    s16 bodyRotTargetAngle;
+    s32 animIndex;
+    s32 inputting;          // MM's talkState == TEXT_STATE_INPUT_BOMBER_CODE
+    s32 hasMovedAside;
+    s32 correctDigitSlots[5];
+    f32 lastAnimFrame;
+    Vec3f walkTarget;
+    ColliderCylinder collider;
+} NvMmBombers2;
+
+const size_t gNvMmBombers2Size = sizeof(NvMmBombers2);
+
+static ColliderCylinderInit sGuardCylinderInit = {
+    { COLTYPE_NONE, AT_NONE, AC_NONE, OC1_ON | OC1_TYPE_ALL, OC2_TYPE_2, COLSHAPE_CYLINDER },
+    { ELEMTYPE_UNK0, { 0x00000000, 0x00, 0x00 }, { 0xF7CFFFFF, 0x00, 0x00 }, TOUCH_NONE | TOUCH_SFX_NORMAL,
+      BUMP_NONE, OCELEM_ON },
+    { 35, 30, 0, { 0, 0, 0 } },
+};
+
+static void NvMmBombers2_AwaitTalk(NvMmBombers2* this, PlayState* play);
+static void NvMmBombers2_Talking(NvMmBombers2* this, PlayState* play);
+static void NvMmBombers2_Walking(NvMmBombers2* this, PlayState* play);
+
+static void NvMmBombers2_ChangeAnim(NvMmBombers2* this, s32 anim) {
+    this->animIndex = anim;
+    this->lastAnimFrame = Animation_GetLastFrame((AnimationHeader*)sAnimations[anim]);
+    Animation_Change(&this->skelAnime, (AnimationHeader*)sAnimations[anim], 1.0f, 0.0f, this->lastAnimFrame,
+                     sAnimationModes[anim], -10.0f);
+}
+
+static void NvMmBombers2_SetupAwaitTalk(NvMmBombers2* this) {
+    NvMmBombers2_ChangeAnim(this, this->hasMovedAside ? ANIM_IDLE : ANIM_TAUNT);
+    this->action = GUARD_WAITING;
+    this->func = NvMmBombers2_AwaitTalk;
+}
+
+void NvMmBombers2_Init(Actor* thisx, PlayState* play) {
+    NvMmBombers2* this = (NvMmBombers2*)thisx;
+
+    thisx->colChkInfo.mass = MASS_IMMOVABLE;
+    ActorShape_Init(&thisx->shape, 0.0f, ActorShadow_DrawCircle, 19.0f);
+    SkelAnime_InitFlex(play, &this->skelAnime, (FlexSkeletonHeader*)sSkel, (AnimationHeader*)sAnimations[ANIM_IDLE],
+                       this->jointTable, this->morphTable, BOMBER_LIMB_MAX);
+    thisx->targetMode = 6;
+    Collider_InitCylinder(play, &this->collider);
+    Collider_SetCylinder(play, &this->collider, thisx, &sGuardCylinderInit);
+    if (NvMm_CheckWeekEvent(WEEKEVENTREG_ENTERED_BOMBERS_CODE) || (gSaveContext.entranceIndex == ENTR_MM_Z2_TOWN_2)) {
+        thisx->world.pos.x += Math_SinS(thisx->home.rot.y + 0xC100) * 50.0f;
+        thisx->world.pos.z += Math_CosS(thisx->home.rot.y + 0xC100) * 50.0f;
+        this->hasMovedAside = true;
+    }
+    NvMmBombers2_SetupAwaitTalk(this);
+}
+
+void NvMmBombers2_Destroy(Actor* thisx, PlayState* play) {
+    Collider_DestroyCylinder(play, &((NvMmBombers2*)thisx)->collider);
+}
+
+static void NvMmBombers2_SetupTalking(NvMmBombers2* this) {
+    if (this->textIdIndex <= GUARD_TEXT_BLOCKED_GORON_ZORA) {
+        NvMmBombers2_ChangeAnim(this, ANIM_ARM_SWIPE);
+    } else {
+        NvMmBombers2_ChangeAnim(this, ANIM_TALK_HANDS_ON_HIPS);
+    }
+    this->animPhase = 0;
+    if (this->hasMovedAside) {
+        NvMmBombers2_ChangeAnim(this, ANIM_SALUTE);
+    }
+    this->action = GUARD_TALKING;
+    this->func = NvMmBombers2_Talking;
+}
+
+/** MM's EnBombers2_AwaitTalk: his line by Link's form. */
+static void NvMmBombers2_AwaitTalk(NvMmBombers2* this, PlayState* play) {
+    s16 yawDiff = this->actor.yawTowardsPlayer - this->actor.world.rot.y;
+    s32 form = NvMmForm_Get();
+
+    this->textIdIndex = ((form == 3) || (form == 4)) ? GUARD_TEXT_ASK : GUARD_TEXT_BLOCKED_GORON_ZORA;
+    this->inputting = false;
+    if (this->hasMovedAside) {
+        this->textIdIndex = GUARD_TEXT_ASIDE;
+    }
+    this->actor.textId = NV_MM_TEXT(sGuardTextIds[this->textIdIndex]);
+    if (Actor_ProcessTalkRequest(&this->actor, play)) {
+        this->bodyRotTargetAngle = this->actor.world.rot.y;
+        NvMm_SetWeekEvent(WEEKEVENTREG_TALKED_TO_BOMBERS_GUARD);
+        NvMmBombers2_SetupTalking(this);
+        return;
+    }
+    if (ABS(yawDiff) < 0x3BB5) {
+        Actor_OfferTalk(&this->actor, play, 70.0f);
+    }
+}
+
+static void NvMmBombers2_Say(NvMmBombers2* this, PlayState* play, s32 index) {
+    this->textIdIndex = index;
+    this->actor.textId = NV_MM_TEXT(sGuardTextIds[index]);
+    Message_ContinueTextbox(play, this->actor.textId);
+}
+
+/** MM's EnBombers2_StartWalking: aside, away from Link's side. */
+static void NvMmBombers2_StartWalking(NvMmBombers2* this, PlayState* play) {
+    Player* player = GET_PLAYER(play);
+    s16 homeYawToPlayer = Math_Vec3f_Yaw(&this->actor.home.pos, &player->actor.world.pos);
+    s16 side = (this->actor.home.rot.y < homeYawToPlayer) ? 0xC100 : 0x3F00;
+
+    NvMmBombers2_ChangeAnim(this, ANIM_WALK);
+    this->walkTarget = this->actor.world.pos;
+    this->walkTarget.x += Math_SinS(this->actor.home.rot.y + side) * 50.0f;
+    this->walkTarget.z += Math_CosS(this->actor.home.rot.y + side) * 50.0f;
+    this->bodyRotTargetAngle = Math_Vec3f_Yaw(&this->actor.home.pos, &this->walkTarget);
+    this->action = GUARD_WALKING;
+    this->func = NvMmBombers2_Walking;
+}
+
+/** MM's EnBombers2_Talking. */
+static void NvMmBombers2_Talking(NvMmBombers2* this, PlayState* play) {
+    s32 i;
+
+    if (!this->hasMovedAside && (this->skelAnime.curFrame >= this->lastAnimFrame)) {
+        NvMmBombers2_ChangeAnim(this, !(this->animPhase & 1) ? ANIM_TALK_HANDS_ON_HIPS : ANIM_ARM_SWIPE);
+        this->animPhase = (this->animPhase + 1) & 1;
+    }
+    this->headRotTargetZ = (NvMmForm_Get() == 4) ? -0xFA0 : (NvMmForm_Get() == 3) ? this->headRotTargetZ : -0x1770;
+    if ((Message_GetState(&play->msgCtx) != TEXT_STATE_EVENT) || !Message_ShouldAdvance(play)) {
+        return;
+    }
+    if (this->inputting) {
+        u8* code = NvMmMsg_BomberCode();
+        s32 correct = 0;
+
+        for (i = 0; i < 5; i++) {
+            if (!this->correctDigitSlots[i] && (NvMmMsgInput_Digit(i) == code[i])) {
+                this->correctDigitSlots[i] = true;
+            }
+            correct += this->correctDigitSlots[i];
+        }
+        if (correct >= 5) {
+            this->inputting = false;
+            NvMmBombers2_Say(this, play, GUARD_TEXT_RIGHT);
+            Audio_PlayActorSound2(&this->actor, NA_SE_SY_PIECE_OF_HEART);
+            return;
+        }
+    }
+    switch (this->textIdIndex) {
+        case 0:
+        case GUARD_TEXT_BLOCKED_GORON_ZORA:
+        case GUARD_TEXT_WRONG_BYE:
+        case GUARD_TEXT_ASIDE:
+            this->headRotTargetZ = 0;
+            Message_CloseTextbox(play);
+            NvMmBombers2_SetupAwaitTalk(this);
+            break;
+        case GUARD_TEXT_ASK:
+            NvMmBombers2_Say(this, play, GUARD_TEXT_INPUT);
+            this->inputting = true;
+            break;
+        case GUARD_TEXT_INPUT:
+            for (i = 0; i < 5; i++) {
+                this->correctDigitSlots[i] = false;
+            }
+            this->inputting = false;
+            Audio_PlayActorSound2(&this->actor, NA_SE_SY_ERROR);
+            NvMmBombers2_Say(this, play, GUARD_TEXT_WRONG);
+            break;
+        case GUARD_TEXT_WRONG:
+            NvMmBombers2_Say(this, play, GUARD_TEXT_WRONG_BYE);
+            break;
+        case GUARD_TEXT_RIGHT:
+            Message_CloseTextbox(play);
+            NvMmBombers2_StartWalking(this, play);
+            break;
+    }
+}
+
+/** MM's EnBombers2_Walking (its cutscene camera left out). */
+static void NvMmBombers2_Walking(NvMmBombers2* this, PlayState* play) {
+    Math_SmoothStepToS(&this->actor.world.rot.y, this->bodyRotTargetAngle, 1, 0xBB8, 0);
+    if ((fabsf(this->walkTarget.x - this->actor.world.pos.x) < 3.0f) &&
+        (fabsf(this->walkTarget.z - this->actor.world.pos.z) < 3.0f)) {
+        this->bodyRotTargetAngle = this->actor.yawTowardsPlayer;
+        this->actor.speedXZ = 0.0f;
+        if (ABS((s16)(this->actor.world.rot.y - this->actor.yawTowardsPlayer)) < 100) {
+            this->textIdIndex = GUARD_TEXT_ASIDE;
+            NvMmBombers2_ChangeAnim(this, ANIM_SALUTE);
+            this->animPhase = 0;
+            this->action = GUARD_TALKING;
+            NvMm_SetWeekEvent(WEEKEVENTREG_ENTERED_BOMBERS_CODE);
+            this->hasMovedAside = true;
+            this->actor.textId = NV_MM_TEXT(sGuardTextIds[this->textIdIndex]);
+            Message_StartTextbox(play, this->actor.textId, &this->actor);
+            this->func = NvMmBombers2_Talking;
+        }
+    } else {
+        Math_ApproachF(&this->actor.world.pos.x, this->walkTarget.x, 0.3f, 1.0f);
+        Math_ApproachF(&this->actor.world.pos.z, this->walkTarget.z, 0.3f, 1.0f);
+    }
+}
+
+void NvMmBombers2_Update(Actor* thisx, PlayState* play) {
+    NvMmBombers2* this = (NvMmBombers2*)thisx;
+    Vec3f pos;
+
+    SkelAnime_Update(&this->skelAnime);
+    thisx->shape.rot.y = thisx->world.rot.y;
+    if (this->action != GUARD_WALKING) {
+        s16 d = thisx->yawTowardsPlayer - thisx->world.rot.y;
+
+        this->headRotTargetX = 0;
+        if (ABS(d) < 0x3A98) {
+            this->headRotTargetX = CLAMP(d, -0x2710, 0x2710);
+        }
+    }
+    Actor_SetFocus(thisx, 20.0f);
+    Actor_SetScale(thisx, 0.008f);
+    this->func(this, play);
+    Actor_MoveXZGravity(thisx);
+    Math_SmoothStepToS(&this->headRotX, this->headRotTargetX, 1, 0xBB8, 0);
+    Math_SmoothStepToS(&this->headRotZ, this->headRotTargetZ, 1, 0xBB8, 0);
+    if (this->blinkTimer == 0) {
+        if (++this->eyeIndex >= 3) {
+            this->eyeIndex = 0;
+            this->blinkTimer = (s16)Rand_ZeroFloat(60.0f) + 20;
+        }
+    } else {
+        this->blinkTimer--;
+    }
+    // (MM: in front of the way in, his collider stands 26 behind him, wide; aside, small)
+    pos = thisx->world.pos;
+    if (!this->hasMovedAside) {
+        thisx->world.pos.x = pos.x + Math_SinS(thisx->world.rot.y + 0x8000) * 26.0f;
+        thisx->world.pos.z = pos.z + Math_CosS(thisx->world.rot.y + 0x8000) * 26.0f;
+        this->collider.dim.radius = 35;
+        this->collider.dim.height = 30;
+    } else {
+        this->collider.dim.radius = 10;
+        this->collider.dim.height = 25;
+    }
+    Collider_UpdateCylinder(thisx, &this->collider);
+    CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
+    if (!this->hasMovedAside) {
+        Actor_UpdateBgCheckInfo(play, thisx, 20.0f, 20.0f, 50.0f, 0x1D);
+    }
+    thisx->world.pos = pos;
+}
+
+static s32 NvMmBombers2_OverrideLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot,
+                                         void* thisx) {
+    NvMmBombers2* this = (NvMmBombers2*)thisx;
+
+    if (limbIndex == BOMBER_LIMB_HEAD) {
+        rot->x += this->headRotX;
+        rot->z += this->headRotZ;
+    }
+    if ((limbIndex == BOMBER_LIMB_0F) || (limbIndex == BOMBER_LIMB_13) || (limbIndex == 0x14)) {
+        *dList = NULL;
+    }
+    return false;
+}
+
+void NvMmBombers2_Draw(Actor* thisx, PlayState* play) {
+    NvMmBombers2* this = (NvMmBombers2*)thisx;
+
+    OPEN_DISPS(play->state.gfxCtx);
+    Gfx_SetupDL_25Opa(play->state.gfxCtx);
+    Gfx_SetupDL_25Xlu(play->state.gfxCtx);
+    gSPSegment(POLY_OPA_DISP++, 0x08, SEGMENTED_TO_VIRTUAL(sEyeTextures[this->eyeIndex]));
+    gSPSegment(POLY_OPA_DISP++, 0x09, SEGMENTED_TO_VIRTUAL(MM_CS("gBomberWhiteShirtBackTex")));
+    gSPSegment(POLY_OPA_DISP++, 0x0A, sGuardBandanaDL);
+    gSPSegment(POLY_OPA_DISP++, 0x0C, sEmptyDL);
+    SkelAnime_DrawFlexOpa(play, this->skelAnime.skeleton, this->skelAnime.jointTable, this->skelAnime.dListCount,
+                          NvMmBombers2_OverrideLimbDraw, NULL, this);
+    CLOSE_DISPS(play->state.gfxCtx);
+}

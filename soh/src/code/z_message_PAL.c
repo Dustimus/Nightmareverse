@@ -18,6 +18,7 @@
 
 #include "z_nv_songs.h" // Nightmareverse: our songs (z_nv_songs.c)
 s32 NvPiano_Score(void);
+void NvMmMsgInput_Update(PlayState* play);
 
 // #region SOH [NTSC] - Allows custom messages to work on japanese
 static bool sDisplayNextMessageAsEnglish = false;
@@ -4432,6 +4433,7 @@ void Message_Update(PlayState* play) {
     s16 playerFocusScreenPosY;
     s16 actorFocusScreenPosY;
 
+    NvMmMsgInput_Update(play); // Nightmareverse: MM's number inputs while their box waits (z_nv_mm_msginput.c)
     if (BREG(0) != 0) {
         if (CHECK_BTN_ALL(input->press.button, BTN_DDOWN) && CHECK_BTN_ALL(input->cur.button, BTN_L)) {
             osSyncPrintf("msgno=%d\n", D_80153D78);
