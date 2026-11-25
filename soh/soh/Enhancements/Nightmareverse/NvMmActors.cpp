@@ -103,6 +103,7 @@ NV_MM_SCENERY(Kinoko)
 NV_MM_SCENERY(Kusa)
 NV_MM_SCENERY(Kanban)
 NV_MM_SCENERY(Warpstone)
+NV_MM_SCENERY(HitTag)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -243,6 +244,9 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x223,
       { "Mm_Obj_Warpstone", "MM: an owl statue", ACTORCAT_ITEMACTION, ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY,
         &gNvMmWarpstoneSize, NvMmWarpstone_Init, NvMmWarpstone_Destroy, NvMmWarpstone_Update, NvMmWarpstone_Draw } },
+    { 0x265,
+      { "Mm_En_Hit_Tag", "MM: hidden rupees", ACTORCAT_ITEMACTION, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmHitTagSize,
+        NvMmHitTag_Init, NvMmHitTag_Destroy, NvMmHitTag_Update, NULL } },
     { 0x183,
       { "Mm_Obj_Etcetera", "MM: a Deku flower", ACTORCAT_BG, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmEtceteraSize,
         NvMmEtcetera_Init, NvMmEtcetera_Destroy, NvMmEtcetera_Update, NvMmEtcetera_Draw } },

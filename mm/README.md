@@ -582,6 +582,11 @@ MM's own, ported as they are, MM's models and collision (`tools/mm_objects.py`):
   here it's a normal save and the game goes on, and MM's own text (warning that reloading loses the
   progress, the Song of Time restart) describes MM's rules, not these. Also: owl statues in other
   places (the user's idea, 2026-11-25: later, with how the map works). Not yet: the Song of Soaring.
+- **Hidden rupees** (En_Hit_Tag, `z_nv_mm_scenery.c`): invisible spots (South Clock Town's tower, three
+  on East Clock Town's walls) giving three green rupees the first time they're hit, as MM.
+- Left for later: the invisible sound emitters (Obj_Sound: MM's ambient sounds and music, with MM's
+  audio); inside the clock tower (gears, the twisting path, the doors: with the moon and the last
+  night); the bugs (En_Insect, with bottles).
 - Dev: NV_POS takes a height (`x,z,yaw,y`) and NV_POS_AT=frames places Link after a gate's walk-in;
   NV_MM_SPAWN="mmid,params[,dist]" (hex) spawns a ported MM actor in front of Link (NV_MM_SPAWN_AT).
 - Tested headless: the carnival tower and flags on day 3 (South), the stalls by day (West), the tree

@@ -279,3 +279,66 @@ void NvMmKinoko_Draw(Actor* thisx, PlayState* play) {
     gSPDisplayList(POLY_XLU_DISP++, &glow[4]);
     CLOSE_DISPS(play->state.gfxCtx);
 }
+
+/* ---- En_Hit_Tag ---- */
+
+/*
+ * MM's hidden rupees (En_Hit_Tag, 0x265): an invisible spot (Clock Town's walls and posts) that gives
+ * three green rupees the first time it's hit, as MM. Its switch flag (params >> 9), when set, keeps it
+ * away (MM never sets it itself). Hit by OoT's weapons (OoT's sign's flags: everything).
+ */
+typedef struct {
+    Actor actor;
+    ColliderCylinder collider;
+} NvMmHitTag;
+
+const size_t gNvMmHitTagSize = sizeof(NvMmHitTag);
+
+static ColliderCylinderInit sHitTagCylinderInit = {
+    { COLTYPE_NONE, AT_NONE, AC_ON | AC_TYPE_PLAYER, OC1_ON | OC1_TYPE_PLAYER, OC2_TYPE_1, COLSHAPE_CYLINDER },
+    { ELEMTYPE_UNK0, { 0x00000000, 0x00, 0x00 }, { 0xFFCFFFFF, 0x00, 0x00 }, TOUCH_NONE | TOUCH_SFX_NORMAL, BUMP_ON,
+      OCELEM_NONE },
+    { 16, 32, 0, { 0, 0, 0 } },
+};
+
+void NvMmHitTag_Init(Actor* thisx, PlayState* play) {
+    NvMmHitTag* this = (NvMmHitTag*)thisx;
+
+    Actor_SetScale(thisx, 1.0f);
+    Collider_InitCylinder(play, &this->collider);
+    Collider_SetCylinder(play, &this->collider, thisx, &sHitTagCylinderInit);
+    Collider_UpdateCylinder(thisx, &this->collider);
+    s32 flag = (thisx->params & 0xFE00) >> 9;
+
+    if ((flag != 0x7F) && Flags_GetSwitch(play, flag)) { // (0x7F: none; OoT's switch flags stop at 0x3F)
+        Actor_Kill(thisx);
+    }
+}
+
+void NvMmHitTag_Destroy(Actor* thisx, PlayState* play) {
+    Collider_DestroyCylinder(play, &((NvMmHitTag*)thisx)->collider);
+}
+
+void NvMmHitTag_Update(Actor* thisx, PlayState* play) {
+    NvMmHitTag* this = (NvMmHitTag*)thisx;
+
+    if (this->collider.base.acFlags & AC_HIT) {
+        s32 i;
+
+        Sfx_PlaySfxCentered(NA_SE_SY_GET_RUPY);
+        Actor_Kill(thisx);
+        for (i = 0; i < 3; i++) {
+            Item_DropCollectible(play, &thisx->world.pos, ITEM00_RUPEE_GREEN);
+        }
+        if (getenv("NV_LOG") != NULL) {
+            printf("NVMM hidden rupees at %d,%d,%d\n", (int)thisx->world.pos.x, (int)thisx->world.pos.y,
+                   (int)thisx->world.pos.z);
+            fflush(stdout);
+        }
+    } else {
+        CollisionCheck_SetAC(play, &play->colChkCtx, &this->collider.base);
+    }
+}
+
+void NvMmHitTag_Draw(Actor* thisx, PlayState* play) {
+}

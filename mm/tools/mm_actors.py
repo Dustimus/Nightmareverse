@@ -53,6 +53,7 @@ PORTED = {
     0x090,  # En_Kusa: grass and bushes, MM's own (z_nv_mm_kusa.c)
     0x0A8,  # En_Kanban: the square signposts, MM's own (z_nv_mm_kanban.c)
     0x223,  # Obj_Warpstone: the owl statues (z_nv_mm_warpstone.c)
+    0x265,  # En_Hit_Tag: the hidden rupees (z_nv_mm_scenery.c)
 }
 
 # MM's ids (the decomp's actor table)
