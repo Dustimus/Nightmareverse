@@ -44,6 +44,7 @@ void NvMmOwl_SetSaveMark(int32_t owl);
 void NvMmOwl_OnLoad(void);
 uint8_t* NvMmMsg_BomberCode(void);
 void NvMmMsg_NewBomberCode(void);
+int32_t* NvMmBank_Rupees(void);
 }
 
 static bool sTerminaLoaded; // this load had a "termina" section
@@ -87,6 +88,7 @@ static void NvMmSave_Save(const SaveContext& saveContext, int sectionID, bool fu
         SaveManager::Instance->SaveData("owlSave", NvMmOwl_SaveMark()); // (a save made at an owl: resumes there)
         uint8_t* code = NvMmMsg_BomberCode(); // (MM's bomberCode: made with a new file)
         SaveManager::Instance->SaveArray("bomberCode", 5, [code](size_t i) { SaveManager::Instance->SaveData("", code[i]); });
+        SaveManager::Instance->SaveData("bankRupees", *NvMmBank_Rupees()); // (MM's bank: kept through the cycles)
         SaveManager::Instance->SaveStruct("scenes", []() { // collectibles, visited rooms and floors
             for (int32_t i = 0; i < NvMmScene_Count(); i++) {
                 SavedSceneFlags* f = NvMmScene_At(i);
@@ -145,6 +147,7 @@ static void NvMmSave_Load() {
         if (code[0] == 0) { // (a file from before the code)
             NvMmMsg_NewBomberCode();
         }
+        SaveManager::Instance->LoadData("bankRupees", *NvMmBank_Rupees(), (int32_t)0);
         SaveManager::Instance->LoadStruct("scenes", []() {
             for (int32_t i = 0; i < NvMmScene_Count(); i++) {
                 SavedSceneFlags* f = NvMmScene_At(i);
@@ -165,6 +168,7 @@ static void NvMmSave_InitFile(bool isDebug) {
     *NvMmOwl_Activated() = 0;
     NvMmOwl_SetSaveMark(-1);
     NvMmMsg_NewBomberCode();
+    *NvMmBank_Rupees() = 0;
 }
 
 static void NvMmSave_Register() {

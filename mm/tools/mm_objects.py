@@ -94,10 +94,12 @@ OBJECTS = {
                  "gRosaSistersWalkingAnim": 0x5390, "gRosaSistersWalkingWhileThinkingAnim": 0x5E50},
         "tex": {f"object_rz_Tex_{o:06X}": (o, "CI8", 32, 32, 0xB650) for o in (0xBC50, 0xC190, 0xC590, 0xC990, 0xCD90)},
         "matanim": {"object_rz_Matanimheader_00D768": 0xD768}}),
-    "object_boj": (769, {  # the jugglers (En_Ja): colours in segments 8 and 9, eyes in segment 10
+    "object_boj": (769, {  # the jugglers (En_Ja) and the bank teller (En_Ginko_Man): colours in segments 8 and 9, eyes in segment 10
         "skel": {"object_boj_Skel_00C240": 0xC240},
-        "anim": {f"object_boj_Anim_{o:06X}": o for o in (0x2734, 0x33B0, 0x4078, 0x5CE4)},
-        "dl": {"object_boj_DL_00BA30": 0xBA30, "object_boj_DL_00BCC8": 0xBCC8},
+        "anim": {f"object_boj_Anim_{o:06X}": o for o in (0x2734, 0x33B0, 0x4078, 0x5CE4,  # the jugglers
+                                                          0x08C0, 0x43F0, 0x4F40, 0x0AC4, 0x4A7C)},  # the bank's
+        "dl": {"object_boj_DL_00BA30": 0xBA30, "object_boj_DL_00BCC8": 0xBCC8,
+               "object_boj_DL_00B1D8": 0xB1D8},  # (the bank teller's head)
         "tex": {f"object_boj_Tex_{o:06X}": (o, "CI8", 16, 16, 0x5DB0) for o in (0x62B0, 0x63B0, 0x64B0)}}),
     "object_cha": (1048, {"dl": {  # the Laundry Pool's bell (En_Cha): frame, bell
         "object_cha_DL_000710": 0x710, "object_cha_DL_000958": 0x958}}),

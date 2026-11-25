@@ -66,6 +66,7 @@ PORTED = {
     0x2A1,  # En_Drs: the wedding dress's mannequin (z_nv_mm_townprops.c)
     0x26B,  # En_Muto: Mutoh (z_nv_mm_townprops.c)
     0x281,  # En_Bombers2: the Bombers' hideout guard (z_nv_mm_bombers.c)
+    0x177,  # En_Ginko_Man: the bank teller (z_nv_mm_bank.c)
 }
 
 # MM's ids (the decomp's actor table)

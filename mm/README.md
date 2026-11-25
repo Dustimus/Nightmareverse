@@ -591,6 +591,21 @@ event 73_80), salutes and stays aside (also when Link comes out of the hideout).
 get MM's other line. MM's cutscene camera as he steps aside is left out; the masks' reactions wait.
 Tested headless: a wrong code ("Wrong!"), the right one, his stepping aside and next lines.
 
+### The bank (2026-11-25, `soh/src/code/z_nv_mm_bank.c`, MM's En_Ginko_Man)
+
+West Clock Town's teller, MM's model (`object_boj`: the troupe's body, his green colour in segments
+8 and 9, his own head) and lines. MM's bank: deposits stay through the Song of Time (saved,
+"bankRupees"), up to 5000; amounts chosen in MM's bank box (z_nv_mm_msginput.c). The first deposit
+stamps Link's hand (MM's account lines). Rewards as MM: 200 banked, the next wallet (MM's Adult's
+Wallet: OoT's wallets are shared, so the next of OoT's; with the Giant's already, a blue rupee);
+1000, a blue rupee; 5000, a piece of heart. At night a withdrawal costs MM's 4 rupee fee; a
+withdrawal must fit the wallet. Rupees aren't lost to the Song of Time in Nightmareverse, so the bank
+matters less than in MM, but it's MM's and keeps its rewards.
+Left out: his knee-slap and the stamp's sounds (MM's own, not in OoT's banks).
+Dev: `NV_MM_BANK=100` starts with a balance.
+Tested headless: a first deposit of 100 through MM's lines, the box, the stamp and the balance ("a
+total of 100 Rupees"); a returning customer's menu, the stamp check, the withdrawal box.
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near
