@@ -370,6 +370,21 @@ void NvDev_Update(PlayState* play) {
             NvGear_GotItem(GI_SWORD_KNIFE);
         }
     }
+    // dev: NV_MM_SPAWN="mmid,params[,dist]" (hex id and params) spawns one of MM's ported actors in front of
+    // Link once, at frame NV_MM_SPAWN_AT (default 220), e.g. to look at a prop where the scene's own is hard to see
+    if ((getenv("NV_MM_SPAWN") != NULL) && (player != NULL) &&
+        (play->gameplayFrames == (u32)((getenv("NV_MM_SPAWN_AT") != NULL) ? atoi(getenv("NV_MM_SPAWN_AT")) : 220))) {
+        s32 NvMmActor_Id(s32 mmId);
+        unsigned int id, params;
+        int dist = 80;
+
+        if (sscanf(getenv("NV_MM_SPAWN"), "%x,%x,%d", &id, &params, &dist) >= 2) {
+            Actor_Spawn(&play->actorCtx, play, NvMmActor_Id(id),
+                        player->actor.world.pos.x + dist * Math_SinS(player->actor.shape.rot.y), player->actor.world.pos.y,
+                        player->actor.world.pos.z + dist * Math_CosS(player->actor.shape.rot.y), 0,
+                        player->actor.shape.rot.y + 0x8000, 0, (s16)params);
+        }
+    }
     // dev: NV_MAGIC fills the magic meter (giving a meter if there's none), e.g. for Deku Link's bubble
     if ((getenv("NV_MAGIC") != NULL) && (play->gameplayFrames > 2) && (gSaveContext.magicState == 0) &&
         (gSaveContext.magic < 0x30)) {

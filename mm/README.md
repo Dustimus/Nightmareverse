@@ -559,10 +559,18 @@ MM's own, ported as they are, MM's models and collision (`tools/mm_objects.py`):
 - The object files: MM's object table (in `code`) gives each object's ROM address, matched to the
   file table (object_tokei_turret 991, object_tree 999, object_market_obj 920). Grass (En_Kusa) and the
   square signposts (En_Kanban) are their own actors, still to come.
-- Dev: NV_POS takes a height (`x,z,yaw,y`) and NV_POS_AT=frames places Link after a gate's walk-in.
+- **Grass and bushes** (En_Kusa, `soh/src/code/z_nv_mm_kusa.c`): MM's bush (MM's gameplay_field_keep, near
+  and fading far), grass and stump (`object_kusa`), flying leaves, MM's wind sway; cut, lift, carry,
+  throw, regrow (type 1) as in MM. Cut by OoT's weapons (OoT's own grass's flags); the random drop is
+  OoT's random table at MM's index (MM's tables aren't over); bugs wait for MM's bugs. Clock Town's are
+  the Laundry Pool's three bushes. (The Keaton's ring is MM's En_Kusa2, another actor: none in Clock
+  Town; it comes with the fields.)
+- Dev: NV_POS takes a height (`x,z,yaw,y`) and NV_POS_AT=frames places Link after a gate's walk-in;
+  NV_MM_SPAWN="mmid,params[,dist]" (hex) spawns a ported MM actor in front of Link (NV_MM_SPAWN_AT).
 - Tested headless: the carnival tower and flags on day 3 (South), the stalls by day (West), the tree
-  (North), each by a shot with it drawn and one with it switched off. Not yet seen: standing on the
-  platforms or the tree, the tree's sway, a mushroom.
+  (North), each by a shot with it drawn and one with it switched off; a Laundry Pool bush drawn and
+  cut by the sword. Not yet seen: standing on the platforms or the tree, the tree's sway, a mushroom,
+  lifting a bush.
 
 ### MM's schedules, and MM's doors (2026-11-22)
 

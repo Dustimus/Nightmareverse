@@ -100,6 +100,7 @@ NV_MM_SCENERY(Turret)
 NV_MM_SCENERY(Tree)
 NV_MM_SCENERY(MarketStep)
 NV_MM_SCENERY(Kinoko)
+NV_MM_SCENERY(Kusa)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -230,6 +231,9 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x23B,
       { "Mm_Obj_Kinoko", "MM: a magic mushroom", ACTORCAT_ITEMACTION, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmKinokoSize, NvMmKinoko_Init,
         NvMmKinoko_Destroy, NvMmKinoko_Update, NULL } },
+    { 0x090,
+      { "Mm_En_Kusa", "MM: grass or a bush", ACTORCAT_PROP, ACTOR_FLAG_THROW_ONLY, &gNvMmKusaSize, NvMmKusa_Init,
+        NvMmKusa_Destroy, NvMmKusa_Update, NULL } },
     { 0x183,
       { "Mm_Obj_Etcetera", "MM: a Deku flower", ACTORCAT_BG, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmEtceteraSize,
         NvMmEtcetera_Init, NvMmEtcetera_Destroy, NvMmEtcetera_Update, NvMmEtcetera_Draw } },

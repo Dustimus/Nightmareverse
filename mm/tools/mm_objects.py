@@ -82,6 +82,8 @@ OBJECTS = {
         "gWestClockTownMarketDayDL": 0x1F050, "gWestClockTownMarketNightDL": 0x18DA0,
         "gWestClockTownMarketBankAdvertisementsAndDoorDayDL": 0x1EF10,
         "gWestClockTownMarketBankAdvertisementsAndDoorNightDL": 0x18C60}}),
+    "object_kusa": (785, {"dl": {  # cuttable grass and its stump (En_Kusa)
+        "gKusaSproutDL": 0x140, "gKusaStumpDL": 0x2E0}}),
     "object_kibako": (862, {"dl": {  # the small crate, outdoors (Obj_Kibako)
         "gSmallCrateDL": 0x1180,
         "gSmallCrateFragmentDL": 0x1A70,
@@ -89,6 +91,7 @@ OBJECTS = {
     "gameplay_keep": (649, {"segment": 4, "dl": {  # MM's main keep: what the ported actors share (shadows, ...)
         "gSquareShadowDL": 0x75A40,
         "gameplay_keep_DL_029D10": 0x29D10,  # the mushroom's purple glow (Obj_Kinoko)
+        "gKakeraLeafMiddleDL": 0x527F0, "gKakeraLeafTipDL": 0x528B0,  # grass bits flying (En_Kusa)
         "gDekuMaskDL": 0x56C0,  # the Deku Mask on Link's face, put on (the transformation scene)
         "gGoronMaskDL": 0x5A10,  # the Goron Mask, the same
         "gZoraMaskDL": 0x5360,  # the Zora Mask, the same
@@ -110,6 +113,7 @@ OBJECTS = {
                  "gDekuFlowerBounceAnim": 0xEB7C, "gDekuFlowerRustleAnim": 0x117A8},
         "col": {"gPinkDekuFlowerCol": 0xE710, "gGoldDekuFlowerCol": 0x118D8}}),
     "gameplay_field_keep": (650, {"segment": 5, "dl": {  # MM's field keep (segment 5, as its dungeon keep): its doors (En_Door)
+        "gKusaBushType1DL": 0x78A0, "gKusaBushType2DL": 0x7938,  # the bush, near and far (En_Kusa)
         "gFieldWoodDoorLeftDL": 0x4050,
         "gFieldWoodDoorRightDL": 0x4228,
     }}),
