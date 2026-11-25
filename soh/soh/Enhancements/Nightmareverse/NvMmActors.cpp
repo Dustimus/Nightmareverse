@@ -110,6 +110,7 @@ NV_MM_SCENERY(Tobira)
 NV_MM_SCENERY(Step)
 NV_MM_SCENERY(Guruguru)
 NV_MM_SCENERY(Rz)
+NV_MM_SCENERY(Ja)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -272,6 +273,10 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x27B,
       { "Mm_En_Rz", "MM: a Rosa sister", ACTORCAT_NPC, ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY, &gNvMmRzSize,
         NvMmRz_Init, NvMmRz_Destroy, NvMmRz_Update, NvMmRz_Draw } },
+    { 0x244,
+      { "Mm_En_Ja", "MM: a juggler", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmJaSize,
+        NvMmJa_Init, NvMmJa_Destroy, NvMmJa_Update, NvMmJa_Draw } },
     { 0x183,
       { "Mm_Obj_Etcetera", "MM: a Deku flower", ACTORCAT_BG, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmEtceteraSize,
         NvMmEtcetera_Init, NvMmEtcetera_Destroy, NvMmEtcetera_Update, NvMmEtcetera_Draw } },

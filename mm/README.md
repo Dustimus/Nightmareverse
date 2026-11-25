@@ -535,6 +535,16 @@ frames) were skipped, leaving their segments unset (a crash drawing the sisters)
 Tested headless in West Clock Town at 20:00: both dancing, the red and blue trims, MM's "Don't bother
 us!!!", the Notebook's "met".
 
+### The jugglers (2026-11-25, `soh/src/code/z_nv_mm_ja.c`, MM's En_Ja)
+
+The two brothers of Gorman's troupe, MM's model (`object_boj`, red or blue by params & 3 through segments
+8 and 9, their eyes on segment 0x0A). MM's schedule (mm/schedules/En_Ja.schl): days 1 and 2, by day
+juggling to each other in East Clock Town (four balls thrown between them on MM's arcs), at night at the
+inn's table with cards in hand; gone on day 3. Their room entries carry the same half-days (town: day,
+inn: night). MM's message scripts: each brother speaks in turn (MM's FOCUS_TO_CHILD to the other).
+Left out: their heads turning to Link (MM's SubS_UpdateLimb), as for the inn's Goron.
+Tested headless: juggling at 12:00 in East Clock Town, their joke, both at the inn's table at 20:00.
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near
