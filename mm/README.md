@@ -582,11 +582,24 @@ MM's own, ported as they are, MM's models and collision (`tools/mm_objects.py`):
   here it's a normal save and the game goes on, and MM's own text (warning that reloading loses the
   progress, the Song of Time restart) describes MM's rules, not these. Also: owl statues in other
   places (the user's idea, 2026-11-25: later, with how the map works). Not yet: the Song of Soaring.
+  **Saves: on hold (the user, 2026-11-25):** they want owl saves, but not disconnected from the rest;
+  an idea: in Termina the ocarina's save (with whatever else it does there) saves to the owl slot by
+  default. To work out later; the owl save above stays as it is meanwhile.
 - **Hidden rupees** (En_Hit_Tag, `z_nv_mm_scenery.c`): invisible spots (South Clock Town's tower, three
   on East Clock Town's walls) giving three green rupees the first time they're hit, as MM.
+- **The clock tower's pieces** (`soh/src/code/z_nv_mm_ctower.c`): inside, the cogs turning and the water
+  wheel turning and splashing (stood on); the twisting corridor (it turns as Link walks along it) and its
+  two stone doors (they slide shut behind him); the swinging double doors (pushed open by walking into
+  them); in South Clock Town the tower's front, whose steps drop at midnight on the last night (MM's
+  cutscene's drop, as it plays out) and are down when he arrives after. MM's cutscene cameras left out;
+  the sounds OoT has none of are OoT's nearest. The organ only shows in MM's cutscene (kept hidden).
+- **Loading halls** (MM's En_Holl, `tools/mm_actors.py`): the tower's corridor and main room are two
+  rooms joined by one; the converter now writes them as OoT's En_Holl (OoT's wide invisible hall for
+  MM's visible one, which OoT hasn't at that width). Before, the main room never loaded.
+- Tested headless: through the corridor into the main room (cogs, water wheel, doors and stone doors
+  spawned, the wheel drawn); the steps' drop at midnight on day 3 by the log only (not yet seen).
 - Left for later: the invisible sound emitters (Obj_Sound: MM's ambient sounds and music, with MM's
-  audio); inside the clock tower (gears, the twisting path, the doors: with the moon and the last
-  night); the bugs (En_Insect, with bottles).
+  audio); the bugs (En_Insect, with bottles).
 - Dev: NV_POS takes a height (`x,z,yaw,y`) and NV_POS_AT=frames places Link after a gate's walk-in;
   NV_MM_SPAWN="mmid,params[,dist]" (hex) spawns a ported MM actor in front of Link (NV_MM_SPAWN_AT).
 - Tested headless: the carnival tower and flags on day 3 (South), the stalls by day (West), the tree

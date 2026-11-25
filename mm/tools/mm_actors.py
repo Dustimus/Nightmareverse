@@ -54,6 +54,10 @@ PORTED = {
     0x0A8,  # En_Kanban: the square signposts, MM's own (z_nv_mm_kanban.c)
     0x223,  # Obj_Warpstone: the owl statues (z_nv_mm_warpstone.c)
     0x265,  # En_Hit_Tag: the hidden rupees (z_nv_mm_scenery.c)
+    0x1B6,  # Bg_Ctower_Gear: the clock tower's cogs and water wheel (z_nv_mm_ctower.c)
+    0x061,  # Bg_Ctower_Rot: the twisting corridor and its stone doors (z_nv_mm_ctower.c)
+    0x1A2,  # Obj_Tokei_Tobira: the clock tower's swinging doors (z_nv_mm_ctower.c)
+    0x1B8,  # Obj_Tokei_Step: the tower's front, the last night's steps (z_nv_mm_ctower.c)
 }
 
 # MM's ids (the decomp's actor table)
@@ -124,6 +128,13 @@ def actors(data, off, count):
     return out, objects, skipped
 
 
+# MM's En_Holl (loading halls) as OoT's: MM's type ((params >> 7) & 7) to OoT's ((params >> 6) & 7).
+# MM's 0 (a visible hall, 150 wide each side) has no OoT match (OoT's visible hall is 100): OoT's wide
+# invisible one (4, 200); MM's 2 (transparent hall) the same; MM's 1 (a hole) OoT's invisible hole (2);
+# MM's 3 (a hole covering the room) OoT's (5); MM's 4 (to another scene) none yet.
+MM_EN_HOLL, ACTOR_EN_HOLL = 0x018, 0x0023
+HOLL_TYPES = {0: 4, 2: 4, 1: 2, 3: 5}
+
 NV_MM_TRANSITION_MARKER = 0x1000  # (a transition actor's id keeps 13 bits: 0x1000 + MM's id)
 
 
@@ -136,6 +147,15 @@ def doors(data, off, count):
     for i in range(count):
         fr, fc, br, bc, aid, x, y, z, ry, params = struct.unpack_from(">4bh3hhH", data, off + 16 * i)
         aid &= 0x1FFF
+        if aid == MM_EN_HOLL:  # a loading hall between rooms: OoT's En_Holl, the nearest type (holl_type)
+            t = HOLL_TYPES.get((params >> 7) & 7)
+            if t is None:
+                skipped[aid] = skipped.get(aid, 0) + 1
+                continue
+            out.append(dict(Id=ACTOR_EN_HOLL, Params=(t << 6) | (params & 0x3F), PosX=x, PosY=y, PosZ=z,
+                            RotY=_rot(ry, False), FrontSideRoom=fr, FrontSideEffects=fc & 0xFF,
+                            BackSideRoom=br, BackSideEffects=bc & 0xFF))
+            continue
         if aid != MM_EN_DOOR:
             skipped[aid] = skipped.get(aid, 0) + 1
             continue

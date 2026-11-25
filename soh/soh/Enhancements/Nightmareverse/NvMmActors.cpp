@@ -104,6 +104,10 @@ NV_MM_SCENERY(Kusa)
 NV_MM_SCENERY(Kanban)
 NV_MM_SCENERY(Warpstone)
 NV_MM_SCENERY(HitTag)
+NV_MM_SCENERY(CtGear)
+NV_MM_SCENERY(CtRot)
+NV_MM_SCENERY(Tobira)
+NV_MM_SCENERY(Step)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -247,6 +251,18 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x265,
       { "Mm_En_Hit_Tag", "MM: hidden rupees", ACTORCAT_ITEMACTION, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmHitTagSize,
         NvMmHitTag_Init, NvMmHitTag_Destroy, NvMmHitTag_Update, NULL } },
+    { 0x1B6,
+      { "Mm_Bg_Ctower_Gear", "MM: the clock tower's cogs", ACTORCAT_PROP, ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED,
+        &gNvMmCtGearSize, NvMmCtGear_Init, NvMmCtGear_Destroy, NvMmCtGear_Update, NvMmCtGear_Draw } },
+    { 0x061,
+      { "Mm_Bg_Ctower_Rot", "MM: the twisting corridor", ACTORCAT_BG, ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmCtRotSize,
+        NvMmCtRot_Init, NvMmCtRot_Destroy, NvMmCtRot_Update, NvMmCtRot_Draw } },
+    { 0x1A2,
+      { "Mm_Obj_Tokei_Tobira", "MM: the clock tower's doors", ACTORCAT_BG, 0, &gNvMmTobiraSize, NvMmTobira_Init,
+        NvMmTobira_Destroy, NvMmTobira_Update, NvMmTobira_Draw } },
+    { 0x1B8,
+      { "Mm_Obj_Tokei_Step", "MM: the clock tower's steps", ACTORCAT_BG, ACTOR_FLAG_UPDATE_CULLING_DISABLED,
+        &gNvMmStepSize, NvMmStep_Init, NvMmStep_Destroy, NvMmStep_Update, NvMmStep_Draw } },
     { 0x183,
       { "Mm_Obj_Etcetera", "MM: a Deku flower", ACTORCAT_BG, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmEtceteraSize,
         NvMmEtcetera_Init, NvMmEtcetera_Destroy, NvMmEtcetera_Update, NvMmEtcetera_Draw } },

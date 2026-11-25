@@ -82,6 +82,17 @@ OBJECTS = {
         "gWestClockTownMarketDayDL": 0x1F050, "gWestClockTownMarketNightDL": 0x18DA0,
         "gWestClockTownMarketBankAdvertisementsAndDoorDayDL": 0x1EF10,
         "gWestClockTownMarketBankAdvertisementsAndDoorNightDL": 0x18C60}}),
+    "object_ctower_rot": (718, {"dl": {  # inside the clock tower: cogs, water wheel, the twisting corridor, stone doors
+        "gClockTowerCeilingCogDL": 0x10828, "gClockTowerCenterCogDL": 0x17018, "gClockTowerWaterWheelDL": 0x18118,
+        "gClockTowerCorridorDL": 0x12DA0, "gClockTowerCorridorFoliageDL": 0x129D0,
+        "gClockTowerStoneDoorMainDL": 0x17220, "gClockTowerStoneDoorDL": 0x174E0},
+        "col": {"gClockTowerWaterWheelCol": 0x18588, "gClockTowerCorridorCol": 0x142E8,
+                "gClockTowerStoneDoorMainCol": 0x17410, "gClockTowerStoneDoorCol": 0x17650}}),
+    "object_tokei_tobira": (895, {"dl": {  # the clock tower's swinging doors (Obj_Tokei_Tobira)
+        "object_tokei_tobira_DL_001108": 0x1108, "object_tokei_tobira_DL_0013E8": 0x13E8},
+        "col": {"object_tokei_tobira_Colheader_0012B0": 0x12B0, "object_tokei_tobira_Colheader_001590": 0x1590}}),
+    "object_tokei_step": (908, {"dl": {"gClocktowerPanelDL": 0x88},  # the tower's front, the last night's steps
+        "col": {"gClocktowerPanelCol": 0x968}}),
     "object_sek": (863, {"deps": ["gameplay_keep"], "dl": {  # the owl statue, closed and open (Obj_Warpstone)
         "gOwlStatueClosedDL": 0x1D0, "gOwlStatueOpenedDL": 0x3770}}),
     "object_kanban": (787, {"deps": ["gameplay_keep"], "dl": {  # the square signpost and its cut pieces (En_Kanban)
