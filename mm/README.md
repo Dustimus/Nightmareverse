@@ -232,7 +232,7 @@ behind (the OnLoadGame hook).
 Hyrule at noon, came back as Day 2 21:35, with Hyrule's noon back in OoT's time. The file holds
 `termina` next to `base`, `sohStats` and the trackers' sections.
 
-Not yet: respawning in Clock Town (owl statues) instead of OoT's respawn.
+Owl statues: a save made at one resumes there (below, "Clock Town's scenery"). Not yet: dying or voiding out in Termina still goes to OoT's respawn.
 
 ### Exits (2026-11-20)
 
@@ -570,11 +570,26 @@ MM's own, ported as they are, MM's models and collision (`tools/mm_objects.py`):
   wood from MM's gameplay_keep), MM's text (0x300 + params) and no young-Link offset. Read, cut into
   pieces (flying, bouncing, floating), whole again on coming back. Not yet: mending with the Song of
   Healing (MM's songs). North and East Clock Town have one each.
+- **Owl statues** (Obj_Warpstone, `soh/src/code/z_nv_mm_warpstone.c`): MM's model (`object_sek`, closed and
+  open), MM's text, opened by a sword hit (MM's light from its beak, then open; OoT's chime, OoT has no
+  owl sound), kept open for good (the termina section's `permanent`: `owls`, MM's owlActivationFlags).
+  Talking to an open one: MM's "save your progress and quit" and its yes/no; yes saves the one file, as
+  the pause menu does, marked as made at that owl (`owlSave`); loading that file starts at the owl's
+  spawn (MM's sOwlWarpEntrances: Clock Town's is South Clock Town's spawn 9) with Termina's clock as it
+  was, instead of OoT's respawn (NvMmSave.cpp's load hook). The mark holds while Link stays by the owl
+  (SoH writes the file on a thread); any save after he leaves it is an ordinary one.
+  **To settle with the user:** MM's owl save is one-time (gone once loaded) and quits to the title;
+  here it's a normal save and the game goes on, and MM's own text (warning that reloading loses the
+  progress, the Song of Time restart) describes MM's rules, not these. Also: owl statues in other
+  places (the user's idea, 2026-11-25: later, with how the map works). Not yet: the Song of Soaring.
 - Dev: NV_POS takes a height (`x,z,yaw,y`) and NV_POS_AT=frames places Link after a gate's walk-in;
   NV_MM_SPAWN="mmid,params[,dist]" (hex) spawns a ported MM actor in front of Link (NV_MM_SPAWN_AT).
 - Tested headless: the carnival tower and flags on day 3 (South), the stalls by day (West), the tree
   (North), each by a shot with it drawn and one with it switched off; a Laundry Pool bush drawn and
-  cut by the sword; a signpost read ("Deku Scrub Playground down this hole") and cut in two. Not yet seen: standing on the platforms or the tree, the tree's sway, a mushroom,
+  cut by the sword; a signpost read ("Deku Scrub Playground down this hole") and cut in two; South Clock
+  Town's owl opened by the sword, talked to, saved at (the file: `owls` 16, `owlSave` 4), and that file
+  loaded (dev NV_MM_SAVETEST=load,resume: the file select's load hooks and entrance) starting at the owl,
+  Day 1 as saved. Not yet seen: standing on the platforms or the tree, the tree's sway, a mushroom,
   lifting a bush.
 
 ### MM's schedules, and MM's doors (2026-11-22)

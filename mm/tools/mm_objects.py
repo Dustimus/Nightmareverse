@@ -82,6 +82,8 @@ OBJECTS = {
         "gWestClockTownMarketDayDL": 0x1F050, "gWestClockTownMarketNightDL": 0x18DA0,
         "gWestClockTownMarketBankAdvertisementsAndDoorDayDL": 0x1EF10,
         "gWestClockTownMarketBankAdvertisementsAndDoorNightDL": 0x18C60}}),
+    "object_sek": (863, {"deps": ["gameplay_keep"], "dl": {  # the owl statue, closed and open (Obj_Warpstone)
+        "gOwlStatueClosedDL": 0x1D0, "gOwlStatueOpenedDL": 0x3770}}),
     "object_kanban": (787, {"deps": ["gameplay_keep"], "dl": {  # the square signpost and its cut pieces (En_Kanban)
         "gSignMaterialDL": 0xC30, "gSignUpperSideLeftModelDL": 0xCB0, "gSignLeftSideUpperModelDL": 0xDB8,
         "gSignLeftSideLowerModelDL": 0xE78, "gSignRightSideUpperModelDL": 0xF38, "gSignRightSideLowerModelDL": 0xFF8,
@@ -99,6 +101,7 @@ OBJECTS = {
         "gameplay_keep_DL_029D10": 0x29D10,  # the mushroom's purple glow (Obj_Kinoko)
         "gKakeraLeafMiddleDL": 0x527F0, "gKakeraLeafTipDL": 0x528B0,  # grass bits flying (En_Kusa)
         "gSignRectangularDL": 0x5AED0,  # the whole square sign (En_Kanban)
+        "gEffFlash1DL": 0x23210,  # the owl statue's opening light (Obj_Warpstone)
         "gDekuMaskDL": 0x56C0,  # the Deku Mask on Link's face, put on (the transformation scene)
         "gGoronMaskDL": 0x5A10,  # the Goron Mask, the same
         "gZoraMaskDL": 0x5360,  # the Zora Mask, the same

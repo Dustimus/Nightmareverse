@@ -25,6 +25,7 @@ void NvMsg_Show(PlayState* play, const char* text);
 void Save_SaveFile(void);
 void Save_LoadFile(void);
 void NvMmClock_LogState(const char* when);
+void GameInteractor_ExecuteOnLoadGame(s32 fileNum);
 
 static void NvMm_SaveTest(PlayState* play) {
     static s32 sLoaded;
@@ -47,6 +48,14 @@ static void NvMm_SaveTest(PlayState* play) {
             play->actorCtx.flags.collect = f->collect;
         }
         NvMmClock_LogState("after loading file 1");
+        if (strstr(t, "resume") != NULL) { // (=load,resume: as the file select's load: its hooks, then its entrance)
+            GameInteractor_ExecuteOnLoadGame(gSaveContext.fileNum);
+            printf("NVMM resume: entrance %04X\n", (unsigned)gSaveContext.entranceIndex);
+            fflush(stdout);
+            play->nextEntranceIndex = gSaveContext.entranceIndex;
+            play->transitionTrigger = TRANS_TRIGGER_START;
+            play->transitionType = TRANS_TYPE_FADE_BLACK;
+        }
         printf("NVMM loaded: Hyrule's time in the base save is %04X\n", (unsigned)gSaveContext.dayTime);
         fflush(stdout);
     } else if ((strstr(t, "save") != NULL) && !sSaved && (play->state.frames == 100)) {
