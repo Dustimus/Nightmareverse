@@ -233,7 +233,7 @@ static void NvMmScene_DrawColor(PlayState* play, s32 segment, s32 type, const u8
 
     memcpy(&klen, d, 2);
     memcpy(&kcount, d + 2, 2);
-    if ((klen == 0) || (kcount == 0)) {
+    if ((klen == 0) || ((type != 2) && (kcount == 0))) { // (type 2, one colour a frame, has no key frames)
         return;
     }
     n = (type == 2) ? klen : kcount;
@@ -300,8 +300,14 @@ static void NvMmScene_DrawColor(PlayState* play, s32 segment, s32 type, const u8
 
 /** MM's AnimatedMat_Draw for a list of "MMAT" entries (mm_scene.py matanim_blob): the step is the
  * frame count. */
+static void NvMmMatAnim_DrawEntriesStep(PlayState* play, const u8* entries, s32 count, u32 step);
+
 static void NvMmMatAnim_DrawEntries(PlayState* play, const u8* entries, s32 count) {
-    u32 step = play->gameplayFrames;
+    NvMmMatAnim_DrawEntriesStep(play, entries, count, play->gameplayFrames);
+}
+
+/** The same at a given step (MM's AnimatedMat_DrawStep: an actor picking its frame, e.g. its colours). */
+static void NvMmMatAnim_DrawEntriesStep(PlayState* play, const u8* entries, s32 count, u32 step) {
     const u8* e;
     s32 i;
 
@@ -349,6 +355,19 @@ void NvMmMatAnim_Draw(PlayState* play, const char* path) {
     }
     memcpy(&count, data + 4, sizeof(count));
     NvMmMatAnim_DrawEntries(play, data + 8, count);
+}
+
+/** An object's animated materials at a fixed step (MM's AnimatedMat_DrawStepOpa). */
+void NvMmMatAnim_DrawStep(PlayState* play, const char* path, u32 step) {
+    const u8* data;
+    s32 count;
+
+    if (!ResourceMgr_FileExists(path) || ((data = (const u8*)ResourceGetDataByName(path)) == NULL) ||
+        (memcmp(data, "MMAT", 4) != 0)) {
+        return;
+    }
+    memcpy(&count, data + 4, sizeof(count));
+    NvMmMatAnim_DrawEntriesStep(play, data + 8, count, step);
 }
 
 /** After the scene's draw config (Scene_Draw, z_scene_table.c): MM's rooms call display lists in

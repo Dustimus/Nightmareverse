@@ -520,6 +520,21 @@ mask) are set. Not yet: his Song of Storms and its speeding up (MM's audio).
 Tested headless in the Laundry Pool at 20:00: the whole story, "You got the Bremen Mask!", his last
 line, and talking again after (his line for once the mask's given).
 
+### The Rosa sisters (2026-11-25, `soh/src/code/z_nv_mm_rz.c`, MM's En_Rz)
+
+Judo and Marilla, MM's model (`object_rz`: one model; each sister's trim, red or blue, its animated
+materials drawn at step 0 or 1, MM's AnimatedMat_DrawStep, now `NvMmMatAnim_DrawStep`). On the first two
+nights they practise their dance in West Clock Town and won't be bothered (MM's lines); a third pair walk
+their path stopping to think (MM's lines in turn); after Link's shown them Kamaro's dance they sit at the
+inn and thank him. The heart piece: MM's, given when Link dances Kamaro's dance in front of them; the
+wiring's here (`NvMmMask_Dancing`, false for now): it waits for Kamaro's Mask's dance. Their music waits
+for MM's audio; MM's cutscene (kneeling, applauding on cue) is plain talk; once they've learnt his dance
+MM draws them with Link's dance animation, kept as their own here.
+Fixed with them: animated-material colour entries of MM's simplest kind (a colour per frame, no key
+frames) were skipped, leaving their segments unset (a crash drawing the sisters).
+Tested headless in West Clock Town at 20:00: both dancing, the red and blue trims, MM's "Don't bother
+us!!!", the Notebook's "met".
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near

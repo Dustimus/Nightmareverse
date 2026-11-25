@@ -87,6 +87,13 @@ OBJECTS = {
         "anim": {"gGuruGuruPlayStillAnim": 0xB04, "gGuruGuruPlayAndMoveHeadAnim": 0x57C},
         "tex": {"gGuruGuruEyeClosedTex": (0x5F20, "CI8", 32, 32, 0x4E60), "gGuruGuruEyeAngryTex": (0x6320, "CI8", 32, 32, 0x4E60),
                 "gGuruGuruMouthOpenTex": (0x6720, "CI8", 32, 16, 0x4E60), "gGuruGuruMouthAngryTex": (0x6920, "CI8", 32, 16, 0x4E60)}}),
+    "object_rz": (1062, {  # the Rosa sisters (En_Rz): eyes in segment 9, their colours an animated material
+        "skel": {"object_rz_Skel_00D8D8": 0xD8D8},
+        "anim": {"gRosaSistersApplaudingAnim": 0x59C, "gRosaSistersOnKneesAnim": 0xDE8, "gRosaSistersDancingAnim": 0x28D4,
+                 "gRosaSistersSittingAnim": 0x3098, "gRosaSistersStandingAnim": 0x3A20, "gRosaSistersThinkingAnim": 0x457C,
+                 "gRosaSistersWalkingAnim": 0x5390, "gRosaSistersWalkingWhileThinkingAnim": 0x5E50},
+        "tex": {f"object_rz_Tex_{o:06X}": (o, "CI8", 32, 32, 0xB650) for o in (0xBC50, 0xC190, 0xC590, 0xC990, 0xCD90)},
+        "matanim": {"object_rz_Matanimheader_00D768": 0xD768}}),
     "object_ctower_rot": (718, {"dl": {  # inside the clock tower: cogs, water wheel, the twisting corridor, stone doors
         "gClockTowerCeilingCogDL": 0x10828, "gClockTowerCenterCogDL": 0x17018, "gClockTowerWaterWheelDL": 0x18118,
         "gClockTowerCorridorDL": 0x12DA0, "gClockTowerCorridorFoliageDL": 0x129D0,

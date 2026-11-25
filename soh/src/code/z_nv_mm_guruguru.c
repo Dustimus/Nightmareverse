@@ -27,8 +27,8 @@ void NvMm_NotebookEvent(u16 event);
 #define WE_77_04 MM_WE(77, 0x04) // (the music box's owner known: the Laundry Pool lines after)
 #define WE_88_04 MM_WE(88, 0x04)
 #define WE_79_04 MM_WE(79, 0x04) // Deku Link's talk heard
-#define NOTEBOOK_MET_GURU_GURU 17
-#define NOTEBOOK_RECEIVED_BREMEN_MASK 39
+#define NOTEBOOK_MET_GURU_GURU 19 // (MM's notebook table: 0x13)
+#define NOTEBOOK_RECEIVED_BREMEN_MASK 54 // (0x36)
 #define MM_GI_MASK_BREMEN 0x8C
 #define MM_ITEM_MASK_BREMEN 0x46
 
