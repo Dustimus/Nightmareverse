@@ -82,6 +82,11 @@ OBJECTS = {
         "gWestClockTownMarketDayDL": 0x1F050, "gWestClockTownMarketNightDL": 0x18DA0,
         "gWestClockTownMarketBankAdvertisementsAndDoorDayDL": 0x1EF10,
         "gWestClockTownMarketBankAdvertisementsAndDoorNightDL": 0x18C60}}),
+    "object_fu": (790, {  # Guru-Guru (En_Guruguru): his eyes and mouth set by the actor (segments 8, 9)
+        "skel": {"gGuruGuruSkel": 0x6C90},
+        "anim": {"gGuruGuruPlayStillAnim": 0xB04, "gGuruGuruPlayAndMoveHeadAnim": 0x57C},
+        "tex": {"gGuruGuruEyeClosedTex": (0x5F20, "CI8", 32, 32, 0x4E60), "gGuruGuruEyeAngryTex": (0x6320, "CI8", 32, 32, 0x4E60),
+                "gGuruGuruMouthOpenTex": (0x6720, "CI8", 32, 16, 0x4E60), "gGuruGuruMouthAngryTex": (0x6920, "CI8", 32, 16, 0x4E60)}}),
     "object_ctower_rot": (718, {"dl": {  # inside the clock tower: cogs, water wheel, the twisting corridor, stone doors
         "gClockTowerCeilingCogDL": 0x10828, "gClockTowerCenterCogDL": 0x17018, "gClockTowerWaterWheelDL": 0x18118,
         "gClockTowerCorridorDL": 0x12DA0, "gClockTowerCorridorFoliageDL": 0x129D0,

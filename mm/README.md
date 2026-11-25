@@ -509,6 +509,17 @@ As in MM it's the same four kids placed three times each, one spot per day (half
 - Tested headless in West Clock Town, Day 1 08:00: the kid walks about, turns to talk, and the
   conversation runs through the yes/no to the notebook lines.
 
+### Guru-Guru (2026-11-25, `soh/src/code/z_nv_mm_guruguru.c`, MM's En_Guruguru)
+
+The music box man, MM's model (`object_fu`, his two cranking animations, his eyes and mouths). By day
+in his room at the inn (params 0), at night in the Laundry Pool (params 1); a third (params 2) is his
+music through the inn's wall. At night he tells his story line by line, cranking faster as it goes,
+angry on the line MM makes him angry on, and at its end gives the Bremen Mask (MM's get-item, once a
+cycle: 38_40), then his last line; Deku Link gets MM's Deku lines. The Notebook's events (met him, the
+mask) are set. Not yet: his Song of Storms and its speeding up (MM's audio).
+Tested headless in the Laundry Pool at 20:00: the whole story, "You got the Bremen Mask!", his last
+line, and talking again after (his line for once the mask's given).
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near

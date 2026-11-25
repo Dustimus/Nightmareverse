@@ -58,6 +58,7 @@ PORTED = {
     0x061,  # Bg_Ctower_Rot: the twisting corridor and its stone doors (z_nv_mm_ctower.c)
     0x1A2,  # Obj_Tokei_Tobira: the clock tower's swinging doors (z_nv_mm_ctower.c)
     0x1B8,  # Obj_Tokei_Step: the tower's front, the last night's steps (z_nv_mm_ctower.c)
+    0x248,  # En_Guruguru: Guru-Guru (z_nv_mm_guruguru.c)
 }
 
 # MM's ids (the decomp's actor table)
