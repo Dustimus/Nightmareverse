@@ -82,6 +82,12 @@ OBJECTS = {
         "gWestClockTownMarketDayDL": 0x1F050, "gWestClockTownMarketNightDL": 0x18DA0,
         "gWestClockTownMarketBankAdvertisementsAndDoorDayDL": 0x1EF10,
         "gWestClockTownMarketBankAdvertisementsAndDoorNightDL": 0x18C60}}),
+    "object_kanban": (787, {"deps": ["gameplay_keep"], "dl": {  # the square signpost and its cut pieces (En_Kanban)
+        "gSignMaterialDL": 0xC30, "gSignUpperSideLeftModelDL": 0xCB0, "gSignLeftSideUpperModelDL": 0xDB8,
+        "gSignLeftSideLowerModelDL": 0xE78, "gSignRightSideUpperModelDL": 0xF38, "gSignRightSideLowerModelDL": 0xFF8,
+        "gSignLowerSideLeftModelDL": 0x10B8, "gSignUpperSideRightModelDL": 0x11C0, "gSignLowerSideRightModelDL": 0x12C8,
+        "gSignPostUpperModelDL": 0x13D0, "gSignPostLowerModelDL": 0x1488, "gSignPostStandModelDL": 0x1540,
+        "gSignParticleDL": 0x1630}}),
     "object_kusa": (785, {"dl": {  # cuttable grass and its stump (En_Kusa)
         "gKusaSproutDL": 0x140, "gKusaStumpDL": 0x2E0}}),
     "object_kibako": (862, {"dl": {  # the small crate, outdoors (Obj_Kibako)
@@ -92,6 +98,7 @@ OBJECTS = {
         "gSquareShadowDL": 0x75A40,
         "gameplay_keep_DL_029D10": 0x29D10,  # the mushroom's purple glow (Obj_Kinoko)
         "gKakeraLeafMiddleDL": 0x527F0, "gKakeraLeafTipDL": 0x528B0,  # grass bits flying (En_Kusa)
+        "gSignRectangularDL": 0x5AED0,  # the whole square sign (En_Kanban)
         "gDekuMaskDL": 0x56C0,  # the Deku Mask on Link's face, put on (the transformation scene)
         "gGoronMaskDL": 0x5A10,  # the Goron Mask, the same
         "gZoraMaskDL": 0x5360,  # the Zora Mask, the same

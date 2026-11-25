@@ -51,6 +51,7 @@ PORTED = {
     0x1CC,  # Bg_Market_Step: West Clock Town's market stalls (z_nv_mm_scenery.c)
     0x23B,  # Obj_Kinoko: the magic mushrooms (z_nv_mm_scenery.c)
     0x090,  # En_Kusa: grass and bushes, MM's own (z_nv_mm_kusa.c)
+    0x0A8,  # En_Kanban: the square signposts, MM's own (z_nv_mm_kanban.c)
 }
 
 # MM's ids (the decomp's actor table)

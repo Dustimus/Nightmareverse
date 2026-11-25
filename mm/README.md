@@ -565,11 +565,16 @@ MM's own, ported as they are, MM's models and collision (`tools/mm_objects.py`):
   OoT's random table at MM's index (MM's tables aren't over); bugs wait for MM's bugs. Clock Town's are
   the Laundry Pool's three bushes. (The Keaton's ring is MM's En_Kusa2, another actor: none in Clock
   Town; it comes with the fields.)
+- **Square signposts** (En_Kanban, `soh/src/code/z_nv_mm_kanban.c`): MM's sign is OoT's own, line for line
+  but for the forms' hits and the mending song, so it's OoT's code with MM's model (`object_kanban`, its
+  wood from MM's gameplay_keep), MM's text (0x300 + params) and no young-Link offset. Read, cut into
+  pieces (flying, bouncing, floating), whole again on coming back. Not yet: mending with the Song of
+  Healing (MM's songs). North and East Clock Town have one each.
 - Dev: NV_POS takes a height (`x,z,yaw,y`) and NV_POS_AT=frames places Link after a gate's walk-in;
   NV_MM_SPAWN="mmid,params[,dist]" (hex) spawns a ported MM actor in front of Link (NV_MM_SPAWN_AT).
 - Tested headless: the carnival tower and flags on day 3 (South), the stalls by day (West), the tree
   (North), each by a shot with it drawn and one with it switched off; a Laundry Pool bush drawn and
-  cut by the sword. Not yet seen: standing on the platforms or the tree, the tree's sway, a mushroom,
+  cut by the sword; a signpost read ("Deku Scrub Playground down this hole") and cut in two. Not yet seen: standing on the platforms or the tree, the tree's sway, a mushroom,
   lifting a bush.
 
 ### MM's schedules, and MM's doors (2026-11-22)
