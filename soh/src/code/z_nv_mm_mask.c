@@ -143,6 +143,11 @@ s32 NvMmMask_UseItem(PlayState* play, Player* player, s32 item) {
     return true;
 }
 
+/** Dev (NV_MM_WEAR): MM's mask item `mmItem` worn at once. */
+void NvMmMask_DevWear(s32 mmItem) {
+    sWorn = NvMmMask_PlayerMask(mmItem);
+}
+
 /** MM's Player_GetMask for MM's people: the MM mask worn (MM's PLAYER_MASK_*), 0 for none. */
 s32 NvMmMask_Worn(void) {
     return sWorn;

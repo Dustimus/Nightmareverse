@@ -406,6 +406,15 @@ void NvDev_Update(PlayState* play) {
     if ((player == NULL) || (play->gameplayFrames < 2)) {
         return;
     }
+    {
+        static s32 sNvWorn; // NV_MM_WEAR=46: that MM mask (MM's item id, hex) worn from the start, anywhere
+        void NvMmMask_DevWear(s32 mmItem);
+
+        if (!sNvWorn && (getenv("NV_MM_WEAR") != NULL)) {
+            sNvWorn = true;
+            NvMmMask_DevWear((s32)strtol(getenv("NV_MM_WEAR"), NULL, 16));
+        }
+    }
     if (play->sceneNum != sNvScene) { // a new scene: the start position applies again
         sNvScene = play->sceneNum;
         sNvPosDone = false;

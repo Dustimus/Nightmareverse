@@ -526,8 +526,8 @@ Judo and Marilla, MM's model (`object_rz`: one model; each sister's trim, red or
 materials drawn at step 0 or 1, MM's AnimatedMat_DrawStep, now `NvMmMatAnim_DrawStep`). On the first two
 nights they practise their dance in West Clock Town and won't be bothered (MM's lines); a third pair walk
 their path stopping to think (MM's lines in turn); after Link's shown them Kamaro's dance they sit at the
-inn and thank him. The heart piece: MM's, given when Link dances Kamaro's dance in front of them; the
-wiring's here (`NvMmMask_Dancing`, false for now): it waits for Kamaro's Mask's dance. Their music waits
+inn and thank him. The heart piece: MM's, given when Link dances Kamaro's dance in front of them (the dance: see "The
+Bremen march and Kamaro's dance"). Their music waits
 for MM's audio; MM's cutscene (kneeling, applauding on cue) is plain talk; once they've learnt his dance
 MM draws them with Link's dance animation, kept as their own here.
 Fixed with them: animated-material colour entries of MM's simplest kind (a colour per frame, no key
@@ -605,6 +605,28 @@ Left out: his knee-slap and the stamp's sounds (MM's own, not in OoT's banks).
 Dev: `NV_MM_BANK=100` starts with a balance.
 Tested headless: a first deposit of 100 through MM's lines, the box, the stamp and the balance ("a
 total of 100 Rupees"); a returning customer's menu, the stamp check, the withdrawal box.
+
+### The Bremen march and Kamaro's dance (2026-11-26, `soh/src/code/z_nv_mm_march.c`, `z_nv_march_follow.c`)
+
+MM's Player_Action_11 and 12. With the Bremen Mask or Kamaro's Mask on, human Link's B is MM's:
+held on the ground he marches (MM's clink_normal_okarina_walk, walkB moving, his pace rising and
+falling with the beat) or dances (MM's alink_dance_loop); let go, he stands. Hooked at the top of
+OoT's action handler lists (z_player.c, one line), ahead of the sword, as MM's B with these masks.
+Others see them as MM's player flags: `NvMmMask_Marching`, `NvMmMask_Dancing`. MM's music for each
+(NA_BGM_BREMEN_MARCH, NA_BGM_KAMARO_DANCE) waits for MM's audio.
+
+**Who follows the march.** In MM the following is each follower's own code: a dog (En_Dg) and
+Grog's chicks (En_Nwc) watch for the march flag and fall in behind Link; Kafei and Igos's knights
+react to it too. Here OoT's animals follow it as well (the user's call): a dog (En_Dog) or a
+wandering cucco (En_Niw) near Link (300) when he marches joins a line behind him, each following the
+one ahead at its own gap, waiting when close; when the march stops they go back to what they were
+doing. The line (up to 8) is `NvMarch_Follow`, asked from each one's update (a few lines in
+z_en_dog.c and z_en_niw.c); MM's own followers will use it too.
+
+The dance is what the Rosa sisters wait for: danced in front of them, MM's heart piece.
+Dev: `NV_MM_WEAR=46` wears that MM mask (MM's item id, hex) from the start, anywhere.
+Tested headless: the march in East Clock Town (the mask on his head, his pace), Kamaro's dance for
+the Rosa sisters (the heart piece given), a Kakariko cucco and a Market dog following the march.
 
 ### MM's own props: chimneys and crates (2026-11-22)
 

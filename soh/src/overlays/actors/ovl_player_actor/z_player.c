@@ -4191,10 +4191,15 @@ static s32 (*sActionHandlerFuncs[])(Player* this, PlayState* play) = {
  * @return true if a new action has been chosen
  *
  */
+s32 NvMmMask_ActionB(PlayState* play, Player* this); // Nightmareverse (z_nv_mm_march.c)
+
 s32 Player_TryActionHandlerList(PlayState* play, Player* this, s8* actionHandlerList, s32 updateUpperBody) {
     s32 i;
 
     if (!(this->stateFlags1 & (PLAYER_STATE1_LOADING | PLAYER_STATE1_DEAD | PLAYER_STATE1_IN_CUTSCENE))) {
+        if (NvMmMask_ActionB(play, this)) { // Nightmareverse: B with the Bremen or Kamaro's Mask (MM's march, dance)
+            return true;
+        }
         if (updateUpperBody) {
             sUpperBodyIsBusy = Player_UpdateUpperBody(this, play);
 

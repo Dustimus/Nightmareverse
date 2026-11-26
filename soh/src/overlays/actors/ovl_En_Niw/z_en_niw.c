@@ -883,6 +883,8 @@ void func_80AB747C(EnNiw* this, PlayState* play) {
     }
 }
 
+s32 NvMarch_Follow(PlayState* play, Actor* actor, f32 gap); // Nightmareverse (z_nv_march_follow.c)
+
 void EnNiw_Update(Actor* thisx, PlayState* play) {
     s32 pad1;
     EnNiw* this = (EnNiw*)thisx;
@@ -977,7 +979,11 @@ void EnNiw_Update(Actor* thisx, PlayState* play) {
     }
     thisx->shape.rot = thisx->world.rot;
     thisx->shape.shadowScale = 15.0f;
-    this->actionFunc(this, play);
+    if ((this->actionFunc == func_80AB6570) && NvMarch_Follow(play, &this->actor, 35.0f)) {
+        func_80AB5BF8(this, play, 1); // Nightmareverse: a wandering cucco following the Bremen march
+    } else {
+        this->actionFunc(this, play);
+    }
     Actor_SetFocus(&this->actor, this->unk_304);
     Actor_MoveXZGravity(&this->actor);
 

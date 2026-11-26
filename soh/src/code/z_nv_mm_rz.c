@@ -8,7 +8,7 @@
  *   type 1  after Link's shown them the dance (77_04): sitting, their thanks.
  * The heart piece: MM gives it when Link dances Kamaro's dance in front of them (Kamaro's Mask's dance,
  * MM's PLAYER_STATE2_2000000: NvMmMask_Dancing); then they ask him to show them, applaud, and dance his
- * dance ever after. That wiring is here, MM's; it waits for the mask's dance. MM's cutscene (their
+ * dance ever after (the dance: z_nv_mm_march.c). MM's cutscene (their
  * camera, kneeling and applauding on cue) is played as plain talk; their music (MM's sub-BGM) waits for
  * MM's audio; once they've learnt Link's dance MM draws them with Link's own dance animation, kept
  * as their own dance here.
@@ -46,10 +46,7 @@ GetItemEntry NvMmGetItem_Entry(s32 mmGi);
 void NvMmMatAnim_DrawStep(PlayState* play, const char* path, u32 step);
 s32 NvMmActor_Id(s32 mmId);
 
-/** Kamaro's dance being danced (MM's PLAYER_STATE2_2000000): not in yet. */
-static s32 NvMmMask_Dancing(PlayState* play) {
-    return false;
-}
+s32 NvMmMask_Dancing(PlayState* play); // Kamaro's dance being danced (MM's PLAYER_STATE2_2000000: z_nv_mm_march.c)
 
 enum { RZ_ANIM_THINKING, RZ_ANIM_STANDING, RZ_ANIM_WALKING, RZ_ANIM_SITTING, RZ_ANIM_APPLAUDING, RZ_ANIM_ON_KNEES,
        RZ_ANIM_DANCE, RZ_ANIM_MAX };

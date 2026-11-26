@@ -475,6 +475,8 @@ void EnDog_Wait(EnDog* this, PlayState* play) {
     }
 }
 
+s32 NvMarch_Follow(PlayState* play, Actor* actor, f32 gap); // Nightmareverse (z_nv_march_follow.c)
+
 void EnDog_Update(Actor* thisx, PlayState* play) {
     EnDog* this = (EnDog*)thisx;
     s32 pad;
@@ -483,7 +485,12 @@ void EnDog_Update(Actor* thisx, PlayState* play) {
     SkelAnime_Update(&this->skelAnime);
     Actor_UpdateBgCheckInfo(play, &this->actor, this->collider.dim.radius, this->collider.dim.height * 0.5f, 0.0f, 5);
     Actor_MoveXZGravity(&this->actor);
-    this->actionFunc(this, play);
+    s32 nvMarch = NvMarch_Follow(play, &this->actor, 45.0f); // Nightmareverse: following the Bremen march
+    if (nvMarch != 0) {
+        this->nextBehavior = (nvMarch == 1) ? DOG_WALK : DOG_SIT;
+    } else {
+        this->actionFunc(this, play);
+    }
     Collider_UpdateCylinder(&this->actor, &this->collider);
     CollisionCheck_SetOC(play, &play->colChkCtx, &this->collider.base);
 }
