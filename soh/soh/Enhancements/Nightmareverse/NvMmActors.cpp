@@ -127,6 +127,8 @@ NV_MM_SCENERY(Suttari)
 NV_MM_SCENERY(Kujiya)
 NV_MM_SCENERY(Recepgirl)
 NV_MM_SCENERY(Mm2)
+NV_MM_SCENERY(Takaraya)
+NV_MM_SCENERY(TakarayaWall)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -232,6 +234,15 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x0FE,
       { "Mm_En_Mm2", "MM: the Postman's letter", ACTORCAT_ITEMACTION, ACTOR_FLAG_UPDATE_CULLING_DISABLED,
         &gNvMmMm2Size, NvMmMm2_Init, NvMmMm2_Destroy, NvMmMm2_Update, NvMmMm2_Draw } },
+    { 0x1C1,
+      { "Mm_En_Takaraya", "MM: the Treasure Chest Shop gal", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED |
+            ACTOR_FLAG_DRAW_CULLING_DISABLED,
+        &gNvMmTakarayaSize, NvMmTakaraya_Init, NvMmTakaraya_Destroy, NvMmTakaraya_Update, NvMmTakaraya_Draw } },
+    { 0x1BB,
+      { "Mm_Obj_Takaraya_Wall", "MM: the Treasure Chest Shop's board", ACTORCAT_BG,
+        ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmTakarayaWallSize,
+        NvMmTakarayaWall_Init, NvMmTakarayaWall_Destroy, NvMmTakarayaWall_Update, NvMmTakarayaWall_Draw } },
     { 0x14D,
       { "Mm_Obj_Entotu", "MM: a Clock Town chimney", ACTORCAT_PROP,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmEntotuSize, NvMmEntotu_Init,

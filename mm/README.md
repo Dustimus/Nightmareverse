@@ -736,6 +736,27 @@ evening announcement (a loss: "000" against 850).
 
 Tested headless: the receptionist's first talk (0x2AD9, 0x2ADA, 0x2ADB) and the letter (day 3 21:00).
 
+### The Treasure Chest Shop (2026-11-26, `soh/src/code/z_nv_mm_takaraya.c`)
+
+MM's En_Takaraya (the gal at the counter, MM's `object_bg`) and Obj_Takaraya_Wall (the board,
+`object_takaraya_objects`). Her greeting and price by Link's form (Deku 10, human and the Fierce
+Deity 20, Goron 30, Zora 5: MM's message prices, which aren't in our message data, so written in),
+MM's "next message" chains followed by hand (`NvMmText_Next`). Paying spawns the board: as MM's, a
+path carved at random from the chest's square in the back row to the front; the other squares'
+walls rise around Link as he walks and sink behind him, and two OC cylinders hold him back. The
+chest is OoT's En_Box (MM's switch-flag big chest, type 11 in both; MM's model, z_nv_mm_box.c)
+holding the prize by form, the second time a smaller one (MM's switch flags: params >> 8 plus the
+form): purple rupee, Goron's piece of heart, Zora's red rupee, Deku's nuts. 45 seconds on OoT's main
+timer; the chest opened, or the time's up, and Link is back at the counter (MM's entrance 1) where
+she asks "Did you have fun?" or "Won't you try again?".
+
+Left out or adapted: MM's camera sweep over the board as the chest appears (OoT's chest-appearing
+camera shows instead), the masks' reactions (MM's face-reaction tables), the closing-time kick-out,
+MM's minigame music; the walls' sound is OoT's rising block.
+
+Tested headless: paying (20 Rupees as human), the board and timer, walls rising in Link's way,
+"Time's up!", back at the counter and paying again. Not yet tested: opening the chest (winning).
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near

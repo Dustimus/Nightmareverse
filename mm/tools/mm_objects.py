@@ -139,12 +139,19 @@ OBJECTS = {
                "gLotteryShopMaskDL": 0x3D58},
         "matanim": {"gLotteryShopTexAnim": 0x6198}}),
     "object_bg": (811, {  # the Mayor's receptionist (En_Recepgirl): her eyes set by the actor (segment 8)
-        "skel": {"object_bg_Skel_011B60": 0x11B60},
+        "skel": {"object_bg_Skel_011B60": 0x11B60, "gTreasureChestShopGalSkel": 0x8FC8},  # (and the Treasure Chest Shop gal)
         "anim": {f"object_bg_Anim_{o:06X}": o for o in (0x000968, 0x001384, 0x009890, 0x00A280, 0x00AD98)},
-        "tex": {"object_bg_Tex_00F8F0": (0xF8F0, "CI8", 32, 32, 0xF6F0),
+        "tex": {"gTreasureChestShopGalEyeOpenUpTex": (0x6F58, "CI8", 32, 32, 0x68D8),
+                "gTreasureChestShopGalEyeHalfUpTex": (0x7358, "CI8", 32, 32, 0x68D8),
+                "gTreasureChestShopGalEyeClosedTex": (0x7758, "CI8", 32, 32, 0x68D8),
+                "gTreasureChestShopGalEyeOpenDownTex": (0x7B58, "CI8", 32, 32, 0x68D8),
+                "gTreasureChestShopGalEyeHalfDownTex": (0x7F58, "CI8", 32, 32, 0x68D8),
+                "object_bg_Tex_00F8F0": (0xF8F0, "CI8", 32, 32, 0xF6F0),
                 "object_bg_Tex_00FCF0": (0xFCF0, "CI8", 32, 32, 0xF6F0),
                 "object_bg_Tex_0100F0": (0x100F0, "CI8", 32, 32, 0xF6F0)},
     }),
+    "object_takaraya_objects": (924, {"dl": {  # the Treasure Chest Shop's walls (Obj_Takaraya_Wall)
+        "gTreasureChestShopWallBlackDL": 0xB70, "gTreasureChestShopWallWhiteDL": 0xD60}}),
     "ovl_En_Mm2": (235, {  # the Postman's letter (En_Mm2): its model is the actor's own data
         "tex": {"sEnMm2EnvelopeTex": (0x240, "I8", 32, 32), "sEnMm2LetterTex": (0x640, "RGBA16", 16, 16)},
         "vtx": {"sEnMm21Vtx": (0x840, 10), "sEnMm22Vtx": (0x8E0, 12)},
