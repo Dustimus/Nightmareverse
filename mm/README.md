@@ -723,6 +723,19 @@ Link's guess in the save's permanent part (NvMmSave.cpp). Value codes 0xDC/0xDD 
 `z_nv_mm_msginput.c`. Tested headless: buying (140 Rupees after, guess 230 from the stick), the
 evening announcement (a loss: "000" against 850).
 
+### The Mayor's receptionist and the Postman's letter (2026-11-26, `soh/src/code/z_nv_mm_recep.c`)
+
+- **En_Recepgirl**, at the desk in the Mayor's Residence (MM's `object_bg`): MM's lines (welcome,
+  the Mayor's office on the left, the drawing room on the right, again if asked; the meeting's
+  over once week event 60_08 is set; Kafei's Mask's line), her switch flag (params), animations,
+  blinking, and her head turning to Link (OoT's limb override in place of MM's transform draw).
+- **En_Mm2**, the Postman's letter to himself, on his bed in the Post Office on the final night only
+  (its half-day in the room data). Its model is in the actor's overlay file (ROM file 235): the two
+  textures and vertex arrays come over as an object (`mm/objects/ovl_En_Mm2`), and its short display
+  list (MM's sEnMm2DL) is rebuilt in C from the overlay's commands. "Check" when close and facing it.
+
+Tested headless: the receptionist's first talk (0x2AD9, 0x2ADA, 0x2ADB) and the letter (day 3 21:00).
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near

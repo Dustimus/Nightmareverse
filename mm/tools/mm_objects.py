@@ -138,6 +138,17 @@ OBJECTS = {
                "gLotteryShopTargetArrowAndSignDL": 0x37C0, "gLotteryShopScrollingArrowDL": 0x3C80,
                "gLotteryShopMaskDL": 0x3D58},
         "matanim": {"gLotteryShopTexAnim": 0x6198}}),
+    "object_bg": (811, {  # the Mayor's receptionist (En_Recepgirl): her eyes set by the actor (segment 8)
+        "skel": {"object_bg_Skel_011B60": 0x11B60},
+        "anim": {f"object_bg_Anim_{o:06X}": o for o in (0x000968, 0x001384, 0x009890, 0x00A280, 0x00AD98)},
+        "tex": {"object_bg_Tex_00F8F0": (0xF8F0, "CI8", 32, 32, 0xF6F0),
+                "object_bg_Tex_00FCF0": (0xFCF0, "CI8", 32, 32, 0xF6F0),
+                "object_bg_Tex_0100F0": (0x100F0, "CI8", 32, 32, 0xF6F0)},
+    }),
+    "ovl_En_Mm2": (235, {  # the Postman's letter (En_Mm2): its model is the actor's own data
+        "tex": {"sEnMm2EnvelopeTex": (0x240, "I8", 32, 32), "sEnMm2LetterTex": (0x640, "RGBA16", 16, 16)},
+        "vtx": {"sEnMm21Vtx": (0x840, 10), "sEnMm22Vtx": (0x8E0, 12)},
+    }),
     "object_ctower_rot": (718, {"dl": {  # inside the clock tower: cogs, water wheel, the twisting corridor, stone doors
         "gClockTowerCeilingCogDL": 0x10828, "gClockTowerCenterCogDL": 0x17018, "gClockTowerWaterWheelDL": 0x18118,
         "gClockTowerCorridorDL": 0x12DA0, "gClockTowerCorridorFoliageDL": 0x129D0,

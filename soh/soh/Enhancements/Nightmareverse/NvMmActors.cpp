@@ -125,6 +125,8 @@ NV_MM_SCENERY(BomBowl)
 NV_MM_SCENERY(Baba)
 NV_MM_SCENERY(Suttari)
 NV_MM_SCENERY(Kujiya)
+NV_MM_SCENERY(Recepgirl)
+NV_MM_SCENERY(Mm2)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -223,6 +225,13 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x239,
       { "Mm_En_Kujiya", "MM: the Lottery Shop", ACTORCAT_NPC, ACTOR_FLAG_FRIENDLY, &gNvMmKujiyaSize, NvMmKujiya_Init,
         NvMmKujiya_Destroy, NvMmKujiya_Update, NvMmKujiya_Draw } },
+    { 0x290,
+      { "Mm_En_Recepgirl", "MM: the Mayor's receptionist", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY, &gNvMmRecepgirlSize, NvMmRecepgirl_Init,
+        NvMmRecepgirl_Destroy, NvMmRecepgirl_Update, NvMmRecepgirl_Draw } },
+    { 0x0FE,
+      { "Mm_En_Mm2", "MM: the Postman's letter", ACTORCAT_ITEMACTION, ACTOR_FLAG_UPDATE_CULLING_DISABLED,
+        &gNvMmMm2Size, NvMmMm2_Init, NvMmMm2_Destroy, NvMmMm2_Update, NvMmMm2_Draw } },
     { 0x14D,
       { "Mm_Obj_Entotu", "MM: a Clock Town chimney", ACTORCAT_PROP,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmEntotuSize, NvMmEntotu_Init,
