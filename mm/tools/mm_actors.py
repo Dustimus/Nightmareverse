@@ -26,6 +26,8 @@ DOOR_SCENEEXIT = 3
 # names them 0x7000 + MM's id, MM's params as they are; z_nv_mm_halfday.c spawns them.
 NV_MM_ACTOR_MARKER = 0x7000
 PORTED = {
+    0x1EF,  # En_Kendo_Js: the swordsman (z_nv_mm_kendo.c)
+    0x1F8,  # En_Maruta: his practice logs (z_nv_mm_kendo.c; spawned by him)
     0x1C1,  # En_Takaraya: the Treasure Chest Shop gal (z_nv_mm_takaraya.c)
     0x1BB,  # Obj_Takaraya_Wall: her board (z_nv_mm_takaraya.c; spawned by her)
     0x290,  # En_Recepgirl: the Mayor's receptionist (z_nv_mm_recep.c)

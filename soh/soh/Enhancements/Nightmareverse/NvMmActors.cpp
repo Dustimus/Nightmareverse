@@ -129,6 +129,8 @@ NV_MM_SCENERY(Recepgirl)
 NV_MM_SCENERY(Mm2)
 NV_MM_SCENERY(Takaraya)
 NV_MM_SCENERY(TakarayaWall)
+NV_MM_SCENERY(KendoJs)
+NV_MM_SCENERY(Maruta)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -243,6 +245,14 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
       { "Mm_Obj_Takaraya_Wall", "MM: the Treasure Chest Shop's board", ACTORCAT_BG,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmTakarayaWallSize,
         NvMmTakarayaWall_Init, NvMmTakarayaWall_Destroy, NvMmTakarayaWall_Update, NvMmTakarayaWall_Draw } },
+    { 0x1EF,
+      { "Mm_En_Kendo_Js", "MM: the swordsman", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmKendoJsSize,
+        NvMmKendoJs_Init, NvMmKendoJs_Destroy, NvMmKendoJs_Update, NvMmKendoJs_Draw } },
+    { 0x1F8,
+      { "Mm_En_Maruta", "MM: a practice log", ACTORCAT_PROP,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmMarutaSize, NvMmMaruta_Init,
+        NvMmMaruta_Destroy, NvMmMaruta_Update, NvMmMaruta_Draw } },
     { 0x14D,
       { "Mm_Obj_Entotu", "MM: a Clock Town chimney", ACTORCAT_PROP,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmEntotuSize, NvMmEntotu_Init,

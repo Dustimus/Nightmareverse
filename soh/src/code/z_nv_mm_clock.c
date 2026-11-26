@@ -324,6 +324,16 @@ void NvMmClock_Draw(PlayState* play) {
                             (sMmSpeeds[i].halves == sMmSpeedHalves) ? " *" : "");
         }
     }
+    {
+        extern s32 gNvMmMinigameOn;    // MM's minigame counter (z_nv_mm_kendo.c: the Swordsman's School)
+        extern s32 gNvMmMinigameScore;
+
+        if (gNvMmMinigameOn) {
+            GfxPrint_SetColor(&printer, 255, 255, 120, 255);
+            GfxPrint_SetPos(&printer, 3, 5);
+            GfxPrint_Printf(&printer, "Points %d", (int)gNvMmMinigameScore);
+        }
+    }
     if (sMmTelop > 0) {
         GfxPrint_SetColor(&printer, 255, 255, 200, 255);
         GfxPrint_SetPos(&printer, 9, 12);

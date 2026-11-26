@@ -152,6 +152,16 @@ OBJECTS = {
     }),
     "object_takaraya_objects": (924, {"dl": {  # the Treasure Chest Shop's walls (Obj_Takaraya_Wall)
         "gTreasureChestShopWallBlackDL": 0xB70, "gTreasureChestShopWallWhiteDL": 0xD60}}),
+    "object_js": (797, {  # the swordsman (En_Kendo_Js)
+        "skel": {"gSwordmasterSkel": 0x6990},
+        "anim": {"gSwordmasterFlailingAnim": 0x16C, "gSwordmasterStopFlailingAnim": 0x3DC,
+                 "gSwordmasterCoweringAnim": 0xAD4, "gSwordmasterDefaultAnim": 0xF4C}}),
+    "object_maruta": (953, {"dl": {  # the Swordsman's School's practice logs (En_Maruta)
+        "gPracticeLogBottomLeftBigChunkDL": 0x2220, "gPracticeLogBottomRightBigChunkDL": 0x23D0,
+        "gPracticeLogBottomLeftCornerChunkDL": 0x2568, "gPracticeLogBottomRightCornerChunkDL": 0x2660,
+        "gPracticeLogTopLeftCornerChunkDL": 0x2758, "gPracticeLogTopRightCornerChunkDL": 0x2850,
+        "gPracticeLogTopLeftBigChunkDL": 0x2948, "gPracticeLogTopRightBigChunkDL": 0x2AE0,
+        "gPracticeLogWholeDL": 0x2EC0}}),
     "ovl_En_Mm2": (235, {  # the Postman's letter (En_Mm2): its model is the actor's own data
         "tex": {"sEnMm2EnvelopeTex": (0x240, "I8", 32, 32), "sEnMm2LetterTex": (0x640, "RGBA16", 16, 16)},
         "vtx": {"sEnMm21Vtx": (0x840, 10), "sEnMm22Vtx": (0x8E0, 12)},

@@ -334,11 +334,15 @@ static void NvDev_MarkSpot(PlayState* play, Player* player) {
     Sfx_PlaySfxCentered(NA_SE_SY_DECIDE);
 }
 
+void NvMmInput_Apply(PlayState* play);
+
 void NvDev_Update(PlayState* play) {
     Player* player = GET_PLAYER(play);
     Input* input = &play->state.input[0];
     const char* pos;
     static s32 sHealthSet;
+
+    NvMmInput_Apply(play); // (not dev: an MM actor setting Link's stick, z_nv_mm_kendo.c)
 
     // dev: NV_HEALTH=n sets Link's health (in sixteenths of a heart) once, e.g. to see the enemies'
     // low-health kill moves
@@ -806,7 +810,9 @@ void NvDev_Update(PlayState* play) {
                 printf("NVSTEP choice %d\n", (int)wp->wait);
                 fflush(stdout);
                 sNvPathIdx++;
-            } else if ((msgCtx->msgMode == MSGMODE_TEXT_AWAIT_NEXT) && ((++wp->z % 15) == 0)) { // (read on)
+            } else if (((msgCtx->msgMode == MSGMODE_TEXT_AWAIT_NEXT) ||
+                        ((msgCtx->msgMode == MSGMODE_TEXT_DONE) && (msgCtx->textboxEndType == TEXTBOX_ENDTYPE_EVENT))) &&
+                       ((++wp->z % 15) == 0)) { // (read on: a box break, or an event the speaker goes on from)
                 input->press.button |= BTN_A;
                 input->cur.button |= BTN_A;
             }

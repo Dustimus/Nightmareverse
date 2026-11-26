@@ -16714,3 +16714,8 @@ void Player_StartTalking(PlayState* play, Actor* actor) {
     F(sHeldItemButtonIsHeldDown)
 
 SHIP_SAVESTATE_DEFINE(Player, PLAYER_SHIP_SAVESTATE_FIELDS)
+
+// Nightmareverse: whether Link is rolling (MM's PLAYER_STATE3_8000000, the Swordsman's School: z_nv_mm_kendo.c)
+s32 NvPlayer_IsRolling(Player* player) {
+    return player->actionFunc == Player_Action_Roll;
+}

@@ -763,6 +763,35 @@ and opens from the side its data faces; OoT's turns only its *world* rotation, s
 opening side face the data. MM's placed chests came over facing backwards; `mm_actors.py` now turns
 them half round (and the shop's spawned chest is turned in the code).
 
+### The Swordsman's School (2026-11-26, `soh/src/code/z_nv_mm_kendo.c`)
+
+MM's En_Kendo_Js (the swordsman, `object_js`) and En_Maruta (the practice logs, `object_maruta`).
+His lines by day, form and mask, then the courses (MM's three-way choice):
+- **Novice Course** (1 Rupee): Link is walked to his spot, a log rises, and the seven lessons
+  (side jump, roll, back flip, horizontal cut, vertical cut, thrust, jump attack) are checked
+  against Link's moves, with MM's "Wrong!", retries and hints (put the sword away; don't Z-Target).
+- **Expert Course** (10 Rupees): five rounds of two logs rising at random from his path's points;
+  1 point a cut, 2 a thrust, 3 a jump attack; all 30 for the piece of heart (week event 63_20), a
+  red rupee after.
+On the final night (day 3 after 23:00) he cowers in the back room and his sign stands at the counter.
+
+The logs rise through the floor, turn to face Link, and the swing that hits one cuts it by MM's
+table into MM's pieces (eight chunks making nine shapes), which fly off, spin, bounce, settle and
+flatten away as MM's.
+
+Adapted: Link's moves are read from OoT's player (MM's side jump and back flip are OoT's hop,
+`PLAYER_STATE2_HOPPING` and its direction; MM's roll flag is OoT's roll action, asked through
+`NvPlayer_IsRolling`, a few lines at the end of `z_player.c`; the swings are OoT's of the same
+names). MM walks Link to his spot by setting the control stick; here the stick is set the same way
+(`NvMmInput_Apply`, run with the dev walker's input in `z_nv_dev.c`). MM's minigame counter is a
+"Points" line over the HUD (`z_nv_mm_clock.c`). MM's course camera (a cutscene camera) is left out.
+
+Tested headless: the novice course's first lesson (a wrong move: "Wrong!", the hint, retry) and the
+expert course (paid, walked to the start, five rounds, cuts scored, "Start over" short of 30). Not yet
+tested: the right moves for each novice lesson, a full 30 (the prize).
+
+The dev walker's `choice:N` now also reads on through event boxes on the way to the choice.
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near
