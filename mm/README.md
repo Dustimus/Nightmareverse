@@ -690,6 +690,26 @@ hands). Sakon on other days (the Curiosity Shop, the Sun's Mask, Ikana) waits fo
 Tested headless: the walk and the snatch at 0:30, the chase over his 16 points, the lady's lines after
 he got away; a sword hit as he ran past (the bag dropped), her thanks and the Blast Mask.
 
+### Clock Town's buildings (2026-11-26, `tools/mm_rom.py`, `tools/mm_entrances.py`)
+
+Fourteen more of MM's scenes, appended after the first eight (so every entrance number already in
+use stays as it was): the Milk Bar, the Bomb Shop, the Trading Post, the Curiosity Shop, the Mayor's
+Residence, the Post Office, the Treasure Chest Shop, the Town Shooting Gallery (MM's SYATEKI_MIZU),
+the Swordsman's School, Honey & Darling's, the Lottery Shop, the Bombers' hideout with the Astral
+Observatory (TENMON_DAI), the Great Fairies' fountains and the grottos (both shared, many rooms).
+Their file indices: the decomp's spec order, less four (checked against the known ones). The doors
+into them now lead in; who's inside comes person by person (most aren't ported yet).
+
+### MM's camera settings (2026-11-26, `soh/src/code/z_nv_mm_camera.c`)
+
+Each floor's camera setting comes from MM's collision, in OoT's layout but MM's numbering: read as
+OoT's it was mostly something unrelated (MM's DUNGEON3, all over Clock Town, was OoT's Bongo Bongo
+camera; MM's CIRCLE0 in the Curiosity Shop was OoT's twisted-hallway cutscene camera, and crashed
+with no cutscene). Now, in MM's scenes, MM's setting becomes OoT's of the same original name where
+OoT has one (NORMAL0-2, DUNGEON0-2, FIXED0, CIRCLE0, CIRCLE3) and OoT's NORMAL0 otherwise (MM's
+ROOM0/1, DUNGEON3, FIXED2/3, the minigames' own). Hooked where OoT reads it (z_bgcheck.c, one line).
+Tested headless: the Curiosity Shop (no crash), the Mayor's Residence, the inn, East Clock Town.
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near

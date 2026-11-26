@@ -30,6 +30,20 @@ MM_ENTRANCE_SCENES = {
     0x60: "Z2_INSIDETOWER",  # ENTR_SCENE_CLOCK_TOWER_INTERIOR
     0x6D: "Z2_ALLEY",        # ENTR_SCENE_LAUNDRY_POOL
     0x5E: "Z2_YADOYA",       # ENTR_SCENE_STOCK_POT_INN
+    0x12: "Z2_MILK_BAR",  # the Milk Bar
+    0x65: "Z2_BOMYA",  # the Bomb Shop
+    0x31: "Z2_8ITEMSHOP",  # the Trading Post
+    0x07: "Z2_AYASHIISHOP",  # the Curiosity Shop
+    0x00: "Z2_SONCHONOIE",  # the Mayor's Residence
+    0x2B: "Z2_POSTHOUSE",  # the Post Office
+    0x14: "Z2_TAKARAYA",  # the Treasure Chest Shop
+    0x1D: "Z2_SYATEKI_MIZU",  # the Town Shooting Gallery
+    0x51: "Z2_DOUJOU",  # the Swordsman's School
+    0x04: "Z2_BOWLING",  # Honey & Darling's
+    0x36: "Z2_TAKARAKUJI",  # the Lottery Shop
+    0x26: "Z2_TENMON_DAI",  # the Bombers' hideout and the Astral Observatory
+    0x23: "Z2_YOUSEI_IZUMI",  # the Great Fairies' fountains
+    0x0A: "KAKUSIANA",  # the grottos
 }
 
 

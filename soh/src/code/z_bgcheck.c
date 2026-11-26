@@ -3871,6 +3871,8 @@ u32 SurfaceType_GetCamDataIndex(CollisionContext* colCtx, CollisionPoly* poly, s
 /**
  * BgCam get setting of bgCam
  */
+u16 NvMmCam_Setting(u16 mmSetting);
+
 u16 BgCheck_GetBgCamSettingImpl(CollisionContext* colCtx, u32 bgCamIndex, s32 bgId) {
     u16 camSetting;
     CollisionHeader* colHeader;
@@ -3882,7 +3884,7 @@ u16 BgCheck_GetBgCamSettingImpl(CollisionContext* colCtx, u32 bgCamIndex, s32 bg
     }
 
     bgCamList = colHeader->cameraDataList;
-    camSetting = bgCamList[bgCamIndex].cameraSType;
+    camSetting = NvMmCam_Setting(bgCamList[bgCamIndex].cameraSType); // Nightmareverse: MM's settings as OoT's (z_nv_mm_camera.c)
 
     return camSetting;
 }
