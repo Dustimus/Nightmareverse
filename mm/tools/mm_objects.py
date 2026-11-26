@@ -114,6 +114,10 @@ OBJECTS = {
     "object_toryo": (778, {  # Mutoh, the carpenters' boss (En_Muto)
         "skel": {"object_toryo_Skel_007150": 0x7150},
         "anim": {"object_toryo_Anim_000E50": 0xE50}}),
+    "object_dog": (817, {  # MM's dogs (En_Dg)
+        "skel": {"gDogSkel": 0x80F0},
+        "anim": {"gDogBarkAnim": 0x998, "gDogJumpAnim": 0x1560, "gDogJumpAttackAnim": 0x17C0, "gDogRunAnim": 0x1BD8,
+                 "gDogSitAnim": 0x1FB0, "gDogWalkAnim": 0x21C8}}),
     "object_ctower_rot": (718, {"dl": {  # inside the clock tower: cogs, water wheel, the twisting corridor, stone doors
         "gClockTowerCeilingCogDL": 0x10828, "gClockTowerCenterCogDL": 0x17018, "gClockTowerWaterWheelDL": 0x18118,
         "gClockTowerCorridorDL": 0x12DA0, "gClockTowerCorridorFoliageDL": 0x129D0,

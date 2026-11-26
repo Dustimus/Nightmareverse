@@ -628,6 +628,16 @@ Dev: `NV_MM_WEAR=46` wears that MM mask (MM's item id, hex) from the start, anyw
 Tested headless: the march in East Clock Town (the mask on his head, his pace), Kamaro's dance for
 the Rosa sisters (the heart piece given), a Kakariko cucco and a Market dog following the march.
 
+### The dogs (2026-11-26, `soh/src/code/z_nv_mm_dg.c`, MM's En_Dg)
+
+South Clock Town's dog, MM's model (`object_dog`) on its path, stopping to bark. As MM, to Link's
+forms: it chases and jumps at Deku Link; backs away from, runs from and barks at Goron Link; runs up
+to Zora Link and sits by him. Human Link can pick it up and throw it (OoT's carrying); with the Mask
+of Truth on it speaks its mind (MM's 0x627). The Bremen march: it joins OoT's animals' line
+(`NvMarch_Follow`) in place of MM's one-dog following. Left out: swimming, the dog race's dogs (with
+the race), MM's own dog sounds (OoT's bark, steps and evening cry stand in).
+Tested headless: running its path, following the march (sitting when Link stops), back to its path.
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near

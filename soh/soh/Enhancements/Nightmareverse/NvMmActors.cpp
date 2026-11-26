@@ -117,6 +117,7 @@ NV_MM_SCENERY(Drs)
 NV_MM_SCENERY(Muto)
 NV_MM_SCENERY(Bombers2)
 NV_MM_SCENERY(Ginko)
+NV_MM_SCENERY(Dg)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -185,6 +186,10 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
     { 0x177,
       { "Mm_En_Ginko_Man", "MM: the bank teller", ACTORCAT_NPC, ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY,
         &gNvMmGinkoSize, NvMmGinko_Init, NvMmGinko_Destroy, NvMmGinko_Update, NvMmGinko_Draw } },
+    { 0x0E2,
+      { "Mm_En_Dg", "MM: a dog", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmDgSize,
+        NvMmDg_Init, NvMmDg_Destroy, NvMmDg_Update, NvMmDg_Draw } },
     { 0x14D,
       { "Mm_Obj_Entotu", "MM: a Clock Town chimney", ACTORCAT_PROP,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmEntotuSize, NvMmEntotu_Init,
