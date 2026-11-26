@@ -100,9 +100,11 @@ OBJECTS = {
     "object_boj": (769, {  # the jugglers (En_Ja) and the bank teller (En_Ginko_Man): colours in segments 8 and 9, eyes in segment 10
         "skel": {"object_boj_Skel_00C240": 0xC240},
         "anim": {f"object_boj_Anim_{o:06X}": o for o in (0x2734, 0x33B0, 0x4078, 0x5CE4,  # the jugglers
-                                                          0x08C0, 0x43F0, 0x4F40, 0x0AC4, 0x4A7C)},  # the bank's
+                                                          0x08C0, 0x43F0, 0x4F40, 0x0AC4, 0x4A7C,  # the bank's
+                                                          0x071C, 0x128F4, 0x11F84, 0x12E84, 0x1139C)},  # Sakon's
         "dl": {"object_boj_DL_00BA30": 0xBA30, "object_boj_DL_00BCC8": 0xBCC8,
-               "object_boj_DL_00B1D8": 0xB1D8},  # (the bank teller's head)
+               "object_boj_DL_00B1D8": 0xB1D8,  # (the bank teller's head)
+               "object_boj_DL_00AF90": 0xAF90, "gBombShopBagDL": 0x13380},  # (Sakon's head, the stolen bag)
         "tex": {f"object_boj_Tex_{o:06X}": (o, "CI8", 16, 16, 0x5DB0) for o in (0x62B0, 0x63B0, 0x64B0)}}),
     "object_cha": (1048, {"dl": {  # the Laundry Pool's bell (En_Cha): frame, bell
         "object_cha_DL_000710": 0x710, "object_cha_DL_000958": 0x958}}),
@@ -123,6 +125,12 @@ OBJECTS = {
                  "gDogSitAnim": 0x1FB0, "gDogWalkAnim": 0x21C8}}),
     "object_fusen": (1111, {"dl": {  # the Majora balloon Jim shoots at (En_Bombal)
         "gMajoraBalloonDL": 0xA00, "gMajoraBalloonKnotDL": 0xD78}}),
+    "object_bba": (767, {  # the Bomb Shop lady (En_Baba): her eye set by the actor (segment 8)
+        "skel": {"gBombShopLadySkel": 0x5EF0},
+        "anim": {"gBombShopLadySwayAnim": 0x4910, "gBombShopLadyKnockedOverAnim": 0x5154,
+                 "gBombShopLadyLyingDownAnim": 0x58B8, "gBombShopLadyIdleHoldingBagAnim": 0x5DC4,
+                 "gBombShopLadyIdleAnim": 0x6550, "gBombShopLadyWalkingHoldingBagAnim": 0x6B10},
+        "tex": {"gBombShopLadyEyeTex": (0x92A0, "RGBA16", 32, 32)}}),
     "object_ctower_rot": (718, {"dl": {  # inside the clock tower: cogs, water wheel, the twisting corridor, stone doors
         "gClockTowerCeilingCogDL": 0x10828, "gClockTowerCenterCogDL": 0x17018, "gClockTowerWaterWheelDL": 0x18118,
         "gClockTowerCorridorDL": 0x12DA0, "gClockTowerCorridorFoliageDL": 0x129D0,

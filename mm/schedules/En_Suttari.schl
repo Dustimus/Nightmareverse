@@ -1,0 +1,19 @@
+D_80BAE820 {
+    if_day (1) {
+        if_scene (SCENE_BACKTOWN) {
+            if_time_range (18, 0, 0, 20) {
+                return_time (18, 0, 0, 20, 3)
+            } else if_time_range (0, 20, 0, 30) {
+                return_time (0, 20, 0, 30, 15)
+            } else if_before_time (0, 30) {
+                return_none
+            } else {
+                return_l (4)
+            }
+        } else {
+            return_none
+        }
+    } else {
+        return_none
+    }
+}

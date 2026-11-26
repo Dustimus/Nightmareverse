@@ -122,6 +122,8 @@ NV_MM_SCENERY(Bombal)
 NV_MM_SCENERY(Bomjima)
 NV_MM_SCENERY(Bomjimb)
 NV_MM_SCENERY(BomBowl)
+NV_MM_SCENERY(Baba)
+NV_MM_SCENERY(Suttari)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -209,6 +211,14 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
       { "Mm_En_Bom_Bowl_Man", "MM: the Bombers lined up (the notebook)", ACTORCAT_NPC,
         ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmBomBowlSize,
         NvMmBomBowl_Init, NvMmBomBowl_Destroy, NvMmBomBowl_Update, NvMmBomBowl_Draw } },
+    { 0x236,
+      { "Mm_En_Baba", "MM: the Bomb Shop lady", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmBabaSize,
+        NvMmBaba_Init, NvMmBaba_Destroy, NvMmBaba_Update, NvMmBaba_Draw } },
+    { 0x237,
+      { "Mm_En_Suttari", "MM: Sakon", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmSuttariSize,
+        NvMmSuttari_Init, NvMmSuttari_Destroy, NvMmSuttari_Update, NvMmSuttari_Draw } },
     { 0x14D,
       { "Mm_Obj_Entotu", "MM: a Clock Town chimney", ACTORCAT_PROP,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmEntotuSize, NvMmEntotu_Init,

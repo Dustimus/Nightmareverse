@@ -72,6 +72,8 @@ PORTED = {
     0x27E,  # En_Bomjima: Jim (z_nv_mm_bomgame.c)
     0x27F,  # En_Bomjimb: the Bombers hiding, the game (z_nv_mm_bomgame.c)
     0x11C,  # En_Bom_Bowl_Man: the Bombers lined up, the notebook (z_nv_mm_bomgame.c)
+    0x236,  # En_Baba: the Bomb Shop lady (z_nv_mm_sakon.c)
+    0x237,  # En_Suttari: Sakon, the first night (z_nv_mm_sakon.c)
 }
 
 # MM's ids (the decomp's actor table)

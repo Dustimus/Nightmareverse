@@ -669,6 +669,27 @@ Tested headless: Jim's lines with the balloon popped, the four running in, the g
 Bomber caught ("Aw! You caught me... Now there are only 4 left."); the line-up's lines and the
 notebook given.
 
+### The Bomb Shop lady and Sakon (2026-11-26, `soh/src/code/z_nv_mm_sakon.c`)
+
+The first night in North Clock Town, MM's own (En_Baba `object_bba`, En_Suttari on `object_boj` with
+his own head), with MM's schedules (mm/schedules/En_Baba.schl, En_Suttari.schl: the night-one branch):
+- **The lady** walks home with the shop's new Big Bomb Bags on MM's time path (0:00-0:30); Sakon waits
+  (18:00-0:20), then walks up behind her (0:20-0:30). At 0:30 she's knocked over and he snatches the
+  bag: her "Ouch! Watch out!", then "Stop! Thief!!!", then MM's chase along his escape route (his path's
+  additional path, reached point by point as MM: past the plane through each).
+- **Stopping him**: a sword hit (or a punch, a spin) and he drops the bag (week event 33_08 when he's
+  away); an arrow, a seed, the hookshot, the boomerang or an explosion finishes him (79_40, MM's "Sakon's
+  dead"). Either way, once he's away or gone, the night goes on at North Clock Town's spawn 7.
+- **Afterwards** she speaks first: the bag got back, her thanks and MM's Blast Mask; finished, her "I've
+  learned my lesson"; got away, "What a shame...". Then the night carries on (81_02).
+- **In the Bomb Shop**, her lines with her son by what's happened (MM's; her son isn't ported, so the
+  turns to him are just her lines).
+Left out: MM's cutscene cameras (the two snatch lines play as plain text), the chase music and their
+voices (not in OoT's banks), the dropped bag falling (MM's En_Nimotsu: it's simply gone from his
+hands). Sakon on other days (the Curiosity Shop, the Sun's Mask, Ikana) waits for Kafei's story.
+Tested headless: the walk and the snatch at 0:30, the chase over his 16 points, the lady's lines after
+he got away; a sword hit as he ran past (the bag dropped), her thanks and the Blast Mask.
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near

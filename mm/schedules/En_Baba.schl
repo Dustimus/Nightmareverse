@@ -1,0 +1,17 @@
+sSchedule {
+    if_day (1) {
+        if_scene (SCENE_BACKTOWN) {
+            if_time_range (0, 0, 0, 30) {
+                return_time (0, 0, 0, 30, 2)
+            } else if_before_time (0, 30) {
+                return_none
+            } else {
+                return_l (1)
+            }
+        } else {
+            return_none
+        }
+    } else {
+        return_none
+    }
+}
