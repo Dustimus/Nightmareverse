@@ -50,7 +50,10 @@ OBJECTS = {
                  "gBomberSitAnim": 0x4C1C, "gBomberHoldCuccoAnim": 0x1A1C, "gBomberTurnAroundAnim": 0x3EE4,
                  "gBomberShowNumberAnim": 0x478C, "gBomberTalkShowingNumberAnim": 0x433C,
                  "gBomberTauntAnim": 0x60E8, "gBomberJumpAnim": 0x1708, "gBomberArmSwipeAnim": 0x5DC4,
-                 "gBomberSaluteAnim": 0x26B0, "gBomberRunAnim": 0x36B0, "gBomberLookAroundAnim": 0x31C4},
+                 "gBomberSaluteAnim": 0x26B0, "gBomberRunAnim": 0x36B0, "gBomberLookAroundAnim": 0x31C4,
+                 # (the Bombers' game: Jim, the kids chased)
+                 "gBomberHandsOnHipsAnim": 0xFAF4, "gBomberTalkNormalAnim": 0x57C8, "gBomberBlowgunAnim": 0x2044,
+                 "gBomberClimbAnim": 0x2930, "gBomberCaughtAnim": 0x10B68},
         "tex": {"gBomberEyeOpenTex": (0xC520, "RGBA16", 32, 32), "gBomberEyeHalfTex": (0xCD20, "RGBA16", 32, 32),
                 "gBomberEyeClosedTex": (0xD520, "RGBA16", 32, 32),
                 "gBomberNumber1Tex": (0xE620, "I8", 32, 32), "gBomberNumber2Tex": (0xEA20, "I8", 32, 32),
@@ -118,6 +121,8 @@ OBJECTS = {
         "skel": {"gDogSkel": 0x80F0},
         "anim": {"gDogBarkAnim": 0x998, "gDogJumpAnim": 0x1560, "gDogJumpAttackAnim": 0x17C0, "gDogRunAnim": 0x1BD8,
                  "gDogSitAnim": 0x1FB0, "gDogWalkAnim": 0x21C8}}),
+    "object_fusen": (1111, {"dl": {  # the Majora balloon Jim shoots at (En_Bombal)
+        "gMajoraBalloonDL": 0xA00, "gMajoraBalloonKnotDL": 0xD78}}),
     "object_ctower_rot": (718, {"dl": {  # inside the clock tower: cogs, water wheel, the twisting corridor, stone doors
         "gClockTowerCeilingCogDL": 0x10828, "gClockTowerCenterCogDL": 0x17018, "gClockTowerWaterWheelDL": 0x18118,
         "gClockTowerCorridorDL": 0x12DA0, "gClockTowerCorridorFoliageDL": 0x129D0,

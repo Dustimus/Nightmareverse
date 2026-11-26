@@ -17,7 +17,7 @@
  * - Link is MM's human or Deku form (z_nv_mm_form.c: Deku Link gets MM's Deku lines, where Jim is;
  *   the Goron and Zora ones wait for those forms);
  *   MM's mask reactions (Text_GetFaceReaction) wait for MM's masks;
- * - the hideout's bowling-man handover (75_40) isn't in: those sit as in the other case;
+ * - the game won (75_40): number 1 at the hideout starts the line-up (z_nv_mm_bomgame.c's En_Bom_Bowl_Man);
  * - their footsteps are MM's own sound, not in OoT's banks; OoT's collider, movement and
  *   ground-check calls for MM's; MM's Scene_SetRenderModeXlu(play, 0, 1) as segment 0x0C pointed
  *   at an empty list, which is all that call does.
@@ -109,6 +109,8 @@ const size_t gNvMmBombersSize = sizeof(NvMmBombers);
 
 s32 NvMmClock_Day(void);
 s32 NvMm_CheckWeekEvent(s32 flag);
+void NvMm_ClearWeekEvent(s32 flag);
+s32 NvMmActor_Id(s32 mmId);
 
 static ColliderCylinderInit sCylinderInit = {
     { COLTYPE_NONE, AT_NONE, AC_NONE, OC1_ON | OC1_TYPE_PLAYER, OC2_TYPE_2, COLSHAPE_CYLINDER },
@@ -168,6 +170,19 @@ void NvMmBombers_Init(Actor* thisx, PlayState* play) {
         NvMmBombers_SetupNpc(this);
     } else if (played && (this->number >= 0) && (this->number < 5) &&
                NvMm_CheckWeekEvent(MM_WE(76, 1 << this->number))) { // caught: sitting at the hideout
+        if (NvMm_CheckWeekEvent(MM_WE(75, 0x40))) { // the game won: number 1 starts the line-up (z_nv_mm_bomgame.c)
+            if (this->number == 0) {
+                s32 i;
+
+                Actor_Spawn(&play->actorCtx, play, NvMmActor_Id(0x11C), this->actor.world.pos.x,
+                            this->actor.world.pos.y, this->actor.world.pos.z, 0, this->actor.world.rot.y, 0, 0);
+                for (i = 0; i < 5; i++) {
+                    NvMm_ClearWeekEvent(MM_WE(76, 1 << i));
+                }
+            }
+            Actor_Kill(&this->actor);
+            return;
+        }
         NvMmBombers_SetupSitting(this);
     } else {
         Actor_Kill(&this->actor);

@@ -68,6 +68,10 @@ PORTED = {
     0x281,  # En_Bombers2: the Bombers' hideout guard (z_nv_mm_bombers.c)
     0x177,  # En_Ginko_Man: the bank teller (z_nv_mm_bank.c)
     0x0E2,  # En_Dg: the dogs (z_nv_mm_dg.c)
+    0x282,  # En_Bombal: the Majora balloon (z_nv_mm_bomgame.c)
+    0x27E,  # En_Bomjima: Jim (z_nv_mm_bomgame.c)
+    0x27F,  # En_Bomjimb: the Bombers hiding, the game (z_nv_mm_bomgame.c)
+    0x11C,  # En_Bom_Bowl_Man: the Bombers lined up, the notebook (z_nv_mm_bomgame.c)
 }
 
 # MM's ids (the decomp's actor table)

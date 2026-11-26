@@ -638,6 +638,37 @@ of Truth on it speaks its mind (MM's 0x627). The Bremen march: it joins OoT's an
 the race), MM's own dog sounds (OoT's bark, steps and evening cry stand in).
 Tested headless: running its path, following the march (sitting when Link stops), back to its path.
 
+### The Bombers' game (2026-11-26, `soh/src/code/z_nv_mm_bomgame.c`)
+
+MM's hide-and-seek, four of MM's actors with the Bombers' model (`object_cs`):
+- **The balloon** (En_Bombal, `object_fusen`): over North Clock Town, Jim shooting at it with his
+  blowgun and missing. Popped by OoT's ranged hits (arrows, seeds, the hookshot, the boomerang, magic
+  arrows; Deku Link's bubble hits as a seed). After a talk with it gone, Jim blows another.
+- **Jim** (En_Bomjima): his lines by Link's form and what's happened (MM's tables). With the balloon
+  popped, a Deku or human Link can play: yes, and the other four run in round him; then the game
+  starts (week events 73_10 or 85_02, the caught count cleared) and Link is back at North Clock
+  Town's spawn 6, as MM.
+- **The five hidden** (En_Bomjimb, while the game's on): wandering, running from Link (turning from
+  walls and the town's exits), taunting from afar, dazed when hit, hiding under MM's crates (the crate
+  hops, he slips under, it shakes; lifted, he runs), one riding a cucco down from a roof (OoT's
+  cucco). Touch one to catch it: MM's line by the count ("Now there are only 4 left"), MM's caught
+  order kept (saved with the cycle); a Goron or Zora Link, or the wrong form's game, gets MM's "not
+  playing". The fifth takes Link to the hideout (the room's exit; week events 75_40, 83_04).
+- **The line-up** (En_Bom_Bowl_Man): at the hideout the sitting Bomber number 1 starts it (the
+  handover z_nv_mm_bombers.c had left out). The five stand in a row spelling the Bombers' code; Jim's
+  lines; a human Link gets MM's Bombers' Notebook; each turns round and shows his number in turn;
+  Jim says the code. Deku Link is told the code (73_20). Then North Clock Town afresh (84_80).
+  In East Clock Town, coming out of the hideout with the code entered and no notebook, one runs up,
+  gives it and runs off on his path, as MM.
+Adapted: MM's cutscene cameras are left out (their actors play as they are; Link is turned to face
+the line-up); MM's Bombers' sounds aren't in OoT's banks; Deku Link hiding in a flower (which stops
+them running in MM) waits for that.
+Dev: `NV_MM_POP=300` pops the balloon after that many frames; `NV_MM_WE="85:02,75:40"` sets week
+events with a new game.
+Tested headless: Jim's lines with the balloon popped, the four running in, the game starting; a
+Bomber caught ("Aw! You caught me... Now there are only 4 left."); the line-up's lines and the
+notebook given.
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near

@@ -13,6 +13,7 @@
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/resourcebridge.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <string.h>
 
@@ -129,7 +130,18 @@ void NvMm_WeekEventsNewCycle(void) {
 
 /** A new game: none. */
 void NvMm_WeekEventsNewGame(void) {
+    const char* dev = getenv("NV_MM_WE"); // dev: NV_MM_WE="85:02,73:80" week events set with a new game
+    int byte;
+    int bit;
+
     memset(sMmWeekEventReg, 0, sizeof(sMmWeekEventReg));
+    while ((dev != NULL) && (sscanf(dev, "%d:%x", &byte, &bit) == 2)) {
+        if ((byte >= 0) && (byte < 100)) {
+            sMmWeekEventReg[byte] |= bit;
+        }
+        dev = strchr(dev, ',');
+        dev = (dev != NULL) ? dev + 1 : NULL;
+    }
 }
 
 // MM's animated materials (z_scene_proc.c AnimatedMat_*), from the scene's "_matanim" resource

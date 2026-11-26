@@ -118,6 +118,10 @@ NV_MM_SCENERY(Muto)
 NV_MM_SCENERY(Bombers2)
 NV_MM_SCENERY(Ginko)
 NV_MM_SCENERY(Dg)
+NV_MM_SCENERY(Bombal)
+NV_MM_SCENERY(Bomjima)
+NV_MM_SCENERY(Bomjimb)
+NV_MM_SCENERY(BomBowl)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -190,6 +194,21 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
       { "Mm_En_Dg", "MM: a dog", ACTORCAT_NPC,
         ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmDgSize,
         NvMmDg_Init, NvMmDg_Destroy, NvMmDg_Update, NvMmDg_Draw } },
+    { 0x282,
+      { "Mm_En_Bombal", "MM: the Majora balloon", ACTORCAT_PROP, ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmBombalSize,
+        NvMmBombal_Init, NvMmBombal_Destroy, NvMmBombal_Update, NvMmBombal_Draw } },
+    { 0x27E,
+      { "Mm_En_Bomjima", "MM: Jim, the Bombers' leader", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmBomjimaSize,
+        NvMmBomjima_Init, NvMmBomjima_Destroy, NvMmBomjima_Update, NvMmBomjima_Draw } },
+    { 0x27F,
+      { "Mm_En_Bomjimb", "MM: a Bomber hiding (the game)", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmBomjimbSize,
+        NvMmBomjimb_Init, NvMmBomjimb_Destroy, NvMmBomjimb_Update, NvMmBomjimb_Draw } },
+    { 0x11C,
+      { "Mm_En_Bom_Bowl_Man", "MM: the Bombers lined up (the notebook)", ACTORCAT_NPC,
+        ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmBomBowlSize,
+        NvMmBomBowl_Init, NvMmBomBowl_Destroy, NvMmBomBowl_Update, NvMmBomBowl_Draw } },
     { 0x14D,
       { "Mm_Obj_Entotu", "MM: a Clock Town chimney", ACTORCAT_PROP,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmEntotuSize, NvMmEntotu_Init,

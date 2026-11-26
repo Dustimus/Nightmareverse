@@ -45,6 +45,7 @@ void NvMmOwl_OnLoad(void);
 uint8_t* NvMmMsg_BomberCode(void);
 void NvMmMsg_NewBomberCode(void);
 int32_t* NvMmBank_Rupees(void);
+uint8_t* NvMmBomGame_Caught(void);
 }
 
 static bool sTerminaLoaded; // this load had a "termina" section
@@ -74,6 +75,8 @@ static void NvMmSave_Save(const SaveContext& saveContext, int sectionID, bool fu
     SaveManager::Instance->SaveStruct("cycleWeekEvents", []() { // MM's weekEventReg (cleared each cycle)
         uint8_t* w = NvMm_WeekEventReg();
         SaveManager::Instance->SaveArray("weekEventReg", 100, [w](size_t i) { SaveManager::Instance->SaveData("", w[i]); });
+        uint8_t* caught = NvMmBomGame_Caught(); // (MM's bombersCaughtNum, bombersCaughtOrder)
+        SaveManager::Instance->SaveArray("bombersCaught", 6, [caught](size_t i) { SaveManager::Instance->SaveData("", caught[i]); });
     });
     SaveManager::Instance->SaveStruct("permanent", []() {
         // MM's own items (z_nv_mm_getitem.c: masks, trade items...; the Song of Time clears its share)
@@ -129,6 +132,8 @@ static void NvMmSave_Load() {
     SaveManager::Instance->LoadStruct("cycleWeekEvents", []() {
         uint8_t* w = NvMm_WeekEventReg();
         SaveManager::Instance->LoadArray("weekEventReg", 100, [w](size_t i) { SaveManager::Instance->LoadData("", w[i], (uint8_t)0); });
+        uint8_t* caught = NvMmBomGame_Caught();
+        SaveManager::Instance->LoadArray("bombersCaught", 6, [caught](size_t i) { SaveManager::Instance->LoadData("", caught[i], (uint8_t)0); });
     });
     SaveManager::Instance->LoadStruct("permanent", []() {
         uint8_t* items = NvMmItem_Array();
