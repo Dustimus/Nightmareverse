@@ -17,6 +17,7 @@
  * MM's models (tools/mm_objects.py: object_cha, object_f52_obj, object_drs, object_msmo, object_toryo).
  */
 #include "global.h"
+#include "z_nv_mm_meeting.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -427,7 +428,13 @@ typedef struct NvMmMuto {
     s16 yawTowardsTarget;
     s32 isInMayorsRoom;
     ColliderCylinder collider;
+    NvMmMeetingRole role; // MM's cutsceneState, targetActor (the Mayor's meeting: z_nv_mm_mayor.c)
+    s32 shouldSetHeadRotation;
 } NvMmMuto;
+
+NvMmMeetingRole* NvMmMuto_Role(Actor* muto) {
+    return &((NvMmMuto*)muto)->role;
+}
 
 const size_t gNvMmMutoSize = sizeof(NvMmMuto);
 
@@ -439,6 +446,7 @@ static ColliderCylinderInit sMutoCylinderInit = {
 };
 
 static void NvMmMuto_Idle(NvMmMuto* this, PlayState* play);
+static void NvMmMuto_Talk(NvMmMuto* this, PlayState* play);
 
 static s32 NvMmMuto_LastNight(void) {
     return (NvMmClock_Day() == 3) && NvMmClock_IsNight();
@@ -484,6 +492,47 @@ void NvMmMuto_Destroy(Actor* thisx, PlayState* play) {
     Collider_DestroyCylinder(play, &((NvMmMuto*)thisx)->collider);
 }
 
+/** MM's EnMuto_InDialogue, in the Mayor's room: looking at whoever speaks while the mayor leads. */
+static void NvMmMuto_InMeeting(NvMmMuto* this, PlayState* play) {
+    u16 cur = play->msgCtx.textId;
+
+    if ((this->role.targetActor == &this->actor) || (this->role.targetActor == NULL)) {
+        this->yawTowardsTarget = this->actor.world.rot.y;
+        if (this->skelAnime.playSpeed == 0.0f) {
+            this->skelAnime.playSpeed = 1.0f;
+        }
+    } else {
+        this->yawTowardsTarget = Math_Vec3f_Yaw(&this->actor.world.pos, &this->role.targetActor->world.pos);
+        if (this->skelAnime.curFrame >= Animation_GetLastFrame(this->skelAnime.animation)) {
+            this->skelAnime.playSpeed = 0.0f;
+        }
+    }
+    if ((cur == NV_MM_TEXT(0x2AC6)) || (cur == NV_MM_TEXT(0x2AC7)) || (cur == NV_MM_TEXT(0x2AC8))) {
+        this->skelAnime.playSpeed = 0.0f;
+        this->yawTowardsTarget = this->actor.yawTowardsPlayer;
+        this->skelAnime.curFrame = 30.0f;
+    }
+    if (cur == NV_MM_TEXT(0x2ACF)) {
+        this->skelAnime.playSpeed = 0.0f;
+    }
+    if (this->role.cutsceneState == 2) {
+        NvMmMuto_SetupIdle(this);
+    }
+}
+
+/** MM's EnMuto_SetupDialogue. */
+static void NvMmMuto_SetupDialogue(NvMmMuto* this, PlayState* play) {
+    if (this->isInMayorsRoom) {
+        if (this->role.targetActor != NULL) {
+            this->shouldSetHeadRotation = true;
+            this->role.cutsceneState = 1;
+        }
+        this->actionFunc = NvMmMuto_InMeeting;
+    } else {
+        this->actionFunc = NvMmMuto_Talk;
+    }
+}
+
 static void NvMmMuto_Talk(NvMmMuto* this, PlayState* play) {
     if (!this->isInMayorsRoom) {
         this->yawTowardsTarget = this->actor.yawTowardsPlayer;
@@ -521,10 +570,14 @@ static void NvMmMuto_Idle(NvMmMuto* this, PlayState* play) {
             this->textIdIndex = 4;
         }
         textId = sMutoTextIds[this->textIdIndex];
+        if (this->role.cutsceneState == 1) { // (the mayor started the meeting's talk)
+            NvMmMuto_SetupDialogue(this, play);
+            return;
+        }
     }
     this->actor.textId = NV_MM_TEXT(textId);
     if (Actor_ProcessTalkRequest(&this->actor, play)) {
-        this->actionFunc = NvMmMuto_Talk;
+        NvMmMuto_SetupDialogue(this, play);
         return;
     }
     if (!this->isInMayorsRoom) {
@@ -542,7 +595,7 @@ void NvMmMuto_Update(Actor* thisx, PlayState* play) {
     NvMmMuto* this = (NvMmMuto*)thisx;
 
     SkelAnime_Update(&this->skelAnime);
-    if (!this->isInMayorsRoom) { // MM's EnMuto_SetHeadRotation
+    if (!this->isInMayorsRoom || this->shouldSetHeadRotation) { // MM's EnMuto_SetHeadRotation
         s16 d = this->yawTowardsTarget - thisx->world.rot.y;
 
         this->headRotTarget.y = 0;

@@ -63,7 +63,7 @@ OBJECTS = {
     "object_sdn": (926, {  # the soldiers (En_Stop_heishi, and others)
         "skel": {"gSoldierSkel": 0xD640},
         "anim": {"gSoldierLookDownAnim": 0x4AC0, "gSoldierComeUpHereAnim": 0x5320,
-                 "gSoldierStandHandOnHipAnim": 0x6C18, "gSoldierStandAndLookDownAnim": 0xDC7C,
+                 "gSoldierStandHandOnHipAnim": 0x6C18, "gSoldierWaveAnim": 0x3BFC, "gSoldierStandAndLookDownAnim": 0xDC7C,
                  "object_sdn_Anim_0057BC": 0x57BC, "object_sdn_Anim_005D28": 0x5D28,
                  "object_sdn_Anim_0064C0": 0x64C0, "gSoldierStandWithHandOnChestAnim": 0xA54},
     }),
@@ -156,6 +156,21 @@ OBJECTS = {
         "skel": {"gSwordmasterSkel": 0x6990},
         "anim": {"gSwordmasterFlailingAnim": 0x16C, "gSwordmasterStopFlailingAnim": 0x3DC,
                  "gSwordmasterCoweringAnim": 0xAD4, "gSwordmasterDefaultAnim": 0xF4C}}),
+    "object_dt": (1046, {  # Mayor Dotour (En_Dt): eyes and brows set by the actor (segments 8, 9)
+        "skel": {"object_dt_Skel_00B0CC": 0xB0CC},
+        "anim": {"gDotourDistressAnim": 0x5A4, "gDotourShockAnim": 0x854, "gDotourUprightAnim": 0xBE0,
+                 "gDotourTapDeskAnim": 0xDA8, "gDotourWaitAnim": 0x112C, "gDotourSitUpAnim": 0xB500},
+        "tex": {"gDotourEyeShockTex": (0x7350, "CI8", 32, 32, 0x6C50), "gDotourEyeOpenTex": (0x9590, "CI8", 32, 32, 0x6C50),
+                "gDotourEyeClosedTex": (0x9F90, "CI8", 32, 32, 0x6C50),
+                "gDotourEyeLookDownTex": (0xA790, "CI8", 32, 32, 0x6C50),
+                "gDotourEyeSquintTex": (0xAB90, "CI8", 32, 32, 0x6C50),
+                "gDotourEyebrowHighTex": (0x7750, "CI8", 16, 16, 0x6E50),
+                "gDotourEyebrowMidTex": (0xA390, "CI8", 16, 16, 0x6E50),
+                "gDotourEyebrowLowTex": (0xA490, "CI8", 16, 16, 0x6E50)},
+    }),
+    "object_bai": (1052, {  # Viscen (En_Baisen)
+        "skel": {"object_bai_Skel_007908": 0x7908},
+        "anim": {"object_bai_Anim_0008B4": 0x8B4, "object_bai_Anim_0011C0": 0x11C0, "object_bai_Anim_008198": 0x8198}}),
     "object_maruta": (953, {"dl": {  # the Swordsman's School's practice logs (En_Maruta)
         "gPracticeLogBottomLeftBigChunkDL": 0x2220, "gPracticeLogBottomRightBigChunkDL": 0x23D0,
         "gPracticeLogBottomLeftCornerChunkDL": 0x2568, "gPracticeLogBottomRightCornerChunkDL": 0x2660,

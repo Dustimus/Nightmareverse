@@ -792,6 +792,27 @@ tested: the right moves for each novice lesson, a full 30 (the prize).
 
 The dev walker's `choice:N` now also reads on through event boxes on the way to the choice.
 
+### The Mayor's meeting (2026-11-26, `soh/src/code/z_nv_mm_mayor.c`, `z_nv_mm_meeting.h`)
+
+MM's En_Dt (Mayor Dotour, `object_dt`), En_Baisen (Viscen, `object_bai`) and En_Heishi (the
+soldier, `object_sdn`); Mutoh (`z_nv_mm_townprops.c`) now takes his part too. Talking to the mayor,
+Mutoh or Viscen in the office starts the meeting's talk with the mayor leading: MM's lines in order,
+the others turning to whoever speaks (MM's focus table), the mayor's look and animation by the stage,
+week event 60_08 once heard; after that the short repeat ("All must take refuge!!!" / "On with the
+carnival!!!"). With the Couple's Mask: the resolution with everyone's reactions; Mutoh and Viscen
+leave (63_80), Link comes back in through the door (MM's entrance 1), and the mayor thanks him with
+the piece of heart (60_10, notebook events). After that Viscen talks with the soldier in the lobby;
+on the final night the mayor sits alone (60_40 once heard). Kafei's Mask gets MM's line.
+
+MM's En_Dt reaches into En_Muto and En_Baisen to steer them; here each keeps MM's
+`cutsceneState`/`targetActor` in a `NvMmMeetingRole` the mayor reaches through `z_nv_mm_meeting.h`.
+
+Adapted: MM shows each speaker with the meeting's cutscene cameras; here OoT's talk camera stays and
+the others' heads turn to the speaker. The office's music and crowd murmur aren't in OoT's banks.
+
+Tested headless: the first meeting (lines 0-8), the repeat (9-10), and the resolution with the
+Couple's Mask (11-20), the return through the door and the piece of heart.
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near

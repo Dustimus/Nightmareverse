@@ -131,6 +131,9 @@ NV_MM_SCENERY(Takaraya)
 NV_MM_SCENERY(TakarayaWall)
 NV_MM_SCENERY(KendoJs)
 NV_MM_SCENERY(Maruta)
+NV_MM_SCENERY(Dt)
+NV_MM_SCENERY(Baisen)
+NV_MM_SCENERY(Heishi)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -253,6 +256,15 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
       { "Mm_En_Maruta", "MM: a practice log", ACTORCAT_PROP,
         ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmMarutaSize, NvMmMaruta_Init,
         NvMmMaruta_Destroy, NvMmMaruta_Update, NvMmMaruta_Draw } },
+    { 0x26F,
+      { "Mm_En_Dt", "MM: Mayor Dotour", ACTORCAT_NPC, ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY, &gNvMmDtSize,
+        NvMmDt_Init, NvMmDt_Destroy, NvMmDt_Update, NvMmDt_Draw } },
+    { 0x26C,
+      { "Mm_En_Baisen", "MM: Viscen", ACTORCAT_NPC, ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY, &gNvMmBaisenSize,
+        NvMmBaisen_Init, NvMmBaisen_Destroy, NvMmBaisen_Update, NvMmBaisen_Draw } },
+    { 0x26D,
+      { "Mm_En_Heishi", "MM: a soldier at the meeting", ACTORCAT_NPC, ACTOR_FLAG_FRIENDLY, &gNvMmHeishiSize,
+        NvMmHeishi_Init, NvMmHeishi_Destroy, NvMmHeishi_Update, NvMmHeishi_Draw } },
     { 0x14D,
       { "Mm_Obj_Entotu", "MM: a Clock Town chimney", ACTORCAT_PROP,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmEntotuSize, NvMmEntotu_Init,
