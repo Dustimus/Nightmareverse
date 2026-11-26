@@ -44,6 +44,9 @@ void NvMmOwl_SetSaveMark(int32_t owl);
 void NvMmOwl_OnLoad(void);
 uint8_t* NvMmMsg_BomberCode(void);
 void NvMmMsg_NewBomberCode(void);
+uint8_t* NvMmMsg_LotteryCodes(void);
+uint16_t* NvMmMsg_LotteryGuess(void);
+void NvMmMsg_NewLottery(void);
 int32_t* NvMmBank_Rupees(void);
 uint8_t* NvMmBomGame_Caught(void);
 }
@@ -92,6 +95,9 @@ static void NvMmSave_Save(const SaveContext& saveContext, int sectionID, bool fu
         uint8_t* code = NvMmMsg_BomberCode(); // (MM's bomberCode: made with a new file)
         SaveManager::Instance->SaveArray("bomberCode", 5, [code](size_t i) { SaveManager::Instance->SaveData("", code[i]); });
         SaveManager::Instance->SaveData("bankRupees", *NvMmBank_Rupees()); // (MM's bank: kept through the cycles)
+        uint8_t* lot = NvMmMsg_LotteryCodes(); // (MM's lotteryCodes, made with a new file; the guess)
+        SaveManager::Instance->SaveArray("lotteryCodes", 9, [lot](size_t i) { SaveManager::Instance->SaveData("", lot[i]); });
+        SaveManager::Instance->SaveData("lotteryGuess", *NvMmMsg_LotteryGuess());
         SaveManager::Instance->SaveStruct("scenes", []() { // collectibles, visited rooms and floors
             for (int32_t i = 0; i < NvMmScene_Count(); i++) {
                 SavedSceneFlags* f = NvMmScene_At(i);
@@ -153,6 +159,16 @@ static void NvMmSave_Load() {
             NvMmMsg_NewBomberCode();
         }
         SaveManager::Instance->LoadData("bankRupees", *NvMmBank_Rupees(), (int32_t)0);
+        uint8_t* lot = NvMmMsg_LotteryCodes();
+        bool lotteryLoaded = false;
+        SaveManager::Instance->LoadArray("lotteryCodes", 9, [lot, &lotteryLoaded](size_t i) {
+            SaveManager::Instance->LoadData("", lot[i], (uint8_t)0xFF);
+            lotteryLoaded = lotteryLoaded || (lot[i] != 0xFF);
+        });
+        if (!lotteryLoaded || (lot[0] > 9)) { // (a file from before the lottery)
+            NvMmMsg_NewLottery();
+        }
+        SaveManager::Instance->LoadData("lotteryGuess", *NvMmMsg_LotteryGuess(), (uint16_t)0);
         SaveManager::Instance->LoadStruct("scenes", []() {
             for (int32_t i = 0; i < NvMmScene_Count(); i++) {
                 SavedSceneFlags* f = NvMmScene_At(i);
@@ -173,6 +189,7 @@ static void NvMmSave_InitFile(bool isDebug) {
     *NvMmOwl_Activated() = 0;
     NvMmOwl_SetSaveMark(-1);
     NvMmMsg_NewBomberCode();
+    NvMmMsg_NewLottery();
     *NvMmBank_Rupees() = 0;
 }
 

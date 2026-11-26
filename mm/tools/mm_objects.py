@@ -131,6 +131,13 @@ OBJECTS = {
                  "gBombShopLadyLyingDownAnim": 0x58B8, "gBombShopLadyIdleHoldingBagAnim": 0x5DC4,
                  "gBombShopLadyIdleAnim": 0x6550, "gBombShopLadyWalkingHoldingBagAnim": 0x6B10},
         "tex": {"gBombShopLadyEyeTex": (0x92A0, "RGBA16", 32, 32)}}),
+    "object_kujiya": (1078, {  # the Lottery Shop's booth (En_Kujiya)
+        "dl": {"gLotteryShopCylinderDL": 0x2A80, "gLotteryShopBackSignDL": 0x3030, "gLotteryShopOpenBoxDL": 0x3248,
+               "gLotteryShopScrollingEffectsDL": 0x3358, "gLotteryShopRedRupeesDL": 0x34A8,
+               "gLotteryShopGreenRupeesDL": 0x35B8, "gLotteryShopBlueRupeesDL": 0x36B0,
+               "gLotteryShopTargetArrowAndSignDL": 0x37C0, "gLotteryShopScrollingArrowDL": 0x3C80,
+               "gLotteryShopMaskDL": 0x3D58},
+        "matanim": {"gLotteryShopTexAnim": 0x6198}}),
     "object_ctower_rot": (718, {"dl": {  # inside the clock tower: cogs, water wheel, the twisting corridor, stone doors
         "gClockTowerCeilingCogDL": 0x10828, "gClockTowerCenterCogDL": 0x17018, "gClockTowerWaterWheelDL": 0x18118,
         "gClockTowerCorridorDL": 0x12DA0, "gClockTowerCorridorFoliageDL": 0x129D0,

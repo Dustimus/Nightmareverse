@@ -74,6 +74,7 @@ PORTED = {
     0x11C,  # En_Bom_Bowl_Man: the Bombers lined up, the notebook (z_nv_mm_bomgame.c)
     0x236,  # En_Baba: the Bomb Shop lady (z_nv_mm_sakon.c)
     0x237,  # En_Suttari: Sakon, the first night (z_nv_mm_sakon.c)
+    0x239,  # En_Kujiya: the Lottery Shop (z_nv_mm_kujiya.c)
 }
 
 # MM's ids (the decomp's actor table)

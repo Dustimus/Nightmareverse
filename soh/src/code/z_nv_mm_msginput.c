@@ -49,6 +49,43 @@ static struct {
 } sInput;
 
 static u8 sBomberCode[5];
+static u8 sLotteryCodes[3][3]; // MM's saveInfo.lotteryCodes: each day's winning numbers, made with a new file
+static u16 sLotteryGuess;      // MM's HS_GET_LOTTERY_CODE_GUESS: the numbers Link picked, 0xABC
+
+s32 NvMmMsgInput_Digit(s32 i);
+
+u8* NvMmMsg_LotteryCodes(void) {
+    return &sLotteryCodes[0][0];
+}
+u16* NvMmMsg_LotteryGuess(void) {
+    return &sLotteryGuess;
+}
+
+/** MM's Sram_GenerateRandomSaveFields' lottery part: three digits 0-9 for each day. */
+void NvMmMsg_NewLottery(void) {
+    s32 d;
+    s32 i;
+
+    for (d = 0; d < 3; d++) {
+        for (i = 0; i < 3; i++) {
+            sLotteryCodes[d][i] = CLAMP((s32)Rand_ZeroFloat(10.0f), 0, 9);
+        }
+    }
+    sLotteryGuess = 0;
+}
+
+/** The day's numbers against the guess (MM's CHECK_LOTTERY_NUMBERS). */
+s32 NvMmMsg_LotteryWon(void) {
+    s32 day = CLAMP(NvMmClock_Day(), 1, 3) - 1;
+
+    return (sLotteryCodes[day][0] == ((sLotteryGuess >> 8) & 0xF)) &&
+           (sLotteryCodes[day][1] == ((sLotteryGuess >> 4) & 0xF)) && (sLotteryCodes[day][2] == (sLotteryGuess & 0xF));
+}
+
+/** MM's Inventory_SaveLotteryCodeGuess: the digits entered. */
+void NvMmMsg_SaveLotteryGuess(void) {
+    sLotteryGuess = (NvMmMsgInput_Digit(0) << 8) | (NvMmMsgInput_Digit(1) << 4) | NvMmMsgInput_Digit(2);
+}
 static s32 sRupeesSelected;
 static s32 sRupeesTotal;
 static s32 sPrice;
@@ -237,6 +274,19 @@ s32 NvMmMsg_Expand(u8 code, u8* out, s32 max, s32* isInput) {
             for (i = 0; i < 5; i++) {
                 n = NvMmMsg_Put(out, n, max, '0' + sBomberCode[i]);
             }
+            break;
+        case 0xDC: { // MESSAGE_LOTTERY_CODE: today's winning numbers
+            s32 day = CLAMP(NvMmClock_Day(), 1, 3) - 1;
+
+            for (i = 0; i < 3; i++) {
+                n = NvMmMsg_Put(out, n, max, '0' + sLotteryCodes[day][i]);
+            }
+            break;
+        }
+        case 0xDD: // MESSAGE_LOTTERY_CODE_GUESS: Link's
+            n = NvMmMsg_Put(out, n, max, '0' + ((sLotteryGuess >> 8) & 0xF));
+            n = NvMmMsg_Put(out, n, max, '0' + ((sLotteryGuess >> 4) & 0xF));
+            n = NvMmMsg_Put(out, n, max, '0' + (sLotteryGuess & 0xF));
             break;
         case 0xCA: // MESSAGE_TIME
             n = NvMmMsg_PutClock(out, n, max, (NvMmClock_Time() * 24 * 60) >> 16);

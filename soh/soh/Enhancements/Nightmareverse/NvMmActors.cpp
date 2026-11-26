@@ -124,6 +124,7 @@ NV_MM_SCENERY(Bomjimb)
 NV_MM_SCENERY(BomBowl)
 NV_MM_SCENERY(Baba)
 NV_MM_SCENERY(Suttari)
+NV_MM_SCENERY(Kujiya)
 void NvMmEtcetera_Init(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Destroy(Actor* thisx, PlayState* play);
 void NvMmEtcetera_Update(Actor* thisx, PlayState* play);
@@ -219,6 +220,9 @@ static const std::unordered_map<int, NvMmActorDef> sNvMmActors = {
       { "Mm_En_Suttari", "MM: Sakon", ACTORCAT_NPC,
         ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_UPDATE_CULLING_DISABLED, &gNvMmSuttariSize,
         NvMmSuttari_Init, NvMmSuttari_Destroy, NvMmSuttari_Update, NvMmSuttari_Draw } },
+    { 0x239,
+      { "Mm_En_Kujiya", "MM: the Lottery Shop", ACTORCAT_NPC, ACTOR_FLAG_FRIENDLY, &gNvMmKujiyaSize, NvMmKujiya_Init,
+        NvMmKujiya_Destroy, NvMmKujiya_Update, NvMmKujiya_Draw } },
     { 0x14D,
       { "Mm_Obj_Entotu", "MM: a Clock Town chimney", ACTORCAT_PROP,
         ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_DRAW_CULLING_DISABLED, &gNvMmEntotuSize, NvMmEntotu_Init,

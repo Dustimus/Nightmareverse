@@ -710,6 +710,19 @@ OoT has one (NORMAL0-2, DUNGEON0-2, FIXED0, CIRCLE0, CIRCLE3) and OoT's NORMAL0 
 ROOM0/1, DUNGEON3, FIXED2/3, the minigames' own). Hooked where OoT reads it (z_bgcheck.c, one line).
 Tested headless: the Curiosity Shop (no crash), the Mayor's Residence, the inn, East Clock Town.
 
+### The Lottery Shop (2026-11-26, `soh/src/code/z_nv_mm_kujiya.c`)
+
+MM's En_Kujiya in West Clock Town's Lottery Shop (`object_kujiya`: the drum, its scrolling-texture
+matanim and ten DLs). By day: 10 Rupees for a ticket, three numbers picked in MM's lottery box
+(message 0x2B5F; digits start at 111, up/down changes one, left/right moves; A confirms, read as the
+message's event), one ticket a day (week event 33, 0x10/0x20/0x40 by day); the booth turns closed
+after. From 18:00 it turns open; talking then gives the announcement (0x2B64, 0x2B65 with Link's
+numbers and the day's, a short pause) and the purple rupee (MM GI 0x05) if all three match. Each
+day's winning numbers are made with a new file (MM's Sram_GenerateRandomSaveFields), kept with
+Link's guess in the save's permanent part (NvMmSave.cpp). Value codes 0xDC/0xDD and input 0xD5 in
+`z_nv_mm_msginput.c`. Tested headless: buying (140 Rupees after, guess 230 from the stick), the
+evening announcement (a loss: "000" against 850).
+
 ### MM's own props: chimneys and crates (2026-11-22)
 
 The rule from here on: in Termina, MM's own props, not OoT's look-alikes, even where they're near
