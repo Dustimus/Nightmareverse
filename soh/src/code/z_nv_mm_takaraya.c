@@ -543,8 +543,12 @@ void NvMmTakarayaWall_Init(Actor* thisx, PlayState* play) {
     Collider_SetCylinder(play, &this->rowCollider, thisx, &sWallCylinderInit);
     thisx->colChkInfo.mass = MASS_IMMOVABLE;
     column = (s32)Rand_ZeroFloat(WALL_COLUMNS) % WALL_COLUMNS;
+    if (getenv("NV_MM_CHEST_COLUMN") != NULL) { // (dev: the chest's column, for testing)
+        column = CLAMP(atoi(getenv("NV_MM_CHEST_COLUMN")), 0, WALL_COLUMNS - 1);
+    }
+    // (MM's 0x4000, half round: OoT's En_Box faces and opens the other way from MM's, mm_actors.py)
     chest = Actor_SpawnAsChild(&play->actorCtx, thisx, play, ACTOR_EN_BOX, -1635.0f, 0.0f, (column * 120) + 60, 0,
-                               0x4000, thisx->shape.rot.z, thisx->params);
+                               0x4000 + 0x8000, thisx->shape.rot.z, thisx->params);
     Flags_SetSwitch(play, thisx->shape.rot.z);
     thisx->shape.rot.z = thisx->world.rot.z = 0;
     if (chest != NULL) {

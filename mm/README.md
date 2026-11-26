@@ -755,7 +755,13 @@ camera shows instead), the masks' reactions (MM's face-reaction tables), the clo
 MM's minigame music; the walls' sound is OoT's rising block.
 
 Tested headless: paying (20 Rupees as human), the board and timer, walls rising in Link's way,
-"Time's up!", back at the counter and paying again. Not yet tested: opening the chest (winning).
+"Time's up!", back at the counter and paying again; winning (the chest's column fixed by the dev
+switch `NV_MM_CHEST_COLUMN`): the Purple Rupee, and back at the counter.
+
+**Chests face the other way in OoT** (found here): MM's En_Box turns its *shape* half round at init
+and opens from the side its data faces; OoT's turns only its *world* rotation, so its model and
+opening side face the data. MM's placed chests came over facing backwards; `mm_actors.py` now turns
+them half round (and the shop's spawned chest is turned in the code).
 
 ### MM's own props: chimneys and crates (2026-11-22)
 

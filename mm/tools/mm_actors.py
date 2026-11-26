@@ -141,8 +141,12 @@ def actors(data, off, count):
         if m is None or p is None:
             skipped[aid] = skipped.get(aid, 0) + 1
             continue
-        out.append((m[0], p, x, y, z, _rot(rx, aid_raw & 0x4000), _rot(ry, aid_raw & 0x8000),
-                    _rot(rz, aid_raw & 0x2000), halfdays))
+        oy = _rot(ry, aid_raw & 0x8000)
+        if aid == MM_EN_BOX and not (aid_raw & 0x8000):
+            # MM's En_Box turns its shape half round and opens from the side its data faces; OoT's turns
+            # only its world rotation, its shape (model and opening side) facing the data: half round here
+            oy = (oy + 0x8000) & 0xFFFF
+        out.append((m[0], p, x, y, z, _rot(rx, aid_raw & 0x4000), oy, _rot(rz, aid_raw & 0x2000), halfdays))
         for o in m[2]:
             if o not in objects:
                 objects.append(o)
