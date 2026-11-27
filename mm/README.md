@@ -199,7 +199,8 @@ Not done yet:
 - **Animated textures:** the segments 8 and 9 the game sets while running.
 - **The second billboard matrix:** MM's rooms ask for one at `0x01000040`, which OoT's engine
   doesn't set.
-- **Spawns:** they start Link idle, without MM's start modes or cameras.
+- **Spawns:** MM's start modes D/E/F (idle, a few steps in, in at the exit's speed) as OoT's same
+  modes; the others start idle. Their cameras are the entrance views ("MM's cutscene cameras").
 
 **To raise with the user and the RE1 chat (shared code):** RE1's code tests "an RE1 room" as
 `play->sceneNum >= SCENE_RE1_100` in 18 places (`z_nv_*.c`, `NvActors.cpp`, `z_player.c`, `z_actor.c`,
@@ -828,7 +829,14 @@ manager makes a sub-camera for it and on the stop hands the view back.
   actors (by MM id), for bisecting a bad draw.
 - MM's waiting list is cleared each frame once the next is chosen (MM's `CutsceneManager_ClearWaiting`
   after `_Update`); actors queue again each frame they still want theirs.
-- Not yet: MM's scripted cutscenes (their camera splines), the entrance views, MM's global
+- **The entrance views** (2026-11-27): MM's `Play_Init` gives the main camera the spawn's camera
+  (the low byte of MM's player params, kept in "MCSM" after the camera data). In Clock Town those are
+  all START0/START2: MM's `Camera_Unique0`, a fixed eye looking along its direction at the point
+  closest to Link (START2 turning onto his head), held for the data's time (or 60 frames), then
+  until Link moves 10 units or a button is pressed, then back to OoT's camera for the place. With
+  MM's start modes Link walks in through the shot, as in MM. Other kinds of spawn camera (one in
+  the grottos) are skipped. Tested: the Swordsman's School, the Mayor's residence, East Clock Town.
+- Not yet: MM's scripted cutscenes (their camera splines), MM's global
   cameras (negative camera ids: ITEM0-3, CONNECT0, ...: left where they are), MM's camera collision
   check, roll.
 - Ported actors using them so far: the Mayor's meeting, the Treasure Chest Shop, the Swordsman's

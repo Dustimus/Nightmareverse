@@ -17,8 +17,10 @@
  * here with MM's own camera math for the setting: Camera_Fixed1 (FIXED1, FIXED2, RFIXED1) and
  * Camera_Fixed2 (CIRCLE2, CIRCLE3, CIRCLE8). Any other setting (FREE0 included) leaves the camera
  * where it was for the actor to place (Play_CameraSetAtEye), as MM's Camera_Unique6 does.
- * Not yet: MM's scripted cutscenes (scriptIndex: MM's cutscene camera splines), the entrance views
- * (START0/START2: Camera_Unique0), MM's own camera collision check (Camera_BgCheck), the camera roll.
+ * The entrance views too: a spawn's camera (START0/START2) given to the main camera as the scene
+ * starts, with MM's Camera_Unique0.
+ * Not yet: MM's scripted cutscenes (scriptIndex: MM's cutscene camera splines), spawns on other
+ * kinds of camera, MM's own camera collision check (Camera_BgCheck), the camera roll.
  */
 #include "global.h"
 #include "soh/ObjectExtension/ActorListIndex.h"
@@ -47,6 +49,12 @@
 #define MM_CAM_SET_CIRCLE3 0x25
 #define MM_CAM_SET_RFIXED1 0x38
 #define MM_CAM_SET_CIRCLE8 0x3B
+#define MM_CAM_SET_START0 0x2C
+#define MM_CAM_SET_START2 0x2D
+
+#define UNIQUE0_FLAG_0 (1 << 0)
+#define UNIQUE0_FLAG_1 (1 << 1)
+#define UNIQUE0_FLAG_4 (1 << 4)
 
 #define FIXED1_FLAG_4 (1 << 4)
 #define FIXED2_FLAG_0 (1 << 0)
@@ -89,6 +97,9 @@ static s16 sSceneCutsceneCount;
 static const NvMmCsCam* sCsCams;
 static s32 sCsCamCount;
 static const Vec3s* sCsCamData;
+static const u8* sSpawnCams; // each spawn's camera (MM's player params & 0xFF; 0xFF none)
+static s32 sSpawnCamCount;
+static u32 sLastFrames;
 static s16 sLoadedScene = -1;
 static PlayState* sLoadedPlay;
 
@@ -233,6 +244,8 @@ static void NvMmCsDriver_Begin(PlayState* play, s16 subCamId, s16 csCamId, Actor
 static void NvMmCsDriver_End(void);
 
 /** MM's CutsceneManager_Init, as a scene loads. */
+static void NvMmCs_EntranceView(PlayState* play);
+
 static void NvMmCsMgr_Init(PlayState* play) {
     char path[256];
     const u8* data = NULL;
@@ -242,6 +255,8 @@ static void NvMmCsMgr_Init(PlayState* play) {
     sCsCams = NULL;
     sCsCamCount = 0;
     sCsCamData = NULL;
+    sSpawnCams = NULL;
+    sSpawnCamCount = 0;
     if (NvMmCs_ScenePath(play, path, sizeof(path), "csmgr", -1)) {
         data = (const u8*)ResourceGetDataByName(path);
     }
@@ -258,6 +273,11 @@ static void NvMmCsMgr_Init(PlayState* play) {
         sCsCamCount = nc;
         data += 4 + sizeof(NvMmCsCam) * nc;
         sCsCamData = (const Vec3s*)(data + 4);
+        memcpy(&nc, data, 4);
+        data += 4 + sizeof(Vec3s) * nc;
+        memcpy(&n, data, 4);
+        sSpawnCams = data + 4;
+        sSpawnCamCount = n;
     }
     memset(sWaitingCutsceneList, 0, sizeof(sWaitingCutsceneList));
     memset(sNextCutsceneList, 0, sizeof(sNextCutsceneList));
@@ -273,6 +293,7 @@ static void NvMmCsMgr_Init(PlayState* play) {
         printf("NVMM cutscenes: %d in the scene, %d cameras\n", (int)sSceneCutsceneCount, (int)sCsCamCount);
         fflush(stdout);
     }
+    NvMmCs_EntranceView(play);
 }
 
 static s16 NvMmCsMgr_MarkNextCutscenes(void) {
@@ -374,11 +395,13 @@ static void NvMmCsDriver_Update(PlayState* play);
 void NvMmCsMgr_Update(PlayState* play) {
     s16 state = 0;
 
-    if ((sLoadedPlay != play) || (sLoadedScene != play->sceneNum) || (sCsMgr.play != play)) {
+    if ((sLoadedPlay != play) || (sLoadedScene != play->sceneNum) || (sCsMgr.play != play) ||
+        (play->gameplayFrames < sLastFrames)) { // (a new scene, or the same one entered again)
         sLoadedPlay = play;
         sLoadedScene = play->sceneNum;
         NvMmCsMgr_Init(play);
     }
+    sLastFrames = play->gameplayFrames;
     if (NvMmCsMgr_IsNext(CS_ID_GLOBAL_RETURN_TO_CAM)) {
         NvMmCsMgr_StartWithPlayerCs(CS_ID_GLOBAL_RETURN_TO_CAM, &GET_PLAYER(play)->actor);
     }
@@ -575,6 +598,14 @@ typedef struct NvMmCsDrv {
     s16 prevSetting; // (the main camera: its OoT setting before)
     s16 prevDataIdx; // (...and its scene camera data)
     u32 leaseFrame;  // (the main camera: the frame it was last asked for)
+    // Unique0 (the entrance views: the main camera, kept until it's done rather than leased)
+    s32 entrance;
+    s16 timer;
+    s16 startYaw;  // MM's rwData->unk_3A
+    Vec3f startPos; // MM's rwData->unk_00
+    f32 rate;      // MM's rwData->unk_18
+    f32 atRate;    // MM's camera->xz/yOffsetUpdateRate
+    s32 done;      // MM's rwData->unk_3E
 } NvMmCsDrv;
 
 static NvMmCsDrv sCsDrv;   // the cutscene's sub-camera
@@ -667,7 +698,7 @@ void NvMmCs_MainCameraFromCutscene(PlayState* play, s16 csId, Actor* target) {
     if ((cam == NULL) || (csId <= CS_ID_NONE) || (csCamId < 0) || (sCsCams == NULL) || (csCamId >= sCsCamCount)) {
         return;
     }
-    if (!sMainDrv.active || (sMainDrv.data != &sCsCamData[sCsCams[csCamId].first])) {
+    if (!sMainDrv.active || sMainDrv.entrance || (sMainDrv.data != &sCsCamData[sCsCams[csCamId].first])) {
         s16 prev = sMainDrv.active ? sMainDrv.prevSetting : cam->setting;
         s16 prevIdx = sMainDrv.active ? sMainDrv.prevDataIdx : cam->camDataIdx;
 
@@ -688,6 +719,7 @@ void NvMmCs_MainCameraFromCutscene(PlayState* play, s16 csId, Actor* target) {
 }
 
 static void NvMmCsDriver_UpdateOne(PlayState* play);
+static void NvMmCsDriver_Unique0(PlayState* play);
 
 /** MM's Camera_Fixed1: a fixed shot (eye, direction, fov from the data; RFIXED1's eye turns with its actor). */
 static void NvMmCsDriver_Fixed1(PlayState* play) {
@@ -821,11 +853,111 @@ static void NvMmCsDriver_Fixed2(PlayState* play) {
     drv->animState = 1;
 }
 
+/**
+ * MM's Camera_Unique0 (START0, START2: the view of the place as Link comes in, from the spawn's
+ * camera): the eye is the data's, looking along its direction at the point on that line closest to
+ * Link (START2 then turning to him), until its time is up and Link moves or a button is pressed.
+ */
+static void NvMmCsDriver_Unique0(PlayState* play) {
+    Player* player = GET_PLAYER(play);
+    f32 height = Player_GetHeight(player);
+    const Vec3s* d = drv->data;
+    s32 flags = (drv->setting == MM_CAM_SET_START2) ? (UNIQUE0_FLAG_4 | UNIQUE0_FLAG_0) : UNIQUE0_FLAG_0;
+    f32 roUnk00 = 0.0f;
+    f32 roUnk04 = (drv->setting == MM_CAM_SET_START2) ? 30.0f : 100.0f;
+    Vec3f* pos = &player->actor.world.pos;
+    Linef line;
+    VecSph g;
+    u16 press = play->state.input[0].press.button;
+
+    if (drv->animState == 0) {
+        drv->eye = drv->eyeNext = (Vec3f){ d[0].x, d[0].y, d[0].z };
+        drv->rot = d[1];
+        if (d[2].x != -1) {
+            drv->fov = (d[2].x <= 360) ? d[2].x : d[2].x * 0.01f;
+        }
+        drv->timer = (d[2].y == -1) ? 60 : d[2].y;
+        drv->rate = ((d[2].z != -1) ? d[2].z : roUnk04) * 0.01f;
+        drv->startPos = *pos;
+        if (flags & UNIQUE0_FLAG_4) {
+            drv->at = (Vec3f){ pos->x, pos->y + height + roUnk00, pos->z };
+        }
+        drv->atRate = 0.05f;
+        drv->startYaw = player->actor.world.rot.y;
+        drv->done = 0;
+        drv->animState = 1;
+        if (getenv("NV_LOG") != NULL) {
+            printf("NVMM Unique0: eye %d,%d,%d rot %d,%d fov %d time %d; Link %.0f,%.0f,%.0f\n", d[0].x, d[0].y,
+                   d[0].z, d[1].x, d[1].y, d[2].x, d[2].y, pos->x, pos->y, pos->z);
+            fflush(stdout);
+        }
+    }
+    g.r = Math_Vec3f_DistXYZ(pos, &drv->eye);
+    g.yaw = drv->rot.y;
+    g.pitch = -drv->rot.x;
+    line.a = drv->eye;
+    OLib_VecSphGeoToVec3f(&line.b, &g);
+    Math3D_LineClosestToPoint(&line, pos, &drv->at);
+    if (player->stateFlags1 & PLAYER_STATE1_IN_CUTSCENE) {
+        drv->startPos = *pos;
+    }
+    if (flags & UNIQUE0_FLAG_4) {
+        Vec3f head = { pos->x, pos->y + height + roUnk00, pos->z };
+
+        Cam_StepVec3f(&head, &drv->at, drv->atRate, drv->atRate, 0.1f);
+        drv->atRate = Cam_StepF(drv->rate, drv->atRate, 0.1f, 0.0001f);
+    }
+    if (drv->timer > 0) {
+        drv->timer--;
+        drv->startPos = *pos;
+    } else if (!(player->stateFlags1 & PLAYER_STATE1_IN_CUTSCENE) &&
+               ((Math_Vec3f_DistXZ(pos, &drv->startPos) >= 10.0f) ||
+                (press & (BTN_A | BTN_B | BTN_CUP | BTN_CDOWN | BTN_CLEFT | BTN_CRIGHT | BTN_Z | BTN_L | BTN_R)))) {
+        drv->done = 1; // (back to the place's own camera)
+    }
+}
+
+/** MM's Play_Init: a spawn with a camera gives it to the main camera (Camera_ChangeActorCsCamIndex). */
+static void NvMmCs_EntranceView(PlayState* play) {
+    Camera* cam = Play_GetCamera(play, CAM_ID_MAIN);
+    s32 spawn = play->curSpawn;
+    s32 csCamId;
+    s16 setting;
+
+    if ((cam == NULL) || (sSpawnCams == NULL) || (spawn < 0) || (spawn >= sSpawnCamCount) ||
+        ((csCamId = sSpawnCams[spawn]) == 0xFF) || (csCamId >= sCsCamCount)) {
+        return;
+    }
+    setting = sCsCams[csCamId].setting;
+    if (getenv("NV_LOG") != NULL) {
+        printf("NVMM entrance view: spawn %d camera %d setting %02X\n", (int)spawn, (int)csCamId, (int)setting);
+        fflush(stdout);
+    }
+    if ((setting != MM_CAM_SET_START0) && (setting != MM_CAM_SET_START2)) {
+        return; // (not yet: a spawn on another kind of camera)
+    }
+    memset(&sMainDrv, 0, sizeof(sMainDrv));
+    sMainDrv.active = true;
+    sMainDrv.entrance = true;
+    sMainDrv.camId = CAM_ID_MAIN;
+    sMainDrv.setting = setting;
+    sMainDrv.data = &sCsCamData[sCsCams[csCamId].first];
+    sMainDrv.target = &GET_PLAYER(play)->actor;
+    sMainDrv.eye = sMainDrv.eyeNext = cam->eye;
+    sMainDrv.at = cam->at;
+    sMainDrv.fov = cam->fov;
+    sMainDrv.prevSetting = cam->setting;
+    sMainDrv.prevDataIdx = cam->camDataIdx;
+    sMainDrv.leaseFrame = play->gameplayFrames;
+    Play_CameraChangeSetting(play, CAM_ID_MAIN, CAM_SET_FREE0);
+}
+
 static void NvMmCsDriver_Update(PlayState* play) {
     drv = &sCsDrv;
     NvMmCsDriver_UpdateOne(play);
     drv = &sMainDrv;
-    if (sMainDrv.active && ((play->gameplayFrames - sMainDrv.leaseFrame) > 1)) { // let go: OoT's camera again
+    if (sMainDrv.active && (sMainDrv.done || (!sMainDrv.entrance && ((play->gameplayFrames - sMainDrv.leaseFrame) > 1)))) {
+        // let go: OoT's camera again
         Camera* cam = Play_GetCamera(play, CAM_ID_MAIN);
 
         sMainDrv.active = false;
@@ -857,6 +989,10 @@ static void NvMmCsDriver_UpdateOne(PlayState* play) {
         case MM_CAM_SET_CIRCLE3:
         case MM_CAM_SET_CIRCLE8:
             NvMmCsDriver_Fixed2(play);
+            break;
+        case MM_CAM_SET_START0:
+        case MM_CAM_SET_START2:
+            NvMmCsDriver_Unique0(play);
             break;
         default:
             return; // (left for the actor to place)

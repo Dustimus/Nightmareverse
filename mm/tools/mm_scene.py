@@ -146,9 +146,12 @@ def scene_xml(scene, sdata, rooms, lay):
         S.append("    </SetExitList>")
     S.append("    <SetStartPositionList>")
     for _id, x, y, z, rx, ry, rz, params in spawns:
-        # OoT's player (actor 0); MM's params mean the same start modes in the top nibble
+        # OoT's player (actor 0). MM's start modes D/E/F are OoT's (idle, a few slow steps in, steps
+        # in at the exit's speed); the rest (MM's owl, telescope...) start idle for now. No OoT bg
+        # camera: MM's spawn camera (the low byte) is the entrance view, z_nv_mm_csmgr.c
+        mode = (params >> 8) & 0xF
         S.append("        " + _el("StartPositionEntry", Id=0, PosX=x, PosY=y, PosZ=z, RotX=0, RotY=mm_rot(ry),
-                                   RotZ=0, Params=(13 << 8) | 0xFF))  # PLAYER_START_MODE_IDLE, no bg camera
+                                   RotZ=0, Params=((mode if mode in (13, 14, 15) else 13) << 8) | 0xFF))
     S.append("    </SetStartPositionList>")
 
     if 0x11 in cmds:
@@ -331,9 +334,9 @@ def csmgr_blob(sdata):
     count and entries (MM's ActorCutscene, 16 bytes, little-endian), the camera count and entries
     (setting, Vec3s count, first Vec3s), then the Vec3s data (z_nv_mm_csmgr.c)."""
     cmds = {cmd: (a1, w1) for cmd, a1, w1 in commands(sdata, 0)}
-    if 0x1B not in cmds:
+    if (0x1B not in cmds) and (0x02 not in cmds):
         return None
-    n, w = cmds[0x1B]
+    n, w = cmds.get(0x1B, (0, 0))
     q = w & 0xFFFFFF
     out = b"MCSM" + struct.pack("<i", n)
     for i in range(n):
@@ -349,6 +352,13 @@ def csmgr_blob(sdata):
                 data += struct.pack("<3h", *struct.unpack_from(">3h", sdata, (ptr & 0xFFFFFF) + 6 * k))
     out += struct.pack("<i", len(cams)) + b"".join(cams)
     out += struct.pack("<i", len(data) // 6) + data
+    # each spawn's camera (MM's player params & 0xFF: Play_Init gives the main camera that cutscene
+    # camera, the entrance views START0/START2; 0xFF none)
+    spawns = b""
+    if 0x00 in cmds:
+        ns, ws = cmds[0x00]
+        spawns = bytes(struct.unpack_from(">8h", sdata, (ws & 0xFFFFFF) + 16 * i)[7] & 0xFF for i in range(ns))
+    out += struct.pack("<i", len(spawns)) + spawns
     return out
 
 
