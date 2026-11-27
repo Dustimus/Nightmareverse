@@ -661,7 +661,9 @@ MM's hide-and-seek, four of MM's actors with the Bombers' model (`object_cs`):
   In East Clock Town, coming out of the hideout with the code entered and no notebook, one runs up,
   gives it and runs off on his path, as MM.
 MM's actor cutscenes (2026-11-27): the balloon popping, Jim's look as he notices, the four running in.
-Not yet: the line-up's and the run-off's (Link is turned to face the line-up). MM's Bombers' sounds aren't in OoT's banks; Deku Link hiding in a flower (which stops
+Not yet: the line-up's (MM's line-up Bomber never fills its cutscene list, so it plays the scene's
+cutscene 0, whose camera is one of MM's global ones, ITEM1: not driven here yet; Link is turned to
+face the line-up) and the run-off's. MM's Bombers' sounds aren't in OoT's banks; Deku Link hiding in a flower (which stops
 them running in MM) waits for that.
 Dev: `NV_MM_POP=300` pops the balloon after that many frames; `NV_MM_WE="85:02,75:40"` sets week
 events with a new game.
@@ -822,8 +824,13 @@ manager makes a sub-camera for it and on the stop hands the view back.
   bowling alley. Other settings (FREE0) leave the view for the actor to place, as MM's `Camera_Unique6`.
 - MM's waiting list is cleared each frame once the next is chosen (MM's `CutsceneManager_ClearWaiting`
   after `_Update`); actors queue again each frame they still want theirs.
-- Not yet: MM's scripted cutscenes (their camera splines), the entrance views, MM's camera
-  collision check, roll.
+- Not yet: MM's scripted cutscenes (their camera splines), the entrance views, MM's global
+  cameras (negative camera ids: ITEM0-3, CONNECT0, ...: left where they are), MM's camera collision
+  check, roll.
+- Ported actors using them so far: the Mayor's meeting, the Treasure Chest Shop, the Swordsman's
+  course, the Lottery Shop's booth, the hideout guard, the Bombers' game (balloon, Jim, the four).
+  Still to bring over: the inn's desk talks (Anju with Granny, the Goron, the Postman), Sakon's
+  snatch, the Rosa sisters, the clock tower's doors, the owl statues' opening, the bells.
 
 Tested headless: the Mayor's meeting, each line in MM's own shot (Viscen before the soldiers, the
 mayor at his desk, Mutoh with the carpenters), letterboxed, back to the normal camera after.
