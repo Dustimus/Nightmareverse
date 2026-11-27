@@ -11,10 +11,11 @@
  *                             midnight) the steps to the top. MM drops them in a cutscene at midnight;
  *                             here they drop the same way, bouncing, when the clock passes midnight
  *                             while he's there, and are down when he arrives after.
- * Adapted: MM's cutscene cameras (the stone door closing, the first time through the tower doors) are
- * left out; the sounds OoT lacks (MM's water wheel, wood gate, tower stairs) are OoT's nearest.
+ * The stone doors closing behind Link are their actor cutscene (z_nv_mm_csmgr.c). Adapted: MM's scripted
+ * cutscene the first time through the tower doors is left out; the sounds OoT lacks (MM's water wheel, wood gate, tower stairs) are OoT's nearest.
  */
 #include "global.h"
+#include "z_nv_mm_csmgr.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -227,12 +228,25 @@ void NvMmCtRot_Update(Actor* thisx, PlayState* play) {
         thisx->shape.rot.z = rotZ * 16.384f;
         return;
     }
-    if ((this->state == 1) && (off.z > 30.0f)) {
-        this->state = 2;
+    if ((this->state == 1) && (off.z > 30.0f)) { // MM's BgCtowerRot_DoorIdle: through, its cutscene queued
+        NvMmCsMgr_Queue(NvMmCs_ActorCsId(thisx));
+        this->state = 3;
+    } else if (this->state == 3) { // MM's BgCtowerRot_SetupDoorClose: the main door's shot shows them close
+        s16 csId = NvMmCs_ActorCsId(thisx);
+
+        if ((csId == NV_MM_CS_ID_NONE) || NvMmCsMgr_IsNext(csId)) {
+            if (thisx->params == ROT_STONE_DOOR_MAIN) {
+                NvMmCsMgr_StartWithPlayerCs(csId, thisx);
+            }
+            this->state = 2;
+        } else {
+            NvMmCsMgr_Queue(csId);
+        }
     } else if (this->state == 2) { // MM's BgCtowerRot_DoorClose
         if (!Math_SmoothStepToF(&this->timer, 0.0f, 0.1f, 15.0f, 0.1f)) {
             if (thisx->params == ROT_STONE_DOOR_MAIN) {
                 Audio_PlayActorSound2(thisx, NA_SE_EV_STONEDOOR_STOP);
+                NvMmCsMgr_Stop(NvMmCs_ActorCsId(thisx));
             }
             this->state = 0;
         } else if (thisx->params == ROT_STONE_DOOR_MAIN) {

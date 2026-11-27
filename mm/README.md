@@ -833,8 +833,9 @@ manager makes a sub-camera for it and on the stop hands the view back.
   check, roll.
 - Ported actors using them so far: the Mayor's meeting, the Treasure Chest Shop, the Swordsman's
   course, the Lottery Shop's booth, the hideout guard, the Bombers' game (balloon, Jim, the four),
-  Sakon's snatch, the inn's desk talks (Anju with Granny, the Goron, the Postman). Still to bring
-  over: the Rosa sisters, the clock tower's doors, the owl statues' opening, the bells.
+  Sakon's snatch, the inn's desk talks (Anju with Granny, the Goron, the Postman), the owl statues
+  opening, the clock tower's stone doors closing. The Rosa sisters' and the clock tower's other
+  moments are MM's scripted cutscenes (below, not yet).
 
 Tested headless: the Mayor's meeting, each line in MM's own shot (Viscen before the soldiers, the
 mayor at his desk, Mutoh with the carpenters), letterboxed, back to the normal camera after.
