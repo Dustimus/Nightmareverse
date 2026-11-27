@@ -23,6 +23,7 @@
  *   at an empty list, which is all that call does.
  */
 #include "global.h"
+#include "z_nv_mm_csmgr.h"
 #include <math.h>
 
 #define ENBOMBERS_GET_NUMBER(thisx) ((thisx)->params & 0xF)
@@ -456,8 +457,7 @@ void NvMmBombers_Draw(Actor* thisx, PlayState* play) {
  * The Bomber in East Clock Town who stands in front of the hideout's way in, asking for the Bombers'
  * code: MM's code box (z_nv_mm_msginput.c: five digits, 1-5); right, he steps aside (week event
  * 73_80) and stays aside. As MM, a correct digit stays correct between tries while he's talked to.
- * Adapted: MM's cutscene camera as he steps aside is left out (the box closes, he walks, then
- * salutes and speaks again); the masks' reactions (Text_GetFaceReaction) wait for MM's masks.
+ * His stepping aside is his actor cutscene, MM's shot (z_nv_mm_csmgr.c); the masks' reactions (Text_GetFaceReaction) wait for MM's masks.
  */
 #define WEEKEVENTREG_ENTERED_BOMBERS_CODE MM_WE(73, 0x80)
 #define WEEKEVENTREG_TALKED_TO_BOMBERS_GUARD MM_WE(86, 0x02)
@@ -600,6 +600,7 @@ static void NvMmBombers2_StartWalking(NvMmBombers2* this, PlayState* play) {
     s16 side = (this->actor.home.rot.y < homeYawToPlayer) ? 0xC100 : 0x3F00;
 
     NvMmBombers2_ChangeAnim(this, ANIM_WALK);
+    this->animPhase = 0;
     this->walkTarget = this->actor.world.pos;
     this->walkTarget.x += Math_SinS(this->actor.home.rot.y + side) * 50.0f;
     this->walkTarget.z += Math_CosS(this->actor.home.rot.y + side) * 50.0f;
@@ -668,8 +669,19 @@ static void NvMmBombers2_Talking(NvMmBombers2* this, PlayState* play) {
     }
 }
 
-/** MM's EnBombers2_Walking (its cutscene camera left out). */
+/** MM's EnBombers2_Walking: his actor cutscene shows him step aside (z_nv_mm_csmgr.c). */
 static void NvMmBombers2_Walking(NvMmBombers2* this, PlayState* play) {
+    s16 csId = NvMmCs_ActorCsId(&this->actor);
+
+    if ((this->animPhase == 0) && (csId != NV_MM_CS_ID_NONE)) {
+        if (!NvMmCsMgr_IsNext(csId)) {
+            NvMmCsMgr_Queue(csId);
+        } else {
+            NvMmCsMgr_StartWithPlayerCs(csId, &this->actor);
+            this->animPhase = 1;
+        }
+        return;
+    }
     Math_SmoothStepToS(&this->actor.world.rot.y, this->bodyRotTargetAngle, 1, 0xBB8, 0);
     if ((fabsf(this->walkTarget.x - this->actor.world.pos.x) < 3.0f) &&
         (fabsf(this->walkTarget.z - this->actor.world.pos.z) < 3.0f)) {
@@ -681,6 +693,7 @@ static void NvMmBombers2_Walking(NvMmBombers2* this, PlayState* play) {
             this->animPhase = 0;
             this->action = GUARD_TALKING;
             NvMm_SetWeekEvent(WEEKEVENTREG_ENTERED_BOMBERS_CODE);
+            NvMmCsMgr_Stop(csId);
             this->hasMovedAside = true;
             this->actor.textId = NV_MM_TEXT(sGuardTextIds[this->textIdIndex]);
             Message_StartTextbox(play, this->actor.textId, &this->actor);

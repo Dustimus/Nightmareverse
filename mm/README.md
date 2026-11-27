@@ -588,7 +588,7 @@ MM's text codes for values and number entry, which the text conversion had dropp
 In front of the hideout's way in (East Clock Town), asking for the code with MM's code box; a
 correct digit stays correct between tries while he's talked to, as MM. Right, he steps aside (week
 event 73_80), salutes and stays aside (also when Link comes out of the hideout). Goron and Zora Link
-get MM's other line. MM's cutscene camera as he steps aside is left out; the masks' reactions wait.
+get MM's other line. His stepping aside is his actor cutscene, MM's shot (2026-11-27); the masks' reactions wait.
 Tested headless: a wrong code ("Wrong!"), the right one, his stepping aside and next lines.
 
 ### The bank (2026-11-25, `soh/src/code/z_nv_mm_bank.c`, MM's En_Ginko_Man)
