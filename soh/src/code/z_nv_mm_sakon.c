@@ -13,12 +13,13 @@
  *                       drops it; an arrow, the boomerang, the hookshot or an explosion finishes him (week
  *                       event 79_40, MM's "Sakon's dead"). At his path's end the night goes on at spawn 7
  *                       (the bag got back: week event 33_08).
- * Adapted from MM: MM's cutscene cameras are left out (the snatch's two lines play as plain text); the
+ * MM's actor cutscenes (z_nv_mm_csmgr.c): the wide shot of them coming, then the snatch's close one. The
  * chase music (MM's NA_BGM_CHASE) and their own voices aren't in OoT's banks; the dropped bag (MM's
  * En_Nimotsu, falling) isn't drawn, it's simply gone from his hands. Sakon elsewhere (the Curiosity
  * Shop, West Clock Town with the Sun's Mask, Ikana) waits for Kafei's story.
  */
 #include "global.h"
+#include "z_nv_mm_csmgr.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include "z_nv_mm_schedule.h"
@@ -543,7 +544,17 @@ typedef struct NvMmSuttari {
     s16 escapePoint;
     NvMmTimePath tp;
     ColliderCylinder collider;
+    s16 csIds[2];  // MM's csIdList: his cutscene and the one after (z_nv_mm_csmgr.c)
+    s16 csStarted; // MM's flags1 & 0x1000
 } NvMmSuttari;
+
+#define WE_83_04 MM_WE(83, 0x04)
+
+static s16 NvMmSuttari_CsId(NvMmSuttari* this, s32 i) {
+    this->csIds[0] = NvMmCs_ActorCsId(&this->actor);
+    this->csIds[1] = NvMmCsMgr_GetAdditionalCsId(this->csIds[0]);
+    return this->csIds[i];
+}
 
 const size_t gNvMmSuttariSize = sizeof(NvMmSuttari);
 
@@ -558,6 +569,7 @@ static ColliderCylinderInit sSakonCylinderInit = {
 
 static void NvMmSuttari_Schedule(NvMmSuttari* this, PlayState* play);
 static void NvMmSuttari_Snatch(NvMmSuttari* this, PlayState* play);
+static void NvMmSuttari_SecondCs(NvMmSuttari* this, PlayState* play);
 static void NvMmSuttari_Chase(NvMmSuttari* this, PlayState* play);
 static void NvMmSuttari_TalkWait(NvMmSuttari* this, PlayState* play);
 
@@ -625,8 +637,21 @@ static void NvMmSuttari_Schedule(NvMmSuttari* this, PlayState* play) {
                 NvMmSuttari_Anim(this, SAKON_ANIM_RUN);
             }
             NvMmTimePath_Follow(&this->tp, &this->actor, play);
+            // MM: his first cutscene shows them coming (Link held still from then)
+            if (!NvMm_CheckWeekEvent(WE_83_04) && !this->csStarted &&
+                (NvMmSuttari_CsId(this, 0) != NV_MM_CS_ID_NONE)) {
+                if (NvMmCsMgr_IsNext(this->csIds[0])) {
+                    NvMmCsMgr_Start(this->csIds[0], &this->actor);
+                    this->csStarted = true;
+                } else {
+                    NvMmCsMgr_Queue(this->csIds[0]);
+                }
+            }
+            if (this->csStarted) {
+                player->actor.freezeTimer = 3;
+            }
             break;
-        case 4: // the snatch (MM: its cutscene; here her "Ouch!", then his line)
+        case 4: // the snatch: her line in his first cutscene, then his in the second
             if (!NvMm_CheckWeekEvent(WE_RECOVERED_STOLEN_BOMB_BAG)) {
                 NvMmSuttari_Anim(this, SAKON_ANIM_RUN_BAG);
                 this->flags |= SAKON_HAS_BAG;
@@ -663,14 +688,29 @@ static void NvMmSuttari_TalkWait(NvMmSuttari* this, PlayState* play) {
     Math_SmoothStepToS(&this->actor.shape.rot.y, this->actor.yawTowardsPlayer, 5, 0x1000, 0x100);
 }
 
-/** MM's func_80BAD2B4, func_80BAD230: her line, then his; then the chase. */
+/** MM's func_80BAD230: his line, in his second cutscene. */
+static void NvMmSuttari_SecondCs(NvMmSuttari* this, PlayState* play) {
+    GET_PLAYER(play)->actor.freezeTimer = 3;
+    if ((this->csIds[1] != NV_MM_CS_ID_NONE) && !NvMmCsMgr_IsNext(this->csIds[1])) {
+        NvMmCsMgr_Queue(this->csIds[1]);
+        return;
+    }
+    NvMmCsMgr_Start(this->csIds[1], &this->actor);
+    this->textId = 0x2A31;
+    Message_ContinueTextbox(play, NV_MM_TEXT(this->textId));
+    this->func = NvMmSuttari_Snatch;
+}
+
+/** MM's func_80BAD2B4: her line, then his; then the chase. */
 static void NvMmSuttari_Snatch(NvMmSuttari* this, PlayState* play) {
     GET_PLAYER(play)->actor.freezeTimer = 3;
     if ((Message_GetState(&play->msgCtx) == TEXT_STATE_EVENT) && Message_ShouldAdvance(play)) {
         if (this->textId == 0x2A30) {
-            this->textId = 0x2A31;
-            Message_ContinueTextbox(play, NV_MM_TEXT(this->textId));
+            NvMmCsMgr_Stop(this->csIds[0]);
+            NvMmCsMgr_Queue(this->csIds[1]);
+            this->func = NvMmSuttari_SecondCs;
         } else {
+            NvMmCsMgr_Stop(this->csIds[1]);
             Message_CloseTextbox(play);
             this->flags |= SAKON_HITTABLE;
             this->escapePoint = 0;

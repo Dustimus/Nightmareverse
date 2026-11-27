@@ -686,7 +686,7 @@ his own head), with MM's schedules (mm/schedules/En_Baba.schl, En_Suttari.schl: 
   learned my lesson"; got away, "What a shame...". Then the night carries on (81_02).
 - **In the Bomb Shop**, her lines with her son by what's happened (MM's; her son isn't ported, so the
   turns to him are just her lines).
-Left out: MM's cutscene cameras (the two snatch lines play as plain text), the chase music and their
+The snatch is MM's two cutscene shots (2026-11-27). Left out: the chase music and their
 voices (not in OoT's banks), the dropped bag falling (MM's En_Nimotsu: it's simply gone from his
 hands). Sakon on other days (the Curiosity Shop, the Sun's Mask, Ikana) waits for Kafei's story.
 Tested headless: the walk and the snatch at 0:30, the chase over his 16 points, the lady's lines after
@@ -828,9 +828,9 @@ manager makes a sub-camera for it and on the stop hands the view back.
   cameras (negative camera ids: ITEM0-3, CONNECT0, ...: left where they are), MM's camera collision
   check, roll.
 - Ported actors using them so far: the Mayor's meeting, the Treasure Chest Shop, the Swordsman's
-  course, the Lottery Shop's booth, the hideout guard, the Bombers' game (balloon, Jim, the four).
-  Still to bring over: the inn's desk talks (Anju with Granny, the Goron, the Postman), Sakon's
-  snatch, the Rosa sisters, the clock tower's doors, the owl statues' opening, the bells.
+  course, the Lottery Shop's booth, the hideout guard, the Bombers' game (balloon, Jim, the four),
+  Sakon's snatch. Still to bring over: the inn's desk talks (Anju with Granny, the Goron, the
+  Postman), the Rosa sisters, the clock tower's doors, the owl statues' opening, the bells.
 
 Tested headless: the Mayor's meeting, each line in MM's own shot (Viscen before the soldiers, the
 mayor at his desk, Mutoh with the carpenters), letterboxed, back to the normal camera after.
