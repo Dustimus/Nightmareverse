@@ -387,7 +387,7 @@ void NvMmMatAnim_DrawStep(PlayState* play, const char* path, u32 step) {
  * Scene_DrawConfigMatAnim, AnimatedMat_Draw: the step is the frame count); the ones a scene sets
  * none in are an empty list, as in MM. Set here for Termina's scenes, before the rooms draw. */
 void NvMmScene_Draw(PlayState* play) {
-    static Gfx sEmptyDL[] = { gsSPEndDisplayList() };
+    static Gfx sEmptyDL[] = { gsSPEndDisplayList(), gsSPEndDisplayList(), gsSPEndDisplayList(), gsSPEndDisplayList() }; // (MM's renderModeSetNoneDL: called at +0x10 too)
     s32 seg;
 
     if (!NvMm_IsScene(play->sceneNum)) {

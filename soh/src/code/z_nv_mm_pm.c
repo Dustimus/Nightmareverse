@@ -9,8 +9,8 @@
  * standing at a mailbox (3-7, 19); nothing, and he isn't here. He talks while about.
  *
  * Adapted from MM:
- * - indoors: the inn (his letter to Anju at the desk, 14:08-14:18, MM's lines between them; MM's
- *   cutscene camera left to OoT's talk camera); the Post Office, the Milk Bar and the mayor's
+ * - indoors: the inn (his letter to Anju at the desk, 14:08-14:18, MM's lines between them, in
+ *   Anju's cutscene as MM's); the Post Office, the Milk Bar and the mayor's
  *   aren't built: those results come to nothing here, as in MM without them;
  * - checking a mailbox (z_nv_mm_pst.c) sets MM's week events, the Letter to Kafei ones too;
  * - talking: MM's message scripts (nv_mm_msgscripts/En_Pm.msg.inc), run by our port of MM's (z_nv_mm_msgevent.c);
@@ -20,6 +20,7 @@
  * - MM's cutscene checks (SubS_InCsMode) are OoT's Player_InCsMode.
  */
 #include "global.h"
+#include "z_nv_mm_csmgr.h"
 #include "z_nv_mm_schedule.h"
 #include "z_nv_mm_subs.h"
 #include "z_nv_mm_msgevent.h"
@@ -129,6 +130,7 @@ typedef struct NvMmPm {
     MsgScript* msgScript;
     s32 msgScriptPos;
     u16 stageTimeOffset;
+    s16 csStep; // MM's unk_378: the desk talk's cutscene, step by step
 } NvMmPm;
 
 const size_t gNvMmPmSize = sizeof(NvMmPm);
@@ -666,10 +668,49 @@ static MsgScript* NvMmPm_GetMsgScript(NvMmPm* this) {
 }
 
 /** MM's func_80AFA5FC: the conversation, run by his message script until it's done. */
-/** MM's func_80AF81E8: the talk camera between him and Anju; OoT's talk camera follows the
- * script's FOCUS_TO_CHILD / FOCUS_TO_SELF, so each step just goes on. */
+/** MM's func_80AF81E8: his talk with Anju at the desk in her cutscene, the shot turning to each in turn. */
 static s32 NvMmPm_MsgEventAnju(Actor* thisx, PlayState* play) {
-    return true;
+    NvMmPm* this = (NvMmPm*)thisx;
+    s16 csId = ((this->actor.child != NULL) && (this->actor.child->update != NULL)) ? NvMmCs_ActorCsId(this->actor.child)
+                                                                                    : NV_MM_CS_ID_NONE;
+    s32 ret = false;
+
+    if (csId == NV_MM_CS_ID_NONE) {
+        return true;
+    }
+    switch (this->csStep) {
+        case 0: // MM's func_80AF80F4
+            if (!NvMmCsMgr_IsNext(csId)) {
+                NvMmCsMgr_Queue(csId);
+                break;
+            }
+            NvMmCsMgr_StartWithPlayerCs(csId, &this->actor);
+            // fallthrough
+        case 2:
+        case 4:
+        case 6:
+            NvMmCs_SetTargetActor(this->actor.child);
+            this->csStep++;
+            ret = true;
+            break;
+        case 1:
+        case 3:
+        case 5:
+            if (NvMm_CheckWeekEvent((86 << 8) | 0x08) && (this->csStep == 3)) { // (LISTENED_ANJU_POSTMAN_CONVERSATION)
+                NvMmCsMgr_Stop(csId);
+            } else {
+                NvMmCs_SetTargetActor(&this->actor);
+            }
+            this->csStep++;
+            ret = true;
+            break;
+        case 7:
+            NvMmCsMgr_Stop(csId);
+            this->csStep++;
+            ret = true;
+            break;
+    }
+    return ret;
 }
 
 static void NvMmPm_Talk(NvMmPm* this, PlayState* play) {
@@ -677,6 +718,7 @@ static void NvMmPm_Talk(NvMmPm* this, PlayState* play) {
                                (this->scheduleResult == 16) ? NvMmPm_MsgEventAnju : NULL, &this->msgScriptPos)) {
         this->lookTimer = 20;
         this->msgScriptPos = 0;
+        this->csStep = 0;
         this->actor.child = NULL;
         this->func = NvMmPm_Schedule;
         return;
@@ -786,7 +828,7 @@ static void NvMmPm_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
 }
 
 void NvMmPm_Draw(Actor* thisx, PlayState* play) {
-    static Gfx sEmptyDL[] = { gsSPEndDisplayList() };
+    static Gfx sEmptyDL[] = { gsSPEndDisplayList(), gsSPEndDisplayList(), gsSPEndDisplayList(), gsSPEndDisplayList() }; // (MM's renderModeSetNoneDL: called at +0x10 too)
     NvMmPm* this = (NvMmPm*)thisx;
 
     if (this->scheduleResult == 0) {

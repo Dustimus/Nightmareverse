@@ -343,6 +343,28 @@ void NvDev_Update(PlayState* play) {
     static s32 sHealthSet;
 
     NvMmInput_Apply(play); // (not dev: an MM actor setting Link's stick, z_nv_mm_kendo.c)
+    if (getenv("NV_MM_NODRAW") != NULL) { // dev: NV_MM_NODRAW="26C,20A" hides those MM actors (bisecting a draw)
+        s32 NvMmActor_Id(s32 mmId);
+        const char* l = getenv("NV_MM_NODRAW");
+
+        while (*l != '\0') {
+            s32 id = NvMmActor_Id((s32)strtol(l, (char**)&l, 16));
+            s32 c;
+
+            for (c = 0; c < ACTORCAT_MAX; c++) {
+                Actor* a;
+
+                for (a = play->actorCtx.actorLists[c].head; a != NULL; a = a->next) {
+                    if (a->id == id) {
+                        a->draw = NULL;
+                    }
+                }
+            }
+            while ((*l == ',') || (*l == ' ')) {
+                l++;
+            }
+        }
+    }
 
     // dev: NV_HEALTH=n sets Link's health (in sixteenths of a heart) once, e.g. to see the enemies'
     // low-health kill moves

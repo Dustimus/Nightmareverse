@@ -73,7 +73,7 @@ static const char* sNumberTextures[] = { MM_CS("gBomberNumber1Tex"), MM_CS("gBom
 static Gfx sRedBandanaDL[] = { gsDPSetPrimColor(0, 0, 0x84, 0x00, 0x00, 0xFF), gsSPEndDisplayList() };
 static Gfx sBlueBandanaDL[] = { gsDPSetPrimColor(0, 0, 0x00, 0x5A, 0xFF, 0xFF), gsSPEndDisplayList() };
 static Gfx* sBandanas[] = { sRedBandanaDL, sBlueBandanaDL, sBlueBandanaDL, sBlueBandanaDL, sBlueBandanaDL };
-static Gfx sEmptyDL[] = { gsSPEndDisplayList() };
+static Gfx sEmptyDL[] = { gsSPEndDisplayList(), gsSPEndDisplayList(), gsSPEndDisplayList(), gsSPEndDisplayList() }; // (MM's renderModeSetNoneDL: called at +0x10 too)
 
 enum { NPC_WALKING, NPC_STANDING };
 

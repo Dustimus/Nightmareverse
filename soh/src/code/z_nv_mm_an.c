@@ -11,8 +11,8 @@
  * cooking (tasting), the Laundry Pool and the midnight meeting.
  *
  * Adapted from MM:
- * - her results with Granny (lunch), the Goron and the Postman at the desk: MM's, the talk camera
- *   left to OoT's (MM's cutscene cameras per line are left out);
+ * - her results with Granny (lunch), the Goron and the Postman at the desk: MM's, each in its
+ *   cutscene, the shot turning to whoever speaks (z_nv_mm_csmgr.c);
  * - Link is MM's human or Deku form (z_nv_mm_form.c; Deku Link gets MM's Deku lines), without MM's
  *   masks (Kafei's Mask's lines wait); MM's items
  *   she gives (the Room Key, the Letter to Kafei) aren't in yet (the script goes on without them);
@@ -24,6 +24,7 @@
  * - the Couples' Mask ending (after it she's gone from town) is kept: MM's week event 51_40.
  */
 #include "global.h"
+#include "z_nv_mm_csmgr.h"
 #include "z_nv_mm_schedule.h"
 #include "z_nv_mm_subs.h"
 #include <stdio.h>
@@ -795,11 +796,72 @@ static s32 NvMmAn_MsgEventMidnightMeeting(Actor* thisx, PlayState* play) {
     return false;
 }
 
-/** MM's EnAn_MsgEvent_AttendGoron / _GiveLunchToGranny / _ReceiveLetterFromPostman: in MM they
- * turn the talk camera between the two speakers, line by line; OoT's talk camera follows whom Link
- * listens to (the script's FOCUS_TO_CHILD / FOCUS_TO_SELF), so each step just goes on. */
-static s32 NvMmAn_MsgEventExchange(Actor* thisx, PlayState* play) {
+/** MM's EnAn_ChangeCutscene: queue it until it's next, then start it. */
+static s32 NvMmAn_ChangeCutscene(NvMmAn* this, s16 csId) {
+    if (NvMmCsMgr_IsNext(csId)) {
+        NvMmCsMgr_StartWithPlayerCs(csId, &this->actor);
+        return true;
+    }
+    NvMmCsMgr_Queue(csId);
+    return false;
+}
+
+static Actor* NvMmAn_LiveChild(NvMmAn* this) {
+    return ((this->actor.child != NULL) && (this->actor.child->update != NULL)) ? this->actor.child : NULL;
+}
+
+/**
+ * MM's EnAn_MsgEvent_ReceiveLetterFromPostman (kind 0), _AttendGoron (1), _GiveLunchToGranny (2):
+ * the talk at the desk in a cutscene (hers, or Granny's for the lunch), the shot turning to each
+ * speaker in turn (z_nv_mm_csmgr.c).
+ */
+static s32 NvMmAn_MsgEventDesk(NvMmAn* this, PlayState* play, s32 kind) {
+    Actor* child = NvMmAn_LiveChild(this);
+    s16 csId = (kind == 2) ? ((child != NULL) ? NvMmCs_ActorCsId(child) : NV_MM_CS_ID_NONE)
+                           : NvMmCs_ActorCsId(&this->actor);
+    s32 last = (kind == 0) ? 7 : (kind == 1) ? 5 : 9;
+    s32 st = this->msgEventState;
+
+    if (csId == NV_MM_CS_ID_NONE) {
+        return true;
+    }
+    if ((st == 0) && !NvMmAn_ChangeCutscene(this, csId)) {
+        return false;
+    }
+    if (st == last) {
+        NvMmCsMgr_Stop(csId);
+        this->msgEventState++;
+        return true;
+    }
+    if (st > last) {
+        return false;
+    }
+    if (kind == 2) { // (lunch: Granny's shot, even steps on her, odd on Anju)
+        NvMmCs_SetTargetActor(((st % 2) == 0) ? child : &this->actor);
+    } else if ((st % 2) == 0) {
+        NvMmCs_SetTargetActor(&this->actor);
+    } else if ((kind == 0) && NvMm_CheckWeekEvent((86 << 8) | 0x08) && (st == 3)) { // (heard them before)
+        NvMmCsMgr_Stop(csId);
+    } else if ((kind == 1) && !NvMm_CheckWeekEvent((75 << 8) | 0x10) && (st == 3)) { // (no room key yet)
+        NvMmCsMgr_Stop(csId);
+        this->msgEventState = 5;
+    } else if (child != NULL) {
+        NvMmCs_SetTargetActor(child);
+    }
+    this->msgEventState++;
     return true;
+}
+
+static s32 NvMmAn_MsgEventPostman(Actor* thisx, PlayState* play) {
+    return NvMmAn_MsgEventDesk((NvMmAn*)thisx, play, 0);
+}
+
+static s32 NvMmAn_MsgEventGoron(Actor* thisx, PlayState* play) {
+    return NvMmAn_MsgEventDesk((NvMmAn*)thisx, play, 1);
+}
+
+static s32 NvMmAn_MsgEventGranny(Actor* thisx, PlayState* play) {
+    return NvMmAn_MsgEventDesk((NvMmAn*)thisx, play, 2);
 }
 
 s32 NvMmForm_Get(void); // (MM's player->transformation: z_nv_mm_form.c; 3 Deku, 4 human)
@@ -810,13 +872,13 @@ static MsgScript* NvMmAn_GetMsgScript(NvMmAn* this, PlayState* play) {
 
     switch (this->scheduleResult) {
         case ANJU_SCH_GIVE_LUNCH_TO_GRANNY:
-            this->msgScriptCallback = NvMmAn_MsgEventExchange;
+            this->msgScriptCallback = NvMmAn_MsgEventGranny;
             return sAnjuMsgScript_SchGiveLunchToGranny;
         case ANJU_SCH_RECEIVE_LETTER_FROM_POSTMAN:
-            this->msgScriptCallback = NvMmAn_MsgEventExchange;
+            this->msgScriptCallback = NvMmAn_MsgEventPostman;
             return sAnjuMsgScript_SchReceiveLetterFromPostman;
         case ANJU_SCH_ATTEND_GORON:
-            this->msgScriptCallback = NvMmAn_MsgEventExchange;
+            this->msgScriptCallback = NvMmAn_MsgEventGoron;
             return sAnjuMsgScript_SchAttendGoron;
         case ANJU_SCH_COOKING:
             this->msgScriptCallback = NvMmAn_MsgEventCooking;

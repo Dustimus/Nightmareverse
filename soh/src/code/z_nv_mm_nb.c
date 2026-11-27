@@ -9,14 +9,15 @@
  * heart pieces) waits for MM's masks: the scripts' mask branches are MM's, checked as not worn.
  *
  * Adapted from MM:
- * - her lunch with Anju (12:00-12:15, Days 1 and 2): MM's lines between them; MM's cutscene camera
- *   turning to each speaker is left to OoT's talk camera;
+ * - her lunch with Anju (12:00-12:15, Days 1 and 2): MM's lines between them; in her cutscene, the
+ *   shot turning to each speaker as MM's (z_nv_mm_csmgr.c);
  * - MM's story screen (the pictures over a black fill) is for the mask path: not ported yet;
  * - the time jump and the night's sleep are Termina's clock (NvMmClock_Jump, _SleepToMorning);
  * - her head turn and her talking animations by line (MM's transform draw, func_80BC08E0...) are
  *   left out; MM's "auto" talk offer after waking (she speaks first) is OoT's auto-accepted offer.
  */
 #include "global.h"
+#include "z_nv_mm_csmgr.h"
 #include "z_nv_mm_schedule.h"
 #include "z_nv_mm_msgevent.h"
 
@@ -117,10 +118,48 @@ static Actor* NvMmNb_FindAnju(NvMmNb* this, PlayState* play) {
     return NULL;
 }
 
-/** MM's func_80BC00AC: the talk camera between her and Anju over lunch, line by line; OoT's talk
- * camera follows the script's FOCUS_TO_CHILD / FOCUS_TO_SELF, so each step just goes on. */
+/** MM's func_80BC00AC: lunch with Anju in her cutscene, the shot turning to each in turn. */
 static s32 NvMmNb_MsgEventLunch(Actor* thisx, PlayState* play) {
-    return true;
+    NvMmNb* this = (NvMmNb*)thisx;
+    s16 csId = NvMmCs_ActorCsId(&this->actor); // (MM's func_80BC0050: her own)
+    s32 ret = false;
+
+    if (csId == NV_MM_CS_ID_NONE) {
+        return true;
+    }
+    switch (this->behaviour) {
+        case 0: // MM's func_80BBFFD4
+            if (!NvMmCsMgr_IsNext(csId)) {
+                NvMmCsMgr_Queue(csId);
+                break;
+            }
+            NvMmCsMgr_StartWithPlayerCs(csId, &this->actor);
+            // fallthrough
+        case 2:
+        case 4:
+        case 6:
+        case 8:
+            NvMmCs_SetTargetActor(&this->actor);
+            this->behaviour++;
+            ret = true;
+            break;
+        case 1:
+        case 3:
+        case 5:
+        case 7:
+            if ((this->actor.child != NULL) && (this->actor.child->update != NULL)) {
+                NvMmCs_SetTargetActor(this->actor.child);
+            }
+            this->behaviour++;
+            ret = true;
+            break;
+        case 9:
+            NvMmCsMgr_Stop(csId);
+            this->behaviour++;
+            ret = true;
+            break;
+    }
+    return ret;
 }
 
 /** MM's EnNb_ProcessScheduleOutput: in her room; her lunch (SCH_2) with Anju there. */

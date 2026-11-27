@@ -124,7 +124,7 @@ static const char* sBNumbers[] = { MM_CS("gBomberNumber1Tex"), MM_CS("gBomberNum
 // (the overlays' own two lists: the bandana, red for number 1, blue for the rest)
 static Gfx sBRedDL[] = { gsDPSetPrimColor(0, 0, 0x84, 0x00, 0x00, 0xFF), gsSPEndDisplayList() };
 static Gfx sBBlueDL[] = { gsDPSetPrimColor(0, 0, 0x00, 0x5A, 0xFF, 0xFF), gsSPEndDisplayList() };
-static Gfx sBEmptyDL[] = { gsSPEndDisplayList() };
+static Gfx sBEmptyDL[] = { gsSPEndDisplayList(), gsSPEndDisplayList(), gsSPEndDisplayList(), gsSPEndDisplayList() }; // (MM's renderModeSetNoneDL)
 
 typedef struct {
     Actor actor;

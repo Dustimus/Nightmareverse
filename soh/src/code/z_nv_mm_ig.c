@@ -8,13 +8,14 @@
  * East Clock Town (18:00 to dawn); else he goes to the Knife Chamber.
  *
  * Adapted from MM:
- * - the talk at the desk is MM's, with Anju (MM's FOCUS_TO_CHILD / _SELF); MM's cutscene camera
- *   turning to each speaker is left to OoT's talk camera;
+ * - the talk at the desk is MM's, with Anju (MM's FOCUS_TO_CHILD / _SELF); in Anju's cutscene,
+ *   the shot turning to each speaker as MM's (z_nv_mm_csmgr.c);
  * - his head turn toward whom he talks to (MM's transform draw, SubS_UpdateLimb) is left out;
  * - Link is MM's human form: the Goron Mask lines wait for MM's masks;
  * - MM's sounds for his steps and his snoring aren't in OoT's sound bank: left out.
  */
 #include "global.h"
+#include "z_nv_mm_csmgr.h"
 #include "z_nv_mm_schedule.h"
 #include "z_nv_mm_subs.h"
 #include "z_nv_mm_msgevent.h"
@@ -96,6 +97,7 @@ typedef struct NvMmIg {
     s16 lineState;
     s32 animIndex;
     s32 snore;
+    s16 csStep; // MM's unk_3F6: the desk talk's cutscene, step by step
 } NvMmIg;
 
 const size_t gNvMmIgSize = sizeof(NvMmIg);
@@ -236,10 +238,73 @@ static void NvMmIg_ByLine(NvMmIg* this, PlayState* play) {
     }
 }
 
-/** MM's func_80BF17BC: the talk camera between him and Anju, line by line; OoT's talk camera
- * follows the script's FOCUS_TO_CHILD / FOCUS_TO_SELF, so each step just goes on. */
+/** MM's func_80BF1744: Anju's cutscene, or one chained after it. */
+static s16 NvMmIg_ChildCsId(NvMmIg* this, s32 numCutscenes) {
+    s16 csId = NV_MM_CS_ID_NONE;
+    s32 i;
+
+    if ((this->actor.child != NULL) && (this->actor.child->update != NULL)) {
+        csId = NvMmCs_ActorCsId(this->actor.child);
+        for (i = 0; (i < numCutscenes) && (csId != NV_MM_CS_ID_NONE); i++) {
+            csId = NvMmCsMgr_GetAdditionalCsId(csId);
+        }
+    }
+    return csId;
+}
+
+/** MM's func_80BF16C8: queue it until it's next, then start it. */
+static s32 NvMmIg_StartCs(NvMmIg* this, s16 csId) {
+    if (NvMmCsMgr_IsNext(csId)) {
+        NvMmCsMgr_StartWithPlayerCs(csId, &this->actor);
+        return true;
+    }
+    NvMmCsMgr_Queue(csId);
+    return false;
+}
+
+/** MM's func_80BF17BC: the talk at the desk with Anju, the shot turning to each of them in turn. */
 static s32 NvMmIg_MsgEventDesk(Actor* thisx, PlayState* play) {
-    return true;
+    NvMmIg* this = (NvMmIg*)thisx;
+    s16 csId = NvMmIg_ChildCsId(this, 0);
+    s32 ret = false;
+
+    if (csId == NV_MM_CS_ID_NONE) {
+        return true;
+    }
+    switch (this->csStep) {
+        case 0:
+            if (!NvMmIg_StartCs(this, csId)) {
+                break;
+            }
+            // fallthrough
+        case 2:
+        case 4:
+            if ((this->actor.child != NULL) && (this->actor.child->update != NULL)) {
+                NvMmCs_SetTargetActor(this->actor.child);
+            }
+            this->csStep++;
+            ret = true;
+            break;
+        case 1:
+        case 3:
+            if (!NvMm_CheckWeekEvent((75 << 8) | 0x10) && (this->csStep == 3)) { // (RECEIVED_ROOM_KEY)
+                NvMmCsMgr_Stop(csId);
+                this->csStep = 5;
+            } else {
+                NvMmCs_SetTargetActor(&this->actor);
+            }
+            this->csStep++;
+            ret = true;
+            break;
+        case 5:
+            NvMmCsMgr_Stop(csId);
+            this->csStep++;
+            ret = true;
+            break;
+        default:
+            break;
+    }
+    return ret;
 }
 
 /** MM's EnIg_GetMsgScript. */
@@ -569,6 +634,7 @@ void NvMmIg_Update(Actor* thisx, PlayState* play) {
         this->flags &= ~FLAG_OFFER;
         this->actor.child = this->lookAt;
         this->msgScriptPos = 0;
+        this->csStep = 0;
         this->func = NvMmIg_Talk;
     }
     this->func(this, play);
@@ -629,7 +695,7 @@ static void NvMmIg_PostLimbDraw(PlayState* play, s32 limbIndex, Gfx** dList, Vec
 }
 
 void NvMmIg_Draw(Actor* thisx, PlayState* play) {
-    static Gfx sEmptyDL[] = { gsSPEndDisplayList() };
+    static Gfx sEmptyDL[] = { gsSPEndDisplayList(), gsSPEndDisplayList(), gsSPEndDisplayList(), gsSPEndDisplayList() }; // (MM's renderModeSetNoneDL: called at +0x10 too)
     NvMmIg* this = (NvMmIg*)thisx;
 
     if (this->scheduleResult == 0) {

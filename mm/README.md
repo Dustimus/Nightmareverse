@@ -822,6 +822,10 @@ manager makes a sub-camera for it and on the stop hands the view back.
   `NvMmCs_MainCameraFromCutscene`, asked each frame it's wanted. In Clock Town's scenes those are all the
   actor cutscene cameras but the entrance views (START0/START2, `Camera_Unique0`) and one in the
   bowling alley. Other settings (FREE0) leave the view for the actor to place, as MM's `Camera_Unique6`.
+- MM's render-mode segment (0x0C, `Scene_SetRenderModeXlu`): MM's empty one is four end-of-lists,
+  and some models call it at +0x10; ours were one long, so the Goron at the inn read past it and
+  crashed as he walked in at 15:45 (2026-11-27). Dev: `NV_MM_NODRAW="276,1D5"` hides those MM
+  actors (by MM id), for bisecting a bad draw.
 - MM's waiting list is cleared each frame once the next is chosen (MM's `CutsceneManager_ClearWaiting`
   after `_Update`); actors queue again each frame they still want theirs.
 - Not yet: MM's scripted cutscenes (their camera splines), the entrance views, MM's global
@@ -829,8 +833,8 @@ manager makes a sub-camera for it and on the stop hands the view back.
   check, roll.
 - Ported actors using them so far: the Mayor's meeting, the Treasure Chest Shop, the Swordsman's
   course, the Lottery Shop's booth, the hideout guard, the Bombers' game (balloon, Jim, the four),
-  Sakon's snatch. Still to bring over: the inn's desk talks (Anju with Granny, the Goron, the
-  Postman), the Rosa sisters, the clock tower's doors, the owl statues' opening, the bells.
+  Sakon's snatch, the inn's desk talks (Anju with Granny, the Goron, the Postman). Still to bring
+  over: the Rosa sisters, the clock tower's doors, the owl statues' opening, the bells.
 
 Tested headless: the Mayor's meeting, each line in MM's own shot (Viscen before the soldiers, the
 mayor at his desk, Mutoh with the carpenters), letterboxed, back to the normal camera after.
@@ -1094,8 +1098,8 @@ out from the decomp's bytecode) and message scripts (`nv_mm_msgscripts/En_Ig.msg
 as in MM: he walks East Clock Town at 15:25 and goes through the inn's door at 15:45, crosses the
 lobby to the desk, and asks Anju for his room (16:10-16:30, MM's lines between the two of them,
 Anju's side in `z_nv_mm_an.c`). Then up the stairs to the Knife Chamber (16:50); if Link has the
-room key (an MM item, not in yet) he walks back out and sleeps in East Clock Town instead. MM's
-camera turning to each speaker is left to OoT's talk camera; his head turn is left out; MM's step
+room key (an MM item, not in yet) he walks back out and sleeps in East Clock Town instead. The
+desk talk is in Anju's cutscene, the shot turning to each speaker (2026-11-27); his head turn is left out; MM's step
 and snore sounds aren't in OoT's sound bank. Tested headless: the street walk, the door, the walk to
 the desk, the talk with Anju ("I should have a reservation-goro. The name is LINK."), and the walk
 upstairs to the Knife Chamber's door.
