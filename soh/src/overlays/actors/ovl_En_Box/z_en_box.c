@@ -353,7 +353,9 @@ void EnBox_AppearOnSwitchFlag(EnBox* this, PlayState* play) {
     }
 
     if (Flags_GetSwitch(play, this->switchFlag)) {
-        OnePointCutscene_Attention(play, &this->dyna.actor);
+        if (!NvMm_IsScene(play->sceneNum)) { // Nightmareverse: in Termina MM's actor cutscene shows it (z_nv_mm_csmgr.c)
+            OnePointCutscene_Attention(play, &this->dyna.actor);
+        }
         EnBox_SetupAction(this, EnBox_AppearInit);
         this->unk_1A8 = -30;
     }

@@ -750,8 +750,11 @@ form): purple rupee, Goron's piece of heart, Zora's red rupee, Deku's nuts. 45 s
 timer; the chest opened, or the time's up, and Link is back at the counter (MM's entrance 1) where
 she asks "Did you have fun?" or "Won't you try again?".
 
-Left out or adapted: MM's camera sweep over the board as the chest appears (OoT's chest-appearing
-camera shows instead), the masks' reactions (MM's face-reaction tables), the closing-time kick-out,
+The chest appearing is MM's shot of it, pulling back toward Link (her actor cutscene, 2026-11-27:
+MM's chest starts it as it appears; OoT's chest has none, so she starts it, and OoT's own chest camera
+stays off in Termina, a line in `z_en_box.c`).
+
+Left out or adapted: the masks' reactions (MM's face-reaction tables), the closing-time kick-out,
 MM's minigame music; the walls' sound is OoT's rising block.
 
 Tested headless: paying (20 Rupees as human), the board and timer, walls rising in Link's way,

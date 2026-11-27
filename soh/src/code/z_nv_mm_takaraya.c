@@ -13,8 +13,8 @@
  * in rot.z), in MM's model (z_nv_mm_box.c), giving MM's get-item.
  *
  * Adapted from MM:
- * - MM's camera sweep over the board as the chest appears (a cutscene of its own) is left out: the
- *   timer starts at once;
+ * - MM's camera sweep over the board as the chest appears is her actor cutscene (z_nv_mm_csmgr.c),
+ *   started by her as MM's chest would start it (OoT's chest has no MM cutscene);
  * - MM's timer is OoT's main timer (its count to 0 stops harmlessly); MM's success state is kept here;
  * - the masks' reactions (Text_GetFaceReaction) wait for MM's face-reaction tables;
  * - the closing-time kick-out (week events KICKOUT_*) isn't followed;
@@ -86,7 +86,16 @@ typedef struct NvMmTakaraya {
     s16 timer;
     Vec3s headRot;
     u16 textId; // MM's
+    s32 csStarted;
 } NvMmTakaraya;
+
+s32 NvMmCs_ActorCsId(Actor* actor);
+void NvMmCs_SetActorCsId(Actor* actor, s32 csId);
+void NvMmCsMgr_Queue(s16 csId);
+s16 NvMmCsMgr_IsNext(s16 csId);
+s16 NvMmCsMgr_StartWithPlayerCs(s16 csId, Actor* actor);
+s16 NvMmCsMgr_GetCurrentCsId(void);
+s16 NvMmCsMgr_GetCurrentSubCamId(s16 csId);
 
 size_t gNvMmTakarayaSize = sizeof(NvMmTakaraya);
 
@@ -173,6 +182,7 @@ static void NvMmTakaraya_SpawnWalls(NvMmTakaraya* this, PlayState* play) {
 }
 
 static void NvMmTakaraya_StartGame(NvMmTakaraya* this, PlayState* play);
+static void NvMmTakaraya_StartTimer(NvMmTakaraya* this, PlayState* play);
 
 /** MM's EnTakaraya_Talk. */
 static void NvMmTakaraya_Talk(NvMmTakaraya* this, PlayState* play) {
@@ -243,9 +253,53 @@ static void NvMmTakaraya_Talk(NvMmTakaraya* this, PlayState* play) {
 static void NvMmTakaraya_Playing(NvMmTakaraya* this, PlayState* play);
 static void NvMmTakaraya_Ending(NvMmTakaraya* this, PlayState* play);
 
-/** MM's func_80ADF2D4 and func_80ADF4E0 (MM's camera sweep over the board between them left out). */
+
+static void NvMmTakaraya_Sweep(NvMmTakaraya* this, PlayState* play);
+
+/** MM's func_80ADF2D4: the board's shown first (her cutscene, MM's queued by the chest as it appears). */
 static void NvMmTakaraya_StartGame(NvMmTakaraya* this, PlayState* play) {
     Sfx_PlaySfxCentered(NA_SE_SY_CORRECT_CHIME);
+    this->timer = 145;
+    this->csStarted = false;
+    this->func = NvMmTakaraya_Sweep;
+}
+
+/** MM's func_80ADF338: the camera sweeps from the chest back toward Link. */
+static void NvMmTakaraya_Sweep(NvMmTakaraya* this, PlayState* play) {
+    Actor* chest = play->actorCtx.actorLists[ACTORCAT_CHEST].head;
+    Player* player = GET_PLAYER(play);
+    s16 csId = NvMmCs_ActorCsId(&this->actor);
+
+    SkelAnime_Update(&this->skelAnime);
+    if (!this->csStarted && (csId != -1) && (chest != NULL)) { // (MM's EnBox starts it as it appears)
+        if (!NvMmCsMgr_IsNext(csId)) {
+            NvMmCsMgr_Queue(csId);
+            return;
+        }
+        NvMmCsMgr_StartWithPlayerCs(csId, chest);
+        this->csStarted = true;
+    }
+    if ((csId != -1) && (NvMmCsMgr_GetCurrentCsId() == csId) && (chest != NULL)) {
+        Vec3f eye;
+        Vec3f at;
+        f32 dist;
+
+        this->timer--;
+        dist = (this->timer >= 26) ? 250.0f : ((chest->xzDistToPlayer - 250.0f) * (25 - this->timer) * 0.04f) + 250.0f;
+        eye.x = chest->world.pos.x + (Math_SinS(chest->yawTowardsPlayer) * dist);
+        eye.y = player->actor.world.pos.y + 120.0f;
+        eye.z = chest->world.pos.z + (Math_CosS(chest->yawTowardsPlayer) * dist);
+        at.x = eye.x - (Math_SinS(chest->yawTowardsPlayer) * 250.0f);
+        at.y = eye.y - 90.0f;
+        at.z = eye.z - (Math_CosS(chest->yawTowardsPlayer) * 250.0f);
+        Play_CameraSetAtEye(play, NvMmCsMgr_GetCurrentSubCamId(csId), &at, &eye);
+    } else if ((this->timer < 145) || (csId == -1)) {
+        NvMmTakaraya_StartTimer(this, play);
+    }
+}
+
+/** MM's func_80ADF4E0. */
+static void NvMmTakaraya_StartTimer(NvMmTakaraya* this, PlayState* play) {
     Interface_SetTimer(45);
     sGameState = NV_TAKARAYA_PLAYING;
     this->timer = 1;
