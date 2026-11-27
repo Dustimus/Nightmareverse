@@ -455,7 +455,26 @@ typedef struct NvMmDt {
     s32 meetingFinished;
     s32 showedCouplesMask;
     ColliderCylinder collider;
+    s16 csIds[12]; // MM's: its cutscene and the additional ones after it (z_nv_mm_csmgr.c)
+    s16 csIdIndex; // into sStringIdCsIndexTable
+    s32 csState;   // MM's EnDtCutsceneState
 } NvMmDt;
+
+enum { DT_CS_NONE, DT_CS_WAITING, DT_CS_PLAYING };
+
+// MM's sStringIdCsIndexTable: which of his cutscenes (the shot) shows each line
+static const s16 sStringIdCsIndexTable[] = {
+    0x2ABB, 0, 0x2ABD, 0, 0x2AC0, 1, 0x2AC1, 2, 0x2AC4, 3, 0x2AC6, 4,
+    0x2AC7, 5, 0x2AC8, 6, 0x2AC9, 7, 0x2ACC, 8, 0x2ACF, 9, 0x2AD0, 10,
+};
+
+s32 NvMmCs_ActorCsId(Actor* actor);
+void NvMmCs_SetTargetActor(Actor* actor);
+s16 NvMmCsMgr_GetAdditionalCsId(s16 csId);
+void NvMmCsMgr_Queue(s16 csId);
+s16 NvMmCsMgr_IsNext(s16 csId);
+s16 NvMmCsMgr_StartWithPlayerCs(s16 csId, Actor* actor);
+s16 NvMmCsMgr_Stop(s16 csId);
 
 size_t gNvMmDtSize = sizeof(NvMmDt);
 
@@ -481,6 +500,42 @@ static void NvMmDt_UpdateAppearance(NvMmDt* this) {
 
 static void NvMmDt_SetText(NvMmDt* this) {
     this->actor.textId = NV_MM_TEXT(sDtTextIds[this->textIdIndex]);
+}
+
+/** MM's loop over sStringIdCsIndexTable: the shot for the line showing (or about to). */
+static s32 NvMmDt_FindCsIdIndex(NvMmDt* this, PlayState* play) {
+    s32 i;
+
+    for (i = 0; i < ARRAY_COUNT(sStringIdCsIndexTable); i += 2) {
+        if ((play->msgCtx.textId == NV_MM_TEXT(sStringIdCsIndexTable[i])) ||
+            (this->actor.textId == NV_MM_TEXT(sStringIdCsIndexTable[i]))) {
+            this->csIdIndex = i;
+            return true;
+        }
+    }
+    return false;
+}
+
+/** After a line changes: the shot changes with it (MM: stop the one playing, queue the next). */
+static void NvMmDt_UpdateShot(NvMmDt* this, PlayState* play, s32 prevIndex) {
+    s32 index;
+
+    NvMmDt_FindCsIdIndex(this, play);
+    index = sStringIdCsIndexTable[this->csIdIndex + 1];
+    if ((this->csState == DT_CS_PLAYING) && (index != prevIndex)) {
+        this->csState = DT_CS_WAITING;
+        NvMmCsMgr_Stop(this->csIds[prevIndex]);
+        NvMmCsMgr_Queue(this->csIds[index]);
+    }
+    NvMmCs_SetTargetActor(this->targetActor); // (MM's Camera_SetTargetActor on the cutscene's camera)
+}
+
+/** The meeting's shot over. */
+static void NvMmDt_StopShot(NvMmDt* this) {
+    if (this->csState == DT_CS_PLAYING) {
+        NvMmCsMgr_Stop(this->csIds[sStringIdCsIndexTable[this->csIdIndex + 1]]);
+    }
+    this->csState = DT_CS_NONE;
 }
 
 /** MM's EnDt_UpdateCutsceneFocusTarget: who everyone looks at for this line. */
@@ -575,6 +630,17 @@ static void NvMmDt_SetupCutsceneNpcs(NvMmDt* this, PlayState* play) {
     }
     this->muto = NvMmMayor_Find(play, MM_EN_MUTO);
     this->baisen = NvMmMayor_Find(play, MM_EN_BAISEN);
+    {
+        s16 csId = NvMmCs_ActorCsId(&this->actor);
+        s32 i;
+
+        for (i = 0; i < ARRAY_COUNT(this->csIds); i++) {
+            this->csIds[i] = csId;
+            if (csId != -1) {
+                csId = NvMmCsMgr_GetAdditionalCsId(csId);
+            }
+        }
+    }
     NvMmDt_SetupRegularState(this, play);
 }
 
@@ -591,6 +657,7 @@ static void NvMmDt_SetupMeeting(NvMmDt* this, PlayState* play) {
             NvMmDt_UpdateAppearance(this);
         }
     }
+    this->csState = NvMmDt_FindCsIdIndex(this, play) ? DT_CS_WAITING : DT_CS_NONE;
     if (getenv("NV_LOG") != NULL) {
         printf("NVMM mayor: the meeting's talk starts at line %d\n", (int)this->textIdIndex);
         fflush(stdout);
@@ -646,12 +713,23 @@ static void NvMmDt_OfferReward(NvMmDt* this, PlayState* play);
 static void NvMmDt_UpdateMeeting(NvMmDt* this, PlayState* play) {
     NvMmMeetingRole* muto = ((this->muto != NULL) && (this->baisen != NULL)) ? NvMmMuto_Role(this->muto) : NULL;
     NvMmMeetingRole* baisen = (muto != NULL) ? NvMmBaisen_Role(this->baisen) : NULL;
+    s32 index = sStringIdCsIndexTable[this->csIdIndex + 1];
 
+    if (this->csState == DT_CS_WAITING) { // MM's: wait for his shot's turn, then it plays
+        if (!NvMmCsMgr_IsNext(this->csIds[index])) {
+            NvMmCsMgr_Queue(this->csIds[index]);
+            return;
+        }
+        NvMmCsMgr_StartWithPlayerCs(this->csIds[index], this->targetActor);
+        NvMmCs_SetTargetActor(this->targetActor);
+        this->csState = DT_CS_PLAYING;
+    }
     if ((this->timer != 0) || (Message_GetState(&play->msgCtx) != TEXT_STATE_EVENT) || !Message_ShouldAdvance(play)) {
         return;
     }
     if (this->textIdIndex == 21) { // thanks: the reward
         Player_SetCsActionWithHaltedActors(play, &this->actor, 7); // (PLAYER_CSACTION_END)
+        NvMmDt_StopShot(this);
         Message_CloseTextbox(play);
         NvMmDt_OfferReward(this, play);
         return;
@@ -663,6 +741,7 @@ static void NvMmDt_UpdateMeeting(NvMmDt* this, PlayState* play) {
         play->transitionTrigger = TRANS_TRIGGER_START;
         NvMm_SetWeekEvent(WE_RESOLVED_MAYOR_MEETING);
         this->meetingFinished = true;
+        NvMmDt_StopShot(this);
         if (getenv("NV_LOG") != NULL) {
             printf("NVMM mayor: the meeting's settled\n");
             fflush(stdout);
@@ -680,6 +759,7 @@ static void NvMmDt_UpdateMeeting(NvMmDt* this, PlayState* play) {
             baisen->targetActor = this->baisen;
         }
         this->targetActor = &this->actor;
+        NvMmDt_StopShot(this);
         if (getenv("NV_LOG") != NULL) {
             printf("NVMM mayor: the meeting's talk ends (line %d)\n", (int)this->textIdIndex);
             fflush(stdout);
@@ -695,6 +775,7 @@ static void NvMmDt_UpdateMeeting(NvMmDt* this, PlayState* play) {
     if (this->textIdIndex == 8) { // the first meeting's end: he slumps before his last word
         Message_CloseTextbox(play);
         NvMmDt_UpdateFocusTarget(this);
+        NvMmCs_SetTargetActor(this->targetActor);
         this->timer = 2;
         this->func = NvMmDt_FinishMeeting;
         return;
@@ -713,6 +794,7 @@ static void NvMmDt_UpdateMeeting(NvMmDt* this, PlayState* play) {
     NvMmDt_UpdateFocusTarget(this);
     NvMmDt_SetText(this);
     Message_ContinueTextbox(play, this->actor.textId);
+    NvMmDt_UpdateShot(this, play, index);
     if ((this->textIdIndex == 3) && (muto != NULL)) { // "Isn't that right, Mayor?": Mutoh looks to him
         muto->targetActor = &this->actor;
     }
@@ -738,6 +820,7 @@ static void NvMmDt_FinishMeeting(NvMmDt* this, PlayState* play) {
             NvMm_NotebookEvent(NOTEBOOK_PERSON_MAYOR_DOTOUR);
         }
         NvMmDt_UpdateFocusTarget(this);
+        NvMmDt_UpdateShot(this, play, sStringIdCsIndexTable[this->csIdIndex + 1]);
         this->func = NvMmDt_UpdateMeeting;
     }
 }

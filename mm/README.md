@@ -792,6 +792,33 @@ tested: the right moves for each novice lesson, a full 30 (the prize).
 
 The dev walker's `choice:N` now also reads on through event boxes on the way to the choice.
 
+### MM's cutscene cameras (2026-11-27, `soh/src/code/z_nv_mm_csmgr.c`)
+
+MM's actor cutscenes, for every MM actor that asks for the camera. In MM an actor queues its cutscene
+(its csId from the scene's actor entry, or one of the additional ones chained after it), waits until
+it's next (one at a time, by priority), starts it and stops it; the cutscene's entry (the scene's
+list, command 0x1B) names one of the scene's cameras (command 0x02): a setting and its data. MM's
+manager makes a sub-camera for it and on the stop hands the view back.
+
+- **Data** (`tools/mm_scene.py`): each scene's lists as "<scene>_scene_csmgr" ("MCSM": MM's 16-byte
+  ActorCutscene entries, then the cameras: setting, data count, data), each room's actor csIds as
+  "<room>_csids" (MM's `rot.y & 0x7F` per actor entry, which the converted rotation loses);
+  `z_nv_mm_halfday.c` records each ported actor's csId as it spawns it (`NvMmCs_ActorCsId`).
+- **The manager**: MM's `CutsceneManager_*` line for line as `NvMmCsMgr_*` (queue, next by
+  priority, start with or without Link held, stop, length, additional ids, the global cutscenes),
+  updated each frame in Termina (`z_nv_mm.c`); letterbox and HUD as MM's entry says.
+- **The camera**: OoT's sub-camera (set to OoT's FREE0 so OoT's own camera code leaves it be), driven
+  each frame with MM's camera math for the setting: `Camera_Fixed1` (FIXED1, FIXED2, RFIXED1: a set
+  shot) and `Camera_Fixed2` (CIRCLE2, CIRCLE3, CIRCLE8: a fixed eye turning to follow its target;
+  `NvMmCs_SetTargetActor` is MM's `Camera_SetTargetActor`). In Clock Town's scenes those are all the
+  actor cutscene cameras but the entrance views (START0/START2, `Camera_Unique0`) and one in the
+  bowling alley. Other settings (FREE0) leave the view for the actor to place, as MM's `Camera_Unique6`.
+- Not yet: MM's scripted cutscenes (their camera splines), the entrance views, MM's camera
+  collision check, roll.
+
+Tested headless: the Mayor's meeting, each line in MM's own shot (Viscen before the soldiers, the
+mayor at his desk, Mutoh with the carpenters), letterboxed, back to the normal camera after.
+
 ### The Mayor's meeting (2026-11-26, `soh/src/code/z_nv_mm_mayor.c`, `z_nv_mm_meeting.h`)
 
 MM's En_Dt (Mayor Dotour, `object_dt`), En_Baisen (Viscen, `object_bai`) and En_Heishi (the
@@ -807,8 +834,8 @@ on the final night the mayor sits alone (60_40 once heard). Kafei's Mask gets MM
 MM's En_Dt reaches into En_Muto and En_Baisen to steer them; here each keeps MM's
 `cutsceneState`/`targetActor` in a `NvMmMeetingRole` the mayor reaches through `z_nv_mm_meeting.h`.
 
-Adapted: MM shows each speaker with the meeting's cutscene cameras; here OoT's talk camera stays and
-the others' heads turn to the speaker. The office's music and crowd murmur aren't in OoT's banks.
+Each line is shown by MM's own shot for it (MM's sStringIdCsIndexTable: the mayor's cutscene and its
+additional ones, z_nv_mm_csmgr.c below). The office's music and crowd murmur aren't in OoT's banks.
 
 Tested headless: the first meeting (lines 0-8), the repeat (9-10), and the resolution with the
 Couple's Mask (11-20), the return through the door and the piece of heart.

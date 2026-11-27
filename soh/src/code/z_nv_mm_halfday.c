@@ -39,6 +39,12 @@ static Actor* NvMmHalfDay_Spawn(PlayState* play, s32 i) {
         }
         a = Actor_Spawn(&play->actorCtx, play, id, e->pos.x, e->pos.y, e->pos.z, e->rot.x, e->rot.y, e->rot.z,
                         e->params);
+        if (a != NULL) { // its MM csId (z_nv_mm_csmgr.c); its Init has run, so the ports ask for it later
+            s32 NvMmCs_RoomCsId(PlayState * play, s32 i);
+            void NvMmCs_SetActorCsId(Actor * actor, s32 csId);
+
+            NvMmCs_SetActorCsId(a, NvMmCs_RoomCsId(play, i));
+        }
         if (getenv("NV_LOG") != NULL) { // (dev: what of MM's came)
             printf("NVMM spawn %03X params=%04X at %d,%d,%d: %s\n", e->id - NV_MM_ACTOR_MARKER, (u16)e->params,
                    e->pos.x, e->pos.y, e->pos.z, (a != NULL) ? "ok" : "failed");

@@ -119,6 +119,10 @@ void NvMm_Update(PlayState* play) {
     NvMmClock_Update(play);
     NvMmSongs_Update(play); // (z_nv_mm_songs.c: MM's songs on the shared listener)
     NvMmHalfDay_Update(play);
+    {
+        void NvMmCsMgr_Update(PlayState * play);
+        NvMmCsMgr_Update(play); // (MM's actor cutscenes and their cameras: z_nv_mm_csmgr.c)
+    }
     NvMm_SaveTest(play);
 }
 

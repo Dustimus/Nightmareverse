@@ -130,10 +130,15 @@ def _rot(raw, flag):
     return (v * 0x10000 // 360) & 0xFFFF
 
 
+# The csIds of the entries actors() last returned, in order (its actor cutscene: z_nv_mm_csmgr.c)
+LAST_CSIDS = []
+
+
 def actors(data, off, count):
     """A room's actor list (0x01) as OoT entries: [(id, params, x, y, z, rx, ry, rz, halfdays)],
     the OoT objects they need, and what was left out ({MM actor id: count})."""
     out, objects, skipped = [], [], {}
+    del LAST_CSIDS[:]
     for i in range(count):
         aid_raw, x, y, z, rx, ry, rz, params = struct.unpack_from(">H3h3hH", data, off + 16 * i)
         aid = aid_raw & 0x1FFF
@@ -152,6 +157,7 @@ def actors(data, off, count):
             # only its world rotation, its shape (model and opening side) facing the data: half round here
             oy = (oy + 0x8000) & 0xFFFF
         out.append((m[0], p, x, y, z, _rot(rx, aid_raw & 0x4000), oy, _rot(rz, aid_raw & 0x2000), halfdays))
+        LAST_CSIDS.append(ry & 0x7F)  # MM's actor csId (Actor_SpawnEntry: rot.y & 0x7F, 0x7F none)
         for o in m[2]:
             if o not in objects:
                 objects.append(o)

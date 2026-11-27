@@ -241,6 +241,7 @@ def room_xml(scene, r, rdata):
                 R.append("        " + _el("ObjectEntry", Id=o))
             R.append("    </SetObjectList>")
         HALFDAYS[f"{soh_name(scene)}_room_{r:02d}"] = [hd for *_x, hd in acts]
+        CSIDS[f"{soh_name(scene)}_room_{r:02d}"] = list(mm_actors.LAST_CSIDS)
         if acts:
             R.append("    <SetActorList>")
             for aid, p, x, y, z, rx, ry, rz, _hd in acts:
@@ -322,6 +323,35 @@ def matanim_blob_at(sdata, p):
     return b"MMAT" + struct.pack("<i", len(entries)) + b"".join(entries)
 
 
+CSIDS = {}  # room: each actor entry's MM csId (0x7F none)
+
+
+def csmgr_blob(sdata):
+    """MM's actor cutscenes (scene command 0x1B) and their cameras (0x02), as "MCSM": the cutscene
+    count and entries (MM's ActorCutscene, 16 bytes, little-endian), the camera count and entries
+    (setting, Vec3s count, first Vec3s), then the Vec3s data (z_nv_mm_csmgr.c)."""
+    cmds = {cmd: (a1, w1) for cmd, a1, w1 in commands(sdata, 0)}
+    if 0x1B not in cmds:
+        return None
+    n, w = cmds[0x1B]
+    q = w & 0xFFFFFF
+    out = b"MCSM" + struct.pack("<i", n)
+    for i in range(n):
+        out += struct.pack("<hhhhhBBhBB", *struct.unpack_from(">hhhhhBBhBB", sdata, q + 16 * i))
+    cams, data = [], b""
+    if 0x02 in cmds:
+        nc, wc = cmds[0x02]
+        qc = wc & 0xFFFFFF
+        for i in range(nc):
+            setting, count, ptr = struct.unpack_from(">hhI", sdata, qc + 8 * i)
+            cams.append(struct.pack("<hhi", setting, count, len(data) // 6))
+            for k in range(count):
+                data += struct.pack("<3h", *struct.unpack_from(">3h", sdata, (ptr & 0xFFFFFF) + 6 * k))
+    out += struct.pack("<i", len(cams)) + b"".join(cams)
+    out += struct.pack("<i", len(data) // 6) + data
+    return out
+
+
 def write_scene(rom, scene, rooms, out):
     """The scene's XML headers into <out>/scenes/shared/..."""
     def load(name):
@@ -340,6 +370,9 @@ def write_scene(rom, scene, rooms, out):
         info = PATH_INFO[base]
         blob = b"MPTH" + struct.pack("<i", len(info)) + b"".join(struct.pack("<BBh", e, 0, c) for e, c in info)
         open(os.path.join(d, base + "_pathinfo"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
+    cs = csmgr_blob(sdata)
+    if cs:
+        open(os.path.join(d, base + "_csmgr"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(cs)) + cs)
     mat = matanim_blob(sdata)
     if mat:
         open(os.path.join(d, base + "_matanim"), "wb").write(_otr_header(LUS_BLOB) + struct.pack("<I", len(mat)) + mat)
@@ -347,6 +380,12 @@ def write_scene(rom, scene, rooms, out):
         rdata = load(f"{scene}_room_{r:02d}")
         room = f"{soh_name(scene)}_room_{r:02d}"
         open(os.path.join(d, room), "w").write(room_xml(scene, r, rdata))
+        ids = CSIDS.get(room, [])
+        if any(c != 0x7F for c in ids):
+            # "MCSI", a count, one u8 per actor entry: its MM csId (z_nv_mm_csmgr.c)
+            blob = b"MCSI" + struct.pack("<i", len(ids)) + bytes(ids)
+            open(os.path.join(d, room + "_csids"), "wb").write(
+                _otr_header(LUS_BLOB) + struct.pack("<I", len(blob)) + blob)
         masks = HALFDAYS.get(room, [])
         if any(m not in (0, mm_actors.HALFDAYBIT_ALL) for m in masks):
             # "MHDY", a count, one u16 per actor entry (z_nv_mm_halfday.c)
