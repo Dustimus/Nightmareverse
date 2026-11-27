@@ -10,9 +10,10 @@
  * file, as the pause menu's, marked as made at that owl: loading it puts Link at the owl's spawn (MM's
  * sOwlWarpEntrances) with Termina's clock as it was, not at OoT's respawn. Adapted from MM: the game
  * goes on after the save (MM quits to the title), and the owl's mark stays until another save (MM's owl
- * save is gone once loaded). Not yet: the Song of Soaring's warps, MM's opening camera.
+ * save is gone once loaded). Not yet: the Song of Soaring's warps. Its opening is its actor cutscene (z_nv_mm_csmgr.c).
  */
 #include "global.h"
+#include "z_nv_mm_csmgr.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -111,14 +112,26 @@ static s32 NvMmWarpstone_Action(NvMmWarpstone* this, PlayState* play) {
     switch (this->state) {
         case 0:
             if (this->collider.base.acFlags & AC_HIT) {
-                this->state = 1;
-                Audio_PlayActorSound2(thisx, NA_SE_EV_TRE_BOX_APPEAR); // (MM's NA_SE_EV_OWL_WARP_SWITCH_ON: OoT has none; its chime)
+                this->state = 3; // (MM's ObjWarpstone_BeginOpeningCutscene)
                 return true;
             }
             thisx->textId = NV_MM_TEXT(0xC00); // "Ye who hold the sacred sword, leave proof of our encounter."
             return false;
+        case 3: { // MM's ObjWarpstone_BeginOpeningCutscene: its cutscene's turn (z_nv_mm_csmgr.c)
+            s16 csId = NvMmCs_ActorCsId(thisx);
+
+            if ((csId <= NV_MM_CS_ID_NONE) || NvMmCsMgr_IsNext(csId)) {
+                NvMmCsMgr_StartWithPlayerCs(csId, thisx);
+                this->state = 1;
+                Audio_PlayActorSound2(thisx, NA_SE_EV_TRE_BOX_APPEAR); // (MM's NA_SE_EV_OWL_WARP_SWITCH_ON: OoT has none; its chime)
+            } else {
+                NvMmCsMgr_Queue(csId);
+            }
+            return true;
+        }
         case 1: // MM's ObjWarpstone_PlayOpeningCutscene (velocity.x: the light's size, home.rot.x: its alpha)
             if (this->openingTimer++ >= 66) {
+                NvMmCsMgr_Stop(NvMmCs_ActorCsId(thisx));
                 sOwlsActivated |= 1 << OWL_ID(thisx);
                 this->state = 2;
                 if (getenv("NV_LOG") != NULL) {
