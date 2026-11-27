@@ -19,12 +19,13 @@
  *                           (73_20). Spawned by the sitting Bomber number 1 (z_nv_mm_bombers.c, 75_40).
  *                           In East Clock Town (params >> 4 == 1): coming out of the hideout with the
  *                           code entered and no notebook, one runs up and gives it, then runs off.
- * Adapted from MM: MM's camera cutscenes (the balloon popping, the four running in, the line-up, the
- * run-off) are left out, their actors' parts played as they are; MM's Bombers' sounds aren't in
+ * MM's actor cutscenes (z_nv_mm_csmgr.c): the balloon popping, Jim's look, the four running in. Not
+ * yet: the line-up's and the run-off's (the Bomber at the hideout). Adapted from MM: MM's Bombers' sounds aren't in
  * OoT's banks (OoT's stand in or none); Deku Link hiding in a flower (MM's PLAYER_STATE3_1000000,
  * which makes them stop running) waits for that; the cucco a Bomber rides is OoT's.
  */
 #include "global.h"
+#include "z_nv_mm_csmgr.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -236,7 +237,10 @@ typedef struct {
     f32 oscillationAngle;
     s16 timer;
     s16 isPopped;
+    s16 popPending; // (hit: waiting for its cutscene's turn)
 } NvMmBombal;
+
+static s16 sBalloonCsId = -1; // (MM's Jim keeps it for the ones he blows: bombalCsId)
 
 const size_t gNvMmBombalSize = sizeof(NvMmBombal);
 
@@ -259,6 +263,8 @@ void NvMmBombal_Init(Actor* thisx, PlayState* play) {
     thisx->colChkInfo.health = 1;
     if (thisx->params != 0x7F) { // (respawned by Jim: grows from nothing)
         this->scale = 0.1f;
+    } else {
+        NvMmCs_SetActorCsId(thisx, sBalloonCsId); // (MM: Jim gives it the first one's cutscene)
     }
 }
 
@@ -280,11 +286,31 @@ void NvMmBombal_Update(Actor* thisx, PlayState* play) {
         if ((getenv("NV_MM_POP") != NULL) && (play->gameplayFrames > (u32)atoi(getenv("NV_MM_POP")))) { // (dev: popped, as if shot)
             this->collider.base.acFlags |= AC_HIT;
         }
+        if (NvMmCs_ActorCsId(thisx) != NV_MM_CS_ID_NONE) {
+            sBalloonCsId = NvMmCs_ActorCsId(thisx);
+        }
         if ((this->collider.base.acFlags & AC_HIT) && (play->msgCtx.msgMode == MSGMODE_NONE)) {
+            this->collider.base.acFlags &= ~AC_HIT;
+            this->popPending = true;
+        }
+        if (this->popPending && !NvMm_CheckWeekEvent(WE_75_40) && !NvMmBomGame_On() &&
+            (NvMmCs_ActorCsId(thisx) != NV_MM_CS_ID_NONE)) { // MM's func_80C05C44: its cutscene shows it pop
+            s16 csId = NvMmCs_ActorCsId(thisx);
+
+            if (!NvMmCsMgr_IsNext(csId)) {
+                NvMmCsMgr_Queue(csId);
+            } else {
+                NvMmCsMgr_StartWithPlayerCs(csId, thisx);
+                this->popPending = 2;
+            }
+        } else if (this->popPending) {
+            this->popPending = 2;
+        }
+        if (this->popPending == 2) {
             Vec3f pos = thisx->world.pos;
             s32 i;
 
-            this->collider.base.acFlags &= ~AC_HIT;
+            this->popPending = false;
             pos.y += 60.0f;
             EffectSsBomb2_SpawnLayered(play, &pos, &sZero, &sZero, 100, 19);
             for (i = 0; i < 20; i++) { // (MM's sparkles: OoT's)
@@ -304,6 +330,9 @@ void NvMmBombal_Update(Actor* thisx, PlayState* play) {
             thisx->colChkInfo.health = 0;
         }
         if (this->timer == 0) {
+            if (!NvMm_CheckWeekEvent(WE_75_40) && !NvMmBomGame_On()) {
+                NvMmCsMgr_Stop(NvMmCs_ActorCsId(thisx));
+            }
             Actor_Kill(thisx);
             return;
         }
@@ -355,12 +384,44 @@ typedef struct NvMmBomjima {
     Vec3f target;
     Vec3f balloonPos;
     Actor* balloon;
+    s16 csIds[4]; // MM's csIdList: his cutscene and the ones chained after it (z_nv_mm_csmgr.c)
+    s16 csTimer;  // MM's cutsceneTimer
 } NvMmBomjima;
+
+/** His cutscene number i: MM's csIdList[i]. */
+static s16 NvMmBomjima_CsId(NvMmBomjima* this, s32 i) {
+    if (this->csIds[0] == 0) { // (not looked up yet: 0 never starts a chain here, the scene's first is the balloon's)
+        s16 csId = NvMmCs_ActorCsId(&this->b.actor);
+        s32 k;
+
+        for (k = 0; k < ARRAY_COUNT(this->csIds); k++) {
+            this->csIds[k] = csId;
+            if (csId != NV_MM_CS_ID_NONE) {
+                csId = NvMmCsMgr_GetAdditionalCsId(csId);
+            }
+        }
+    }
+    return this->csIds[i];
+}
+
+/** MM's queue-until-next-then-start; true once it's started (or there's none). */
+static s32 NvMmBomjima_StartCs(NvMmBomjima* this, s16 csId) {
+    if (csId == NV_MM_CS_ID_NONE) {
+        return true;
+    }
+    if (!NvMmCsMgr_IsNext(csId)) {
+        NvMmCsMgr_Queue(csId);
+        return false;
+    }
+    NvMmCsMgr_StartWithPlayerCs(csId, &this->b.actor);
+    return true;
+}
 
 const size_t gNvMmBomjimaSize = sizeof(NvMmBomjima);
 
 static void NvMmBomjima_Shoot(NvMmBomjima* this, PlayState* play);
 static void NvMmBomjima_Surprised(NvMmBomjima* this, PlayState* play);
+static void NvMmBomjima_PoppedCs(NvMmBomjima* this, PlayState* play);
 static void NvMmBomjima_Talk(NvMmBomjima* this, PlayState* play);
 static void NvMmBomjima_Choice(NvMmBomjima* this, PlayState* play);
 static void NvMmBomjima_Jumped(NvMmBomjima* this, PlayState* play);
@@ -505,12 +566,9 @@ static void NvMmBomjima_Shoot(NvMmBomjima* this, PlayState* play) {
     Actor_OfferTalk(&this->b.actor, play, 70.0f);
     if (NvMmBomjima_BalloonGone(this, play)) { // MM's func_80BFEFF0: popped
         this->balloon = NULL;
-        NvMmBomber_Anim(&this->b, BA_SURPRISE, 1.0f);
-        this->shots = 0;
-        this->timer = 30;
+        NvMmBomber_Anim(&this->b, BA_LOOK_AROUND, 1.0f);
         this->state = JIM_SURPRISED;
-        this->targetYaw = this->b.actor.yawTowardsPlayer;
-        this->func = NvMmBomjima_Surprised;
+        this->func = NvMmBomjima_PoppedCs;
         NvMmBomGame_Log("Jim sees the balloon popped", 0);
         return;
     }
@@ -557,10 +615,28 @@ static void NvMmBomjima_Shoot(NvMmBomjima* this, PlayState* play) {
     Math_SmoothStepToS(&this->b.actor.world.rot.y, this->targetYaw, 1, 0x1388, 0);
 }
 
+/** MM's func_80BFF03C: his first cutscene, then surprised (MM's func_80BFF120). */
+static void NvMmBomjima_PoppedCs(NvMmBomjima* this, PlayState* play) {
+    if (!NvMmBomjima_StartCs(this, NvMmBomjima_CsId(this, 0))) {
+        return;
+    }
+    NvMm_ClearWeekEvent(WE_83_04);
+    this->b.actor.world.rot.y = Camera_GetCamDirYaw(GET_ACTIVE_CAM(play));
+    NvMmBomber_Anim(&this->b, BA_SURPRISE, 1.0f);
+    this->shots = 0;
+    this->timer = 30;
+    this->csTimer = 30;
+    this->targetYaw = this->b.actor.yawTowardsPlayer;
+    this->func = NvMmBomjima_Surprised;
+}
+
 /** MM's func_80BFF174: the balloon popped, he turns; talked to, the game's lines. */
 static void NvMmBomjima_Surprised(NvMmBomjima* this, PlayState* play) {
     s32 form = NvMmForm_Get();
 
+    if (this->csTimer == 1) {
+        NvMmCsMgr_Stop(NvMmBomjima_CsId(this, 0));
+    }
     if (Actor_ProcessTalkRequest(&this->b.actor, play)) {
         this->targetYaw = this->b.actor.yawTowardsPlayer;
         NvMmBomjima_SetupTalk(this);
@@ -688,11 +764,18 @@ static void NvMmBomjima_Jumped(NvMmBomjima* this, PlayState* play) {
     Player* player = GET_PLAYER(play);
     s32 i;
 
-    if (!NvMmBomber_AnimDone(&this->b) || !NvMmBomber_TextEvent(play)) {
+    if (!this->csTimer) { // (MM: the text's done first, then his second cutscene's turn)
+        if (!NvMmBomber_AnimDone(&this->b) || !NvMmBomber_TextEvent(play)) {
+            return;
+        }
+        Message_CloseTextbox(play);
+        NvMmBomber_Anim(&this->b, BA_HANDS_ON_HIPS, 1.0f);
+        this->csTimer = -1;
+    }
+    if (!NvMmBomjima_StartCs(this, NvMmBomjima_CsId(this, 1))) {
         return;
     }
-    Message_CloseTextbox(play);
-    NvMmBomber_Anim(&this->b, BA_HANDS_ON_HIPS, 1.0f);
+    this->csTimer = 0;
     for (i = 1; i < 5; i++) {
         Vec3f p = player->actor.world.pos;
         f32 k = 2.0f + i * 0.2f;
@@ -768,6 +851,7 @@ static void NvMmBomjima_Starting(NvMmBomjima* this, PlayState* play) {
     }
     if (sJimArrived >= 104) {
         sJimArrived = 0;
+        NvMmCsMgr_Stop(NvMmBomjima_CsId(this, 1));
         play->nextEntranceIndex = ENTR_MM_Z2_BACKTOWN_6; // (MM's Entrance_CreateFromSpawn(6))
         play->transitionTrigger = TRANS_TRIGGER_START;
         play->transitionType = TRANS_TYPE_FADE_WHITE;
@@ -830,6 +914,9 @@ void NvMmBomjima_Update(Actor* thisx, PlayState* play) {
     NvMmBomjima* this = (NvMmBomjima*)thisx;
 
     DECR(this->timer);
+    if (this->csTimer > 0) {
+        this->csTimer--;
+    }
     SkelAnime_Update(&this->b.skelAnime);
     thisx->shape.rot.y = thisx->world.rot.y;
     Actor_SetFocus(thisx, 20.0f);

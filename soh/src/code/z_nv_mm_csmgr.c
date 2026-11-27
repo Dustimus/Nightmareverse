@@ -401,6 +401,7 @@ void NvMmCsMgr_Update(PlayState* play) {
             Letterbox_SetSizeTarget(0);
         }
     }
+    memset(sWaitingCutsceneList, 0, sizeof(sWaitingCutsceneList)); // (MM's CutsceneManager_ClearWaiting, after)
     NvMmCsDriver_Update(play);
 }
 

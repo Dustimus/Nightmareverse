@@ -660,8 +660,8 @@ MM's hide-and-seek, four of MM's actors with the Bombers' model (`object_cs`):
   Jim says the code. Deku Link is told the code (73_20). Then North Clock Town afresh (84_80).
   In East Clock Town, coming out of the hideout with the code entered and no notebook, one runs up,
   gives it and runs off on his path, as MM.
-Adapted: MM's cutscene cameras are left out (their actors play as they are; Link is turned to face
-the line-up); MM's Bombers' sounds aren't in OoT's banks; Deku Link hiding in a flower (which stops
+MM's actor cutscenes (2026-11-27): the balloon popping, Jim's look as he notices, the four running in.
+Not yet: the line-up's and the run-off's (Link is turned to face the line-up). MM's Bombers' sounds aren't in OoT's banks; Deku Link hiding in a flower (which stops
 them running in MM) waits for that.
 Dev: `NV_MM_POP=300` pops the balloon after that many frames; `NV_MM_WE="85:02,75:40"` sets week
 events with a new game.
@@ -820,6 +820,8 @@ manager makes a sub-camera for it and on the stop hands the view back.
   `NvMmCs_MainCameraFromCutscene`, asked each frame it's wanted. In Clock Town's scenes those are all the
   actor cutscene cameras but the entrance views (START0/START2, `Camera_Unique0`) and one in the
   bowling alley. Other settings (FREE0) leave the view for the actor to place, as MM's `Camera_Unique6`.
+- MM's waiting list is cleared each frame once the next is chosen (MM's `CutsceneManager_ClearWaiting`
+  after `_Update`); actors queue again each frame they still want theirs.
 - Not yet: MM's scripted cutscenes (their camera splines), the entrance views, MM's camera
   collision check, roll.
 
