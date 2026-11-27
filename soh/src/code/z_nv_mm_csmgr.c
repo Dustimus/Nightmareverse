@@ -337,7 +337,18 @@ static void NvMmCsMgr_End(void) {
     }
     if (sCsMgr.subCamId != SUB_CAM_ID_DONE) {
         if (csEntry->endCam != 1) { // (MM's END_CAM_0 and SMOOTH: the camera picks up from the shot)
+            Camera* ret = Play_GetCamera(play, sCsMgr.retCamId);
+            s16 setting = (ret != NULL) ? ret->setting : -1;
+            s16 dataIdx = (ret != NULL) ? ret->camDataIdx : -1;
+
             Play_CopyCamera(play, sCsMgr.retCamId, sCsMgr.subCamId);
+            if ((ret != NULL) && (setting > CAM_SET_NONE)) { // (its own setting and data again, not the shot's FREE0)
+                s16 Camera_ChangeSettingFlags(Camera * camera, s16 setting, s16 flags);
+
+                Camera_ChangeSettingFlags(ret, setting, 1 | 4);
+                ret->camDataIdx = dataIdx;
+                ret->animState = 0; // (its own camera function starts over from where the shot left it)
+            }
         }
         Play_ClearCamera(play, sCsMgr.subCamId);
         Play_ChangeCameraStatus(play, sCsMgr.retCamId, CAM_STAT_ACTIVE);
@@ -561,6 +572,7 @@ typedef struct NvMmCsDrv {
     f32 fov2;    // MM's rwData->unk_1C (fov * 100)
     Vec3f eyePoint;
     s16 prevSetting; // (the main camera: its OoT setting before)
+    s16 prevDataIdx; // (...and its scene camera data)
     u32 leaseFrame;  // (the main camera: the frame it was last asked for)
 } NvMmCsDrv;
 
@@ -656,6 +668,7 @@ void NvMmCs_MainCameraFromCutscene(PlayState* play, s16 csId, Actor* target) {
     }
     if (!sMainDrv.active || (sMainDrv.data != &sCsCamData[sCsCams[csCamId].first])) {
         s16 prev = sMainDrv.active ? sMainDrv.prevSetting : cam->setting;
+        s16 prevIdx = sMainDrv.active ? sMainDrv.prevDataIdx : cam->camDataIdx;
 
         memset(&sMainDrv, 0, sizeof(sMainDrv));
         sMainDrv.active = true;
@@ -666,6 +679,7 @@ void NvMmCs_MainCameraFromCutscene(PlayState* play, s16 csId, Actor* target) {
         sMainDrv.at = cam->at;
         sMainDrv.fov = cam->fov;
         sMainDrv.prevSetting = prev;
+        sMainDrv.prevDataIdx = prevIdx;
         Play_CameraChangeSetting(play, CAM_ID_MAIN, CAM_SET_FREE0);
     }
     sMainDrv.target = target;
@@ -817,8 +831,9 @@ static void NvMmCsDriver_Update(PlayState* play) {
         if (cam != NULL) { // (forced back to its setting; the floor's own camera picks up from there)
             s16 Camera_ChangeSettingFlags(Camera * camera, s16 setting, s16 flags);
 
-            Camera_ChangeSettingFlags(cam, sMainDrv.prevSetting, 1);
-            cam->camDataIdx = -1;
+            Camera_ChangeSettingFlags(cam, sMainDrv.prevSetting, 1 | 4);
+            cam->camDataIdx = sMainDrv.prevDataIdx;
+            cam->animState = 0;
         }
     }
     if (!sCsDrv.active || (sCsMgr.csId == CS_ID_NONE)) {

@@ -6,9 +6,10 @@
  * One ticket a day (week events 33_10, 33_20, 33_40); the booth turns closed. From 18:00 it turns
  * open again and announces the day's winning numbers (MM's, made with a new file); a match wins
  * MM's 50 (a purple rupee).
- * Left out: MM's cutscene camera as the booth turns; its turning sound (MM's own).
+ * The booth turning is shown by its actor cutscene (z_nv_mm_csmgr.c), with MM's windmill-level sound.
  */
 #include "global.h"
+#include "z_nv_mm_csmgr.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -189,13 +190,26 @@ static void NvMmKujiya_Talk(NvMmKujiya* this, PlayState* play) {
 /** MM's EnKujiya_TurnToOpen and TurnToClosed. */
 static void NvMmKujiya_Turn(NvMmKujiya* this, PlayState* play) {
     s16 target = NvMmKujiya_Bought() ? 0 : 0x7555;
+    s16 csId = NvMmCs_ActorCsId(&this->actor);
 
+    if (csId != NV_MM_CS_ID_NONE) { // (its shot of the turning booth: z_nv_mm_csmgr.c)
+        if (NvMmCsMgr_IsNext(csId)) {
+            NvMmCsMgr_StartWithPlayerCs(csId, &this->actor);
+        } else {
+            NvMmCsMgr_Queue(csId);
+        }
+    }
     if (!Math_SmoothStepToS(&this->actor.shape.rot.y, target, 0xA, 0x16C, 0x16C)) {
         if (this->timer > 20) {
+            if (NvMmCsMgr_GetCurrentCsId() == csId) {
+                NvMmCsMgr_Stop(csId);
+            }
             this->func = NvMmKujiya_Wait;
         } else {
             this->timer++;
         }
+    } else {
+        Actor_PlaySfx_Flagged(&this->actor, NA_SE_EV_WINDMILL_LEVEL - SFX_FLAG);
     }
 }
 

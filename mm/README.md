@@ -721,7 +721,8 @@ numbers and the day's, a short pause) and the purple rupee (MM GI 0x05) if all t
 day's winning numbers are made with a new file (MM's Sram_GenerateRandomSaveFields), kept with
 Link's guess in the save's permanent part (NvMmSave.cpp). Value codes 0xDC/0xDD and input 0xD5 in
 `z_nv_mm_msginput.c`. Tested headless: buying (140 Rupees after, guess 230 from the stick), the
-evening announcement (a loss: "000" against 850).
+evening announcement (a loss: "000" against 850). The booth turning is its actor cutscene, MM's shot of
+it, with MM's windmill-level sound (2026-11-27).
 
 ### The Mayor's receptionist and the Postman's letter (2026-11-26, `soh/src/code/z_nv_mm_recep.c`)
 
