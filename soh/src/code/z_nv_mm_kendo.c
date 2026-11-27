@@ -18,7 +18,8 @@
  * - MM walks Link to his starting spot with the control stick (Actor_SetControlStickData); here the
  *   stick is set for him the same way (NvMmInput_SetStick, applied with the dev walker's input);
  * - MM's minigame score counter is a line over the HUD (z_nv_mm_clock.c: gNvMmMinigameScore);
- * - MM's course camera (a cutscene camera) is left out; the logs' bounce is OoT's wooden thud.
+ * - the Expert Course's camera is MM's: his cutscene's camera as the main camera (z_nv_mm_csmgr.c);
+ *   the logs' bounce is OoT's wooden thud.
  */
 #include "global.h"
 #include <stdio.h>
@@ -596,6 +597,12 @@ static void NvMmKendo_ExpertCourse(NvMmKendo* this, PlayState* play) {
         this->timer++;
     } else {
         this->timer++;
+    }
+    { // MM's EnKendoJs_SetExpertCourseCamera: his cutscene's camera as the main camera through the course
+        void NvMmCs_MainCameraFromCutscene(PlayState * play, s16 csId, Actor * target);
+        s32 NvMmCs_ActorCsId(Actor * actor);
+
+        NvMmCs_MainCameraFromCutscene(play, NvMmCs_ActorCsId(&this->actor), &this->actor);
     }
     if (this->isSlashingLog) {
         s32 mwa = player->meleeWeaponAnimation;

@@ -533,7 +533,7 @@ s16 NvMmCsMgr_GetCurrentSubCamId(s16 csId) {
 /* ---------------------------------------------------------------------------------------------- */
 /* The camera driver: MM's camera functions for the cutscene's camera                              */
 
-static struct {
+typedef struct NvMmCsDrv {
     s32 active;
     s16 camId;
     s16 setting;
@@ -560,7 +560,13 @@ static struct {
     f32 eyeStep; // MM's rwData->unk_18
     f32 fov2;    // MM's rwData->unk_1C (fov * 100)
     Vec3f eyePoint;
-} sDrv;
+    s16 prevSetting; // (the main camera: its OoT setting before)
+    u32 leaseFrame;  // (the main camera: the frame it was last asked for)
+} NvMmCsDrv;
+
+static NvMmCsDrv sCsDrv;   // the cutscene's sub-camera
+static NvMmCsDrv sMainDrv; // the main camera, while an actor keeps it on a cutscene camera
+static NvMmCsDrv* drv = &sCsDrv;
 
 static f32 Cam_StepF(f32 target, f32 cur, f32 scale, f32 minDiff) { // MM's Camera_ScaledStepToCeilF
     f32 diff = target - cur;
@@ -601,176 +607,231 @@ static Vec3f Cam_AddGeo(Vec3f* a, VecSph* g) { // MM's OLib_AddVecGeoToVec3f
 static void NvMmCsDriver_Begin(PlayState* play, s16 subCamId, s16 csCamId, Actor* target) {
     Camera* cam = Play_GetCamera(play, subCamId);
 
-    memset(&sDrv, 0, sizeof(sDrv));
+    drv = &sCsDrv;
+    memset(drv, 0, sizeof(*drv));
     if ((cam == NULL) || (csCamId < 0) || (sCsCams == NULL) || (csCamId >= sCsCamCount)) {
         return; // (MM's FREE0, or a global camera: left where it is)
     }
-    sDrv.active = true;
-    sDrv.camId = subCamId;
-    sDrv.setting = sCsCams[csCamId].setting;
-    sDrv.data = &sCsCamData[sCsCams[csCamId].first];
-    sDrv.target = target;
-    sDrv.eye = cam->eye;
-    sDrv.at = cam->at;
-    sDrv.eyeNext = cam->eye;
-    sDrv.fov = cam->fov;
-    sDrv.atOffset.x = cam->at.x - GET_PLAYER(play)->actor.world.pos.x;
-    sDrv.atOffset.y = cam->at.y - GET_PLAYER(play)->actor.world.pos.y;
-    sDrv.atOffset.z = cam->at.z - GET_PLAYER(play)->actor.world.pos.z;
+    drv->active = true;
+    drv->camId = subCamId;
+    drv->setting = sCsCams[csCamId].setting;
+    drv->data = &sCsCamData[sCsCams[csCamId].first];
+    drv->target = target;
+    drv->eye = cam->eye;
+    drv->at = cam->at;
+    drv->eyeNext = cam->eye;
+    drv->fov = cam->fov;
+    drv->atOffset.x = cam->at.x - GET_PLAYER(play)->actor.world.pos.x;
+    drv->atOffset.y = cam->at.y - GET_PLAYER(play)->actor.world.pos.y;
+    drv->atOffset.z = cam->at.z - GET_PLAYER(play)->actor.world.pos.z;
     if (getenv("NV_LOG") != NULL) {
-        printf("NVMM cutscene camera %d: setting %02X eye %d,%d,%d\n", (int)csCamId, (int)sDrv.setting,
-               sDrv.data[0].x, sDrv.data[0].y, sDrv.data[0].z);
+        printf("NVMM cutscene camera %d: setting %02X eye %d,%d,%d\n", (int)csCamId, (int)drv->setting,
+               drv->data[0].x, drv->data[0].y, drv->data[0].z);
         fflush(stdout);
     }
 }
 
 static void NvMmCsDriver_End(void) {
-    sDrv.active = false;
+    sCsDrv.active = false;
 }
 
 /** MM's Camera_SetTargetActor on the cutscene's camera. */
 void NvMmCs_SetTargetActor(Actor* actor) {
-    sDrv.target = actor;
-    sDrv.animState = 20;
+    sCsDrv.target = actor;
+    sCsDrv.animState = 20;
 }
+
+/**
+ * MM's Camera_ChangeActorCsCamIndex on the main camera (e.g. the Swordsman's Expert Course: his
+ * cutscene's camera, outside any cutscene), asked each frame it's wanted; a frame without lets it go
+ * back to OoT's own camera for the place. `csId`: the cutscene whose camera it takes.
+ */
+void NvMmCs_MainCameraFromCutscene(PlayState* play, s16 csId, Actor* target) {
+    const NvMmActorCutscene* entry = NvMmCsMgr_GetCutsceneEntryImpl(csId);
+    Camera* cam = Play_GetCamera(play, CAM_ID_MAIN);
+    s16 csCamId = entry->csCamId;
+
+    if ((cam == NULL) || (csId <= CS_ID_NONE) || (csCamId < 0) || (sCsCams == NULL) || (csCamId >= sCsCamCount)) {
+        return;
+    }
+    if (!sMainDrv.active || (sMainDrv.data != &sCsCamData[sCsCams[csCamId].first])) {
+        s16 prev = sMainDrv.active ? sMainDrv.prevSetting : cam->setting;
+
+        memset(&sMainDrv, 0, sizeof(sMainDrv));
+        sMainDrv.active = true;
+        sMainDrv.camId = CAM_ID_MAIN;
+        sMainDrv.setting = sCsCams[csCamId].setting;
+        sMainDrv.data = &sCsCamData[sCsCams[csCamId].first];
+        sMainDrv.eye = sMainDrv.eyeNext = cam->eye;
+        sMainDrv.at = cam->at;
+        sMainDrv.fov = cam->fov;
+        sMainDrv.prevSetting = prev;
+        Play_CameraChangeSetting(play, CAM_ID_MAIN, CAM_SET_FREE0);
+    }
+    sMainDrv.target = target;
+    sMainDrv.leaseFrame = play->gameplayFrames;
+}
+
+static void NvMmCsDriver_UpdateOne(PlayState* play);
 
 /** MM's Camera_Fixed1: a fixed shot (eye, direction, fov from the data; RFIXED1's eye turns with its actor). */
 static void NvMmCsDriver_Fixed1(PlayState* play) {
     Player* player = GET_PLAYER(play);
     f32 height = Player_GetHeight(player);
-    const Vec3s* d = sDrv.data;
+    const Vec3s* d = drv->data;
     VecSph eyeAt;
     VecSph eyeOffset;
     Vec3f focus;
 
-    if ((sDrv.animState == 0) || (sDrv.animState == 20)) {
-        sDrv.eyeTarget.x = d[0].x;
-        sDrv.eyeTarget.y = d[0].y;
-        sDrv.eyeTarget.z = d[0].z;
-        sDrv.rot = d[1];
-        sDrv.dataFov = d[2].x;
-        sDrv.step = ((sDrv.setting == MM_CAM_SET_FIXED1) ? 100 : 10) * 0.01f;
-        sDrv.roFov = 60.0f;
-        sDrv.flags = (sDrv.setting == MM_CAM_SET_RFIXED1) ? FIXED1_FLAG_4 : 0;
-        if ((sDrv.flags & FIXED1_FLAG_4) && (sDrv.target != NULL)) {
-            PosRot* home = &sDrv.target->home;
-            PosRot* world = &sDrv.target->world;
-            VecSph g = Cam_Geo(&home->pos, &sDrv.eyeTarget);
+    if ((drv->animState == 0) || (drv->animState == 20)) {
+        drv->eyeTarget.x = d[0].x;
+        drv->eyeTarget.y = d[0].y;
+        drv->eyeTarget.z = d[0].z;
+        drv->rot = d[1];
+        drv->dataFov = d[2].x;
+        drv->step = ((drv->setting == MM_CAM_SET_FIXED1) ? 100 : 10) * 0.01f;
+        drv->roFov = 60.0f;
+        drv->flags = (drv->setting == MM_CAM_SET_RFIXED1) ? FIXED1_FLAG_4 : 0;
+        if ((drv->flags & FIXED1_FLAG_4) && (drv->target != NULL)) {
+            PosRot* home = &drv->target->home;
+            PosRot* world = &drv->target->world;
+            VecSph g = Cam_Geo(&home->pos, &drv->eyeTarget);
 
             g.yaw = world->rot.y + (s16)(g.yaw - home->rot.y);
-            sDrv.eyeTarget = Cam_AddGeo(&world->pos, &g);
-            sDrv.rot.y = world->rot.y + (s16)(sDrv.rot.y - home->rot.y);
+            drv->eyeTarget = Cam_AddGeo(&world->pos, &g);
+            drv->rot.y = world->rot.y + (s16)(drv->rot.y - home->rot.y);
         }
-        if (sDrv.dataFov == -1) {
-            sDrv.dataFov = sDrv.roFov * 100;
-        } else if (sDrv.dataFov <= 360) {
-            sDrv.dataFov *= 100;
+        if (drv->dataFov == -1) {
+            drv->dataFov = drv->roFov * 100;
+        } else if (drv->dataFov <= 360) {
+            drv->dataFov *= 100;
         }
-        if (sDrv.animState == 0) {
-            sDrv.roFov = sDrv.dataFov * 0.01f;
+        if (drv->animState == 0) {
+            drv->roFov = drv->dataFov * 0.01f;
             if (d[2].y != -1) {
-                sDrv.step = d[2].y * 0.01f;
+                drv->step = d[2].y * 0.01f;
             }
         }
-        sDrv.animState = 1;
+        drv->animState = 1;
     }
-    eyeAt = Cam_Geo(&sDrv.eye, &sDrv.at);
-    Cam_StepVec3f(&sDrv.eyeTarget, &sDrv.eye, sDrv.step, sDrv.step, 0.2f);
+    eyeAt = Cam_Geo(&drv->eye, &drv->at);
+    Cam_StepVec3f(&drv->eyeTarget, &drv->eye, drv->step, drv->step, 0.2f);
     focus = player->actor.world.pos;
     focus.y += height;
-    eyeOffset.r = OLib_Vec3fDist(&focus, &sDrv.eye);
-    eyeOffset.pitch = Cam_StepS(sDrv.rot.x * -1, eyeAt.pitch, sDrv.step, 5);
-    eyeOffset.yaw = Cam_StepS(sDrv.rot.y, eyeAt.yaw, sDrv.step, 5);
-    sDrv.at = Cam_AddGeo(&sDrv.eye, &eyeOffset);
-    sDrv.fov = Cam_StepF(sDrv.roFov, sDrv.fov, sDrv.step, 0.1f);
+    eyeOffset.r = OLib_Vec3fDist(&focus, &drv->eye);
+    eyeOffset.pitch = Cam_StepS(drv->rot.x * -1, eyeAt.pitch, drv->step, 5);
+    eyeOffset.yaw = Cam_StepS(drv->rot.y, eyeAt.yaw, drv->step, 5);
+    drv->at = Cam_AddGeo(&drv->eye, &eyeOffset);
+    drv->fov = Cam_StepF(drv->roFov, drv->fov, drv->step, 0.1f);
 }
 
 /** MM's Camera_Fixed2: a fixed eye turning to follow (the target's focus for CIRCLE8, else Link). */
 static void NvMmCsDriver_Fixed2(PlayState* play) {
     Player* player = GET_PLAYER(play);
     f32 height = Player_GetHeight(player);
-    const Vec3s* d = sDrv.data;
+    const Vec3s* d = drv->data;
     Vec3f atTarget;
     Vec3f eyeTarget;
     VecSph g;
 
-    if ((sDrv.animState == 0) || (sDrv.animState == 20)) {
-        f32 data05 = (sDrv.setting == MM_CAM_SET_CIRCLE8) ? 20 : 80;
+    if ((drv->animState == 0) || (drv->animState == 20)) {
+        f32 data05 = (drv->setting == MM_CAM_SET_CIRCLE8) ? 20 : 80;
 
-        sDrv.flags = (sDrv.setting == MM_CAM_SET_CIRCLE8) ? FIXED2_FLAG_3 : 0;
-        sDrv.yOffset = -40 * 0.01f * height * (0.8f - ((68.0f / height) * -0.2f));
-        sDrv.minDist = 40;
-        sDrv.fov2 = 60 * 100.0f;
-        sDrv.eyePoint.x = d[0].x;
-        sDrv.eyePoint.y = d[0].y;
-        sDrv.eyePoint.z = d[0].z;
+        drv->flags = (drv->setting == MM_CAM_SET_CIRCLE8) ? FIXED2_FLAG_3 : 0;
+        drv->yOffset = -40 * 0.01f * height * (0.8f - ((68.0f / height) * -0.2f));
+        drv->minDist = 40;
+        drv->fov2 = 60 * 100.0f;
+        drv->eyePoint.x = d[0].x;
+        drv->eyePoint.y = d[0].y;
+        drv->eyePoint.z = d[0].z;
         if (d[2].x != -1) {
-            sDrv.fov2 = d[2].x;
+            drv->fov2 = d[2].x;
         }
-        sDrv.maxDist = (d[2].y != -1) ? d[2].y : 0x3200;
+        drv->maxDist = (d[2].y != -1) ? d[2].y : 0x3200;
         if (d[2].z != -1) {
-            sDrv.atStep = sDrv.eyeStep = d[2].z * 0.01f;
+            drv->atStep = drv->eyeStep = d[2].z * 0.01f;
         } else {
-            sDrv.atStep = data05 * 0.01f;
-            sDrv.eyeStep = 100 * 0.01f;
+            drv->atStep = data05 * 0.01f;
+            drv->eyeStep = 100 * 0.01f;
         }
-        if (sDrv.fov2 <= 360) {
-            sDrv.fov2 *= 100;
+        if (drv->fov2 <= 360) {
+            drv->fov2 *= 100;
         }
-        if (sDrv.animState == 20) {
-            sDrv.atStep = 0.2f;
+        if (drv->animState == 20) {
+            drv->atStep = 0.2f;
         }
     }
-    if ((sDrv.flags & FIXED2_FLAG_3) && (sDrv.target != NULL)) {
-        atTarget = sDrv.target->focus.pos;
-        sDrv.atOffset.x = atTarget.x - player->actor.world.pos.x;
-        sDrv.atOffset.y = atTarget.y - player->actor.world.pos.y;
-        sDrv.atOffset.z = atTarget.z - player->actor.world.pos.z;
+    if ((drv->flags & FIXED2_FLAG_3) && (drv->target != NULL)) {
+        atTarget = drv->target->focus.pos;
+        drv->atOffset.x = atTarget.x - player->actor.world.pos.x;
+        drv->atOffset.y = atTarget.y - player->actor.world.pos.y;
+        drv->atOffset.z = atTarget.z - player->actor.world.pos.z;
     } else {
-        Vec3f off = { 0.0f, sDrv.yOffset + height, 0.0f };
+        Vec3f off = { 0.0f, drv->yOffset + height, 0.0f };
 
-        Cam_StepVec3f(&off, &sDrv.atOffset, sDrv.atStep, sDrv.atStep, 0.1f);
-        atTarget.x = player->actor.world.pos.x + sDrv.atOffset.x;
-        atTarget.y = player->actor.world.pos.y + sDrv.atOffset.y;
-        atTarget.z = player->actor.world.pos.z + sDrv.atOffset.z;
+        Cam_StepVec3f(&off, &drv->atOffset, drv->atStep, drv->atStep, 0.1f);
+        atTarget.x = player->actor.world.pos.x + drv->atOffset.x;
+        atTarget.y = player->actor.world.pos.y + drv->atOffset.y;
+        atTarget.z = player->actor.world.pos.z + drv->atOffset.z;
     }
-    if ((sDrv.animState == 0) && !(sDrv.flags & FIXED2_FLAG_0)) {
-        sDrv.at = atTarget;
-        g = Cam_Geo(&sDrv.at, &sDrv.eyePoint);
-        if ((sDrv.maxDist < g.r) || (sDrv.flags & FIXED2_FLAG_5)) {
-            g.r = sDrv.maxDist;
-            eyeTarget = Cam_AddGeo(&sDrv.at, &g);
-        } else if (g.r < sDrv.minDist) {
-            g.r = sDrv.minDist;
-            eyeTarget = Cam_AddGeo(&sDrv.at, &g);
+    if ((drv->animState == 0) && !(drv->flags & FIXED2_FLAG_0)) {
+        drv->at = atTarget;
+        g = Cam_Geo(&drv->at, &drv->eyePoint);
+        if ((drv->maxDist < g.r) || (drv->flags & FIXED2_FLAG_5)) {
+            g.r = drv->maxDist;
+            eyeTarget = Cam_AddGeo(&drv->at, &g);
+        } else if (g.r < drv->minDist) {
+            g.r = drv->minDist;
+            eyeTarget = Cam_AddGeo(&drv->at, &g);
         } else {
-            eyeTarget = sDrv.eyePoint;
+            eyeTarget = drv->eyePoint;
         }
-        sDrv.eyeNext = sDrv.eye = eyeTarget;
-        sDrv.fov = sDrv.fov2 * 0.01f;
+        drv->eyeNext = drv->eye = eyeTarget;
+        drv->fov = drv->fov2 * 0.01f;
     }
-    Cam_StepVec3f(&atTarget, &sDrv.at, sDrv.atStep, sDrv.atStep, 1.0f);
-    g = Cam_Geo(&sDrv.at, &sDrv.eyePoint);
-    if ((sDrv.maxDist < g.r) || (sDrv.flags & FIXED2_FLAG_5)) {
-        g.r = sDrv.maxDist;
-        eyeTarget = Cam_AddGeo(&sDrv.at, &g);
-    } else if (g.r < sDrv.minDist) {
-        g.r = sDrv.minDist;
-        eyeTarget = Cam_AddGeo(&sDrv.at, &g);
+    Cam_StepVec3f(&atTarget, &drv->at, drv->atStep, drv->atStep, 1.0f);
+    g = Cam_Geo(&drv->at, &drv->eyePoint);
+    if ((drv->maxDist < g.r) || (drv->flags & FIXED2_FLAG_5)) {
+        g.r = drv->maxDist;
+        eyeTarget = Cam_AddGeo(&drv->at, &g);
+    } else if (g.r < drv->minDist) {
+        g.r = drv->minDist;
+        eyeTarget = Cam_AddGeo(&drv->at, &g);
     } else {
-        eyeTarget = sDrv.eyePoint;
+        eyeTarget = drv->eyePoint;
     }
-    Cam_StepVec3f(&eyeTarget, &sDrv.eyeNext, sDrv.eyeStep, sDrv.eyeStep, 0.1f);
-    sDrv.eye = sDrv.eyeNext;
-    sDrv.fov = Cam_StepF(sDrv.fov2 * 0.01f, sDrv.fov, sDrv.atStep, 0.1f);
-    sDrv.animState = 1;
+    Cam_StepVec3f(&eyeTarget, &drv->eyeNext, drv->eyeStep, drv->eyeStep, 0.1f);
+    drv->eye = drv->eyeNext;
+    drv->fov = Cam_StepF(drv->fov2 * 0.01f, drv->fov, drv->atStep, 0.1f);
+    drv->animState = 1;
 }
 
 static void NvMmCsDriver_Update(PlayState* play) {
-    if (!sDrv.active || (Play_GetCamera(play, sDrv.camId) == NULL)) {
+    drv = &sCsDrv;
+    NvMmCsDriver_UpdateOne(play);
+    drv = &sMainDrv;
+    if (sMainDrv.active && ((play->gameplayFrames - sMainDrv.leaseFrame) > 1)) { // let go: OoT's camera again
+        Camera* cam = Play_GetCamera(play, CAM_ID_MAIN);
+
+        sMainDrv.active = false;
+        if (cam != NULL) { // (forced back to its setting; the floor's own camera picks up from there)
+            s16 Camera_ChangeSettingFlags(Camera * camera, s16 setting, s16 flags);
+
+            Camera_ChangeSettingFlags(cam, sMainDrv.prevSetting, 1);
+            cam->camDataIdx = -1;
+        }
+    }
+    if (!sCsDrv.active || (sCsMgr.csId == CS_ID_NONE)) {
+        NvMmCsDriver_UpdateOne(play);
+    }
+    drv = &sCsDrv;
+}
+
+static void NvMmCsDriver_UpdateOne(PlayState* play) {
+    if (!drv->active || (Play_GetCamera(play, drv->camId) == NULL)) {
         return;
     }
-    switch (sDrv.setting) {
+    switch (drv->setting) {
         case MM_CAM_SET_FIXED1:
         case MM_CAM_SET_FIXED2:
         case MM_CAM_SET_RFIXED1:
@@ -784,6 +845,6 @@ static void NvMmCsDriver_Update(PlayState* play) {
         default:
             return; // (left for the actor to place)
     }
-    Play_CameraSetAtEye(play, sDrv.camId, &sDrv.at, &sDrv.eye);
-    Play_CameraSetFov(play, sDrv.camId, sDrv.fov);
+    Play_CameraSetAtEye(play, drv->camId, &drv->at, &drv->eye);
+    Play_CameraSetFov(play, drv->camId, drv->fov);
 }

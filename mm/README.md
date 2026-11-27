@@ -787,7 +787,8 @@ Adapted: Link's moves are read from OoT's player (MM's side jump and back flip a
 `NvPlayer_IsRolling`, a few lines at the end of `z_player.c`; the swings are OoT's of the same
 names). MM walks Link to his spot by setting the control stick; here the stick is set the same way
 (`NvMmInput_Apply`, run with the dev walker's input in `z_nv_dev.c`). MM's minigame counter is a
-"Points" line over the HUD (`z_nv_mm_clock.c`). MM's course camera (a cutscene camera) is left out.
+"Points" line over the HUD (`z_nv_mm_clock.c`). The Expert Course is seen through MM's course camera
+(his cutscene's camera made the main camera while it runs: `NvMmCs_MainCameraFromCutscene`, 2026-11-27).
 
 Tested headless: the novice course's first lesson (a wrong move: "Wrong!", the hint, retry) and the
 expert course (paid, walked to the start, five rounds, cuts scored, "Start over" short of 30). Not yet
@@ -813,7 +814,9 @@ manager makes a sub-camera for it and on the stop hands the view back.
 - **The camera**: OoT's sub-camera (set to OoT's FREE0 so OoT's own camera code leaves it be), driven
   each frame with MM's camera math for the setting: `Camera_Fixed1` (FIXED1, FIXED2, RFIXED1: a set
   shot) and `Camera_Fixed2` (CIRCLE2, CIRCLE3, CIRCLE8: a fixed eye turning to follow its target;
-  `NvMmCs_SetTargetActor` is MM's `Camera_SetTargetActor`). In Clock Town's scenes those are all the
+  `NvMmCs_SetTargetActor` is MM's `Camera_SetTargetActor`). MM's `Camera_ChangeActorCsCamIndex` on
+  the main camera (a cutscene's camera outside any cutscene, as the Swordsman's course) is
+  `NvMmCs_MainCameraFromCutscene`, asked each frame it's wanted. In Clock Town's scenes those are all the
   actor cutscene cameras but the entrance views (START0/START2, `Camera_Unique0`) and one in the
   bowling alley. Other settings (FREE0) leave the view for the actor to place, as MM's `Camera_Unique6`.
 - Not yet: MM's scripted cutscenes (their camera splines), the entrance views, MM's camera
